@@ -14,35 +14,31 @@ export default function Matchmaking() {
 
   const searchMatch = async () => {
     setSearching(true);
-    setStatus("Warte auf Gegner...");
+    setStatus("Suche Gegner...");
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('username, elo')
+      .select('elo')
       .eq('supabaseId', session.user.id)
       .single();
 
     const myElo = profile?.elo || 1000;
 
-    // In Queue eintragen
     await supabase.from('matchmaking_queue').insert({
       user_id: session.user.id,
       elo: myElo
     });
 
     const interval = setInterval(async () => {
-      // Gegner suchen (Elo ± 200)
       const { data: queue } = await supabase
         .from('matchmaking_queue')
-        .select('*, profiles!inner(username)')
+        .select('*')
         .neq('user_id', session.user.id)
-        .gte('elo', myElo - 250)
-        .lte('elo', myElo + 250)
         .order('joined_at', { ascending: true })
-        .limit(5);
+        .limit(10);
 
       if (queue && queue.length > 0) {
         const opponent = queue[0];
@@ -50,43 +46,37 @@ export default function Matchmaking() {
         clearInterval(interval);
 
         // Match erstellen
-        const { data: newMatch } = await supabase
-          .from('matches')
-          .insert({
-            user_id: session.user.id,
-            opponent_name: opponent.profiles?.username || "Gegner",
-            opponent_elo: opponent.elo,
-            legs_won: 0,
-            legs_lost: 0,
-            result: "0:0",
-            is_win: false,
-            elo_change: 0
-          })
-          .select()
-          .single();
+        await supabase.from('matches').insert({
+          user_id: session.user.id,
+          opponent_name: "Gegner",
+          opponent_elo: opponent.elo,
+          legs_won: 0,
+          legs_lost: 0,
+          result: "0:0",
+          is_win: false,
+          elo_change: 0
+        });
 
-        // Beide aus Queue entfernen
+        // Queue aufräumen
         await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
         await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
 
         setMatchFound({
-          matchId: newMatch.id,
-          username: opponent.profiles?.username || "Gegner",
+          username: "Gegner gefunden",
           elo: opponent.elo
         });
         setSearching(false);
       }
     }, 2000);
 
-    // Timeout
     setTimeout(() => {
       clearInterval(interval);
       if (searching) {
         setSearching(false);
-        setStatus("Keine Gegner gefunden. Versuche es später erneut.");
+        setStatus("Keine Gegner gefunden.");
         supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
       }
-    }, 45000);
+    }, 40000);
   };
 
   return (
@@ -97,7 +87,7 @@ export default function Matchmaking() {
             <div className="mb-16">
               <div className="inline-flex items-center gap-3 bg-zinc-900 px-6 py-3 rounded-full mb-8">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-medium">Echte Spieler werden gesucht</span>
+                <span className="text-green-400 font-medium">Echte Queue aktiv</span>
               </div>
               
               <h1 className="text-6xl font-bold tracking-tighter mb-6">Bereit für ein Match?</h1>
