@@ -51,12 +51,13 @@ export default function Profile() {
   const currentRankIndex = rankTiers.findIndex(r => elo < r.min) - 1;
   const currentRank = rankTiers[Math.max(0, currentRankIndex)];
   const nextRank = rankTiers[currentRankIndex + 1] || rankTiers[rankTiers.length - 1];
+  const eloToNext = nextRank.min - elo;                    // ← Das fehlte
   const progress = Math.min(((elo - currentRank.min) / (nextRank.min - currentRank.min)) * 100, 100);
 
-  if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center">Lade Profil...</div>;
+  if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white text-2xl">Lade Profil...</div>;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white">
       {/* Header mit Banner */}
       <div className="h-80 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 relative">
         <div className="absolute inset-0 bg-black/40"></div>
@@ -86,7 +87,7 @@ export default function Profile() {
       <div className="max-w-6xl mx-auto px-8 -mt-12 relative z-10">
         <div className="grid grid-cols-12 gap-8">
           
-          {/* Linke Spalte - Stats */}
+          {/* Linke Spalte */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
             <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-700">
               <h3 className="text-zinc-400 mb-6">STATISTIKEN</h3>
