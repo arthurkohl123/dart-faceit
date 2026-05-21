@@ -21,51 +21,49 @@ export default function Matchmaking() {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('elo')
+      .select('elo, username')
       .eq('supabaseId', session.user.id)
       .single();
 
     const myElo = profile?.elo || 1000;
 
-    // In Queue eintragen
     await supabase.from('matchmaking_queue').insert({
       user_id: session.user.id,
       elo: myElo
     });
+
+    setStatus("Warte auf anderen Spieler...");
 
     const interval = setInterval(async () => {
       const { data: queue } = await supabase
         .from('matchmaking_queue')
         .select('*')
         .neq('user_id', session.user.id)
-        .order('joined_at', { ascending: true })
         .limit(5);
 
       if (queue && queue.length > 0) {
+        clearInterval(interval);
         const opponent = queue[0];
 
-        clearInterval(interval);
-
-        // Queue aufräumen
         await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
         await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
 
         setMatchFound({
-          username: "Gegner gefunden", 
+          username: "Gegner gefunden (Test)",
           elo: opponent.elo
         });
         setSearching(false);
       }
     }, 2000);
 
+    // Auto-Timeout
     setTimeout(() => {
       clearInterval(interval);
       if (searching) {
         setSearching(false);
-        setStatus("Keine Gegner gefunden. Versuche es später erneut.");
-        supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
+        setStatus("Keine Gegner gefunden.");
       }
-    }, 35000);
+    }, 30000);
   };
 
   return (
@@ -76,7 +74,7 @@ export default function Matchmaking() {
             <div className="mb-16">
               <div className="inline-flex items-center gap-3 bg-zinc-900 px-6 py-3 rounded-full mb-8">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-medium">Echte Spieler werden gesucht</span>
+                <span className="text-green-400 font-medium">Echte Queue aktiv</span>
               </div>
               
               <h1 className="text-6xl font-bold tracking-tighter mb-6">Bereit für ein Match?</h1>
