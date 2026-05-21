@@ -14,7 +14,7 @@ export default function Matchmaking() {
 
   const searchMatch = async () => {
     setSearching(true);
-    setStatus("Suche nach echten Gegnern...");
+    setStatus("Suche nach Gegnern...");
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
@@ -33,14 +33,13 @@ export default function Matchmaking() {
       elo: myElo
     });
 
-    // Such-Loop
     const interval = setInterval(async () => {
       const { data: queue } = await supabase
         .from('matchmaking_queue')
-        .select('*, profiles(username)')
+        .select('*')
         .neq('user_id', session.user.id)
         .order('joined_at', { ascending: true })
-        .limit(8);
+        .limit(5);
 
       if (queue && queue.length > 0) {
         const opponent = queue[0];
@@ -52,14 +51,13 @@ export default function Matchmaking() {
         await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
 
         setMatchFound({
-          username: opponent.profiles?.username || "Unbekannter Gegner",
+          username: "Gegner gefunden", 
           elo: opponent.elo
         });
         setSearching(false);
       }
-    }, 1800);
+    }, 2000);
 
-    // Timeout
     setTimeout(() => {
       clearInterval(interval);
       if (searching) {
