@@ -57,38 +57,55 @@ export default function Profile() {
   if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">Lade Profil...</div>;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
-      {/* Cleaner Header */}
-      <div className="bg-zinc-900 border-b border-zinc-800">
+    <div className="min-h-screen bg-zinc-950 text-white relative overflow-hidden">
+      
+      {/* Grünlicher Hintergrund wie auf der Startseite */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(#22c55e_0.8px,transparent_1px)] [background-size:50px_50px]"></div>
+        <div className="absolute -left-20 top-1/3 text-[380px] text-green-500/10 rotate-[-28deg]">➶</div>
+        <div className="absolute -right-32 bottom-1/4 text-[420px] text-green-500/10 rotate-[22deg]">➶</div>
+      </div>
+
+      {/* Header */}
+      <div className="bg-zinc-900 border-b border-zinc-800 relative z-10">
         <div className="max-w-6xl mx-auto px-8 py-8 flex justify-between items-center">
           <div className="flex items-center gap-6">
             <div className="text-7xl">{currentRank.icon}</div>
             <div>
               <h1 className="text-4xl font-black tracking-tight">{user?.username}</h1>
-              <div className="flex items-center gap-4">
-                <span className={`text-3xl font-bold ${currentRank.color}`}>{currentRank.name}</span>
-                <span className="text-4xl font-black text-white">{elo}</span>
-                <span className="text-zinc-400 text-xl">ELO</span>
-              </div>
+              <div className={`text-3xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
             </div>
+            <div className="text-5xl font-black text-white ml-6">{elo}</div>
           </div>
 
           <button 
             onClick={() => setMenuOpen(!menuOpen)}
-            className="bg-zinc-800 hover:bg-zinc-700 px-6 py-3 rounded-2xl flex items-center gap-3"
+            className="bg-zinc-800 hover:bg-zinc-700 px-6 py-3 rounded-2xl flex items-center gap-3 transition"
           >
             Optionen <span>▼</span>
           </button>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-8 py-12">
+      {/* Dropdown Menü */}
+      {menuOpen && (
+        <div className="absolute right-8 top-28 z-50 bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl py-2 w-72">
+          <a href="/history" className="block px-6 py-3 hover:bg-zinc-800">📜 Match History</a>
+          <a href="/leaderboard" className="block px-6 py-3 hover:bg-zinc-800">🏆 Leaderboard</a>
+          <a href="/updates" className="block px-6 py-3 hover:bg-zinc-800">📢 Updates</a>
+          <button onClick={() => router.push('/premium')} className="w-full text-left px-6 py-3 hover:bg-zinc-800 text-green-400">⭐ Premium</button>
+          <div className="border-t border-zinc-700 my-2"></div>
+          <button onClick={logout} className="w-full text-left px-6 py-3 hover:bg-red-900/30 text-red-500">Logout</button>
+        </div>
+      )}
+
+      <div className="max-w-6xl mx-auto px-8 py-12 relative z-10">
         <div className="grid grid-cols-12 gap-8">
           
           {/* Linke Spalte */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
             <div className="bg-zinc-900 rounded-3xl p-10 border border-zinc-700">
-              <h3 className="text-emerald-400 uppercase tracking-widest text-sm mb-8">STATISTIKEN</h3>
+              <h3 className="uppercase text-emerald-400 text-sm tracking-widest mb-8">STATISTIKEN</h3>
               <div className="space-y-8">
                 <div className="flex justify-between">
                   <span className="text-zinc-400">Spiele</span>
@@ -110,16 +127,13 @@ export default function Profile() {
 
           {/* Mittlere Spalte */}
           <div className="col-span-12 lg:col-span-5">
-            <div className="bg-zinc-900 rounded-3xl p-12 text-center border border-zinc-700">
+            <div className="bg-zinc-900 rounded-3xl p-16 text-center border border-zinc-700">
               <div className="text-8xl mb-6">{currentRank.icon}</div>
               <div className={`text-5xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
               
               <div className="mt-10">
                 <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-green-400 to-cyan-400"
-                    style={{ width: `${progress}%` }}
-                  />
+                  <div className="h-full bg-gradient-to-r from-green-400 to-cyan-400" style={{ width: `${progress}%` }}></div>
                 </div>
                 <div className="flex justify-between text-sm text-zinc-400 mt-3">
                   <span>{currentRank.name}</span>
@@ -140,14 +154,14 @@ export default function Profile() {
 
             <button 
               onClick={() => router.push('/history')}
-              className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium"
+              className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium transition-all"
             >
               📜 Match History
             </button>
 
             <button 
               onClick={() => router.push('/leaderboard')}
-              className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium"
+              className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium transition-all"
             >
               🏆 Leaderboard
             </button>
