@@ -55,7 +55,7 @@ export default function Home() {
           </div>
 
           <h1 className="text-7xl md:text-8xl font-black tracking-tighter mb-6 leading-none">
-            DAS FACEIT<br />
+            DAS MATCHMAKING<br />
             <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
               FÜR DARTS
             </span>
@@ -141,7 +141,7 @@ export default function Home() {
       </div>
 
       <footer className="bg-black py-12 text-center text-zinc-500 border-t border-zinc-900 relative z-10">
-        © 2026 RankedDarts • Das Faceit für Dartspieler
+        © 2026 RankedDarts • Das Matchmaking für Dartspieler
       </footer>
     </div>
   );
