@@ -95,13 +95,15 @@ export default function Profile() {
         </div>
       </nav>
 
-      <div className="pt-24 pb-8">
+      <div className="pt-24 pb-12">
         <div className="max-w-6xl mx-auto px-8">
-          <div className="flex items-center gap-8 mb-12">
-            <div className="text-8xl flex-shrink-0">{currentRank.icon}</div>
+          
+          {/* Hero Rank */}
+          <div className="flex items-center gap-8 mb-16">
+            <div className="text-9xl flex-shrink-0">{currentRank.icon}</div>
             <div>
-              <h1 className="text-5xl font-black">{user?.username}</h1>
-              <div className={`text-4xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
+              <h1 className="text-6xl font-black tracking-tighter">{user?.username}</h1>
+              <div className={`text-5xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
             </div>
             <div className="ml-auto text-right">
               <div className="text-7xl font-black text-white">{elo}</div>
@@ -109,60 +111,72 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <div className="bg-zinc-900 rounded-3xl p-8 mb-12 border border-zinc-700">
-            <div className="flex justify-between mb-4">
-              <span className="text-emerald-400 font-medium">NÄCHSTER RANG</span>
-              <span className="text-zinc-400">{eloToNext} Elo</span>
+          <div className="grid grid-cols-12 gap-8">
+            
+            {/* Stats */}
+            <div className="col-span-12 lg:col-span-5">
+              <div className="bg-zinc-900 rounded-3xl p-10 border border-zinc-700">
+                <h3 className="uppercase text-emerald-400 text-sm tracking-widest mb-8">STATISTIKEN</h3>
+                <div className="grid grid-cols-3 gap-8 text-center">
+                  <div>
+                    <div className="text-5xl font-black">{user?.gamesPlayed || 0}</div>
+                    <div className="text-zinc-400">Spiele</div>
+                  </div>
+                  <div>
+                    <div className="text-5xl font-black text-green-500">{user?.wins || 0}</div>
+                    <div className="text-zinc-400">Siege</div>
+                  </div>
+                  <div>
+                    <div className="text-5xl font-black text-red-500">
+                      {(user?.gamesPlayed || 0) - (user?.wins || 0)}
+                    </div>
+                    <div className="text-zinc-400">Niederlagen</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-green-400 to-cyan-400" style={{ width: `${progress}%` }}></div>
-            </div>
-            <div className="flex justify-between text-sm text-zinc-500 mt-2">
-              <span>{currentRank.name}</span>
-              <span>{nextRank.name}</span>
+
+            {/* Nächster Rang */}
+            <div className="col-span-12 lg:col-span-7">
+              <div className="bg-zinc-900 rounded-3xl p-10 border border-zinc-700 h-full">
+                <h3 className="uppercase text-emerald-400 text-sm tracking-widest mb-6">NÄCHSTER RANG</h3>
+                <div className="flex items-center gap-8">
+                  <div className="text-7xl">{nextRank.icon}</div>
+                  <div>
+                    <div className={`text-5xl font-bold ${nextRank.color}`}>{nextRank.name}</div>
+                    <div className="text-6xl font-black text-white mt-3">{eloToNext}</div>
+                    <div className="text-zinc-400">Elo bis zum nächsten Rang</div>
+                  </div>
+                </div>
+
+                <div className="mt-10 h-3 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-green-400 to-cyan-400" style={{ width: `${progress}%` }}></div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-8">
-            {/* Stats */}
-            <div className="col-span-12 lg:col-span-5 grid grid-cols-3 gap-6">
-              <div className="bg-zinc-900 rounded-3xl p-8 text-center border border-zinc-700">
-                <div className="text-5xl font-black">{user?.gamesPlayed || 0}</div>
-                <div className="text-zinc-400 mt-2">Spiele</div>
-              </div>
-              <div className="bg-zinc-900 rounded-3xl p-8 text-center border border-zinc-700">
-                <div className="text-5xl font-black text-green-500">{user?.wins || 0}</div>
-                <div className="text-zinc-400 mt-2">Siege</div>
-              </div>
-              <div className="bg-zinc-900 rounded-3xl p-8 text-center border border-zinc-700">
-                <div className="text-5xl font-black text-red-500">
-                  {(user?.gamesPlayed || 0) - (user?.wins || 0)}
-                </div>
-                <div className="text-zinc-400 mt-2">Niederlagen</div>
-              </div>
-            </div>
-
-            {/* Letzte Matches */}
-            <div className="col-span-12 lg:col-span-7">
-              <h3 className="text-xl font-bold mb-6">Letzte Matches</h3>
+          {/* Letzte Matches */}
+          {matches.length > 0 && (
+            <div className="mt-16">
+              <h3 className="text-2xl font-bold mb-6">Letzte Matches</h3>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 {matches.slice(0, 5).map((match) => (
-                  <div key={match.id} className="bg-zinc-900 rounded-3xl p-6 border border-zinc-700 text-center">
-                    <div className="text-xs text-zinc-400 mb-2">{new Date(match.created_at).toLocaleDateString('de-DE')}</div>
-                    <div className="font-medium text-sm">vs {match.opponent_name}</div>
-                    <div className={`text-2xl font-bold mt-3 ${match.is_win ? 'text-green-500' : 'text-red-500'}`}>
+                  <div key={match.id} className="bg-zinc-900 rounded-3xl p-6 border border-zinc-700 text-center hover:border-green-500/50 transition-all">
+                    <div className="text-xs text-zinc-400">{new Date(match.created_at).toLocaleDateString('de-DE')}</div>
+                    <div className="font-medium mt-3">vs {match.opponent_name}</div>
+                    <div className={`text-3xl font-bold mt-4 ${match.is_win ? 'text-green-500' : 'text-red-500'}`}>
                       {match.result}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          )}
 
           <button 
             onClick={() => router.push('/matchmaking')}
-            className="w-full mt-12 py-9 bg-gradient-to-r from-green-500 to-emerald-600 text-3xl font-bold rounded-3xl hover:scale-105 transition-all"
+            className="w-full mt-16 py-9 bg-gradient-to-r from-green-500 to-emerald-600 text-3xl font-bold rounded-3xl hover:scale-105 transition-all"
           >
             🎯 MATCH SUCHEN
           </button>
