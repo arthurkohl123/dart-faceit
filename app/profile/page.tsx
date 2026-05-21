@@ -16,6 +16,7 @@ const rankTiers = [
 
 export default function Profile() {
   const [user, setUser] = useState<any>(null);
+  const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const supabase = createClient();
@@ -35,6 +36,16 @@ export default function Profile() {
       .single();
 
     setUser({ ...session.user, ...profile });
+
+    // Letzte 5 Matches laden
+    const { data: matchData } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    setMatches(matchData || []);
     setLoading(false);
   }, [supabase, router]);
 
@@ -87,7 +98,7 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Dropdown - Besser positioniert */}
+      {/* Dropdown */}
       {menuOpen && (
         <div className="absolute right-8 top-[118px] z-50 bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl py-2 w-72">
           <a href="/history" className="block px-6 py-3 hover:bg-zinc-800">📜 Match History</a>
@@ -99,9 +110,10 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Rest der Seite */}
       <div className="max-w-6xl mx-auto px-8 py-12 relative z-10">
         <div className="grid grid-cols-12 gap-8">
+          
+          {/* Linke Spalte */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
             <div className="bg-zinc-900 rounded-3xl p-10 border border-zinc-700">
               <h3 className="uppercase text-emerald-400 text-sm tracking-widest mb-8">STATISTIKEN</h3>
@@ -119,4 +131,66 @@ export default function Profile() {
                   <span className="text-5xl font-black">
                     {user?.gamesPlayed > 0 ? Math.round((user.wins / user.gamesPlayed) * 100) : 0}%
                   </span>
-               
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mittlere Spalte */}
+          <div className="col-span-12 lg:col-span-5">
+            <div className="bg-zinc-900 rounded-3xl p-16 text-center border border-zinc-700">
+              <div className="text-8xl mb-6">{currentRank.icon}</div>
+              <div className={`text-5xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
+              <div className="text-[92px] font-black text-white tracking-tighter mt-4">{elo}</div>
+              <div className="text-2xl text-zinc-400 -mt-3">ELO</div>
+
+              <div className="mt-12">
+                <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-green-400 to-cyan-400" style={{ width: `${progress}%` }}></div>
+                </div>
+                <div className="flex justify-between text-sm text-zinc-400 mt-3">
+                  <span>{currentRank.name}</span>
+                  <span>{nextRank.name}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Rechte Spalte */}
+          <div className="col-span-12 lg:col-span-3 space-y-6">
+            <button onClick={() => router.push('/matchmaking')} className="w-full py-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl text-3xl font-bold hover:scale-105 transition-all">
+              🎯 MATCH SUCHEN
+            </button>
+
+            <button onClick={() => router.push('/history')} className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium transition-all">
+              📜 Match History
+            </button>
+
+            <button onClick={() => router.push('/leaderboard')} className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium transition-all">
+              🏆 Leaderboard
+            </button>
+          </div>
+        </div>
+
+        {/* Letzte Matches Vorschau */}
+        {matches.length > 0 && (
+          <div className="mt-16">
+            <h3 className="text-xl font-bold mb-6">Letzte Matches</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {matches.slice(0, 5).map((match) => (
+                <div key={match.id} className="bg-zinc-900 rounded-2xl p-5 border border-zinc-700">
+                  <div className="text-sm text-zinc-400">{new Date(match.created_at).toLocaleDateString('de-DE')}</div>
+                  <div className="font-medium mt-1">vs {match.opponent_name}</div>
+                  <div className={`text-xl font-bold mt-2 ${match.is_win ? 'text-green-500' : 'text-red-500'}`}>
+                    {match.result}
+                  </div>
+                  <div className="text-xs text-zinc-500 mt-1">{match.elo_change > 0 ? '+' : ''}{match.elo_change} Elo</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
