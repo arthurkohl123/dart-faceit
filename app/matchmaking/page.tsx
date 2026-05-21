@@ -25,66 +25,14 @@ export default function Matchmaking() {
       .eq('supabaseId', session.user.id)
       .single();
 
-    const myElo = profile?.elo || 1000;
-
-    // In Queue eintragen
-    await supabase.from('matchmaking_queue').insert({
-      user_id: session.user.id,
-      elo: myElo
-    });
-
-    const interval = setInterval(async () => {
-      const { data: queue } = await supabase
-        .from('matchmaking_queue')
-        .select('*')
-        .neq('user_id', session.user.id)
-        .order('joined_at', { ascending: true })
-        .limit(8);
-
-      if (queue && queue.length > 0) {
-        const opponent = queue[0];
-
-        clearInterval(interval);
-
-        // Match erstellen
-        const { data: newMatch } = await supabase
-          .from('matches')
-          .insert({
-            user_id: session.user.id,
-            opponent_name: opponent.username || "Gegner",
-            opponent_elo: opponent.elo,
-            legs_won: 0,
-            legs_lost: 0,
-            result: "0:0",
-            is_win: false,
-            elo_change: 0,
-            my_average: null,
-            highest_checkout: null
-          })
-          .select()
-          .single();
-
-        // Queue aufräumen
-        await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
-        await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
-
-        setMatchFound({
-          matchId: newMatch.id,
-          username: opponent.username || "Gegner",
-          elo: opponent.elo
-        });
-        setSearching(false);
-      }
-    }, 1800);
-
+    // Simuliere einen schnellen Match für Testzwecke (später echte Logik)
     setTimeout(() => {
-      clearInterval(interval);
-      if (searching) {
-        setSearching(false);
-        setStatus("Keine Gegner gefunden.");
-        supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
-      }
-    }, 40000);
+      setMatchFound({
+        username: "Gegner gefunden",
+        elo: 1020
+      });
+      setSearching(false);
+    }, 2500);
   };
 
   return (
