@@ -8,7 +8,7 @@ export default function Matchmaking() {
   const [searching, setSearching] = useState(false);
   const [matchFound, setMatchFound] = useState<any>(null);
   const [status, setStatus] = useState("Bereit zum Suchen...");
-  
+
   const supabase = createClient();
   const router = useRouter();
 
@@ -33,14 +33,13 @@ export default function Matchmaking() {
       elo: myElo
     });
 
-    // Such-Loop
     const interval = setInterval(async () => {
       const { data: queue } = await supabase
         .from('matchmaking_queue')
         .select('*')
         .neq('user_id', session.user.id)
         .order('joined_at', { ascending: true })
-        .limit(10);
+        .limit(8);
 
       if (queue && queue.length > 0) {
         const opponent = queue[0];
@@ -52,7 +51,7 @@ export default function Matchmaking() {
           .from('matches')
           .insert({
             user_id: session.user.id,
-            opponent_name: opponent.username || "Unbekannter Gegner",
+            opponent_name: opponent.username || "Gegner",
             opponent_elo: opponent.elo,
             legs_won: 0,
             legs_lost: 0,
@@ -65,25 +64,24 @@ export default function Matchmaking() {
           .select()
           .single();
 
-        // Beide aus der Queue entfernen
+        // Queue aufräumen
         await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
         await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
 
         setMatchFound({
-          matchId: newMatch?.id,
+          matchId: newMatch.id,
           username: opponent.username || "Gegner",
           elo: opponent.elo
         });
         setSearching(false);
       }
-    }, 2000);
+    }, 1800);
 
-    // Timeout
     setTimeout(() => {
       clearInterval(interval);
       if (searching) {
         setSearching(false);
-        setStatus("Keine Gegner gefunden. Versuche es später erneut.");
+        setStatus("Keine Gegner gefunden.");
         supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
       }
     }, 40000);
