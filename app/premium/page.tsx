@@ -49,11 +49,34 @@ export default function Premium() {
           </div>
 
           <ul className="space-y-6 mb-12 text-lg">
-            <li className="flex items-center gap-4">✅ Keine Wartezeit beim Matchmaking</li>
-            <li className="flex items-center gap-4">✅ Exklusive Premium-Ränge</li>
-            <li className="flex items-center gap-4">✅ Detaillierte Statistiken & Heatmaps</li>
-            <li className="flex items-center gap-4">✅ Werbefrei</li>
-            <li className="flex items-center gap-4">✅ Priorität beim Support</li>
+            <li className="flex items-start gap-4">
+              <span className="text-green-500 mt-1">✅</span>
+              <div>
+                <strong>Unbegrenzt Matches spielen</strong><br />
+                <span className="text-zinc-400">Free User sind auf eine begrenzte Anzahl an Spielen pro Tag beschränkt</span>
+              </div>
+            </li>
+            <li className="flex items-start gap-4">
+              <span className="text-green-500 mt-1">✅</span>
+              <div>
+                <strong>Turniere spielen</strong><br />
+                <span className="text-zinc-400">Teilnahme an exklusiven Turnieren mit höheren Preisgeldern</span>
+              </div>
+            </li>
+            <li className="flex items-start gap-4">
+              <span className="text-green-500 mt-1">✅</span>
+              <div>
+                <strong>Erweiterter Matchmaking-Bereich</strong><br />
+                <span className="text-zinc-400">±30 Elo statt nur ±25 Elo (bessere & schnellere Matches)</span>
+              </div>
+            </li>
+            <li className="flex items-start gap-4">
+              <span className="text-green-500 mt-1">✅</span>
+              <div>
+                <strong>Priority Support per Ticket-System</strong><br />
+                <span className="text-zinc-400">Schnellere Hilfe bei Problemen</span>
+              </div>
+            </li>
           </ul>
 
           <button 
