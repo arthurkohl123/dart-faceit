@@ -52,8 +52,9 @@ export default function Profile() {
   const currentRank = rankTiers[Math.max(0, currentRankIndex)];
   const nextRank = rankTiers[currentRankIndex + 1] || rankTiers[rankTiers.length - 1];
   const eloToNext = nextRank.min - elo;
+  const progress = Math.min(((elo - currentRank.min) / (nextRank.min - currentRank.min)) * 100, 100);
 
-  if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">Lade Profil...</div>;
+  if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white text-2xl">Lade Profil...</div>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white">
@@ -89,43 +90,47 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Hero Rank Section */}
-        <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-green-500/20 rounded-3xl p-16 text-center mb-12 relative overflow-hidden">
-          <div className="text-9xl mb-6">{currentRank.icon}</div>
+        {/* Hero Rank Card */}
+        <div className="relative bg-gradient-to-br from-zinc-900 to-black border border-green-500/30 rounded-3xl p-16 text-center mb-12 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(#22c55e_1px,transparent_1px)] [background-size:30px_30px] opacity-10"></div>
+          
+          <div className="text-9xl mb-8">{currentRank.icon}</div>
           <div className={`text-6xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
-          <div className="text-8xl font-black mt-6 mb-2 text-white">{elo}</div>
-          <div className="text-2xl text-zinc-400">ELO</div>
+          
+          <div className="mt-8 mb-6">
+            <div className="text-8xl font-black text-white tracking-tighter">{elo}</div>
+            <div className="text-2xl text-zinc-400 -mt-2">ELO</div>
+          </div>
 
-          {/* Nächster Rang Fortschritt */}
-          <div className="mt-12 max-w-md mx-auto">
-            <div className="text-sm text-zinc-400 mb-3">Fortschritt zum nächsten Rang</div>
-            <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
+          {/* Progress Bar */}
+          <div className="max-w-md mx-auto">
+            <div className="h-4 bg-zinc-800 rounded-full overflow-hidden mb-3">
               <div 
-                className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-700"
-                style={{ width: `${((elo - currentRank.min) / (nextRank.min - currentRank.min)) * 100}%` }}
+                className="h-full bg-gradient-to-r from-green-400 via-emerald-500 to-cyan-400 transition-all duration-1000"
+                style={{ width: `${progress}%` }}
               />
             </div>
-            <div className="flex justify-between text-xs text-zinc-500 mt-2">
+            <div className="flex justify-between text-sm text-zinc-400">
               <span>{currentRank.name}</span>
               <span>{nextRank.name}</span>
             </div>
           </div>
         </div>
 
-        {/* Stats Grid - Modern */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-zinc-900/80 border border-zinc-700 rounded-3xl p-10 text-center hover:border-green-500/50 transition-all">
-            <div className="text-7xl font-black text-white mb-4">{user?.gamesPlayed || 0}</div>
-            <div className="text-xl text-zinc-400">Spiele insgesamt</div>
+        {/* Stats - Modern Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-10 text-center hover:border-green-500/50 transition-all group">
+            <div className="text-7xl font-black mb-4 group-hover:scale-110 transition-transform">{user?.gamesPlayed || 0}</div>
+            <div className="text-xl text-zinc-400">Spiele</div>
           </div>
 
-          <div className="bg-zinc-900/80 border border-zinc-700 rounded-3xl p-10 text-center hover:border-green-500/50 transition-all">
-            <div className="text-7xl font-black text-green-500 mb-4">{user?.wins || 0}</div>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-10 text-center hover:border-green-500/50 transition-all group">
+            <div className="text-7xl font-black text-green-500 mb-4 group-hover:scale-110 transition-transform">{user?.wins || 0}</div>
             <div className="text-xl text-zinc-400">Siege</div>
           </div>
 
-          <div className="bg-zinc-900/80 border border-zinc-700 rounded-3xl p-10 text-center hover:border-green-500/50 transition-all">
-            <div className="text-7xl font-black text-red-500 mb-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-10 text-center hover:border-green-500/50 transition-all group">
+            <div className="text-7xl font-black text-red-500 mb-4 group-hover:scale-110 transition-transform">
               {(user?.gamesPlayed || 0) - (user?.wins || 0)}
             </div>
             <div className="text-xl text-zinc-400">Niederlagen</div>
@@ -134,7 +139,7 @@ export default function Profile() {
 
         <button 
           onClick={() => router.push('/matchmaking')}
-          className="w-full mt-12 py-9 bg-gradient-to-r from-green-500 to-emerald-600 text-3xl font-bold rounded-3xl hover:scale-105 transition-all shadow-2xl shadow-green-500/30"
+          className="w-full py-9 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-3xl font-bold rounded-3xl hover:scale-105 transition-all shadow-2xl shadow-green-500/40"
         >
           🎯 MATCH SUCHEN
         </button>
