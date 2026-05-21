@@ -14,7 +14,7 @@ export default function Matchmaking() {
 
   const searchMatch = async () => {
     setSearching(true);
-    setStatus("Suche Gegner...");
+    setStatus("Warte auf Gegner...");
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
@@ -25,14 +25,68 @@ export default function Matchmaking() {
       .eq('supabaseId', session.user.id)
       .single();
 
-    // Simuliere einen schnellen Match für Testzwecke (später echte Logik)
+    const myElo = profile?.elo || 1000;
+
+    // In Queue eintragen
+    await supabase.from('matchmaking_queue').insert({
+      user_id: session.user.id,
+      elo: myElo
+    });
+
+    const interval = setInterval(async () => {
+      // Gegner suchen (Elo ± 200)
+      const { data: queue } = await supabase
+        .from('matchmaking_queue')
+        .select('*, profiles!inner(username)')
+        .neq('user_id', session.user.id)
+        .gte('elo', myElo - 250)
+        .lte('elo', myElo + 250)
+        .order('joined_at', { ascending: true })
+        .limit(5);
+
+      if (queue && queue.length > 0) {
+        const opponent = queue[0];
+
+        clearInterval(interval);
+
+        // Match erstellen
+        const { data: newMatch } = await supabase
+          .from('matches')
+          .insert({
+            user_id: session.user.id,
+            opponent_name: opponent.profiles?.username || "Gegner",
+            opponent_elo: opponent.elo,
+            legs_won: 0,
+            legs_lost: 0,
+            result: "0:0",
+            is_win: false,
+            elo_change: 0
+          })
+          .select()
+          .single();
+
+        // Beide aus Queue entfernen
+        await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
+        await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
+
+        setMatchFound({
+          matchId: newMatch.id,
+          username: opponent.profiles?.username || "Gegner",
+          elo: opponent.elo
+        });
+        setSearching(false);
+      }
+    }, 2000);
+
+    // Timeout
     setTimeout(() => {
-      setMatchFound({
-        username: "Gegner gefunden",
-        elo: 1020
-      });
-      setSearching(false);
-    }, 2500);
+      clearInterval(interval);
+      if (searching) {
+        setSearching(false);
+        setStatus("Keine Gegner gefunden. Versuche es später erneut.");
+        supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
+      }
+    }, 45000);
   };
 
   return (
