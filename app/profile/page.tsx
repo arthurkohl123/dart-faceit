@@ -62,8 +62,8 @@ export default function Profile() {
       {/* Grünlicher Hintergrund wie auf der Startseite */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(#22c55e_0.8px,transparent_1px)] [background-size:50px_50px]"></div>
-        <div className="absolute -left-20 top-1/3 text-[380px] text-green-500/10 rotate-[-28deg]">➶</div>
-        <div className="absolute -right-32 bottom-1/4 text-[420px] text-green-500/10 rotate-[22deg]">➶</div>
+        <div className="absolute -left-20 top-1/3 text-[380px] text-green-500/10 rotate-[-28deg] select-none">➶</div>
+        <div className="absolute -right-32 bottom-1/4 text-[420px] text-green-500/10 rotate-[22deg] select-none">➶</div>
       </div>
 
       {/* Header */}
@@ -87,9 +87,9 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Dropdown Menü */}
+      {/* Dropdown - Besser positioniert */}
       {menuOpen && (
-        <div className="absolute right-8 top-28 z-50 bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl py-2 w-72">
+        <div className="absolute right-8 top-[118px] z-50 bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl py-2 w-72">
           <a href="/history" className="block px-6 py-3 hover:bg-zinc-800">📜 Match History</a>
           <a href="/leaderboard" className="block px-6 py-3 hover:bg-zinc-800">🏆 Leaderboard</a>
           <a href="/updates" className="block px-6 py-3 hover:bg-zinc-800">📢 Updates</a>
@@ -99,10 +99,9 @@ export default function Profile() {
         </div>
       )}
 
+      {/* Rest der Seite */}
       <div className="max-w-6xl mx-auto px-8 py-12 relative z-10">
         <div className="grid grid-cols-12 gap-8">
-          
-          {/* Linke Spalte */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
             <div className="bg-zinc-900 rounded-3xl p-10 border border-zinc-700">
               <h3 className="uppercase text-emerald-400 text-sm tracking-widest mb-8">STATISTIKEN</h3>
@@ -120,54 +119,4 @@ export default function Profile() {
                   <span className="text-5xl font-black">
                     {user?.gamesPlayed > 0 ? Math.round((user.wins / user.gamesPlayed) * 100) : 0}%
                   </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Mittlere Spalte */}
-          <div className="col-span-12 lg:col-span-5">
-            <div className="bg-zinc-900 rounded-3xl p-16 text-center border border-zinc-700">
-              <div className="text-8xl mb-6">{currentRank.icon}</div>
-              <div className={`text-5xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
-              
-              <div className="mt-10">
-                <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-green-400 to-cyan-400" style={{ width: `${progress}%` }}></div>
-                </div>
-                <div className="flex justify-between text-sm text-zinc-400 mt-3">
-                  <span>{currentRank.name}</span>
-                  <span>{nextRank.name}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Rechte Spalte */}
-          <div className="col-span-12 lg:col-span-3 space-y-6">
-            <button 
-              onClick={() => router.push('/matchmaking')}
-              className="w-full py-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl text-3xl font-bold hover:scale-105 transition-all"
-            >
-              🎯 MATCH SUCHEN
-            </button>
-
-            <button 
-              onClick={() => router.push('/history')}
-              className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium transition-all"
-            >
-              📜 Match History
-            </button>
-
-            <button 
-              onClick={() => router.push('/leaderboard')}
-              className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium transition-all"
-            >
-              🏆 Leaderboard
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+               
