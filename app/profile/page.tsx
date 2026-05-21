@@ -51,98 +51,115 @@ export default function Profile() {
   const currentRankIndex = rankTiers.findIndex(r => elo < r.min) - 1;
   const currentRank = rankTiers[Math.max(0, currentRankIndex)];
   const nextRank = rankTiers[currentRankIndex + 1] || rankTiers[rankTiers.length - 1];
-  const eloToNext = nextRank.min - elo;
   const progress = Math.min(((elo - currentRank.min) / (nextRank.min - currentRank.min)) * 100, 100);
 
-  if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white text-2xl">Lade Profil...</div>;
+  if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center">Lade Profil...</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white">
-      <div className="max-w-6xl mx-auto px-8 py-10">
+    <div className="min-h-screen bg-zinc-950 text-white">
+      {/* Header mit Banner */}
+      <div className="h-80 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 relative">
+        <div className="absolute inset-0 bg-black/40"></div>
         
-        {/* Navbar */}
-        <div className="flex justify-between items-center mb-12">
-          <div className="flex items-center gap-4">
-            <div className="text-4xl">🎯</div>
-            <h1 className="text-4xl font-black tracking-tighter">RANKEDDARTS</h1>
-          </div>
+        <div className="max-w-6xl mx-auto px-8 pt-8 relative">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-4">
+                <div className="text-7xl">{currentRank.icon}</div>
+                <div>
+                  <h1 className="text-5xl font-black">{user?.username}</h1>
+                  <p className={`text-3xl font-bold ${currentRank.color}`}>{currentRank.name} • {elo} Elo</p>
+                </div>
+              </div>
+            </div>
 
-          <div className="relative">
             <button 
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 px-6 py-3 rounded-2xl transition"
+              className="bg-black/50 hover:bg-black/70 px-6 py-3 rounded-2xl flex items-center gap-2"
             >
-              <span className="font-medium">{user?.username}</span>
-              {user?.isPremium && <span className="text-yellow-400">⭐ Premium</span>}
-              <span>▼</span>
+              Menü <span>▼</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-8 -mt-12 relative z-10">
+        <div className="grid grid-cols-12 gap-8">
+          
+          {/* Linke Spalte - Stats */}
+          <div className="col-span-12 lg:col-span-4 space-y-6">
+            <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-700">
+              <h3 className="text-zinc-400 mb-6">STATISTIKEN</h3>
+              <div className="space-y-8">
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Spiele</span>
+                  <span className="text-3xl font-bold">{user?.gamesPlayed || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Siege</span>
+                  <span className="text-3xl font-bold text-green-500">{user?.wins || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Winrate</span>
+                  <span className="text-3xl font-bold">
+                    {user?.gamesPlayed > 0 ? Math.round((user.wins / user.gamesPlayed) * 100) : 0}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-700">
+              <h3 className="text-zinc-400 mb-4">NÄCHSTER RANG</h3>
+              <div className="flex items-center gap-4">
+                <div className="text-5xl">{nextRank.icon}</div>
+                <div>
+                  <div className={`text-2xl font-bold ${nextRank.color}`}>{nextRank.name}</div>
+                  <div className="text-green-400">{eloToNext} Elo</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mittlere Spalte - Hauptinfo */}
+          <div className="col-span-12 lg:col-span-5">
+            <div className="bg-zinc-900 rounded-3xl p-12 text-center border border-zinc-700">
+              <div className="text-8xl mb-6">{currentRank.icon}</div>
+              <div className={`text-6xl font-black ${currentRank.color}`}>{currentRank.name}</div>
+              <div className="text-7xl font-black mt-6">{elo}</div>
+              <div className="text-zinc-400 text-2xl">ELO</div>
+
+              <div className="mt-10">
+                <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-green-400 to-cyan-400" style={{ width: `${progress}%` }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Rechte Spalte - Quick Actions */}
+          <div className="col-span-12 lg:col-span-3 space-y-6">
+            <button 
+              onClick={() => router.push('/matchmaking')}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 py-8 rounded-3xl text-2xl font-bold hover:scale-105 transition-all"
+            >
+              🎯 MATCH SUCHEN
             </button>
 
-            {menuOpen && (
-              <div className="absolute right-0 mt-3 w-72 bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl py-2 z-50">
-                <a href="/history" className="block px-6 py-3 hover:bg-zinc-800">📜 Match History</a>
-                <a href="/leaderboard" className="block px-6 py-3 hover:bg-zinc-800">🏆 Leaderboard</a>
-                <a href="/updates" className="block px-6 py-3 hover:bg-zinc-800">📢 Updates</a>
-                <button onClick={() => router.push('/premium')} className="w-full text-left px-6 py-3 hover:bg-zinc-800 text-green-400">⭐ Premium</button>
-                <div className="border-t border-zinc-700 my-2"></div>
-                <button onClick={logout} className="w-full text-left px-6 py-3 hover:bg-red-900/30 text-red-500">Logout</button>
-              </div>
-            )}
+            <button 
+              onClick={() => router.push('/history')}
+              className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 py-8 rounded-3xl text-xl font-medium transition-all"
+            >
+              📜 Match History
+            </button>
+
+            <button 
+              onClick={() => router.push('/leaderboard')}
+              className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 py-8 rounded-3xl text-xl font-medium transition-all"
+            >
+              🏆 Leaderboard
+            </button>
           </div>
         </div>
-
-        {/* Hero Rank Card */}
-        <div className="relative bg-gradient-to-br from-zinc-900 to-black border border-green-500/30 rounded-3xl p-16 text-center mb-12 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(#22c55e_1px,transparent_1px)] [background-size:30px_30px] opacity-10"></div>
-          
-          <div className="text-9xl mb-8">{currentRank.icon}</div>
-          <div className={`text-6xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
-          
-          <div className="mt-8 mb-6">
-            <div className="text-8xl font-black text-white tracking-tighter">{elo}</div>
-            <div className="text-2xl text-zinc-400 -mt-2">ELO</div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="max-w-md mx-auto">
-            <div className="h-4 bg-zinc-800 rounded-full overflow-hidden mb-3">
-              <div 
-                className="h-full bg-gradient-to-r from-green-400 via-emerald-500 to-cyan-400 transition-all duration-1000"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-sm text-zinc-400">
-              <span>{currentRank.name}</span>
-              <span>{nextRank.name}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats - Modern Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-10 text-center hover:border-green-500/50 transition-all group">
-            <div className="text-7xl font-black mb-4 group-hover:scale-110 transition-transform">{user?.gamesPlayed || 0}</div>
-            <div className="text-xl text-zinc-400">Spiele</div>
-          </div>
-
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-10 text-center hover:border-green-500/50 transition-all group">
-            <div className="text-7xl font-black text-green-500 mb-4 group-hover:scale-110 transition-transform">{user?.wins || 0}</div>
-            <div className="text-xl text-zinc-400">Siege</div>
-          </div>
-
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-10 text-center hover:border-green-500/50 transition-all group">
-            <div className="text-7xl font-black text-red-500 mb-4 group-hover:scale-110 transition-transform">
-              {(user?.gamesPlayed || 0) - (user?.wins || 0)}
-            </div>
-            <div className="text-xl text-zinc-400">Niederlagen</div>
-          </div>
-        </div>
-
-        <button 
-          onClick={() => router.push('/matchmaking')}
-          className="w-full py-9 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-3xl font-bold rounded-3xl hover:scale-105 transition-all shadow-2xl shadow-green-500/40"
-        >
-          🎯 MATCH SUCHEN
-        </button>
       </div>
     </div>
   );
