@@ -14,14 +14,14 @@ export default function Matchmaking() {
 
   const searchMatch = async () => {
     setSearching(true);
-    setStatus("Warte auf Gegner...");
+    setStatus("Suche nach echten Gegnern...");
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('elo, username')
+      .select('elo')
       .eq('supabaseId', session.user.id)
       .single();
 
@@ -37,13 +37,10 @@ export default function Matchmaking() {
     const interval = setInterval(async () => {
       const { data: queue } = await supabase
         .from('matchmaking_queue')
-        .select(`
-          *,
-          profiles!matchmaking_queue_user_id_fkey (username)
-        `)
+        .select('*, profiles(username)')
         .neq('user_id', session.user.id)
         .order('joined_at', { ascending: true })
-        .limit(10);
+        .limit(8);
 
       if (queue && queue.length > 0) {
         const opponent = queue[0];
@@ -55,23 +52,22 @@ export default function Matchmaking() {
         await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
 
         setMatchFound({
-          username: opponent.profiles?.username || "Unbekannter Spieler",
+          username: opponent.profiles?.username || "Unbekannter Gegner",
           elo: opponent.elo
         });
         setSearching(false);
-        setStatus("Gegner gefunden!");
       }
-    }, 1500);
+    }, 1800);
 
-    // Timeout nach 40 Sekunden
+    // Timeout
     setTimeout(() => {
       clearInterval(interval);
       if (searching) {
         setSearching(false);
-        setStatus("Keine Gegner gefunden. Versuche es in ein paar Sekunden erneut.");
+        setStatus("Keine Gegner gefunden. Versuche es später erneut.");
         supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
       }
-    }, 40000);
+    }, 35000);
   };
 
   return (
