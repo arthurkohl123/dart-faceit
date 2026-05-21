@@ -9,17 +9,19 @@ export default function Home() {
     <div className="min-h-screen bg-zinc-950 text-white overflow-hidden relative">
       
       {/* Dezent aber erkennbarer Dart-Hintergrund */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none z-0">
+      <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(#22c55e_0.8px,transparent_1px)] [background-size:50px_50px]"></div>
         <div className="absolute -left-20 top-1/3 text-[380px] text-green-500/10 rotate-[-28deg] select-none">➶</div>
         <div className="absolute -right-32 bottom-1/4 text-[420px] text-green-500/10 rotate-[22deg] select-none">➶</div>
       </div>
 
-      {/* Navbar - WICHTIG: Hoher z-index */}
+      {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-lg border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-8 py-5 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="text-4xl">🎯</div>
+            <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center text-2xl font-black text-black">
+              R
+            </div>
             <h1 className="text-3xl font-black tracking-tighter">RANKEDDARTS</h1>
           </div>
 
@@ -30,13 +32,13 @@ export default function Home() {
             
             <button 
               onClick={() => router.push('/auth/login')}
-              className="px-8 py-3 bg-white text-black font-semibold rounded-2xl hover:bg-zinc-200 transition z-50 relative"
+              className="px-8 py-3 bg-white text-black font-semibold rounded-2xl hover:bg-zinc-200 transition"
             >
               Login
             </button>
             <button 
               onClick={() => router.push('/auth/register')}
-              className="px-8 py-3 bg-green-600 hover:bg-green-500 font-semibold rounded-2xl transition z-50 relative"
+              className="px-8 py-3 bg-green-600 hover:bg-green-500 font-semibold rounded-2xl transition"
             >
               Kostenlos Registrieren
             </button>
@@ -45,7 +47,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <div className="pt-32 pb-28 relative z-10">
+      <div className="pt-32 pb-28 relative">
         <div className="max-w-6xl mx-auto px-8 text-center relative">
           <div className="inline-flex items-center gap-2 bg-zinc-900 border border-green-500/30 rounded-full px-6 py-2.5 mb-8">
             <span className="text-green-500">● LIVE</span>
