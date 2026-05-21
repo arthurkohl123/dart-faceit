@@ -14,14 +14,14 @@ export default function Matchmaking() {
 
   const searchMatch = async () => {
     setSearching(true);
-    setStatus("Warte auf Gegner...");
+    setStatus("Suche Gegner...");
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('elo, username')
+      .select('username, elo')
       .eq('supabaseId', session.user.id)
       .single();
 
@@ -33,31 +33,50 @@ export default function Matchmaking() {
       elo: myElo
     });
 
+    // Such-Loop
     const interval = setInterval(async () => {
-      // Gegner suchen (Elo nah)
       const { data: queue } = await supabase
         .from('matchmaking_queue')
         .select('*')
         .neq('user_id', session.user.id)
         .order('joined_at', { ascending: true })
-        .limit(5);
+        .limit(10);
 
       if (queue && queue.length > 0) {
         const opponent = queue[0];
 
         clearInterval(interval);
 
-        // Beide aus Queue entfernen
+        // Match erstellen
+        const { data: newMatch } = await supabase
+          .from('matches')
+          .insert({
+            user_id: session.user.id,
+            opponent_name: opponent.username || "Unbekannter Gegner",
+            opponent_elo: opponent.elo,
+            legs_won: 0,
+            legs_lost: 0,
+            result: "0:0",
+            is_win: false,
+            elo_change: 0,
+            my_average: null,
+            highest_checkout: null
+          })
+          .select()
+          .single();
+
+        // Beide aus der Queue entfernen
         await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
         await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
 
         setMatchFound({
+          matchId: newMatch?.id,
           username: opponent.username || "Gegner",
           elo: opponent.elo
         });
         setSearching(false);
       }
-    }, 1800);
+    }, 2000);
 
     // Timeout
     setTimeout(() => {
@@ -67,7 +86,7 @@ export default function Matchmaking() {
         setStatus("Keine Gegner gefunden. Versuche es später erneut.");
         supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
       }
-    }, 45000);
+    }, 40000);
   };
 
   return (
@@ -78,7 +97,7 @@ export default function Matchmaking() {
             <div className="mb-16">
               <div className="inline-flex items-center gap-3 bg-zinc-900 px-6 py-3 rounded-full mb-8">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-medium">Echte Queue aktiv</span>
+                <span className="text-green-400 font-medium">Echte Spieler werden gesucht</span>
               </div>
               
               <h1 className="text-6xl font-bold tracking-tighter mb-6">Bereit für ein Match?</h1>
