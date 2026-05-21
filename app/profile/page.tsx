@@ -58,50 +58,53 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
-      {/* Premium Banner */}
-      <div className="h-[380px] bg-gradient-to-br from-emerald-700 via-green-700 to-teal-800 relative">
-        <div className="absolute inset-0 bg-black/40"></div>
+      {/* Hero Banner - Faceit Style */}
+      <div className="relative h-[460px] bg-gradient-to-br from-emerald-800 via-green-700 to-teal-900">
+        <div className="absolute inset-0 bg-black/50"></div>
         
-        <div className="max-w-6xl mx-auto px-8 pt-12 relative z-10">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-6">
-              <div className="text-8xl drop-shadow-2xl">{currentRank.icon}</div>
-              <div>
-                <h1 className="text-5xl font-black tracking-tighter drop-shadow-lg">{user?.username}</h1>
-                <p className={`text-4xl font-bold ${currentRank.color} drop-shadow-md`}>{currentRank.name}</p>
-                <p className="text-6xl font-black text-white mt-1 tracking-tighter">{elo} <span className="text-3xl text-white/70">ELO</span></p>
+        <div className="max-w-6xl mx-auto px-8 pt-16 relative z-10">
+          <div className="flex items-end gap-8">
+            <div className="text-[160px] leading-none drop-shadow-2xl">{currentRank.icon}</div>
+            
+            <div className="pb-8">
+              <h1 className="text-6xl font-black tracking-tighter">{user?.username}</h1>
+              <div className={`text-5xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
+              <div className="flex items-baseline gap-4 mt-4">
+                <span className="text-7xl font-black text-white">{elo}</span>
+                <span className="text-3xl text-white/60">ELO</span>
               </div>
             </div>
-
-            <button 
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="bg-black/60 hover:bg-black px-8 py-4 rounded-2xl text-lg flex items-center gap-3 transition"
-            >
-              Optionen <span>▼</span>
-            </button>
           </div>
+        </div>
+
+        {/* Progress Bar im Banner */}
+        <div className="absolute bottom-0 left-0 right-0 h-2 bg-black/30">
+          <div 
+            className="h-full bg-gradient-to-r from-green-400 to-cyan-400"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-8 -mt-20 relative z-20">
+      <div className="max-w-6xl mx-auto px-8 -mt-8 relative z-20">
         <div className="grid grid-cols-12 gap-8">
           
           {/* Linke Spalte */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
             <div className="bg-zinc-900 rounded-3xl p-10 border border-zinc-700">
-              <h3 className="text-emerald-400 uppercase tracking-widest text-sm mb-8">STATISTIKEN</h3>
+              <h3 className="uppercase text-emerald-400 text-sm tracking-widest mb-8">STATISTIKEN</h3>
               <div className="space-y-10">
-                <div className="flex justify-between items-end">
-                  <span className="text-zinc-400">Spiele</span>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400 text-lg">Spiele</span>
                   <span className="text-5xl font-black">{user?.gamesPlayed || 0}</span>
                 </div>
-                <div className="flex justify-between items-end">
-                  <span className="text-zinc-400">Siege</span>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400 text-lg">Siege</span>
                   <span className="text-5xl font-black text-green-500">{user?.wins || 0}</span>
                 </div>
-                <div className="flex justify-between items-end">
-                  <span className="text-zinc-400">Winrate</span>
-                  <span className="text-5xl font-black">
+                <div className="flex justify-between">
+                  <span className="text-zinc-400 text-lg">Winrate</span>
+                  <span className="text-5xl font-black text-white">
                     {user?.gamesPlayed > 0 ? Math.round((user.wins / user.gamesPlayed) * 100) : 0}%
                   </span>
                 </div>
@@ -109,34 +112,26 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Mittlere Spalte - Großer Rank */}
+          {/* Mittlere Spalte - Nächster Rang + Info */}
           <div className="col-span-12 lg:col-span-5">
-            <div className="bg-zinc-900 rounded-3xl p-16 text-center border border-zinc-700 shadow-2xl">
-              <div className="text-[120px] leading-none mb-4">{currentRank.icon}</div>
-              <div className={`text-6xl font-black ${currentRank.color}`}>{currentRank.name}</div>
-              <div className="text-[92px] font-black text-white tracking-[-4px] mt-4">{elo}</div>
-              <div className="text-2xl text-zinc-400 -mt-3">CURRENT ELO</div>
-
-              <div className="mt-12 max-w-md mx-auto">
-                <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 transition-all duration-1000"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-sm text-zinc-500 mt-3">
-                  <span>{currentRank.name}</span>
-                  <span>{nextRank.name}</span>
+            <div className="bg-zinc-900 rounded-3xl p-12 border border-zinc-700">
+              <h3 className="text-emerald-400 uppercase tracking-widest text-sm mb-6">NÄCHSTER RANG</h3>
+              <div className="flex items-center gap-8">
+                <div className="text-8xl">{nextRank.icon}</div>
+                <div>
+                  <div className={`text-5xl font-bold ${nextRank.color}`}>{nextRank.name}</div>
+                  <div className="text-6xl font-black text-white mt-2">{eloToNext}</div>
+                  <div className="text-zinc-400">Elo bis zum nächsten Rang</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Rechte Spalte - Actions */}
+          {/* Rechte Spalte */}
           <div className="col-span-12 lg:col-span-3 space-y-6">
             <button 
               onClick={() => router.push('/matchmaking')}
-              className="w-full py-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl text-3xl font-bold hover:scale-[1.03] transition-all shadow-xl"
+              className="w-full py-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl text-3xl font-bold hover:scale-105 transition-all shadow-2xl shadow-green-500/30"
             >
               🎯 MATCH SUCHEN
             </button>
