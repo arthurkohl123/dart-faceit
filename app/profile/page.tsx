@@ -16,9 +16,7 @@ const rankTiers = [
 
 export default function Profile() {
   const [user, setUser] = useState<any>(null);
-  const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [menuOpen, setMenuOpen] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
@@ -36,16 +34,6 @@ export default function Profile() {
       .single();
 
     setUser({ ...session.user, ...profile });
-
-    // Letzte 5 Matches laden
-    const { data: matchData } = await supabase
-      .from('matches')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    setMatches(matchData || []);
     setLoading(false);
   }, [supabase, router]);
 
@@ -70,126 +58,103 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white relative overflow-hidden">
       
-      {/* Grünlicher Hintergrund wie auf der Startseite */}
+      {/* Grünlicher Hintergrund */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(#22c55e_0.8px,transparent_1px)] [background-size:50px_50px]"></div>
         <div className="absolute -left-20 top-1/3 text-[380px] text-green-500/10 rotate-[-28deg] select-none">➶</div>
         <div className="absolute -right-32 bottom-1/4 text-[420px] text-green-500/10 rotate-[22deg] select-none">➶</div>
       </div>
 
-      {/* Header */}
-      <div className="bg-zinc-900 border-b border-zinc-800 relative z-10">
-        <div className="max-w-6xl mx-auto px-8 py-8 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <div className="text-7xl">{currentRank.icon}</div>
-            <div>
-              <h1 className="text-4xl font-black tracking-tight">{user?.username}</h1>
-              <div className={`text-3xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
-            </div>
-            <div className="text-5xl font-black text-white ml-6">{elo}</div>
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-lg border-b border-zinc-800">
+        <div className="max-w-6xl mx-auto px-8 py-5 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="text-4xl">🎯</div>
+            <h1 className="text-3xl font-black tracking-tighter">RANKEDDARTS</h1>
+          </div>
+
+          <div className="flex items-center gap-8 text-lg">
+            <a href="/" className="hover:text-green-400 transition">Startseite</a>
+            <a href="/matchmaking" className="hover:text-green-400 transition">Matchmaking</a>
+            <a href="/leaderboard" className="hover:text-green-400 transition">Leaderboard</a>
+            <a href="/updates" className="hover:text-green-400 transition">Updates</a>
+            
+            {/* Premium Button - Hervorgehoben */}
+            <a 
+              href="/premium" 
+              className="bg-gradient-to-r from-yellow-400 to-amber-500 text-black px-6 py-2.5 rounded-2xl font-bold hover:scale-105 transition-all shadow-lg shadow-yellow-500/30 flex items-center gap-2"
+            >
+              ⭐ Premium
+            </a>
           </div>
 
           <button 
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="bg-zinc-800 hover:bg-zinc-700 px-6 py-3 rounded-2xl flex items-center gap-3 transition"
+            onClick={logout}
+            className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-2xl transition"
           >
-            Optionen <span>▼</span>
+            Logout
           </button>
         </div>
-      </div>
+      </nav>
 
-      {/* Dropdown */}
-      {menuOpen && (
-        <div className="absolute right-8 top-[118px] z-50 bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl py-2 w-72">
-          <a href="/history" className="block px-6 py-3 hover:bg-zinc-800">📜 Match History</a>
-          <a href="/leaderboard" className="block px-6 py-3 hover:bg-zinc-800">🏆 Leaderboard</a>
-          <a href="/updates" className="block px-6 py-3 hover:bg-zinc-800">📢 Updates</a>
-          <button onClick={() => router.push('/premium')} className="w-full text-left px-6 py-3 hover:bg-zinc-800 text-green-400">⭐ Premium</button>
-          <div className="border-t border-zinc-700 my-2"></div>
-          <button onClick={logout} className="w-full text-left px-6 py-3 hover:bg-red-900/30 text-red-500">Logout</button>
-        </div>
-      )}
+      {/* Hauptinhalt */}
+      <div className="pt-24 pb-12 relative z-10">
+        <div className="max-w-6xl mx-auto px-8">
+          <div className="flex items-center gap-6 mb-12">
+            <div className="text-8xl">{currentRank.icon}</div>
+            <div>
+              <h1 className="text-5xl font-black">{user?.username}</h1>
+              <div className={`text-4xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
+            </div>
+            <div className="text-6xl font-black text-white ml-8">{elo}</div>
+          </div>
 
-      <div className="max-w-6xl mx-auto px-8 py-12 relative z-10">
-        <div className="grid grid-cols-12 gap-8">
-          
-          {/* Linke Spalte */}
-          <div className="col-span-12 lg:col-span-4 space-y-6">
-            <div className="bg-zinc-900 rounded-3xl p-10 border border-zinc-700">
-              <h3 className="uppercase text-emerald-400 text-sm tracking-widest mb-8">STATISTIKEN</h3>
-              <div className="space-y-8">
-                <div className="flex justify-between">
-                  <span className="text-zinc-400">Spiele</span>
-                  <span className="text-5xl font-black">{user?.gamesPlayed || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-400">Siege</span>
-                  <span className="text-5xl font-black text-green-500">{user?.wins || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-400">Winrate</span>
-                  <span className="text-5xl font-black">
-                    {user?.gamesPlayed > 0 ? Math.round((user.wins / user.gamesPlayed) * 100) : 0}%
-                  </span>
+          {/* Nächster Rang */}
+          <div className="bg-zinc-900 rounded-3xl p-10 mb-12 border border-zinc-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div className="text-6xl">{nextRank.icon}</div>
+                <div>
+                  <div className="text-emerald-400 text-sm uppercase tracking-widest">NÄCHSTER RANG</div>
+                  <div className={`text-4xl font-bold ${nextRank.color}`}>{nextRank.name}</div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Mittlere Spalte */}
-          <div className="col-span-12 lg:col-span-5">
-            <div className="bg-zinc-900 rounded-3xl p-16 text-center border border-zinc-700">
-              <div className="text-8xl mb-6">{currentRank.icon}</div>
-              <div className={`text-5xl font-bold ${currentRank.color}`}>{currentRank.name}</div>
-              <div className="text-[92px] font-black text-white tracking-tighter mt-4">{elo}</div>
-              <div className="text-2xl text-zinc-400 -mt-3">ELO</div>
-
-              <div className="mt-12">
-                <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-green-400 to-cyan-400" style={{ width: `${progress}%` }}></div>
-                </div>
-                <div className="flex justify-between text-sm text-zinc-400 mt-3">
-                  <span>{currentRank.name}</span>
-                  <span>{nextRank.name}</span>
-                </div>
+              <div className="text-right">
+                <div className="text-6xl font-bold text-white">{eloToNext}</div>
+                <div className="text-zinc-400">Elo bis {nextRank.name}</div>
               </div>
             </div>
-          </div>
 
-          {/* Rechte Spalte */}
-          <div className="col-span-12 lg:col-span-3 space-y-6">
-            <button onClick={() => router.push('/matchmaking')} className="w-full py-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl text-3xl font-bold hover:scale-105 transition-all">
-              🎯 MATCH SUCHEN
-            </button>
-
-            <button onClick={() => router.push('/history')} className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium transition-all">
-              📜 Match History
-            </button>
-
-            <button onClick={() => router.push('/leaderboard')} className="w-full py-8 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-3xl text-xl font-medium transition-all">
-              🏆 Leaderboard
-            </button>
-          </div>
-        </div>
-
-        {/* Letzte Matches Vorschau */}
-        {matches.length > 0 && (
-          <div className="mt-16">
-            <h3 className="text-xl font-bold mb-6">Letzte Matches</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {matches.slice(0, 5).map((match) => (
-                <div key={match.id} className="bg-zinc-900 rounded-2xl p-5 border border-zinc-700">
-                  <div className="text-sm text-zinc-400">{new Date(match.created_at).toLocaleDateString('de-DE')}</div>
-                  <div className="font-medium mt-1">vs {match.opponent_name}</div>
-                  <div className={`text-xl font-bold mt-2 ${match.is_win ? 'text-green-500' : 'text-red-500'}`}>
-                    {match.result}
-                  </div>
-                  <div className="text-xs text-zinc-500 mt-1">{match.elo_change > 0 ? '+' : ''}{match.elo_change} Elo</div>
-                </div>
-              ))}
+            <div className="mt-8 h-3 bg-zinc-800 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-green-400 to-cyan-400" style={{ width: `${progress}%` }}></div>
             </div>
           </div>
-        )}
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-8">
+            <div className="bg-zinc-900 rounded-3xl p-10 text-center border border-zinc-700">
+              <div className="text-6xl font-black">{user?.gamesPlayed || 0}</div>
+              <div className="text-zinc-400 mt-3">Spiele</div>
+            </div>
+            <div className="bg-zinc-900 rounded-3xl p-10 text-center border border-zinc-700">
+              <div className="text-6xl font-black text-green-500">{user?.wins || 0}</div>
+              <div className="text-zinc-400 mt-3">Siege</div>
+            </div>
+            <div className="bg-zinc-900 rounded-3xl p-10 text-center border border-zinc-700">
+              <div className="text-6xl font-black text-red-500">
+                {(user?.gamesPlayed || 0) - (user?.wins || 0)}
+              </div>
+              <div className="text-zinc-400 mt-3">Niederlagen</div>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => router.push('/matchmaking')}
+            className="w-full mt-12 py-9 bg-gradient-to-r from-green-500 to-emerald-600 text-3xl font-bold rounded-3xl hover:scale-105 transition-all"
+          >
+            🎯 MATCH SUCHEN
+          </button>
+        </div>
       </div>
     </div>
   );
