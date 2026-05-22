@@ -3,9 +3,9 @@
 import { useRouter } from 'next/navigation';
 
 const stats = [
-  { value: '1.284', label: 'Aktive Spieler', detail: 'Online & bereit für Matches' },
-  { value: '52.391', label: 'Matches gespielt', detail: 'Ranked Legs in der Community' },
-  { value: '€3.250', label: 'Preisgelder', detail: 'Monatlich für Top-Platzierungen' },
+  { value: '0', label: 'Aktive Spieler', detail: 'Online & bereit für Matches' },
+  { value: '0', label: 'Matches gespielt', detail: 'Ranked Legs in der Community' },
+  { value: '0', label: 'Preisgelder', detail: 'Monatlich für Top-Platzierungen' },
   { value: '4.9', label: 'Bewertung', detail: 'Von ambitionierten Dartspielern' },
 ];
 
