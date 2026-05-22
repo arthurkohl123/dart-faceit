@@ -36,6 +36,7 @@ export default function Matchmaking() {
       await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
     }
     setStatus('idle');
+    setOpponent(null);
   };
 
   useEffect(() => {
@@ -51,18 +52,24 @@ export default function Matchmaking() {
         .eq('supabaseId', session.user.id)
         .single();
 
-      // Sehr einfache Abfrage ohne Join
+      const minElo = (myProfile?.elo || 1000) - 60;
+      const maxElo = (myProfile?.elo || 1000) + 60;
+
+      // WICHTIG: .maybeSingle() statt .single() + Fehlerbehandlung
       const { data: found, error } = await supabase
         .from('matchmaking_queue')
         .select('user_id, elo')
         .neq('user_id', session.user.id)
-        .gte('elo', (myProfile?.elo || 1000) - 60)
-        .lte('elo', (myProfile?.elo || 1000) + 60)
-        .order('created_at')
+        .gte('elo', minElo)
+        .lte('elo', maxElo)
+        .order('created_at', { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();   // <--- Das ist der Fix
 
-      if (error) console.error("Queue Error:", error);
+      if (error) {
+        console.error("Queue Error:", error);
+        return;
+      }
 
       if (found) {
         const { data: opponentData } = await supabase
@@ -74,32 +81,39 @@ export default function Matchmaking() {
         setOpponent(opponentData);
         setStatus('found');
 
+        // Beide aus Queue entfernen
         await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
         await supabase.from('matchmaking_queue').delete().eq('user_id', found.user_id);
 
-        setTimeout(() => router.push('/result'), 1500);
+        setTimeout(() => router.push('/result'), 1800);
       }
     }, 2200);
 
     const timer = setInterval(() => {
-      setTimeLeft(prev => prev > 1 ? prev - 1 : 0);
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          stopSearch();
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => {
       clearInterval(interval);
       clearInterval(timer);
     };
-  }, [status]);
+  }, [status, router, supabase]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
-      <div className="text-center">
+    <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center relative">
+      <div className="text-center z-10">
         <h1 className="text-6xl font-black mb-12">🎯 MATCHMAKING</h1>
 
         {status === 'idle' && (
           <button 
             onClick={startSearch}
-            className="px-24 py-10 bg-gradient-to-r from-green-500 to-emerald-600 text-4xl font-bold rounded-3xl hover:scale-105"
+            className="px-24 py-10 bg-gradient-to-r from-green-500 to-emerald-600 text-4xl font-bold rounded-3xl hover:scale-105 transition-all"
           >
             MATCH SUCHEN
           </button>
@@ -109,14 +123,15 @@ export default function Matchmaking() {
           <div>
             <div className="text-4xl text-green-400 animate-pulse mb-6">Gegner wird gesucht...</div>
             <div className="text-7xl font-mono mb-8">{timeLeft}</div>
-            <button onClick={stopSearch} className="text-red-500 underline">Abbrechen</button>
+            <button onClick={stopSearch} className="text-red-500 underline text-lg">Abbrechen</button>
           </div>
         )}
 
         {status === 'found' && opponent && (
-          <div className="space-y-4">
-            <div className="text-5xl">✅ Gefunden!</div>
-            <div className="text-4xl">vs {opponent.username}</div>
+          <div className="space-y-6">
+            <div className="text-5xl">✅ Gegner gefunden!</div>
+            <div className="text-4xl font-bold">vs {opponent.username}</div>
+            <div className="text-green-400">Weiterleitung...</div>
           </div>
         )}
       </div>
