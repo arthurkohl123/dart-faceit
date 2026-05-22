@@ -22,6 +22,9 @@ type ProfileData = {
   elo?: number;
   gamesPlayed?: number;
   wins?: number;
+  phone_number?: string;
+  phone_verified?: boolean;
+  phone_verified_at?: string | null;
 };
 
 type MatchData = {
@@ -68,6 +71,9 @@ export default function Profile() {
         id: session.user.id,
         email: session.user.email,
         ...(profile || {}),
+        phone_number: profile?.phone_number || session.user.phone || '',
+        phone_verified: Boolean(profile?.phone_verified || session.user.phone_confirmed_at),
+        phone_verified_at: profile?.phone_verified_at || session.user.phone_confirmed_at || null,
       });
       setMatches((matchData || []) as MatchData[]);
       setLoading(false);
@@ -96,6 +102,8 @@ export default function Profile() {
   const eloToNext = Math.max(nextRank.min - elo, 0);
   const rankRange = nextRank.min - currentRank.min;
   const progress = nextRank === currentRank ? 100 : Math.min(Math.max(((elo - currentRank.min) / rankRange) * 100, 0), 100);
+  const phoneVerified = Boolean(user?.phone_verified);
+  const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
 
   if (loading) {
     return (
@@ -145,18 +153,30 @@ export default function Profile() {
             <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Dein aktueller RankedDarts-Status. Starte neue Matches, bestätige Ergebnisse und arbeite dich in Richtung der nächsten Division.</p>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[2rem] border border-white/10 bg-zinc-950/80 p-7 backdrop-blur-xl">
-              <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Aktuelles Rating</div>
-              <div className="mt-4 text-7xl font-black tracking-[-0.08em]">{elo}</div>
-              <div className="mt-2 text-zinc-400">Elo Punkte</div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="rounded-[2rem] border border-white/10 bg-zinc-950/80 p-7 backdrop-blur-xl">
+                <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Aktuelles Rating</div>
+                <div className="mt-4 text-7xl font-black tracking-[-0.08em]">{elo}</div>
+                <div className="mt-2 text-zinc-400">Elo Punkte</div>
+              </div>
+              <div className="rounded-[2rem] border border-white/10 bg-zinc-950/80 p-7 backdrop-blur-xl">
+                <div className="text-sm font-black uppercase tracking-[0.28em] text-cyan-300">Winrate</div>
+                <div className="mt-4 text-7xl font-black tracking-[-0.08em]">{winrate}%</div>
+                <div className="mt-2 text-zinc-400">{wins} Siege aus {gamesPlayed} Spielen</div>
+              </div>
+              <div className={`rounded-[2rem] border p-7 backdrop-blur-xl ${phoneVerified ? 'border-emerald-300/20 bg-emerald-400/[0.07]' : 'border-amber-300/20 bg-amber-400/[0.07]'}`}>
+                <div className={`text-sm font-black uppercase tracking-[0.28em] ${phoneVerified ? 'text-emerald-300' : 'text-amber-300'}`}>Verifizierung</div>
+                <div className="mt-4 text-3xl font-black tracking-[-0.04em]">{phoneStatusText}</div>
+                <div className="mt-2 text-sm leading-6 text-zinc-400">
+                  {phoneVerified ? 'Dein Account ist für Fair-Play und Ranked vorbereitet.' : 'Bestätige deine Nummer, bevor du vollständig in Ranked startest.'}
+                </div>
+                {!phoneVerified && (
+                  <Link href={`/auth/verify-phone${user?.phone_number ? `?phone=${encodeURIComponent(user.phone_number)}` : ''}`} className="mt-5 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 text-sm font-black text-amber-100 transition hover:bg-amber-300/15">
+                    Jetzt verifizieren
+                  </Link>
+                )}
+              </div>
             </div>
-            <div className="rounded-[2rem] border border-white/10 bg-zinc-950/80 p-7 backdrop-blur-xl">
-              <div className="text-sm font-black uppercase tracking-[0.28em] text-cyan-300">Winrate</div>
-              <div className="mt-4 text-7xl font-black tracking-[-0.08em]">{winrate}%</div>
-              <div className="mt-2 text-zinc-400">{wins} Siege aus {gamesPlayed} Spielen</div>
-            </div>
-          </div>
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[0.82fr_1.18fr]">
@@ -184,10 +204,10 @@ export default function Profile() {
             </div>
 
             <button
-              onClick={() => router.push('/matchmaking')}
+              onClick={() => router.push(phoneVerified ? '/matchmaking' : '/auth/verify-phone')}
               className="mt-7 w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-5 font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.22)] transition hover:-translate-y-1"
             >
-              Match suchen
+              {phoneVerified ? 'Match suchen' : 'Telefon verifizieren'}
             </button>
           </section>
 

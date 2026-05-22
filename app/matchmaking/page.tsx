@@ -35,6 +35,7 @@ export default function Matchmaking() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [queueCount, setQueueCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
   const isPollingRef = useRef(false);
 
   const supabase = useMemo(() => createClient(), []);
@@ -101,6 +102,13 @@ export default function Matchmaking() {
   const startSearch = async () => {
     setErrorMessage('');
     setOpponent(null);
+
+    if (phoneVerified !== true) {
+      setErrorMessage('Bitte bestätige zuerst deine Handynummer, bevor du Ranked-Matchmaking startest.');
+      router.push('/auth/verify-phone');
+      return;
+    }
+
     setElapsedSeconds(0);
     setStatus('searching');
     await pollForMatch(0);
@@ -117,6 +125,33 @@ export default function Matchmaking() {
       setQueueCount(0);
     }
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkPhoneVerification() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/auth/login');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('supabaseId', session.user.id)
+        .single();
+
+      if (!isMounted) return;
+      setPhoneVerified(Boolean(profile?.phone_verified || session.user.phone_confirmed_at));
+    }
+
+    void checkPhoneVerification();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router, supabase]);
 
   useEffect(() => {
     if (status !== 'searching') return;
@@ -165,7 +200,16 @@ export default function Matchmaking() {
             Live Queue
           </div>
           <h1 className="mt-6 text-6xl font-black leading-[0.88] tracking-[-0.07em] md:text-8xl">Finde dein nächstes Match.</h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Die Suche startet eng an deinem Elo-Level und erweitert den Radius automatisch, damit du schnell einen fairen Gegner findest.</p>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Die Suche startet eng an deinem Elo-Level und erweitert den Radius automatisch, damit du schnell einen fairen Gegner findest. Für Ranked-Matches ist jetzt eine bestätigte Handynummer vorgesehen.</p>
+
+          {phoneVerified === false && (
+            <div className="mt-8 rounded-[1.7rem] border border-amber-300/20 bg-amber-400/[0.08] p-5 text-sm leading-6 text-amber-100 backdrop-blur-xl">
+              Dein Account ist noch nicht telefonisch verifiziert. Bestätige deine Nummer, damit das Matchmaking fair und anti-smurf-sicher bleibt.
+              <Link href="/auth/verify-phone" className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 font-black text-amber-50 transition hover:bg-amber-300/15">
+                Telefonnummer verifizieren
+              </Link>
+            </div>
+          )}
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
