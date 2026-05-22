@@ -21,12 +21,9 @@ export default function Matchmaking() {
       .eq('supabaseId', session.user.id)
       .single();
 
-    if (!profile) return alert("Profil nicht gefunden");
-
-    // In die Queue eintragen
     await supabase.from('matchmaking_queue').insert({
       user_id: session.user.id,
-      elo: profile.elo
+      elo: profile?.elo || 1000
     });
 
     setStatus('searching');
@@ -36,16 +33,11 @@ export default function Matchmaking() {
   const stopSearch = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      await supabase
-        .from('matchmaking_queue')
-        .delete()
-        .eq('user_id', session.user.id);
+      await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
     }
     setStatus('idle');
-    setOpponent(null);
   };
 
-  // Polling
   useEffect(() => {
     if (status !== 'searching') return;
 
@@ -59,84 +51,69 @@ export default function Matchmaking() {
         .eq('supabaseId', session.user.id)
         .single();
 
-      if (!myProfile) return;
-
-      // Gegner suchen (±40 Elo)
+      // Einfache Suche ohne komplizierten Join
       const { data: found } = await supabase
         .from('matchmaking_queue')
-        .select(`
-          *,
-          profiles!matchmaking_queue_user_id_fkey (username, elo)
-        `)
+        .select('*')
         .neq('user_id', session.user.id)
-        .gte('elo', myProfile.elo - 40)
-        .lte('elo', myProfile.elo + 40)
+        .gte('elo', (myProfile?.elo || 1000) - 50)
+        .lte('elo', (myProfile?.elo || 1000) + 50)
         .order('created_at', { ascending: true })
         .limit(1)
         .single();
 
       if (found) {
-        setOpponent(found.profiles);
+        // Gegner-Info holen
+        const { data: opponentProfile } = await supabase
+          .from('profiles')
+          .select('username, elo')
+          .eq('supabaseId', found.user_id)
+          .single();
+
+        setOpponent(opponentProfile);
         setStatus('found');
 
         // Beide aus Queue entfernen
         await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
         await supabase.from('matchmaking_queue').delete().eq('user_id', found.user_id);
 
-        setTimeout(() => router.push('/result'), 1800);
+        setTimeout(() => router.push('/result'), 2000);
       }
-    }, 1800);
+    }, 2000);
 
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          stopSearch();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeft(p => p > 1 ? p - 1 : 0);
     }, 1000);
 
     return () => {
       clearInterval(interval);
       clearInterval(timer);
     };
-  }, [status, router, supabase]);
+  }, [status]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center relative overflow-hidden">
-      <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#22c55e_1px,transparent_1px)] [background-size:40px_40px]"></div>
-
-      <div className="text-center z-10 max-w-md">
-        <h1 className="text-6xl font-black mb-8">🎯 MATCHMAKING</h1>
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-6xl font-black mb-10">🎯 MATCHMAKING</h1>
 
         {status === 'idle' && (
-          <button
-            onClick={startSearch}
-            className="px-20 py-8 bg-gradient-to-r from-green-500 to-emerald-600 text-3xl font-bold rounded-3xl hover:scale-105 transition-all active:scale-95"
-          >
+          <button onClick={startSearch} className="px-20 py-8 bg-green-600 text-3xl font-bold rounded-3xl hover:bg-green-500">
             MATCH SUCHEN
           </button>
         )}
 
         {status === 'searching' && (
           <div>
-            <div className="text-4xl font-bold text-green-400 animate-pulse mb-6">Gegner wird gesucht...</div>
-            <div className="text-7xl font-mono mb-8">{timeLeft}</div>
-            <button
-              onClick={stopSearch}
-              className="px-10 py-4 bg-red-600 hover:bg-red-700 rounded-2xl text-lg"
-            >
-              Suche abbrechen
-            </button>
+            <div className="text-4xl animate-pulse mb-4">Gegner wird gesucht...</div>
+            <div className="text-6xl font-mono mb-8">{timeLeft}s</div>
+            <button onClick={stopSearch} className="text-red-500">Abbrechen</button>
           </div>
         )}
 
         {status === 'found' && opponent && (
-          <div className="space-y-6">
-            <div className="text-5xl">✅ Gegner gefunden!</div>
-            <div className="text-4xl font-bold">vs {opponent.username}</div>
-            <div className="text-green-400">Weiterleitung zum Match...</div>
+          <div>
+            <div className="text-5xl mb-4">✅ Gegner gefunden!</div>
+            <div className="text-4xl">vs {opponent.username}</div>
           </div>
         )}
       </div>
