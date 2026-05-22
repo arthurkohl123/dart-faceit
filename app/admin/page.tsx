@@ -79,6 +79,8 @@ const emptyForm: ResolveFormState = {
 const inputClassName =
   'w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.075]';
 
+const selectOptionClassName = 'bg-zinc-950 text-zinc-50';
+
 const statCardClassName =
   'relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/20 backdrop-blur-xl';
 
@@ -489,10 +491,14 @@ export default function AdminPanel() {
                         <select
                           value={form.winnerId}
                           onChange={(event) => updateResolveForm(match.match_id, { winnerId: event.target.value })}
-                          className={`${inputClassName} mt-2`}
+                          className={`${inputClassName} mt-2 [color-scheme:dark]`}
                         >
-                          <option value={match.player1_id}>{match.player1_username}</option>
-                          <option value={match.player2_id}>{match.player2_username}</option>
+                          <option className={selectOptionClassName} value={match.player1_id}>
+                            {match.player1_username}
+                          </option>
+                          <option className={selectOptionClassName} value={match.player2_id}>
+                            {match.player2_username}
+                          </option>
                         </select>
 
                         <div className="mt-4 grid grid-cols-2 gap-3">
