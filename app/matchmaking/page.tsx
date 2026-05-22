@@ -27,16 +27,14 @@ export default function Matchmaking() {
       elo: profile?.elo || 1000
     });
 
-    console.log(`[${profile?.username}] In Queue eingetragen mit ${profile?.elo} Elo`);
+    console.log(`[${profile?.username}] In Queue mit ${profile?.elo} Elo`);
     setStatus('searching');
     setTimeLeft(60);
   };
 
   const stopSearch = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
-    }
+    if (session) await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
     setStatus('idle');
   };
 
@@ -47,31 +45,27 @@ export default function Matchmaking() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Zeige aktuelle Queue
-      const { data: allQueue } = await supabase.from('matchmaking_queue').select('user_id, elo');
-      console.log("Aktuelle Queue:", allQueue);
-      setQueueCount(allQueue?.length || 0);
-
       const { data: myProfile } = await supabase
         .from('profiles')
         .select('elo')
         .eq('supabaseId', session.user.id)
         .single();
 
-      const { data: found, error } = await supabase
+      // Debug: Alle in Queue anzeigen
+      const { data: all } = await supabase.from('matchmaking_queue').select('*');
+      console.log("Aktuelle Queue:", all);
+      setQueueCount(all?.length || 0);
+
+      // Gegner suchen
+      const { data: found } = await supabase
         .from('matchmaking_queue')
         .select('user_id, elo')
         .neq('user_id', session.user.id)
-        .gte('elo', (myProfile?.elo || 1000) - 100)   // weiteres Elo-Fenster zum Testen
-        .lte('elo', (myProfile?.elo || 1000) + 100)
-        .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
 
-      if (error) console.error("Find Error:", error);
-
       if (found) {
-        console.log("Gegner gefunden!", found);
+        console.log("✅ Gegner gefunden in DB:", found);
 
         const { data: opponentData } = await supabase
           .from('profiles')
@@ -82,14 +76,17 @@ export default function Matchmaking() {
         setOpponent(opponentData);
         setStatus('found');
 
+        // Beide entfernen
         await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
         await supabase.from('matchmaking_queue').delete().eq('user_id', found.user_id);
 
         setTimeout(() => router.push('/result'), 1500);
       }
-    }, 1500);
+    }, 1800);
 
-    const timer = setInterval(() => setTimeLeft(p => p > 1 ? p-1 : 0), 1000);
+    const timer = setInterval(() => {
+      setTimeLeft(p => p > 1 ? p - 1 : 0);
+    }, 1000);
 
     return () => {
       clearInterval(interval);
@@ -112,14 +109,14 @@ export default function Matchmaking() {
           <div className="space-y-6">
             <div className="text-4xl text-green-400 animate-pulse">Gegner wird gesucht...</div>
             <div className="text-6xl font-mono">{timeLeft}s</div>
-            <div className="text-sm text-zinc-400">Personen in Queue: {queueCount}</div>
+            <div className="text-zinc-400">In Queue: {queueCount} Spieler</div>
             <button onClick={stopSearch} className="text-red-500 underline">Abbrechen</button>
           </div>
         )}
 
         {status === 'found' && opponent && (
-          <div className="space-y-4">
-            <div className="text-5xl">✅ Gegner gefunden!</div>
+          <div>
+            <div className="text-5xl mb-4">✅ Gegner gefunden!</div>
             <div className="text-4xl">vs {opponent.username}</div>
           </div>
         )}
