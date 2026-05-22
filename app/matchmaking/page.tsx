@@ -1,6 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, CheckCircle2, Radar, ShieldCheck, Timer, Users, XCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -20,6 +22,13 @@ type Opponent = {
   elo: number;
 };
 
+const searchSteps = [
+  { time: '0–20s', range: '±100 Elo', label: 'Sehr nahes Skill-Level' },
+  { time: '20–40s', range: '±200 Elo', label: 'Erweiterte Suche' },
+  { time: '40–60s', range: '±350 Elo', label: 'Breiter Spielerpool' },
+  { time: '60s+', range: '±600 Elo', label: 'Maximale Reichweite' },
+];
+
 export default function Matchmaking() {
   const [status, setStatus] = useState<MatchmakingStatus>('idle');
   const [opponent, setOpponent] = useState<Opponent | null>(null);
@@ -37,6 +46,9 @@ export default function Matchmaking() {
     if (seconds < 60) return 350;
     return 600;
   };
+
+  const searchProgress = Math.min((elapsedSeconds / 60) * 100, 100);
+  const currentRange = getMaxEloDiff(elapsedSeconds);
 
   const redirectToResult = useCallback((matchId: string) => {
     setTimeout(() => router.push(`/result?matchId=${matchId}`), 1500);
@@ -121,50 +133,155 @@ export default function Matchmaking() {
   }, [pollForMatch, status]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-6">
-      <div className="text-center max-w-3xl w-full">
-        <h1 className="text-5xl md:text-6xl font-black mb-8">MATCHMAKING</h1>
-
-        {status === 'idle' && (
-          <div className="space-y-8">
-            <p className="text-zinc-400 text-lg">
-              Suche einen echten Gegner. Die Suche startet zuerst in deiner Elo-Nähe und erweitert den Bereich automatisch, falls niemand Passendes online ist.
-            </p>
-            <button onClick={startSearch} className="px-16 py-7 bg-green-600 text-2xl md:text-3xl font-bold rounded-3xl hover:bg-green-500 transition">
-              MATCH SUCHEN
-            </button>
-          </div>
-        )}
-
-        {status === 'searching' && (
-          <div className="space-y-6 bg-zinc-900 rounded-3xl p-10 border border-zinc-800">
-            <div className="text-4xl text-green-400 animate-pulse">Gegner wird gesucht...</div>
-            <div className="text-6xl font-mono">{elapsedSeconds}s</div>
-            <div className="text-zinc-400">Aktueller Elo-Suchradius: ±{getMaxEloDiff(elapsedSeconds)}</div>
-            <div className="text-zinc-400">In Queue: {queueCount} Spieler</div>
-            <button onClick={stopSearch} className="text-red-500 underline hover:text-red-400">Abbrechen</button>
-          </div>
-        )}
-
-        {status === 'found' && opponent && (
-          <div className="bg-zinc-900 rounded-3xl p-10 border border-green-700">
-            <div className="text-5xl mb-4">Gegner gefunden!</div>
-            <div className="text-4xl">vs {opponent.username}</div>
-            <div className="text-zinc-400 mt-3">{opponent.elo} Elo</div>
-            <div className="text-green-400 mt-8 animate-pulse">Du wirst zur Ergebnis-Eingabe weitergeleitet...</div>
-          </div>
-        )}
-
-        {status === 'error' && (
-          <div className="bg-red-950/40 rounded-3xl p-10 border border-red-800">
-            <div className="text-3xl font-bold text-red-400 mb-4">Matchmaking-Fehler</div>
-            <p className="text-zinc-300 mb-8">{errorMessage}</p>
-            <button onClick={() => setStatus('idle')} className="px-8 py-4 bg-zinc-800 rounded-2xl hover:bg-zinc-700">
-              Erneut versuchen
-            </button>
-          </div>
-        )}
+    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.24),transparent_34%),radial-gradient(circle_at_82%_8%,rgba(6,182,212,0.14),transparent_28%),radial-gradient(circle_at_50%_50%,rgba(163,230,53,0.08),transparent_34%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
+        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
       </div>
-    </div>
+
+      <nav className="relative z-10 border-b border-white/10 bg-black/45 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-xl font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
+            <div>
+              <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Matchmaking</div>
+            </div>
+          </Link>
+
+          <button
+            onClick={() => router.push('/profile')}
+            className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10"
+          >
+            Zum Profil
+          </button>
+        </div>
+      </nav>
+
+      <section className="relative z-10 mx-auto grid min-h-[calc(100vh-88px)] max-w-7xl items-center gap-10 px-5 py-14 md:px-8 lg:grid-cols-[0.92fr_1.08fr]">
+        <div>
+          <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
+            Live Queue
+          </div>
+          <h1 className="mt-6 text-6xl font-black leading-[0.88] tracking-[-0.07em] md:text-8xl">Finde dein nächstes Match.</h1>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Die Suche startet eng an deinem Elo-Level und erweitert den Radius automatisch, damit du schnell einen fairen Gegner findest.</p>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+              <Timer className="h-6 w-6 text-emerald-300" />
+              <div className="mt-4 text-4xl font-black tracking-[-0.05em]">{elapsedSeconds}s</div>
+              <div className="mt-1 text-sm text-zinc-500">Suchzeit</div>
+            </div>
+            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+              <Users className="h-6 w-6 text-cyan-300" />
+              <div className="mt-4 text-4xl font-black tracking-[-0.05em]">{queueCount}</div>
+              <div className="mt-1 text-sm text-zinc-500">In Queue</div>
+            </div>
+            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+              <Radar className="h-6 w-6 text-lime-300" />
+              <div className="mt-4 text-4xl font-black tracking-[-0.05em]">±{currentRange}</div>
+              <div className="mt-1 text-sm text-zinc-500">Elo Radius</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/86 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
+          <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-emerald-400/20 blur-3xl" />
+
+          {status === 'idle' && (
+            <div className="relative text-center">
+              <div className="mx-auto grid h-28 w-28 place-items-center rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_45px_rgba(34,197,94,0.18)]">
+                <Radar className="h-14 w-14" />
+              </div>
+              <h2 className="mt-8 text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für die Oche?</h2>
+              <p className="mx-auto mt-4 max-w-xl text-zinc-400">Starte die Suche, bleib auf der Seite und du wirst automatisch zur Ergebnis-Eingabe weitergeleitet, sobald ein Match gefunden wurde.</p>
+              <button
+                onClick={startSearch}
+                className="mt-8 w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-6 text-2xl font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.24)] transition hover:-translate-y-1"
+              >
+                Match suchen
+              </button>
+            </div>
+          )}
+
+          {status === 'searching' && (
+            <div className="relative text-center">
+              <div className="mx-auto grid h-28 w-28 animate-pulse place-items-center rounded-full border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_55px_rgba(34,197,94,0.24)]">
+                <Activity className="h-14 w-14" />
+              </div>
+              <h2 className="mt-8 text-4xl font-black tracking-[-0.05em]">Gegner wird gesucht</h2>
+              <p className="mt-3 text-zinc-400">Aktueller Elo-Suchradius: <span className="font-black text-emerald-300">±{currentRange}</span></p>
+
+              <div className="mt-8 h-4 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-all" style={{ width: `${searchProgress}%` }} />
+              </div>
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-4">
+                {searchSteps.map((step) => (
+                  <div key={step.time} className={`rounded-2xl border p-4 text-left ${currentRange >= Number.parseInt(step.range.replace(/\D/g, ''), 10) ? 'border-emerald-300/25 bg-emerald-400/[0.08]' : 'border-white/10 bg-white/[0.03]'}`}>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">{step.time}</div>
+                    <div className="mt-2 font-black text-emerald-200">{step.range}</div>
+                    <div className="mt-1 text-xs text-zinc-500">{step.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={stopSearch} className="mt-8 inline-flex items-center justify-center gap-2 rounded-full border border-white/15 px-6 py-3 font-bold text-zinc-300 transition hover:border-white/35 hover:bg-white/10">
+                <XCircle className="h-5 w-5" />
+                Suche abbrechen
+              </button>
+            </div>
+          )}
+
+          {status === 'found' && opponent && (
+            <div className="relative text-center">
+              <div className="mx-auto grid h-28 w-28 place-items-center rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_55px_rgba(34,197,94,0.24)]">
+                <CheckCircle2 className="h-14 w-14" />
+              </div>
+              <h2 className="mt-8 text-4xl font-black tracking-[-0.05em]">Gegner gefunden</h2>
+              <div className="mt-6 rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.07] p-6">
+                <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Dein Match</div>
+                <div className="mt-3 text-5xl font-black tracking-[-0.06em]">vs {opponent.username}</div>
+                <div className="mt-2 text-zinc-400">{opponent.elo} Elo</div>
+              </div>
+              <p className="mt-7 animate-pulse font-bold text-emerald-300">Du wirst zur Ergebnis-Eingabe weitergeleitet...</p>
+            </div>
+          )}
+
+          {status === 'error' && (
+            <div className="relative text-center">
+              <div className="mx-auto grid h-24 w-24 place-items-center rounded-[2rem] border border-red-400/25 bg-red-500/10 text-red-300">
+                <XCircle className="h-12 w-12" />
+              </div>
+              <h2 className="mt-7 text-4xl font-black tracking-[-0.05em]">Matchmaking-Fehler</h2>
+              <p className="mt-4 rounded-3xl border border-red-400/20 bg-red-500/10 p-5 text-zinc-300">{errorMessage}</p>
+              <button onClick={() => setStatus('idle')} className="mt-7 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black">
+                Erneut versuchen
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="lg:col-span-2 grid gap-5 md:grid-cols-3">
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+            <ShieldCheck className="h-7 w-7 text-emerald-300" />
+            <h3 className="mt-4 text-xl font-black">Fairer Radius</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Der Suchbereich wächst automatisch, damit Matches fair bleiben und trotzdem zustande kommen.</p>
+          </div>
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+            <Timer className="h-7 w-7 text-cyan-300" />
+            <h3 className="mt-4 text-xl font-black">Live Polling</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Die Seite prüft regelmäßig, ob ein passender Gegner gefunden wurde.</p>
+          </div>
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+            <CheckCircle2 className="h-7 w-7 text-lime-300" />
+            <h3 className="mt-4 text-xl font-black">Direkt zum Result</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Nach einem Treffer geht es automatisch zur Ergebnis-Eingabe für dein Match.</p>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

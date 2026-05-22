@@ -1,6 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import { AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Crown, Gauge, MessageSquare, ShieldCheck, Target, Trophy, XCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -39,11 +42,57 @@ type RpcStatusResponse = {
   elo_change?: number;
 };
 
+type LocalMatchStats = {
+  matchFormat: string;
+  checkoutHits: string;
+  checkoutAttempts: string;
+  oneEighties: string;
+  tonPlus: string;
+  matchNote: string;
+};
+
+const matchFormats = ['Best of 3', 'Best of 5', 'Best of 7', 'Best of 9'];
+
+const statHints = [
+  { title: 'Legs', description: 'Pflichtfeld für Gewinner und Elo-Auswertung.' },
+  { title: 'Average', description: 'Wichtig für Formkurve, Matchqualität und spätere Statistiken.' },
+  { title: 'Highest Checkout', description: 'Zeigt deine beste Finish-Situation im Match.' },
+  { title: 'Checkout-Quote', description: 'Hilft zu erkennen, ob Scoring oder Finishing dein Engpass ist.' },
+  { title: '180er und Ton+', description: 'Macht starke Scoring-Matches später besser sichtbar.' },
+  { title: 'Match-Notiz', description: 'Praktisch für Admin-Prüfung, Widersprüche und persönliche Analyse.' },
+];
+
+type NumberControlProps = {
+  label: string;
+  value: number;
+  setValue: Dispatch<SetStateAction<number>>;
+  accent: string;
+};
+
+function NumberControl({ label, value, setValue, accent }: NumberControlProps) {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 text-center">
+      <div className="text-sm font-black uppercase tracking-[0.22em] text-zinc-500">{label}</div>
+      <div className="mt-5 flex items-center justify-center gap-4">
+        <button onClick={() => setValue((current) => Math.max(0, current - 1))} className="grid h-12 w-12 place-items-center rounded-2xl border border-white/10 text-3xl font-black text-zinc-400 transition hover:bg-white/10 hover:text-white">−</button>
+        <span className={`min-w-20 text-7xl font-black tracking-[-0.08em] ${accent}`}>{value}</span>
+        <button onClick={() => setValue((current) => current + 1)} className="grid h-12 w-12 place-items-center rounded-2xl border border-white/10 text-3xl font-black text-zinc-400 transition hover:bg-white/10 hover:text-white">+</button>
+      </div>
+    </div>
+  );
+}
+
 export default function MatchResult() {
   const [legsWon, setLegsWon] = useState(0);
   const [legsLost, setLegsLost] = useState(0);
   const [average, setAverage] = useState('');
   const [highestCheckout, setHighestCheckout] = useState('');
+  const [matchFormat, setMatchFormat] = useState(matchFormats[1]);
+  const [checkoutHits, setCheckoutHits] = useState('');
+  const [checkoutAttempts, setCheckoutAttempts] = useState('');
+  const [oneEighties, setOneEighties] = useState('');
+  const [tonPlus, setTonPlus] = useState('');
+  const [matchNote, setMatchNote] = useState('');
   const [disputeReason, setDisputeReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
@@ -55,6 +104,40 @@ export default function MatchResult() {
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+
+  const loadLocalStats = useCallback((matchId: string) => {
+    if (typeof window === 'undefined') return;
+
+    const saved = window.localStorage.getItem(`rankeddarts-result-stats-${matchId}`);
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved) as Partial<LocalMatchStats>;
+      setMatchFormat(parsed.matchFormat || matchFormats[1]);
+      setCheckoutHits(parsed.checkoutHits || '');
+      setCheckoutAttempts(parsed.checkoutAttempts || '');
+      setOneEighties(parsed.oneEighties || '');
+      setTonPlus(parsed.tonPlus || '');
+      setMatchNote(parsed.matchNote || '');
+    } catch (error) {
+      console.error('Lokale Match-Stats konnten nicht gelesen werden:', error);
+    }
+  }, []);
+
+  const saveLocalStats = useCallback((matchId: string) => {
+    if (typeof window === 'undefined') return;
+
+    const stats: LocalMatchStats = {
+      matchFormat,
+      checkoutHits,
+      checkoutAttempts,
+      oneEighties,
+      tonPlus,
+      matchNote,
+    };
+
+    window.localStorage.setItem(`rankeddarts-result-stats-${matchId}`, JSON.stringify(stats));
+  }, [checkoutAttempts, checkoutHits, matchFormat, matchNote, oneEighties, tonPlus]);
 
   const loadMatch = useCallback(async () => {
     try {
@@ -74,6 +157,7 @@ export default function MatchResult() {
       }
 
       setCurrentUserId(session.user.id);
+      loadLocalStats(matchId);
 
       const { data, error } = await supabase
         .from('active_matches')
@@ -105,7 +189,7 @@ export default function MatchResult() {
     } finally {
       setPageLoading(false);
     }
-  }, [router, supabase]);
+  }, [loadLocalStats, router, supabase]);
 
   useEffect(() => {
     void Promise.resolve().then(loadMatch);
@@ -113,6 +197,17 @@ export default function MatchResult() {
 
   const isSubmitter = Boolean(match?.submitted_by && match.submitted_by === currentUserId);
   const needsMyConfirmation = Boolean(match?.status === 'awaiting_confirmation' && match.submitted_by && match.submitted_by !== currentUserId);
+  const checkoutHitsNumber = checkoutHits ? Number.parseInt(checkoutHits, 10) : 0;
+  const checkoutAttemptsNumber = checkoutAttempts ? Number.parseInt(checkoutAttempts, 10) : 0;
+  const checkoutRate = checkoutAttemptsNumber > 0 ? Math.round((checkoutHitsNumber / checkoutAttemptsNumber) * 100) : 0;
+  const averageNumber = average ? Number.parseFloat(average) : 0;
+  const legDifference = Math.abs(legsWon - legsLost);
+  const isWin = legsWon > legsLost;
+  const resultIsValid = legsWon !== legsLost && (legsWon > 0 || legsLost > 0);
+  const statsCompletion = [resultIsValid, Boolean(average), Boolean(highestCheckout), checkoutAttemptsNumber > 0, Boolean(oneEighties), Boolean(tonPlus), Boolean(matchNote)].filter(Boolean).length;
+  const statsCompletionPercent = Math.round((statsCompletion / 7) * 100);
+  const performanceLabel = averageNumber >= 80 ? 'Starkes Scoring' : averageNumber >= 60 ? 'Solide Form' : averageNumber > 0 ? 'Ausbaufähig' : 'Noch offen';
+  const resultTone = isWin ? 'text-emerald-300' : 'text-zinc-300';
 
   const submittedResultForMe = useMemo(() => {
     if (!match || !currentUserId) return null;
@@ -122,22 +217,31 @@ export default function MatchResult() {
     const opponentLegs = iAmPlayer1 ? match.submitted_player2_legs : match.submitted_player1_legs;
     const submitterName = match.submitted_by === match.player1_id ? match.player1_username : match.player2_username;
     const winnerName = match.submitted_winner_id === match.player1_id ? match.player1_username : match.player2_username;
+    const myAverage = iAmPlayer1 ? match.submitted_player1_average : match.submitted_player2_average;
+    const opponentAverage = iAmPlayer1 ? match.submitted_player2_average : match.submitted_player1_average;
+    const myCheckout = iAmPlayer1 ? match.submitted_player1_checkout : match.submitted_player2_checkout;
+    const opponentCheckout = iAmPlayer1 ? match.submitted_player2_checkout : match.submitted_player1_checkout;
 
     return {
       myLegs,
       opponentLegs,
       submitterName,
       winnerName,
+      myAverage,
+      opponentAverage,
+      myCheckout,
+      opponentCheckout,
       resultText: `${myLegs ?? '-'}:${opponentLegs ?? '-'}`,
     };
   }, [currentUserId, match]);
 
   const submitResult = async () => {
-    if (!match || !opponent || legsWon === legsLost) return;
+    if (!match || !opponent || !resultIsValid) return;
 
     setLoading(true);
     setErrorMessage('');
     setInfoMessage('');
+    saveLocalStats(match.id);
 
     try {
       const { data, error } = await supabase.rpc('submit_match_result', {
@@ -217,176 +321,288 @@ export default function MatchResult() {
 
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
-        <div className="text-3xl text-green-400 animate-pulse">Match wird geladen...</div>
-      </div>
+      <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">Match wird geladen...</div>
+      </main>
     );
   }
 
   if (errorMessage && !match) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-8">
-        <div className="max-w-xl bg-zinc-900 rounded-3xl p-10 text-center border border-red-800">
-          <h1 className="text-3xl font-bold text-red-400 mb-4">Kein gültiges Match</h1>
-          <p className="text-zinc-300 mb-8">{errorMessage}</p>
-          <button onClick={() => router.push('/matchmaking')} className="px-8 py-4 bg-green-600 hover:bg-green-700 rounded-2xl font-bold">
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050607] p-6 text-white">
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.22),transparent_34%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
+        <div className="relative max-w-xl rounded-[2rem] border border-red-400/25 bg-zinc-950/86 p-8 text-center shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-10">
+          <XCircle className="mx-auto h-14 w-14 text-red-300" />
+          <h1 className="mt-5 text-4xl font-black tracking-[-0.05em]">Kein gültiges Match</h1>
+          <p className="mt-4 text-zinc-300">{errorMessage}</p>
+          <button onClick={() => router.push('/matchmaking')} className="mt-8 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black">
             Zum Matchmaking
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-8">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-10">Ergebnis</h1>
+    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.24),transparent_34%),radial-gradient(circle_at_82%_8%,rgba(6,182,212,0.14),transparent_28%),radial-gradient(circle_at_45%_45%,rgba(163,230,53,0.08),transparent_34%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
+        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+      </div>
 
-        <div className="bg-zinc-900 rounded-3xl p-10 border border-zinc-800">
-          <div className="text-center mb-10">
-            <p className="text-xl">Gegner: <strong>{opponent?.username}</strong> ({opponent?.elo} Elo)</p>
-            {errorMessage && <p className="text-red-400 mt-4">{errorMessage}</p>}
-            {infoMessage && <p className="text-green-400 mt-4">{infoMessage}</p>}
+      <nav className="relative z-10 border-b border-white/10 bg-black/45 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-xl font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
+            <div>
+              <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Result Center</div>
+            </div>
+          </Link>
+
+          <button onClick={() => router.push('/profile')} className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10">
+            Zurück zum Profil
+          </button>
+        </div>
+      </nav>
+
+      <section className="relative z-10 mx-auto max-w-7xl px-5 py-12 md:px-8">
+        <div className="mb-8 grid gap-8 lg:grid-cols-[1fr_0.8fr] lg:items-end">
+          <div>
+            <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
+              Ergebnis & Matchanalyse
+            </div>
+            <h1 className="mt-6 text-6xl font-black leading-[0.9] tracking-[-0.07em] md:text-8xl">Result Center</h1>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-300">Trage das Ergebnis ein, ergänze wichtige Stats und bestätige fair. Die Kernwerte werden wie bisher an Supabase gesendet; zusätzliche Analysewerte werden lokal pro Match vorbereitet.</p>
           </div>
 
-          {match?.status === 'pending_result' && (
-            <>
-              <div className="mb-12">
-                <label className="block text-center text-zinc-400 mb-6 text-lg">Legs</label>
-                <div className="flex justify-center items-center gap-12">
-                  <div className="text-center">
-                    <button onClick={() => setLegsWon(l => Math.max(0, l - 1))} className="text-5xl px-6 text-zinc-400 hover:text-white">-</button>
-                    <span className="text-7xl font-bold mx-8 text-green-500">{legsWon}</span>
-                    <button onClick={() => setLegsWon(l => l + 1)} className="text-5xl px-6 text-zinc-400 hover:text-white">+</button>
-                    <p className="text-sm text-green-500 mt-2">Ich</p>
-                  </div>
-
-                  <div className="text-6xl text-zinc-600">:</div>
-
-                  <div className="text-center">
-                    <button onClick={() => setLegsLost(l => Math.max(0, l - 1))} className="text-5xl px-6 text-zinc-400 hover:text-white">-</button>
-                    <span className="text-7xl font-bold mx-8 text-red-500">{legsLost}</span>
-                    <button onClick={() => setLegsLost(l => l + 1)} className="text-5xl px-6 text-zinc-400 hover:text-white">+</button>
-                    <p className="text-sm text-red-500 mt-2">Gegner</p>
-                  </div>
-                </div>
+          <div className="rounded-[2rem] border border-white/10 bg-zinc-950/86 p-6 backdrop-blur-xl">
+            <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Match</div>
+            <div className="mt-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-3xl font-black tracking-[-0.04em]">vs {opponent?.username}</div>
+                <div className="mt-1 text-zinc-400">{opponent?.elo} Elo</div>
               </div>
-
-              <div className="grid grid-cols-2 gap-6 mb-10">
-                <div>
-                  <label className="block text-zinc-400 mb-3">Average</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={average}
-                    onChange={(event) => setAverage(event.target.value)}
-                    className="w-full bg-zinc-800 p-5 rounded-2xl text-2xl text-center"
-                    placeholder="84.7"
-                  />
-                </div>
-                <div>
-                  <label className="block text-zinc-400 mb-3">Höchster Checkout</label>
-                  <input
-                    type="number"
-                    value={highestCheckout}
-                    onChange={(event) => setHighestCheckout(event.target.value)}
-                    className="w-full bg-zinc-800 p-5 rounded-2xl text-2xl text-center"
-                    placeholder="170"
-                  />
-                </div>
+              <div className="grid h-16 w-16 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-200">
+                <Target className="h-8 w-8" />
               </div>
-
-              {legsWon === legsLost && (legsWon > 0 || legsLost > 0) && (
-                <p className="text-center text-red-400 mb-6">Ein Unentschieden kann nicht eingereicht werden.</p>
-              )}
-
-              <button
-                onClick={submitResult}
-                disabled={loading || legsWon === legsLost || (legsWon === 0 && legsLost === 0)}
-                className="w-full py-7 bg-green-600 hover:bg-green-700 text-2xl font-bold rounded-3xl disabled:opacity-50"
-              >
-                {loading ? 'Wird eingereicht...' : 'Ergebnis zur Bestätigung einreichen'}
-              </button>
-            </>
-          )}
-
-          {match?.status === 'awaiting_confirmation' && isSubmitter && (
-            <div className="text-center bg-zinc-800 rounded-3xl p-8 border border-yellow-700/60">
-              <h2 className="text-2xl font-bold text-yellow-400 mb-4">Warte auf Bestätigung</h2>
-              <p className="text-zinc-300">
-                Du hast das Ergebnis <strong>{submittedResultForMe?.resultText}</strong> eingereicht.
-                Elo wird erst vergeben, wenn {opponent?.username} bestätigt.
-              </p>
             </div>
-          )}
+          </div>
+        </div>
 
-          {match?.status === 'awaiting_confirmation' && needsMyConfirmation && (
-            <div className="bg-zinc-800 rounded-3xl p-8 border border-green-700/60">
-              <h2 className="text-2xl font-bold text-green-400 mb-4 text-center">Ergebnis bestätigen</h2>
-              <p className="text-zinc-300 text-center mb-6">
-                {submittedResultForMe?.submitterName} hat folgendes Ergebnis eingereicht:
-              </p>
-              <div className="text-center text-6xl font-black mb-6">
-                {submittedResultForMe?.resultText}
+        {(errorMessage || infoMessage) && (
+          <div className={`mb-8 rounded-3xl border p-5 ${errorMessage ? 'border-red-400/25 bg-red-500/10 text-red-100' : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'}`}>
+            {errorMessage || infoMessage}
+          </div>
+        )}
+
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-[2.5rem] border border-white/10 bg-zinc-950/86 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
+            {match?.status === 'pending_result' && (
+              <div>
+                <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+                  <div>
+                    <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Scoreboard</div>
+                    <h2 className="mt-2 text-4xl font-black tracking-[-0.05em]">Legs eintragen</h2>
+                  </div>
+                  <select value={matchFormat} onChange={(event) => setMatchFormat(event.target.value)} className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3 font-bold text-white outline-none focus:border-emerald-300/50">
+                    {matchFormats.map((format) => <option key={format}>{format}</option>)}
+                  </select>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                  <NumberControl label="Ich" value={legsWon} setValue={setLegsWon} accent="text-emerald-300" />
+                  <div className="hidden text-6xl font-black text-zinc-700 md:block">:</div>
+                  <NumberControl label="Gegner" value={legsLost} setValue={setLegsLost} accent="text-zinc-300" />
+                </div>
+
+                {legsWon === legsLost && (legsWon > 0 || legsLost > 0) && (
+                  <p className="mt-5 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 text-center font-bold text-red-200">Ein Unentschieden kann nicht eingereicht werden.</p>
+                )}
+
+                <div className="mt-8 grid gap-5 md:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-black uppercase tracking-[0.18em] text-zinc-500">Average</span>
+                    <input type="number" step="0.01" value={average} onChange={(event) => setAverage(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-2xl font-black text-white outline-none focus:border-emerald-300/60" placeholder="84.70" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-black uppercase tracking-[0.18em] text-zinc-500">Höchster Checkout</span>
+                    <input type="number" value={highestCheckout} onChange={(event) => setHighestCheckout(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-2xl font-black text-white outline-none focus:border-emerald-300/60" placeholder="170" />
+                  </label>
+                </div>
+
+                <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
+                  <div className="mb-5 flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-black uppercase tracking-[0.25em] text-cyan-300">Zusatz-Stats</div>
+                      <p className="mt-1 text-sm text-zinc-500">Für bessere Analyse und spätere Datenbank-Erweiterung vorbereitet.</p>
+                    </div>
+                    <div className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-sm font-black text-emerald-200">{statsCompletionPercent}% ausgefüllt</div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-zinc-400">Checkouts getroffen</span>
+                      <input type="number" value={checkoutHits} onChange={(event) => setCheckoutHits(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-emerald-300/60" placeholder="3" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-zinc-400">Checkout-Versuche</span>
+                      <input type="number" value={checkoutAttempts} onChange={(event) => setCheckoutAttempts(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-emerald-300/60" placeholder="9" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-zinc-400">180er</span>
+                      <input type="number" value={oneEighties} onChange={(event) => setOneEighties(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-emerald-300/60" placeholder="1" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-zinc-400">Ton+ Aufnahmen</span>
+                      <input type="number" value={tonPlus} onChange={(event) => setTonPlus(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-emerald-300/60" placeholder="12" />
+                    </label>
+                  </div>
+
+                  <label className="mt-4 block">
+                    <span className="mb-2 block text-sm font-bold text-zinc-400">Match-Notiz</span>
+                    <textarea value={matchNote} onChange={(event) => setMatchNote(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-emerald-300/60" rows={3} placeholder="Zum Beispiel: Gegner hat 104 gecheckt, ein Leg war sehr knapp, Stream vorhanden..." />
+                  </label>
+                </div>
+
+                <button onClick={submitResult} disabled={loading || !resultIsValid} className="mt-8 w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-6 text-xl font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.22)] transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-50">
+                  {loading ? 'Wird eingereicht...' : 'Ergebnis zur Bestätigung einreichen'}
+                </button>
               </div>
-              <p className="text-center text-zinc-400 mb-8">
-                Gewinner laut Einreichung: <strong className="text-white">{submittedResultForMe?.winnerName}</strong>
-              </p>
+            )}
 
-              <div className="space-y-4">
-                <button
-                  onClick={confirmResult}
-                  disabled={loading}
-                  className="w-full py-5 bg-green-600 hover:bg-green-700 rounded-2xl text-xl font-bold disabled:opacity-50"
-                >
+            {match?.status === 'awaiting_confirmation' && isSubmitter && (
+              <div className="rounded-[2rem] border border-cyan-300/20 bg-cyan-400/10 p-8 text-center">
+                <ClipboardCheck className="mx-auto h-14 w-14 text-cyan-200" />
+                <h2 className="mt-5 text-3xl font-black tracking-[-0.04em]">Warte auf Bestätigung</h2>
+                <p className="mx-auto mt-4 max-w-xl text-zinc-300">Du hast das Ergebnis <strong className="text-white">{submittedResultForMe?.resultText}</strong> eingereicht. Elo wird erst vergeben, wenn {opponent?.username} bestätigt.</p>
+              </div>
+            )}
+
+            {match?.status === 'awaiting_confirmation' && needsMyConfirmation && (
+              <div>
+                <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/[0.07] p-8 text-center">
+                  <ShieldCheck className="mx-auto h-14 w-14 text-emerald-200" />
+                  <h2 className="mt-5 text-3xl font-black tracking-[-0.04em]">Ergebnis bestätigen</h2>
+                  <p className="mt-4 text-zinc-300">{submittedResultForMe?.submitterName} hat folgendes Ergebnis eingereicht:</p>
+                  <div className="mt-5 text-7xl font-black tracking-[-0.08em] text-white">{submittedResultForMe?.resultText}</div>
+                  <p className="mt-4 text-zinc-400">Gewinner laut Einreichung: <strong className="text-emerald-300">{submittedResultForMe?.winnerName}</strong></p>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center">
+                    <div className="text-sm text-zinc-500">Average</div>
+                    <div className="mt-2 text-3xl font-black">{submittedResultForMe?.myAverage ?? '–'} : {submittedResultForMe?.opponentAverage ?? '–'}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center">
+                    <div className="text-sm text-zinc-500">High Checkout</div>
+                    <div className="mt-2 text-3xl font-black">{submittedResultForMe?.myCheckout ?? '–'} : {submittedResultForMe?.opponentCheckout ?? '–'}</div>
+                  </div>
+                </div>
+
+                <button onClick={confirmResult} disabled={loading} className="mt-6 w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-5 text-lg font-black uppercase tracking-[0.16em] text-black disabled:opacity-50">
                   {loading ? 'Wird bestätigt...' : 'Ergebnis bestätigen und Elo vergeben'}
                 </button>
 
-                <textarea
-                  value={disputeReason}
-                  onChange={(event) => setDisputeReason(event.target.value)}
-                  className="w-full bg-zinc-900 p-4 rounded-2xl text-white"
-                  placeholder="Optional: Warum stimmt das Ergebnis nicht?"
-                  rows={3}
-                />
+                <textarea value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)} className="mt-5 w-full rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-white outline-none focus:border-red-300/50" placeholder="Optional: Warum stimmt das Ergebnis nicht?" rows={3} />
 
-                <button
-                  onClick={disputeResult}
-                  disabled={loading}
-                  className="w-full py-5 bg-red-700 hover:bg-red-800 rounded-2xl text-xl font-bold disabled:opacity-50"
-                >
+                <button onClick={disputeResult} disabled={loading} className="mt-4 w-full rounded-3xl border border-red-400/25 bg-red-500/10 px-8 py-5 text-lg font-black uppercase tracking-[0.16em] text-red-100 transition hover:bg-red-500/15 disabled:opacity-50">
                   Ergebnis widersprechen
                 </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {match?.status === 'completed' && (
-            <div className="text-center bg-zinc-800 rounded-3xl p-8 border border-green-700/60">
-              <h2 className="text-2xl font-bold text-green-400 mb-4">Match abgeschlossen</h2>
-              <p className="text-zinc-300 mb-8">Dieses Match wurde bereits bestätigt und in der History gespeichert.</p>
-              <button onClick={() => router.push('/history')} className="px-8 py-4 bg-green-600 hover:bg-green-700 rounded-2xl font-bold">
-                Zur History
-              </button>
-            </div>
-          )}
+            {match?.status === 'completed' && (
+              <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/[0.07] p-8 text-center">
+                <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-200" />
+                <h2 className="mt-5 text-3xl font-black tracking-[-0.04em]">Match abgeschlossen</h2>
+                <p className="mx-auto mt-4 max-w-xl text-zinc-300">Dieses Match wurde bereits bestätigt und in der History gespeichert.</p>
+                <button onClick={() => router.push('/history')} className="mt-8 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black">
+                  Zur History
+                </button>
+              </div>
+            )}
 
-          {match?.status === 'disputed' && (
-            <div className="text-center bg-zinc-800 rounded-3xl p-8 border border-red-700/60">
-              <h2 className="text-2xl font-bold text-red-400 mb-4">Ergebnis im Widerspruch</h2>
-              <p className="text-zinc-300">Für dieses Match wurde keine Elo vergeben. Es muss manuell geprüft werden.</p>
-              {match.dispute_reason && <p className="text-zinc-400 mt-4">Grund: {match.dispute_reason}</p>}
+            {match?.status === 'disputed' && (
+              <div className="rounded-[2rem] border border-red-400/25 bg-red-500/10 p-8 text-center">
+                <AlertTriangle className="mx-auto h-14 w-14 text-red-200" />
+                <h2 className="mt-5 text-3xl font-black tracking-[-0.04em]">Ergebnis im Widerspruch</h2>
+                <p className="mx-auto mt-4 max-w-xl text-zinc-300">Für dieses Match wurde keine Elo vergeben. Es muss manuell geprüft werden.</p>
+                {match.dispute_reason && <p className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4 text-zinc-300">Grund: {match.dispute_reason}</p>}
+              </div>
+            )}
+          </div>
+
+          <aside className="space-y-6">
+            <div className="rounded-[2.5rem] border border-white/10 bg-zinc-950/86 p-6 shadow-2xl shadow-black/40 backdrop-blur-2xl md:p-8">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Live Summary</div>
+                  <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">{resultIsValid ? (isWin ? 'Sieg eingetragen' : 'Niederlage eingetragen') : 'Noch offen'}</h2>
+                </div>
+                <div className="grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-200">
+                  <Trophy className="h-7 w-7" />
+                </div>
+              </div>
+
+              <div className="mt-7 grid grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center">
+                  <div className={`text-4xl font-black tracking-[-0.05em] ${resultTone}`}>{legsWon}:{legsLost}</div>
+                  <div className="mt-1 text-xs uppercase tracking-[0.2em] text-zinc-500">Legs</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center">
+                  <div className="text-4xl font-black tracking-[-0.05em] text-cyan-200">{legDifference}</div>
+                  <div className="mt-1 text-xs uppercase tracking-[0.2em] text-zinc-500">Differenz</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center">
+                  <div className="text-4xl font-black tracking-[-0.05em] text-emerald-200">{checkoutRate}%</div>
+                  <div className="mt-1 text-xs uppercase tracking-[0.2em] text-zinc-500">Checkout</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center">
+                  <div className="text-4xl font-black tracking-[-0.05em] text-lime-200">{oneEighties || 0}</div>
+                  <div className="mt-1 text-xs uppercase tracking-[0.2em] text-zinc-500">180er</div>
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-emerald-300/20 bg-emerald-400/[0.07] p-5">
+                <div className="flex items-center gap-3">
+                  <Gauge className="h-5 w-5 text-emerald-300" />
+                  <span className="font-black text-emerald-200">{performanceLabel}</span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">Diese Einschätzung basiert auf dem eingetragenen Average und hilft dir, das Match schneller einzuordnen.</p>
+              </div>
             </div>
-          )}
+
+            <div className="rounded-[2rem] border border-white/10 bg-zinc-950/86 p-6 backdrop-blur-xl md:p-7">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-6 w-6 text-cyan-300" />
+                <h3 className="text-2xl font-black tracking-[-0.04em]">Stats, die nicht fehlen dürfen</h3>
+              </div>
+              <div className="mt-5 space-y-3">
+                {statHints.map((hint) => (
+                  <div key={hint.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="font-black text-white">{hint.title}</div>
+                    <p className="mt-1 text-sm leading-6 text-zinc-500">{hint.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-zinc-950/86 p-6 backdrop-blur-xl md:p-7">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="h-6 w-6 text-emerald-300" />
+                <h3 className="text-2xl font-black tracking-[-0.04em]">Fair-Play Check</h3>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-zinc-400">Kontrolliere vor dem Absenden Score, Average und Checkout. Bei Unstimmigkeiten kann der Gegner das Ergebnis widersprechen, bevor Elo vergeben wird.</p>
+              <div className="mt-5 flex items-center gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
+                <Crown className="h-5 w-5" />
+                Saubere Stats machen Leaderboard und History später deutlich wertvoller.
+              </div>
+            </div>
+          </aside>
         </div>
-
-        <button
-          onClick={() => router.push('/profile')}
-          className="mt-8 text-zinc-400 hover:text-white block mx-auto"
-        >
-          ← Zurück zum Profil
-        </button>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
