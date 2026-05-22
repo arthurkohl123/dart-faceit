@@ -1,137 +1,144 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function Matchmaking() {
-  const [searching, setSearching] = useState(false);
-  const [matchFound, setMatchFound] = useState<any>(null);
-  const [status, setStatus] = useState("Bereit zum Suchen...");
-
+  const [status, setStatus] = useState<'idle' | 'searching' | 'found'>('idle');
+  const [opponent, setOpponent] = useState<any>(null);
+  const [timeLeft, setTimeLeft] = useState(60);
   const supabase = createClient();
   const router = useRouter();
 
-  const searchMatch = async () => {
-    setSearching(true);
-    setStatus("Suche Gegner...");
-
+  const startSearch = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) return router.push('/auth/login');
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('elo, username')
+      .select('elo')
       .eq('supabaseId', session.user.id)
       .single();
 
-    const myElo = profile?.elo || 1000;
+    if (!profile) return alert("Profil nicht gefunden");
 
-    // Eintragen in Queue
+    // In die Queue eintragen
     await supabase.from('matchmaking_queue').insert({
       user_id: session.user.id,
-      elo: myElo
+      elo: profile.elo
     });
 
-    // Such-Loop
-    const interval = setInterval(async () => {
-      const { data: queue } = await supabase
+    setStatus('searching');
+    setTimeLeft(60);
+  };
+
+  const stopSearch = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await supabase
         .from('matchmaking_queue')
-        .select('*')
+        .delete()
+        .eq('user_id', session.user.id);
+    }
+    setStatus('idle');
+    setOpponent(null);
+  };
+
+  // Polling
+  useEffect(() => {
+    if (status !== 'searching') return;
+
+    const interval = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: myProfile } = await supabase
+        .from('profiles')
+        .select('elo')
+        .eq('supabaseId', session.user.id)
+        .single();
+
+      if (!myProfile) return;
+
+      // Gegner suchen (±40 Elo)
+      const { data: found } = await supabase
+        .from('matchmaking_queue')
+        .select(`
+          *,
+          profiles!matchmaking_queue_user_id_fkey (username, elo)
+        `)
         .neq('user_id', session.user.id)
-        .order('joined_at', { ascending: true })
-        .limit(10);
+        .gte('elo', myProfile.elo - 40)
+        .lte('elo', myProfile.elo + 40)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
 
-      if (queue && queue.length > 0) {
-        const opponent = queue[0];
+      if (found) {
+        setOpponent(found.profiles);
+        setStatus('found');
 
-        clearInterval(interval);
-
-        // Match erstellen
-        const { data: newMatch } = await supabase
-          .from('matches')
-          .insert({
-            user_id: session.user.id,
-            opponent_name: opponent.username || "Gegner",
-            opponent_elo: opponent.elo,
-            legs_won: 0,
-            legs_lost: 0,
-            result: "0:0",
-            is_win: false,
-            elo_change: 0
-          })
-          .select()
-          .single();
-
-        // Queue leeren
+        // Beide aus Queue entfernen
         await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
-        await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
+        await supabase.from('matchmaking_queue').delete().eq('user_id', found.user_id);
 
-        setMatchFound({
-          matchId: newMatch?.id,
-          username: opponent.username || "Gegner",
-          elo: opponent.elo
-        });
-        setSearching(false);
+        setTimeout(() => router.push('/result'), 1800);
       }
     }, 1800);
 
-    // Timeout
-    setTimeout(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          stopSearch();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
       clearInterval(interval);
-      if (searching) {
-        setSearching(false);
-        setStatus("Keine Gegner gefunden. Versuche es später erneut.");
-        supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
-      }
-    }, 40000);
-  };
+      clearInterval(timer);
+    };
+  }, [status, router, supabase]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-8">
-      <div className="max-w-2xl w-full text-center">
-        {!matchFound ? (
-          <>
-            <div className="mb-16">
-              <div className="inline-flex items-center gap-3 bg-zinc-900 px-6 py-3 rounded-full mb-8">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 font-medium">Echte Queue aktiv</span>
-              </div>
-              
-              <h1 className="text-6xl font-bold tracking-tighter mb-6">Bereit für ein Match?</h1>
-              <p className="text-xl text-zinc-400">{status}</p>
-            </div>
+    <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center relative overflow-hidden">
+      <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#22c55e_1px,transparent_1px)] [background-size:40px_40px]"></div>
 
+      <div className="text-center z-10 max-w-md">
+        <h1 className="text-6xl font-black mb-8">🎯 MATCHMAKING</h1>
+
+        {status === 'idle' && (
+          <button
+            onClick={startSearch}
+            className="px-20 py-8 bg-gradient-to-r from-green-500 to-emerald-600 text-3xl font-bold rounded-3xl hover:scale-105 transition-all active:scale-95"
+          >
+            MATCH SUCHEN
+          </button>
+        )}
+
+        {status === 'searching' && (
+          <div>
+            <div className="text-4xl font-bold text-green-400 animate-pulse mb-6">Gegner wird gesucht...</div>
+            <div className="text-7xl font-mono mb-8">{timeLeft}</div>
             <button
-              onClick={searchMatch}
-              disabled={searching}
-              className="w-full max-w-lg mx-auto bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 py-10 text-4xl font-black rounded-3xl transition-all active:scale-95 disabled:opacity-70"
+              onClick={stopSearch}
+              className="px-10 py-4 bg-red-600 hover:bg-red-700 rounded-2xl text-lg"
             >
-              {searching ? "🔍 SUCHE GEGNER..." : "🎯 MATCH SUCHEN"}
-            </button>
-          </>
-        ) : (
-          <div className="bg-zinc-900 rounded-3xl p-16">
-            <div className="text-green-500 text-2xl mb-6">✅ GEGNER GEFUNDEN!</div>
-            <div className="text-8xl mb-6">🎯</div>
-            <div className="text-5xl font-bold">{matchFound.username}</div>
-            <div className="text-3xl text-green-400 mt-4">{matchFound.elo} Elo</div>
-
-            <button 
-              onClick={() => router.push('/result')}
-              className="mt-10 w-full py-6 bg-green-600 text-2xl font-bold rounded-3xl hover:bg-green-500"
-            >
-              Match starten
+              Suche abbrechen
             </button>
           </div>
         )}
 
-        <button 
-          onClick={() => router.push('/profile')}
-          className="mt-12 text-zinc-400 hover:text-white"
-        >
-          ← Zurück zum Profil
-        </button>
+        {status === 'found' && opponent && (
+          <div className="space-y-6">
+            <div className="text-5xl">✅ Gegner gefunden!</div>
+            <div className="text-4xl font-bold">vs {opponent.username}</div>
+            <div className="text-green-400">Weiterleitung zum Match...</div>
+          </div>
+        )}
       </div>
     </div>
   );
