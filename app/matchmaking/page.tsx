@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function Matchmaking() {
   const [status, setStatus] = useState<'idle' | 'searching' | 'found'>('idle');
   const [opponent, setOpponent] = useState<any>(null);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(45);
   const supabase = createClient();
   const router = useRouter();
 
@@ -27,7 +27,7 @@ export default function Matchmaking() {
     });
 
     setStatus('searching');
-    setTimeLeft(60);
+    setTimeLeft(45);
   };
 
   const stopSearch = async () => {
@@ -51,38 +51,38 @@ export default function Matchmaking() {
         .eq('supabaseId', session.user.id)
         .single();
 
-      // Einfache Suche ohne komplizierten Join
-      const { data: found } = await supabase
+      // Sehr einfache Abfrage ohne Join
+      const { data: found, error } = await supabase
         .from('matchmaking_queue')
-        .select('*')
+        .select('user_id, elo')
         .neq('user_id', session.user.id)
-        .gte('elo', (myProfile?.elo || 1000) - 50)
-        .lte('elo', (myProfile?.elo || 1000) + 50)
-        .order('created_at', { ascending: true })
+        .gte('elo', (myProfile?.elo || 1000) - 60)
+        .lte('elo', (myProfile?.elo || 1000) + 60)
+        .order('created_at')
         .limit(1)
         .single();
 
+      if (error) console.error("Queue Error:", error);
+
       if (found) {
-        // Gegner-Info holen
-        const { data: opponentProfile } = await supabase
+        const { data: opponentData } = await supabase
           .from('profiles')
-          .select('username, elo')
+          .select('username')
           .eq('supabaseId', found.user_id)
           .single();
 
-        setOpponent(opponentProfile);
+        setOpponent(opponentData);
         setStatus('found');
 
-        // Beide aus Queue entfernen
         await supabase.from('matchmaking_queue').delete().eq('user_id', session.user.id);
         await supabase.from('matchmaking_queue').delete().eq('user_id', found.user_id);
 
-        setTimeout(() => router.push('/result'), 2000);
+        setTimeout(() => router.push('/result'), 1500);
       }
-    }, 2000);
+    }, 2200);
 
     const timer = setInterval(() => {
-      setTimeLeft(p => p > 1 ? p - 1 : 0);
+      setTimeLeft(prev => prev > 1 ? prev - 1 : 0);
     }, 1000);
 
     return () => {
@@ -92,27 +92,30 @@ export default function Matchmaking() {
   }, [status]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+    <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
       <div className="text-center">
-        <h1 className="text-6xl font-black mb-10">🎯 MATCHMAKING</h1>
+        <h1 className="text-6xl font-black mb-12">🎯 MATCHMAKING</h1>
 
         {status === 'idle' && (
-          <button onClick={startSearch} className="px-20 py-8 bg-green-600 text-3xl font-bold rounded-3xl hover:bg-green-500">
+          <button 
+            onClick={startSearch}
+            className="px-24 py-10 bg-gradient-to-r from-green-500 to-emerald-600 text-4xl font-bold rounded-3xl hover:scale-105"
+          >
             MATCH SUCHEN
           </button>
         )}
 
         {status === 'searching' && (
           <div>
-            <div className="text-4xl animate-pulse mb-4">Gegner wird gesucht...</div>
-            <div className="text-6xl font-mono mb-8">{timeLeft}s</div>
-            <button onClick={stopSearch} className="text-red-500">Abbrechen</button>
+            <div className="text-4xl text-green-400 animate-pulse mb-6">Gegner wird gesucht...</div>
+            <div className="text-7xl font-mono mb-8">{timeLeft}</div>
+            <button onClick={stopSearch} className="text-red-500 underline">Abbrechen</button>
           </div>
         )}
 
         {status === 'found' && opponent && (
-          <div>
-            <div className="text-5xl mb-4">✅ Gegner gefunden!</div>
+          <div className="space-y-4">
+            <div className="text-5xl">✅ Gefunden!</div>
             <div className="text-4xl">vs {opponent.username}</div>
           </div>
         )}
