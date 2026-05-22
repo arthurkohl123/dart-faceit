@@ -3,6 +3,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Ban,
+  CheckCircle2,
+  Crown,
+  Gavel,
+  Loader2,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  Trophy,
+  Users,
+} from 'lucide-react';
 
 type Profile = {
   id: string;
@@ -59,6 +75,12 @@ const emptyForm: ResolveFormState = {
   player2Checkout: '',
   adminNote: '',
 };
+
+const inputClassName =
+  'w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.075]';
+
+const statCardClassName =
+  'relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/20 backdrop-blur-xl';
 
 function toOptionalNumber(value: string) {
   const trimmed = value.trim();
@@ -281,63 +303,125 @@ export default function AdminPanel() {
     profile.username?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const adminCount = profiles.filter((profile) => profile.is_admin).length;
+  const bannedCount = profiles.filter((profile) => profile.is_banned).length;
+  const activeCount = profiles.length - bannedCount;
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-2xl text-white">
-        Lade Admin Panel...
-      </div>
+      <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#050607] text-white">
+        <div className="pointer-events-none fixed inset-0">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(34,197,94,0.25),transparent_34%),radial-gradient(circle_at_78%_18%,rgba(6,182,212,0.13),transparent_30%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_82%)]" />
+          <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+        </div>
+        <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.045] p-8 text-center shadow-2xl shadow-black/40 backdrop-blur-2xl">
+          <Loader2 className="mx-auto h-10 w-10 animate-spin text-emerald-300" />
+          <h1 className="mt-5 text-2xl font-black tracking-[-0.04em]">Admin Panel wird geladen</h1>
+          <p className="mt-2 text-sm text-zinc-400">Zugriff und Verwaltungsdaten werden geprüft.</p>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col gap-6 lg:flex-row lg:justify-between lg:items-center mb-10">
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">🔧</span>
+    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(34,197,94,0.24),transparent_32%),radial-gradient(circle_at_88%_10%,rgba(6,182,212,0.14),transparent_30%),radial-gradient(circle_at_50%_74%,rgba(163,230,53,0.1),transparent_36%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_84%)]" />
+        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-7xl px-5 py-8 md:px-8 lg:py-10">
+        <nav className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-black/45 p-4 shadow-2xl shadow-black/25 backdrop-blur-2xl md:flex-row md:items-center md:justify-between">
+          <button onClick={() => router.push('/')} className="flex items-center gap-3 text-left">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
             <div>
-              <h1 className="text-4xl font-black">Admin Panel</h1>
-              <p className="text-zinc-400 mt-2">Spieler verwalten und widersprochene Matches prüfen</p>
+              <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Admin Control Center</div>
             </div>
-          </div>
-          <div className="flex gap-3">
+          </button>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               onClick={refreshAdminData}
-              className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-black text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-400/15"
             >
+              <RefreshCw className="h-4 w-4" />
               Aktualisieren
             </button>
             <button
-              onClick={() => router.push('/')}
-              className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl"
+              onClick={() => router.push('/profile')}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10"
             >
-              ← Zurück zum Profil
+              <ArrowLeft className="h-4 w-4" />
+              Zum Profil
             </button>
           </div>
-        </div>
+        </nav>
+
+        <header className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+          <div>
+            <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
+              Geschützter Admin-Bereich
+            </div>
+            <h1 className="mt-6 max-w-4xl text-5xl font-black leading-[0.9] tracking-[-0.07em] md:text-7xl">Admin Panel für Ladder, Spieler und Disputes.</h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Verwalte Spielerprofile, prüfe widersprochene Matches und entscheide kritische Ergebnisse in einem einheitlichen RankedDarts-Dashboard.</p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className={statCardClassName}>
+              <Users className="h-7 w-7 text-emerald-300" />
+              <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{profiles.length}</div>
+              <div className="mt-1 text-sm font-semibold text-zinc-400">Spieler gesamt</div>
+            </div>
+            <div className={statCardClassName}>
+              <ShieldAlert className="h-7 w-7 text-amber-300" />
+              <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{disputedMatches.length}</div>
+              <div className="mt-1 text-sm font-semibold text-zinc-400">Offene Disputes</div>
+            </div>
+            <div className={statCardClassName}>
+              <CheckCircle2 className="h-7 w-7 text-lime-300" />
+              <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{activeCount}</div>
+              <div className="mt-1 text-sm font-semibold text-zinc-400">Aktive Accounts</div>
+            </div>
+            <div className={statCardClassName}>
+              <Crown className="h-7 w-7 text-cyan-300" />
+              <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{adminCount}</div>
+              <div className="mt-1 text-sm font-semibold text-zinc-400">Admins</div>
+            </div>
+          </div>
+        </header>
 
         {actionMessage && (
-          <div className="mb-8 rounded-2xl border border-red-700/60 bg-red-950/40 p-5 text-red-100">
+          <div className="mt-8 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
             {actionMessage}
           </div>
         )}
 
-        <section className="mb-12 rounded-3xl border border-amber-700/50 bg-amber-950/20 p-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-black text-amber-300">Widersprochene Matches</h2>
-              <p className="text-zinc-400 mt-2">
-                Hier werden Matches angezeigt, bei denen ein Spieler dem eingereichten Ergebnis widersprochen hat.
-              </p>
+        <section className="mt-10 rounded-[2.4rem] border border-amber-300/15 bg-amber-300/[0.035] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+          <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="grid h-13 w-13 place-items-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-amber-200">
+                <Gavel className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Widersprochene Matches</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Prüfe eingereichte Ergebnisse, setze finale Matchdaten und dokumentiere deine Entscheidung transparent per Admin-Notiz.</p>
+              </div>
             </div>
-            <span className="rounded-full bg-amber-500/20 px-5 py-2 text-amber-200 font-bold">
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-5 py-2.5 text-sm font-black text-amber-100">
+              {loadingDisputes && <Loader2 className="h-4 w-4 animate-spin" />}
               {loadingDisputes ? 'Lädt...' : `${disputedMatches.length} offen`}
             </span>
           </div>
 
           {disputedMatches.length === 0 ? (
-            <div className="rounded-2xl bg-zinc-900/70 p-6 text-zinc-400">
-              Aktuell gibt es keine widersprochenen Matches zur Prüfung.
+            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.035] p-7 text-zinc-300">
+              <div className="flex items-center gap-3 font-bold text-emerald-200">
+                <ShieldCheck className="h-5 w-5" />
+                Keine offenen Widersprüche
+              </div>
+              <p className="mt-2 text-sm leading-6 text-zinc-500">Aktuell gibt es keine Matches, die durch einen Admin geprüft werden müssen.</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -345,97 +429,103 @@ export default function AdminPanel() {
                 const form = resolveForms[match.match_id] || emptyForm;
 
                 return (
-                  <div key={match.match_id} className="rounded-3xl border border-zinc-700 bg-zinc-900 p-6">
-                    <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+                  <article key={match.match_id} className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/78 p-5 shadow-2xl shadow-black/25 backdrop-blur-2xl md:p-6">
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/70 to-transparent" />
+                    <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
                       <div>
-                        <div className="flex flex-wrap items-center gap-3 mb-4">
-                          <span className="rounded-full bg-red-600/20 px-4 py-1 text-sm font-bold text-red-300">
-                            DISPUTED
+                        <div className="mb-5 flex flex-wrap items-center gap-3">
+                          <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-100">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            Disputed
                           </span>
-                          <span className="text-zinc-500 text-sm">Match-ID: {match.match_id}</span>
+                          <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-xs font-semibold text-zinc-400">Match-ID: {match.match_id}</span>
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-2 mb-5">
-                          <div className="rounded-2xl bg-zinc-950 p-5 border border-zinc-800">
-                            <p className="text-zinc-500 text-sm">Spieler 1</p>
-                            <p className="text-xl font-black">{match.player1_username}</p>
-                            <p className="text-zinc-400">{match.player1_elo} Elo</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="rounded-[1.5rem] border border-emerald-300/15 bg-emerald-400/[0.055] p-5">
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300/80">Spieler 1</p>
+                            <p className="mt-3 text-2xl font-black tracking-[-0.04em]">{match.player1_username}</p>
+                            <p className="mt-1 text-sm font-semibold text-zinc-400">{match.player1_elo} Elo</p>
                           </div>
-                          <div className="rounded-2xl bg-zinc-950 p-5 border border-zinc-800">
-                            <p className="text-zinc-500 text-sm">Spieler 2</p>
-                            <p className="text-xl font-black">{match.player2_username}</p>
-                            <p className="text-zinc-400">{match.player2_elo} Elo</p>
+                          <div className="rounded-[1.5rem] border border-cyan-300/15 bg-cyan-400/[0.045] p-5">
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300/80">Spieler 2</p>
+                            <p className="mt-3 text-2xl font-black tracking-[-0.04em]">{match.player2_username}</p>
+                            <p className="mt-1 text-sm font-semibold text-zinc-400">{match.player2_elo} Elo</p>
                           </div>
                         </div>
 
-                        <div className="rounded-2xl bg-zinc-950 p-5 border border-zinc-800 space-y-2 text-sm text-zinc-300">
-                          <p>
-                            <span className="text-zinc-500">Eingereicht von:</span>{' '}
-                            <strong>{match.submitted_by_username || 'Unbekannt'}</strong>
-                          </p>
-                          <p>
-                            <span className="text-zinc-500">Gemeldeter Gewinner:</span>{' '}
-                            <strong>{match.submitted_winner_username || 'Unbekannt'}</strong>
-                          </p>
-                          <p>
-                            <span className="text-zinc-500">Gemeldetes Ergebnis:</span>{' '}
-                            <strong>{match.submitted_player1_legs ?? '—'}:{match.submitted_player2_legs ?? '—'}</strong>
-                          </p>
-                          <p>
-                            <span className="text-zinc-500">Widerspruch:</span>{' '}
-                            {match.dispute_reason || 'Kein Grund angegeben.'}
-                          </p>
-                          <p>
-                            <span className="text-zinc-500">Eingereicht am:</span>{' '}
-                            {formatDate(match.confirmation_requested_at || match.created_at)}
-                          </p>
+                        <div className="mt-5 grid gap-3 rounded-[1.5rem] border border-white/10 bg-black/30 p-5 text-sm text-zinc-300">
+                          <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
+                            <span className="text-zinc-500">Eingereicht von</span>
+                            <strong className="text-right text-zinc-100">{match.submitted_by_username || 'Unbekannt'}</strong>
+                          </div>
+                          <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
+                            <span className="text-zinc-500">Gemeldeter Gewinner</span>
+                            <strong className="text-right text-zinc-100">{match.submitted_winner_username || 'Unbekannt'}</strong>
+                          </div>
+                          <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
+                            <span className="text-zinc-500">Gemeldetes Ergebnis</span>
+                            <strong className="text-right text-zinc-100">{match.submitted_player1_legs ?? '—'}:{match.submitted_player2_legs ?? '—'}</strong>
+                          </div>
+                          <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
+                            <span className="text-zinc-500">Eingereicht am</span>
+                            <strong className="text-right text-zinc-100">{formatDate(match.confirmation_requested_at || match.created_at)}</strong>
+                          </div>
+                          <div>
+                            <span className="text-zinc-500">Widerspruch</span>
+                            <p className="mt-2 leading-6 text-zinc-200">{match.dispute_reason || 'Kein Grund angegeben.'}</p>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-zinc-950 p-5 border border-zinc-800">
-                        <h3 className="text-lg font-black mb-4">Admin-Entscheidung</h3>
+                      <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.035] p-5">
+                        <h3 className="flex items-center gap-2 text-xl font-black tracking-[-0.03em]">
+                          <Sparkles className="h-5 w-5 text-emerald-300" />
+                          Admin-Entscheidung
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">Finale Werte speichern, Elo korrekt vergeben oder das Match ohne Wertung annullieren.</p>
 
-                        <label className="block text-sm text-zinc-400 mb-2">Gewinner</label>
+                        <label className="mt-5 block text-sm font-bold text-zinc-300">Gewinner</label>
                         <select
                           value={form.winnerId}
                           onChange={(event) => updateResolveForm(match.match_id, { winnerId: event.target.value })}
-                          className="w-full mb-4 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3"
+                          className={`${inputClassName} mt-2`}
                         >
                           <option value={match.player1_id}>{match.player1_username}</option>
                           <option value={match.player2_id}>{match.player2_username}</option>
                         </select>
 
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          <div>
-                            <label className="block text-sm text-zinc-400 mb-2">Legs {match.player1_username}</label>
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <label className="block">
+                            <span className="mb-2 block text-xs font-bold text-zinc-400">Legs {match.player1_username}</span>
                             <input
                               type="number"
                               min="0"
                               value={form.player1Legs}
                               onChange={(event) => updateResolveForm(match.match_id, { player1Legs: event.target.value })}
-                              className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3"
+                              className={inputClassName}
                             />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-zinc-400 mb-2">Legs {match.player2_username}</label>
+                          </label>
+                          <label className="block">
+                            <span className="mb-2 block text-xs font-bold text-zinc-400">Legs {match.player2_username}</span>
                             <input
                               type="number"
                               min="0"
                               value={form.player2Legs}
                               onChange={(event) => updateResolveForm(match.match_id, { player2Legs: event.target.value })}
-                              className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3"
+                              className={inputClassName}
                             />
-                          </div>
+                          </label>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="mt-4 grid grid-cols-2 gap-3">
                           <input
                             type="number"
                             step="0.01"
                             placeholder={`Average ${match.player1_username}`}
                             value={form.player1Average}
                             onChange={(event) => updateResolveForm(match.match_id, { player1Average: event.target.value })}
-                            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3"
+                            className={inputClassName}
                           />
                           <input
                             type="number"
@@ -443,24 +533,24 @@ export default function AdminPanel() {
                             placeholder={`Average ${match.player2_username}`}
                             value={form.player2Average}
                             onChange={(event) => updateResolveForm(match.match_id, { player2Average: event.target.value })}
-                            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3"
+                            className={inputClassName}
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="mt-4 grid grid-cols-2 gap-3">
                           <input
                             type="number"
                             placeholder={`Checkout ${match.player1_username}`}
                             value={form.player1Checkout}
                             onChange={(event) => updateResolveForm(match.match_id, { player1Checkout: event.target.value })}
-                            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3"
+                            className={inputClassName}
                           />
                           <input
                             type="number"
                             placeholder={`Checkout ${match.player2_username}`}
                             value={form.player2Checkout}
                             onChange={(event) => updateResolveForm(match.match_id, { player2Checkout: event.target.value })}
-                            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3"
+                            className={inputClassName}
                           />
                         </div>
 
@@ -468,101 +558,126 @@ export default function AdminPanel() {
                           placeholder="Admin-Notiz, zum Beispiel Begründung oder Discord-Nachweis"
                           value={form.adminNote}
                           onChange={(event) => updateResolveForm(match.match_id, { adminNote: event.target.value })}
-                          className="w-full min-h-24 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 mb-4"
+                          className={`${inputClassName} mt-4 min-h-28 resize-none`}
                         />
 
-                        <div className="flex flex-col gap-3 sm:flex-row">
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                           <button
                             onClick={() => resolveDispute(match)}
-                            className="flex-1 rounded-xl bg-green-600 px-5 py-3 font-bold hover:bg-green-500"
+                            className="flex-1 rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-5 py-3.5 text-sm font-black uppercase tracking-[0.14em] text-black shadow-[0_16px_45px_rgba(34,197,94,0.22)] transition hover:-translate-y-0.5"
                           >
                             Ergebnis werten
                           </button>
                           <button
                             onClick={() => cancelDispute(match)}
-                            className="flex-1 rounded-xl bg-red-600 px-5 py-3 font-bold hover:bg-red-500"
+                            className="flex-1 rounded-2xl border border-rose-300/20 bg-rose-400/10 px-5 py-3.5 text-sm font-black uppercase tracking-[0.14em] text-rose-100 transition hover:border-rose-300/40 hover:bg-rose-400/15"
                           >
                             Ohne Elo annullieren
                           </button>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </article>
                 );
               })}
             </div>
           )}
         </section>
 
-        <section>
-          <input
-            type="text"
-            placeholder="Benutzer suchen..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-6 py-4 mb-8 text-lg"
-          />
-
-          <div className="bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-700">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-zinc-800 border-b border-zinc-700">
-                  <th className="text-left p-6">Benutzername</th>
-                  <th className="text-center p-6">Elo</th>
-                  <th className="text-center p-6">Spiele</th>
-                  <th className="text-center p-6">Siege</th>
-                  <th className="text-center p-6">Status</th>
-                  <th className="text-center p-6">Aktionen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((user) => (
-                  <tr key={user.id} className="border-b border-zinc-800 hover:bg-zinc-800/70">
-                    <td className="p-6 font-medium">{user.username}</td>
-                    <td className="p-6 text-center">
-                      <input
-                        type="number"
-                        defaultValue={user.elo || 1000}
-                        onBlur={(event) => updateElo(user.id, Number(event.target.value))}
-                        className="bg-transparent text-center w-24 font-bold focus:bg-zinc-800 rounded p-1"
-                      />
-                    </td>
-                    <td className="p-6 text-center">{user.gamesPlayed || 0}</td>
-                    <td className="p-6 text-center text-green-500">{user.wins || 0}</td>
-                    <td className="p-6 text-center">
-                      {user.is_banned ? (
-                        <span className="bg-red-600/20 text-red-500 px-4 py-1 rounded-full text-sm">GEBANNT</span>
-                      ) : user.is_admin ? (
-                        <span className="bg-purple-600/20 text-purple-400 px-4 py-1 rounded-full text-sm">ADMIN</span>
-                      ) : (
-                        <span className="bg-green-600/20 text-green-500 px-4 py-1 rounded-full text-sm">Aktiv</span>
-                      )}
-                    </td>
-                    <td className="p-6 text-center space-x-3">
-                      <button
-                        onClick={() => toggleBan(user)}
-                        className={`px-5 py-2.5 rounded-2xl text-sm font-medium ${user.is_banned ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500'}`}
-                      >
-                        {user.is_banned ? 'Entbannen' : 'Bannen'}
-                      </button>
-                      <button
-                        onClick={() => toggleAdmin(user.id, user.is_admin)}
-                        className="px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-2xl text-sm font-medium"
-                      >
-                        {user.is_admin ? 'Admin entfernen' : 'Zum Admin'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <section className="mt-10 rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="flex items-center gap-3 text-3xl font-black tracking-[-0.045em]">
+                <Users className="h-7 w-7 text-emerald-300" />
+                Spieler-Verwaltung
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Elo direkt korrigieren, Accounts bannen oder Admin-Rechte vergeben.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center text-xs font-bold text-zinc-400">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"><span className="block text-lg font-black text-emerald-200">{activeCount}</span>Aktiv</div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"><span className="block text-lg font-black text-amber-200">{adminCount}</span>Admins</div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"><span className="block text-lg font-black text-rose-200">{bannedCount}</span>Bans</div>
+            </div>
           </div>
 
-          <p className="text-center text-zinc-500 mt-8">
-            {profiles.length} Spieler insgesamt
+          <div className="relative mb-6">
+            <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500" />
+            <input
+              type="text"
+              placeholder="Benutzer suchen..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.045] px-14 py-4 text-lg text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.075]"
+            />
+          </div>
+
+          <div className="overflow-hidden rounded-[1.7rem] border border-white/10 bg-black/25">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[880px]">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/[0.035] text-xs font-black uppercase tracking-[0.16em] text-zinc-500">
+                    <th className="p-5 text-left">Benutzername</th>
+                    <th className="p-5 text-center">Elo</th>
+                    <th className="p-5 text-center">Spiele</th>
+                    <th className="p-5 text-center">Siege</th>
+                    <th className="p-5 text-center">Status</th>
+                    <th className="p-5 text-center">Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((user) => (
+                    <tr key={user.id} className="border-b border-white/5 transition hover:bg-emerald-400/[0.035]">
+                      <td className="p-5">
+                        <div className="font-black text-zinc-100">{user.username || 'Unbekannt'}</div>
+                        {user.ban_reason && <div className="mt-1 text-xs text-rose-200/80">Ban-Grund: {user.ban_reason}</div>}
+                      </td>
+                      <td className="p-5 text-center">
+                        <input
+                          type="number"
+                          defaultValue={user.elo || 1000}
+                          onBlur={(event) => updateElo(user.id, Number(event.target.value))}
+                          className="w-24 rounded-xl border border-transparent bg-transparent p-2 text-center font-black text-emerald-200 outline-none transition focus:border-emerald-300/40 focus:bg-emerald-400/10"
+                        />
+                      </td>
+                      <td className="p-5 text-center font-semibold text-zinc-300">{user.gamesPlayed || 0}</td>
+                      <td className="p-5 text-center font-black text-lime-300">{user.wins || 0}</td>
+                      <td className="p-5 text-center">
+                        {user.is_banned ? (
+                          <span className="inline-flex items-center gap-2 rounded-full border border-rose-300/20 bg-rose-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-rose-100"><Ban className="h-3.5 w-3.5" />Gesperrt</span>
+                        ) : user.is_admin ? (
+                          <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-cyan-100"><Crown className="h-3.5 w-3.5" />Admin</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-emerald-100"><Trophy className="h-3.5 w-3.5" />Aktiv</span>
+                        )}
+                      </td>
+                      <td className="p-5">
+                        <div className="flex justify-center gap-3">
+                          <button
+                            onClick={() => toggleBan(user)}
+                            className={`rounded-2xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition ${user.is_banned ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15' : 'border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/15'}`}
+                          >
+                            {user.is_banned ? 'Entbannen' : 'Bannen'}
+                          </button>
+                          <button
+                            onClick={() => toggleAdmin(user.id, user.is_admin)}
+                            className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] text-zinc-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/10"
+                          >
+                            {user.is_admin ? 'Admin entfernen' : 'Zum Admin'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <p className="mt-8 text-center text-sm font-semibold text-zinc-500">
+            {filtered.length} von {profiles.length} Spielern sichtbar
           </p>
         </section>
       </div>
-    </div>
+    </main>
   );
 }
