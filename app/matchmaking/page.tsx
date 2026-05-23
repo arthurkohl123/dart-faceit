@@ -164,6 +164,34 @@ export default function Matchmaking() {
   useEffect(() => {
     if (status !== 'searching') return;
 
+    // 1. Realtime Subscription: Sofort reagieren, wenn ein Match für mich erstellt wird
+    const channel = supabase
+      .channel('match-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'active_matches',
+        },
+        async (payload) => {
+          const newMatch = payload.new;
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session && (newMatch.player1_id === session.user.id || newMatch.player2_id === session.user.id)) {
+            const isPlayer1 = newMatch.player1_id === session.user.id;
+            setOpponent({
+              username: isPlayer1 ? newMatch.player2_username : newMatch.player1_username,
+              elo: isPlayer1 ? newMatch.player2_elo : newMatch.player1_elo,
+            });
+            setStatus('found');
+            redirectToResult(newMatch.id);
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Backup-Polling (etwas seltener, da Realtime jetzt primär ist)
     const pollingInterval = setInterval(() => {
       setElapsedSeconds((current) => {
         const next = current + 2;
@@ -173,10 +201,11 @@ export default function Matchmaking() {
     }, 2000);
 
     return () => {
+      supabase.removeChannel(channel);
       clearInterval(pollingInterval);
       void supabase.rpc('cancel_matchmaking');
     };
-  }, [pollForMatch, status, supabase]);
+  }, [pollForMatch, status, supabase, redirectToResult]);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
