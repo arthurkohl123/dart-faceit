@@ -164,8 +164,18 @@ export default function Matchmaking() {
       });
     }, 2000);
 
-    return () => clearInterval(pollingInterval);
-  }, [pollForMatch, status]);
+    const handleBeforeUnload = () => {
+      void supabase.rpc('cancel_matchmaking');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(pollingInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      void supabase.rpc('cancel_matchmaking');
+    };
+  }, [pollForMatch, status, supabase]);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
