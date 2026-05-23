@@ -55,7 +55,7 @@ export default function Matchmaking() {
     setTimeout(() => router.push(`/result?matchId=${matchId}`), 1500);
   }, [router]);
 
-  const pollForMatch = useCallback(async (seconds: number) => {
+  const pollForMatch = useCallback(async (seconds: number, isCancelled: () => boolean) => {
     if (isPollingRef.current) return;
 
     isPollingRef.current = true;
@@ -73,17 +73,19 @@ export default function Matchmaking() {
         p_max_elo_diff: maxEloDiff,
       });
 
+      if (isCancelled()) return;
       if (error) throw error;
       const result = Array.isArray(data) ? data[0] as MatchmakingResponse | undefined : data as MatchmakingResponse | undefined;
 
       // 2. Sicherheits-Check: Wurde ich vielleicht gerade von jemand anderem gematcht?
-      // (Wichtig für Player 1, der in der Queue wartet)
       const { data: activeMatch } = await supabase
         .from('active_matches')
         .select('id, player1_username, player2_username, player1_id, player2_id')
         .or(`player1_id.eq.${session.user.id},player2_id.eq.${session.user.id}`)
         .eq('status', 'pending_result')
         .maybeSingle();
+
+      if (isCancelled()) return;
 
       const { count } = await supabase
         .from('matchmaking_queue')
@@ -99,19 +101,20 @@ export default function Matchmaking() {
         setStatus('found');
         redirectToResult(result.match_id);
       } else if (activeMatch) {
-        // Match wurde durch den anderen Spieler (Player 2) initiiert
         const isPlayer1 = activeMatch.player1_id === session.user.id;
         setOpponent({
           username: isPlayer1 ? activeMatch.player2_username : activeMatch.player1_username,
-          elo: 1000, // Fallback
+          elo: 1000,
         });
         setStatus('found');
         redirectToResult(activeMatch.id);
       }
     } catch (error) {
-      console.error('Matchmaking fehlgeschlagen:', error);
-      setErrorMessage(error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.');
-      setStatus('error');
+      if (!isCancelled()) {
+        console.error('Matchmaking fehlgeschlagen:', error);
+        setErrorMessage(error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.');
+        setStatus('error');
+      }
     } finally {
       isPollingRef.current = false;
     }
@@ -129,7 +132,8 @@ export default function Matchmaking() {
 
     setElapsedSeconds(0);
     setStatus('searching');
-    await pollForMatch(0);
+    // Wir übergeben eine Check-Funktion, um zu prüfen ob die Suche noch aktiv ist
+    await pollForMatch(0, () => false);
   };
 
   const stopSearch = async () => {
@@ -172,12 +176,15 @@ export default function Matchmaking() {
   }, [router, supabase]);
 
   useEffect(() => {
-    if (status !== 'searching') return;
+    let searchingActive = status === 'searching';
+    if (!searchingActive) return;
+
+    const checkCancelled = () => !searchingActive;
 
     const pollingInterval = setInterval(() => {
       setElapsedSeconds((current) => {
         const next = current + 2;
-        void pollForMatch(next);
+        void pollForMatch(next, checkCancelled);
         return next;
       });
     }, 2000);
@@ -189,6 +196,7 @@ export default function Matchmaking() {
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
+      searchingActive = false;
       clearInterval(pollingInterval);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       void supabase.rpc('cancel_matchmaking');
