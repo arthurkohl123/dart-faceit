@@ -68,27 +68,45 @@ export default function Matchmaking() {
         return;
       }
 
+      // 1. RPC aufrufen, um Match zu suchen oder Queue beizutreten
       const { data, error } = await supabase.rpc('find_or_create_match', {
         p_max_elo_diff: maxEloDiff,
       });
 
       if (error) throw error;
-
       const result = Array.isArray(data) ? data[0] as MatchmakingResponse | undefined : data as MatchmakingResponse | undefined;
+
+      // 2. Sicherheits-Check: Wurde ich vielleicht gerade von jemand anderem gematcht?
+      // (Wichtig für Player 1, der in der Queue wartet)
+      const { data: activeMatch } = await supabase
+        .from('active_matches')
+        .select('id, player1_username, player2_username, player1_id, player2_id')
+        .or(`player1_id.eq.${session.user.id},player2_id.eq.${session.user.id}`)
+        .eq('status', 'pending_result')
+        .maybeSingle();
 
       const { count } = await supabase
         .from('matchmaking_queue')
         .select('*', { count: 'exact', head: true });
-
       setQueueCount(count || 0);
 
-      if (result?.match_status === 'matched' && result.match_id && result.opponent_username) {
+      // 3. Match-Erfolg verarbeiten
+      if (result?.match_status === 'matched' && result.match_id) {
         setOpponent({
-          username: result.opponent_username,
+          username: result.opponent_username || 'Gegner',
           elo: result.opponent_elo || 1000,
         });
         setStatus('found');
         redirectToResult(result.match_id);
+      } else if (activeMatch) {
+        // Match wurde durch den anderen Spieler (Player 2) initiiert
+        const isPlayer1 = activeMatch.player1_id === session.user.id;
+        setOpponent({
+          username: isPlayer1 ? activeMatch.player2_username : activeMatch.player1_username,
+          elo: 1000, // Fallback
+        });
+        setStatus('found');
+        redirectToResult(activeMatch.id);
       }
     } catch (error) {
       console.error('Matchmaking fehlgeschlagen:', error);
