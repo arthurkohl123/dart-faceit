@@ -29,6 +29,7 @@ type Profile = {
   is_banned: boolean | null;
   ban_reason: string | null;
   is_admin: boolean | null;
+  phone_verified: boolean | null;
 };
 
 type DisputedMatch = {
@@ -235,6 +236,25 @@ export default function AdminPanel() {
       return;
     }
 
+    await loadProfiles();
+  };
+
+  const toggleVerification = async (user: Profile) => {
+    const newStatus = !user.phone_verified;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        phone_verified: newStatus, 
+        phone_verified_at: newStatus ? new Date().toISOString() : null 
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      setActionMessage(`Verifizierungs-Status konnte nicht geändert werden: ${error.message}`);
+      return;
+    }
+
+    setActionMessage(`Nutzer ${user.username} wurde ${newStatus ? 'manuell verifiziert' : 'Verifizierung entfernt'}.`);
     await loadProfiles();
   };
 
@@ -626,6 +646,7 @@ export default function AdminPanel() {
                     <th className="p-5 text-center">Elo</th>
                     <th className="p-5 text-center">Spiele</th>
                     <th className="p-5 text-center">Siege</th>
+                    <th className="p-5 text-center">Verifiziert</th>
                     <th className="p-5 text-center">Status</th>
                     <th className="p-5 text-center">Aktionen</th>
                   </tr>
@@ -647,6 +668,28 @@ export default function AdminPanel() {
                       </td>
                       <td className="p-5 text-center font-semibold text-zinc-300">{user.gamesPlayed || 0}</td>
                       <td className="p-5 text-center font-black text-lime-300">{user.wins || 0}</td>
+                      <td className="p-5 text-center">
+                        <button
+                          onClick={() => toggleVerification(user)}
+                          className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] transition ${
+                            user.phone_verified
+                              ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15'
+                              : 'border-white/10 bg-white/[0.045] text-zinc-400 hover:border-emerald-300/30 hover:bg-emerald-400/10'
+                          }`}
+                        >
+                          {user.phone_verified ? (
+                            <>
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Ja
+                            </>
+                          ) : (
+                            <>
+                              <ShieldAlert className="h-3.5 w-3.5" />
+                              Nein
+                            </>
+                          )}
+                        </button>
+                      </td>
                       <td className="p-5 text-center">
                         {user.is_banned ? (
                           <span className="inline-flex items-center gap-2 rounded-full border border-rose-300/20 bg-rose-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-rose-100"><Ban className="h-3.5 w-3.5" />Gesperrt</span>
