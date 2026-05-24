@@ -9,7 +9,9 @@ import {
   Ban,
   CheckCircle2,
   Crown,
+  ExternalLink,
   Gavel,
+  Image as ImageIcon,
   Loader2,
   RefreshCw,
   Search,
@@ -51,6 +53,7 @@ type DisputedMatch = {
   submitted_player1_checkout: number | null;
   submitted_player2_checkout: number | null;
   dispute_reason: string | null;
+  dispute_screenshot_url: string | null;
   confirmation_requested_at: string | null;
   created_at: string;
 };
@@ -494,9 +497,45 @@ export default function AdminPanel() {
                             <strong className="text-right text-zinc-100">{formatDate(match.confirmation_requested_at || match.created_at)}</strong>
                           </div>
                           <div>
-                            <span className="text-zinc-500">Widerspruch</span>
+                            <span className="text-zinc-500">Widerspruchsgrund</span>
                             <p className="mt-2 leading-6 text-zinc-200">{match.dispute_reason || 'Kein Grund angegeben.'}</p>
                           </div>
+                          {match.dispute_screenshot_url && (
+                            <div className="mt-3 rounded-[1.2rem] border border-amber-300/20 bg-amber-300/[0.04] p-4">
+                              <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-amber-200">
+                                <ImageIcon className="h-3.5 w-3.5" />
+                                Beweis-Screenshot
+                              </div>
+                              <a
+                                href={match.dispute_screenshot_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block overflow-hidden rounded-xl border border-white/10 hover:border-amber-300/40 transition"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={match.dispute_screenshot_url}
+                                  alt="Dispute Screenshot"
+                                  className="w-full max-h-56 object-contain bg-black/50"
+                                />
+                              </a>
+                              <a
+                                href={match.dispute_screenshot_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-amber-200/70 hover:text-amber-200 transition"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                In voller Größe öffnen
+                              </a>
+                            </div>
+                          )}
+                          {!match.dispute_screenshot_url && (
+                            <div className="flex items-center gap-2 text-xs text-zinc-600">
+                              <ImageIcon className="h-3.5 w-3.5" />
+                              Kein Screenshot eingereicht
+                            </div>
+                          )}
                         </div>
                       </div>
 
