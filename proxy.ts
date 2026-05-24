@@ -20,7 +20,7 @@ const AUTH_ROUTES = [
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Response-Objekt vorbereiten, damit Supabase aktualisierte Cookies
