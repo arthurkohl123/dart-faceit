@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String   @id @default(uuid())
+  supabaseId    String   @unique
+  username      String   @unique
+  email         String   @unique
+  elo           Int      @default(1000)
+  gamesPlayed   Int      @default(0)
+  wins          Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  matchesAsPlayer1 Match[] @relation("Player1Matches")
+  matchesAsPlayer2 Match[] @relation("Player2Matches")
+}
+
+model Match {
+  id          String   @id @default(uuid())
+  player1Id   String
+  player2Id   String
+  player1     User     @relation("Player1Matches", fields: [player1Id], references: [supabaseId])
+  player2     User     @relation("Player2Matches", fields: [player2Id], references: [supabaseId])
+  
+  winnerId    String?
+  status      String   @default("pending")
+  score1      String?
+  score2      String?
+  average1    Float?
+  average2    Float?
+  
+  createdAt   DateTime @default(now())
+  finishedAt  DateTime?
+}
