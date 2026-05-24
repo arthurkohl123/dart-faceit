@@ -27,7 +27,7 @@ const premiumBenefits = [
   },
   {
     title: 'Erweiterter Matchmaking-Bereich',
-    description: '±30 Elo statt nur ±25 Elo.',
+    description: '±30 Elo statt nur ±25 Elo. Dadurch findest du schneller passende Gegner auf deinem Niveau.',
     icon: Gauge,
   },
   {

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Image as ImageIcon,
+  Menu,
   Shield,
   Target,
   Trophy,
@@ -112,7 +113,7 @@ function LegCounter({
         >
           −
         </button>
-        <span className={`min-w-[4.5rem] text-center text-8xl font-black leading-none tracking-[-0.1em] ${accent}`}>
+        <span className={`min-w-[3.5rem] text-center text-6xl font-black leading-none tracking-[-0.1em] sm:min-w-[4.5rem] sm:text-8xl ${accent}`}>
           {value}
         </span>
         <button
@@ -151,6 +152,7 @@ export default function MatchResult() {
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
@@ -443,29 +445,47 @@ export default function MatchResult() {
       </div>
 
       {/* Navbar */}
-      <nav className="relative z-10 border-b border-white/10 bg-black/50 backdrop-blur-2xl">
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 font-black text-black shadow-[0_0_28px_rgba(34,197,94,0.3)]">
               R
             </div>
             <div className="hidden sm:block">
-              <div className="text-lg font-black tracking-[-0.04em]">RANKEDDARTS</div>
+              <div className="text-base font-black tracking-[-0.04em]">RANKEDDARTS</div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/70">
                 Match Result
               </div>
             </div>
           </Link>
+
+          <div className="hidden items-center gap-6 text-sm font-medium text-zinc-300 lg:flex">
+            <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
+            <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
+            <Link href="/profile" className="transition hover:text-white">Profil</Link>
+          </div>
+
           <button
-            onClick={() => router.push('/profile')}
-            className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-300 transition hover:border-white/30 hover:bg-white/10"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
           >
-            Zurück zum Profil
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
+            <div className="flex flex-col gap-1">
+              <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
+              <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
+              <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Profil</Link>
+              <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
+            </div>
+          </div>
+        )}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-2xl px-5 py-10 md:px-8">
+      <section className="relative z-10 mx-auto max-w-2xl px-4 pb-12 pt-24 sm:px-5 md:px-8 md:pt-28">
 
         {/* Match-Header — VS-Banner */}
         {match && (

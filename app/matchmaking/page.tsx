@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, CheckCircle2, Radar, ShieldCheck, Timer, Users, XCircle } from 'lucide-react';
+import { Activity, CheckCircle2, Radar, ShieldCheck, Timer, Users, XCircle, Menu, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -64,6 +64,7 @@ export default function Matchmaking() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [queueCounts, setQueueCounts] = useState<Record<AppChoice, number>>({ scolia: 0, dartcounter: 0 });
   const [errorMessage, setErrorMessage] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
   const isPollingRef = useRef(false);
   const statusRef = useRef<MatchmakingStatus>('idle');
@@ -234,22 +235,46 @@ export default function Matchmaking() {
       </div>
 
       {/* Nav */}
-      <nav className="relative z-10 border-b border-white/10 bg-black/45 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8">
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-xl font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-lg font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
             <div>
-              <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Matchmaking</div>
+              <div className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Matchmaking</div>
             </div>
           </Link>
-          <button onClick={() => router.push('/profile')} className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10">
-            Zum Profil
+
+          <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
+            <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
+            <Link href="/profile" className="transition hover:text-white">Profil</Link>
+            <Link href="/history" className="transition hover:text-white">History</Link>
+            <Link href="/updates" className="transition hover:text-white">Updates</Link>
+            <Link href="/premium" className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-200 transition hover:bg-emerald-400/20">Premium</Link>
+          </div>
+
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
+            <div className="flex flex-col gap-1">
+              <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
+              <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Profil</Link>
+              <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
+              <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
+              <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
+            </div>
+          </div>
+        )}
       </nav>
 
-      <section className="relative z-10 mx-auto grid min-h-[calc(100vh-88px)] max-w-7xl items-center gap-10 px-5 py-14 md:px-8 lg:grid-cols-[0.92fr_1.08fr]">
+      <section className="relative z-10 mx-auto grid max-w-7xl items-start gap-8 px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32 lg:min-h-[calc(100vh-88px)] lg:items-center lg:gap-10 lg:grid-cols-[0.92fr_1.08fr]">
 
         {/* Linke Spalte: Info */}
         <div>
@@ -257,7 +282,7 @@ export default function Matchmaking() {
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
             Live Queue
           </div>
-          <h1 className="mt-6 text-6xl font-black leading-[0.88] tracking-[-0.07em] md:text-8xl">Finde dein nächstes Match.</h1>
+          <h1 className="mt-6 text-4xl font-black leading-[0.88] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Finde dein nächstes Match.</h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Wähle deine Dart-App und tritt der passenden Queue bei. Du wirst nur mit Spielern gematcht, die dieselbe App nutzen.</p>
 
           {phoneVerified === false && (
@@ -270,7 +295,7 @@ export default function Matchmaking() {
           )}
 
           {/* Queue-Übersicht */}
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="mt-6 grid grid-cols-3 gap-3 sm:mt-8 sm:gap-4">
             <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
               <Timer className="h-6 w-6 text-emerald-300" />
               <div className="mt-4 text-4xl font-black tracking-[-0.05em]">{status === 'searching' ? `${elapsedSeconds}s` : '—'}</div>
@@ -396,7 +421,7 @@ export default function Matchmaking() {
         </div>
 
         {/* Feature-Cards */}
-        <div className="lg:col-span-2 grid gap-5 md:grid-cols-3">
+        <div className="grid gap-4 sm:gap-5 sm:grid-cols-3 lg:col-span-2">
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
             <ShieldCheck className="h-7 w-7 text-emerald-300" />
             <h3 className="mt-4 text-xl font-black">App-getrennte Queues</h3>

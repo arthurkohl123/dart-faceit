@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Menu, X } from 'lucide-react';
 
 const stats = [
   { value: '0', label: 'Aktive Spieler', detail: 'Online & bereit für Matches' },
@@ -36,6 +38,7 @@ const ranks = [
 
 export default function Home() {
   const router = useRouter();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#050607] text-white">
@@ -74,12 +77,33 @@ export default function Home() {
             </button>
             <button
               onClick={() => router.push('/auth/register')}
-              className="rounded-full bg-white px-5 py-2.5 text-sm font-black text-black shadow-[0_0_28px_rgba(255,255,255,0.16)] transition hover:scale-[1.03] hover:bg-emerald-200 md:px-6"
+              className="hidden rounded-full bg-white px-5 py-2.5 text-sm font-black text-black shadow-[0_0_28px_rgba(255,255,255,0.16)] transition hover:scale-[1.03] hover:bg-emerald-200 sm:block md:px-6"
             >
               Kostenlos starten
             </button>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
+            <div className="flex flex-col gap-1">
+              <a href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</a>
+              <a href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</a>
+              <a href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</a>
+              <a href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Premium</a>
+              <div className="mt-2 border-t border-white/10 pt-2 flex flex-col gap-1">
+                <a href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Login</a>
+                <a href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/25">Kostenlos starten →</a>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       <section className="relative z-10 mx-auto grid min-h-screen max-w-7xl items-center gap-14 px-5 pb-20 pt-32 md:px-8 lg:grid-cols-[1.04fr_0.96fr] lg:pt-28">
@@ -92,7 +116,7 @@ export default function Home() {
             Live Matchmaking für ambitionierte Dartspieler
           </div>
 
-          <h1 className="max-w-5xl text-6xl font-black leading-[0.9] tracking-[-0.08em] text-white md:text-8xl xl:text-[9.5rem]">
+          <h1 className="max-w-5xl text-5xl font-black leading-[0.9] tracking-[-0.08em] text-white sm:text-6xl md:text-8xl xl:text-[9.5rem]">
             Darts wird jetzt ranked.
           </h1>
 

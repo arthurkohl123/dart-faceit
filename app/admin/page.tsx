@@ -389,7 +389,7 @@ export default function AdminPanel() {
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
               Geschützter Admin-Bereich
             </div>
-            <h1 className="mt-6 max-w-4xl text-5xl font-black leading-[0.9] tracking-[-0.07em] md:text-7xl">Admin Panel für Ladder, Spieler und Disputes.</h1>
+            <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[0.9] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Admin Panel für Ladder, Spieler und Disputes.</h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Verwalte Spielerprofile, prüfe widersprochene Matches und entscheide kritische Ergebnisse in einem einheitlichen RankedDarts-Dashboard.</p>
           </div>
 
@@ -676,89 +676,71 @@ export default function AdminPanel() {
             />
           </div>
 
-          <div className="overflow-hidden rounded-[1.7rem] border border-white/10 bg-black/25">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px]">
-                <thead>
-                  <tr className="border-b border-white/10 bg-white/[0.035] text-xs font-black uppercase tracking-[0.16em] text-zinc-500">
-                    <th className="p-5 text-left">Benutzername</th>
-                    <th className="p-5 text-center">Elo</th>
-                    <th className="p-5 text-center">Spiele</th>
-                    <th className="p-5 text-center">Siege</th>
-                    <th className="p-5 text-center">Verifiziert</th>
-                    <th className="p-5 text-center">Status</th>
-                    <th className="p-5 text-center">Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((user) => (
-                    <tr key={user.id} className="border-b border-white/5 transition hover:bg-emerald-400/[0.035]">
-                      <td className="p-5">
-                        <div className="font-black text-zinc-100">{user.username || 'Unbekannt'}</div>
-                        {user.ban_reason && <div className="mt-1 text-xs text-rose-200/80">Ban-Grund: {user.ban_reason}</div>}
-                      </td>
-                      <td className="p-5 text-center">
-                        <input
-                          type="number"
-                          defaultValue={user.elo || 1000}
-                          onBlur={(event) => updateElo(user.id, Number(event.target.value))}
-                          className="w-24 rounded-xl border border-transparent bg-transparent p-2 text-center font-black text-emerald-200 outline-none transition focus:border-emerald-300/40 focus:bg-emerald-400/10"
-                        />
-                      </td>
-                      <td className="p-5 text-center font-semibold text-zinc-300">{user.gamesPlayed || 0}</td>
-                      <td className="p-5 text-center font-black text-lime-300">{user.wins || 0}</td>
-                      <td className="p-5 text-center">
-                        <button
-                          onClick={() => toggleVerification(user)}
-                          className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] transition ${
-                            user.phone_verified
-                              ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15'
-                              : 'border-white/10 bg-white/[0.045] text-zinc-400 hover:border-emerald-300/30 hover:bg-emerald-400/10'
-                          }`}
-                        >
-                          {user.phone_verified ? (
-                            <>
-                              <ShieldCheck className="h-3.5 w-3.5" />
-                              Ja
-                            </>
-                          ) : (
-                            <>
-                              <ShieldAlert className="h-3.5 w-3.5" />
-                              Nein
-                            </>
-                          )}
-                        </button>
-                      </td>
-                      <td className="p-5 text-center">
-                        {user.is_banned ? (
-                          <span className="inline-flex items-center gap-2 rounded-full border border-rose-300/20 bg-rose-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-rose-100"><Ban className="h-3.5 w-3.5" />Gesperrt</span>
-                        ) : user.is_admin ? (
-                          <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-cyan-100"><Crown className="h-3.5 w-3.5" />Admin</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-emerald-100"><Trophy className="h-3.5 w-3.5" />Aktiv</span>
-                        )}
-                      </td>
-                      <td className="p-5">
-                        <div className="flex justify-center gap-3">
-                          <button
-                            onClick={() => toggleBan(user)}
-                            className={`rounded-2xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition ${user.is_banned ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15' : 'border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/15'}`}
-                          >
-                            {user.is_banned ? 'Entbannen' : 'Bannen'}
-                          </button>
-                          <button
-                            onClick={() => toggleAdmin(user.id, user.is_admin)}
-                            className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] text-zinc-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/10"
-                          >
-                            {user.is_admin ? 'Admin entfernen' : 'Zum Admin'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="space-y-3">
+            {filtered.map((user) => (
+              <div key={user.id} className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/25 p-4 transition hover:bg-emerald-400/[0.03] sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  {/* Name + Status */}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-black text-zinc-100">{user.username || 'Unbekannt'}</span>
+                      {user.is_banned ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-rose-300/20 bg-rose-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-rose-100"><Ban className="h-3 w-3" />Gesperrt</span>
+                      ) : user.is_admin ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100"><Crown className="h-3 w-3" />Admin</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100"><Trophy className="h-3 w-3" />Aktiv</span>
+                      )}
+                      <button
+                        onClick={() => toggleVerification(user)}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] transition ${
+                          user.phone_verified
+                            ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+                            : 'border-white/10 bg-white/[0.04] text-zinc-500 hover:border-emerald-300/30'
+                        }`}
+                      >
+                        {user.phone_verified ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
+                        {user.phone_verified ? 'Verifiziert' : 'Unverif.'}
+                      </button>
+                    </div>
+                    {user.ban_reason && <div className="mt-1 text-xs text-rose-200/80">Ban-Grund: {user.ban_reason}</div>}
+                  </div>
+
+                  {/* Elo-Input */}
+                  <input
+                    type="number"
+                    defaultValue={user.elo || 1000}
+                    onBlur={(event) => updateElo(user.id, Number(event.target.value))}
+                    className="w-20 rounded-xl border border-transparent bg-emerald-400/10 p-2 text-center text-sm font-black text-emerald-200 outline-none transition focus:border-emerald-300/40 focus:bg-emerald-400/15"
+                  />
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  {/* Stats */}
+                  <div className="flex gap-4 text-xs text-zinc-400">
+                    <span><strong className="text-zinc-200">{user.gamesPlayed || 0}</strong> Spiele</span>
+                    <span><strong className="text-lime-300">{user.wins || 0}</strong> Siege</span>
+                    <span><strong className="text-cyan-300">{user.gamesPlayed ? Math.round(((user.wins || 0) / user.gamesPlayed) * 100) : 0}%</strong> WR</span>
+                  </div>
+
+                  {/* Aktionen */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => toggleBan(user)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] transition ${user.is_banned ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15' : 'border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/15'}`}
+                    >
+                      {user.is_banned ? 'Entbannen' : 'Bannen'}
+                    </button>
+                    <button
+                      onClick={() => toggleAdmin(user.id, user.is_admin)}
+                      className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-zinc-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/10"
+                    >
+                      {user.is_admin ? 'Admin weg' : 'Admin'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           <p className="mt-8 text-center text-sm font-semibold text-zinc-500">
