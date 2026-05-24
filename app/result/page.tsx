@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Crown, Gauge, MessageSquare, ShieldCheck, Target, Trophy, XCircle } from 'lucide-react';
+import { AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Clock, Crown, Gauge, MessageSquare, ShieldCheck, Target, Trophy, XCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -28,6 +28,7 @@ type ActiveMatch = {
   submitted_player2_checkout: number | null;
   confirmed_by: string | null;
   dispute_reason: string | null;
+  confirmation_requested_at: string | null;
 };
 
 type Opponent = {
@@ -62,6 +63,8 @@ const statHints = [
   { title: 'Match-Notiz', description: 'Praktisch für Admin-Prüfung, Widersprüche und persönliche Analyse.' },
 ];
 
+const CONFIRM_TIMEOUT_SECONDS = 300; // 5 Minuten
+
 type NumberControlProps = {
   label: string;
   value: number;
@@ -80,6 +83,12 @@ function NumberControl({ label, value, setValue, accent }: NumberControlProps) {
       </div>
     </div>
   );
+}
+
+function formatCountdown(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export default function MatchResult() {
@@ -101,16 +110,17 @@ export default function MatchResult() {
   const [currentUserId, setCurrentUserId] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoConfirmCalledRef = useRef(false);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   const loadLocalStats = useCallback((matchId: string) => {
     if (typeof window === 'undefined') return;
-
     const saved = window.localStorage.getItem(`rankeddarts-result-stats-${matchId}`);
     if (!saved) return;
-
     try {
       const parsed = JSON.parse(saved) as Partial<LocalMatchStats>;
       setMatchFormat(parsed.matchFormat || matchFormats[1]);
@@ -126,18 +136,40 @@ export default function MatchResult() {
 
   const saveLocalStats = useCallback((matchId: string) => {
     if (typeof window === 'undefined') return;
-
-    const stats: LocalMatchStats = {
-      matchFormat,
-      checkoutHits,
-      checkoutAttempts,
-      oneEighties,
-      tonPlus,
-      matchNote,
-    };
-
+    const stats: LocalMatchStats = { matchFormat, checkoutHits, checkoutAttempts, oneEighties, tonPlus, matchNote };
     window.localStorage.setItem(`rankeddarts-result-stats-${matchId}`, JSON.stringify(stats));
   }, [checkoutAttempts, checkoutHits, matchFormat, matchNote, oneEighties, tonPlus]);
+
+  // Countdown-Timer starten wenn awaiting_confirmation
+  const startCountdown = useCallback((requestedAt: string, matchId: string, isSubmitter: boolean) => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+
+    const calcRemaining = () => {
+      const elapsed = Math.floor((Date.now() - new Date(requestedAt).getTime()) / 1000);
+      return Math.max(0, CONFIRM_TIMEOUT_SECONDS - elapsed);
+    };
+
+    setCountdown(calcRemaining());
+
+    countdownRef.current = setInterval(async () => {
+      const remaining = calcRemaining();
+      setCountdown(remaining);
+
+      if (remaining <= 0 && !autoConfirmCalledRef.current) {
+        autoConfirmCalledRef.current = true;
+        clearInterval(countdownRef.current!);
+
+        // Auto-Confirm aufrufen (nur der Einreicher triggert es, aber beide profitieren via Realtime)
+        if (isSubmitter) {
+          try {
+            await supabase.rpc('auto_confirm_match_result', { p_match_id: matchId });
+          } catch (err) {
+            console.error('Auto-Confirm fehlgeschlagen:', err);
+          }
+        }
+      }
+    }, 1000);
+  }, [supabase]);
 
   const loadMatch = useCallback(async () => {
     try {
@@ -183,17 +215,75 @@ export default function MatchResult() {
         username: isPlayer1 ? activeMatch.player2_username : activeMatch.player1_username,
         elo: isPlayer1 ? activeMatch.player2_elo : activeMatch.player1_elo,
       });
+
+      // Countdown starten wenn awaiting_confirmation
+      if (activeMatch.status === 'awaiting_confirmation' && activeMatch.confirmation_requested_at) {
+        const isSubmitter = activeMatch.submitted_by === session.user.id;
+        startCountdown(activeMatch.confirmation_requested_at, activeMatch.id, isSubmitter);
+      }
     } catch (error) {
       console.error('Match konnte nicht geladen werden:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Match konnte nicht geladen werden.');
     } finally {
       setPageLoading(false);
     }
-  }, [loadLocalStats, router, supabase]);
+  }, [loadLocalStats, router, startCountdown, supabase]);
 
+  // Initiales Laden
   useEffect(() => {
     void Promise.resolve().then(loadMatch);
   }, [loadMatch]);
+
+  // Realtime-Subscription auf active_matches
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const matchId = params.get('matchId');
+    if (!matchId) return;
+
+    const channel = supabase
+      .channel(`match-result-${matchId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'active_matches',
+          filter: `id=eq.${matchId}`,
+        },
+        async (payload) => {
+          const updated = payload.new as ActiveMatch;
+          setMatch(updated);
+
+          // Wenn Status auf awaiting_confirmation wechselt → Countdown starten
+          if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              const isSubmitter = updated.submitted_by === session.user.id;
+              autoConfirmCalledRef.current = false;
+              startCountdown(updated.confirmation_requested_at, updated.id, isSubmitter);
+            }
+          }
+
+          // Wenn Match completed → zur History weiterleiten
+          if (updated.status === 'completed') {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            setTimeout(() => router.push('/history'), 2000);
+          }
+
+          // Wenn disputed → Countdown stoppen
+          if (updated.status === 'disputed' || updated.status === 'cancelled') {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            setCountdown(null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [router, startCountdown, supabase]);
 
   const isSubmitter = Boolean(match?.submitted_by && match.submitted_by === currentUserId);
   const needsMyConfirmation = Boolean(match?.status === 'awaiting_confirmation' && match.submitted_by && match.submitted_by !== currentUserId);
@@ -209,9 +299,10 @@ export default function MatchResult() {
   const performanceLabel = averageNumber >= 80 ? 'Starkes Scoring' : averageNumber >= 60 ? 'Solide Form' : averageNumber > 0 ? 'Ausbaufähig' : 'Noch offen';
   const resultTone = isWin ? 'text-emerald-300' : 'text-zinc-300';
 
+  const countdownIsUrgent = countdown !== null && countdown <= 60;
+
   const submittedResultForMe = useMemo(() => {
     if (!match || !currentUserId) return null;
-
     const iAmPlayer1 = currentUserId === match.player1_id;
     const myLegs = iAmPlayer1 ? match.submitted_player1_legs : match.submitted_player2_legs;
     const opponentLegs = iAmPlayer1 ? match.submitted_player2_legs : match.submitted_player1_legs;
@@ -221,28 +312,19 @@ export default function MatchResult() {
     const opponentAverage = iAmPlayer1 ? match.submitted_player2_average : match.submitted_player1_average;
     const myCheckout = iAmPlayer1 ? match.submitted_player1_checkout : match.submitted_player2_checkout;
     const opponentCheckout = iAmPlayer1 ? match.submitted_player2_checkout : match.submitted_player1_checkout;
-
     return {
-      myLegs,
-      opponentLegs,
-      submitterName,
-      winnerName,
-      myAverage,
-      opponentAverage,
-      myCheckout,
-      opponentCheckout,
+      myLegs, opponentLegs, submitterName, winnerName,
+      myAverage, opponentAverage, myCheckout, opponentCheckout,
       resultText: `${myLegs ?? '-'}:${opponentLegs ?? '-'}`,
     };
   }, [currentUserId, match]);
 
   const submitResult = async () => {
     if (!match || !opponent || !resultIsValid) return;
-
     setLoading(true);
     setErrorMessage('');
     setInfoMessage('');
     saveLocalStats(match.id);
-
     try {
       const { data, error } = await supabase.rpc('submit_match_result', {
         p_match_id: match.id,
@@ -251,9 +333,7 @@ export default function MatchResult() {
         p_my_average: average ? Number.parseFloat(average) : null,
         p_highest_checkout: highestCheckout ? Number.parseInt(highestCheckout, 10) : null,
       });
-
       if (error) throw error;
-
       const response = Array.isArray(data) ? data[0] as RpcStatusResponse | undefined : undefined;
       setInfoMessage(response?.result_message || 'Ergebnis eingereicht. Warte auf Bestätigung deines Gegners.');
       await loadMatch();
@@ -267,18 +347,12 @@ export default function MatchResult() {
 
   const confirmResult = async () => {
     if (!match) return;
-
     setLoading(true);
     setErrorMessage('');
     setInfoMessage('');
-
     try {
-      const { data, error } = await supabase.rpc('confirm_match_result', {
-        p_match_id: match.id,
-      });
-
+      const { data, error } = await supabase.rpc('confirm_match_result', { p_match_id: match.id });
       if (error) throw error;
-
       const response = Array.isArray(data) ? data[0] as RpcStatusResponse | undefined : undefined;
       const eloText = typeof response?.elo_change === 'number'
         ? ` Deine Elo-Änderung: ${response.elo_change > 0 ? '+' : ''}${response.elo_change}.`
@@ -295,19 +369,15 @@ export default function MatchResult() {
 
   const disputeResult = async () => {
     if (!match) return;
-
     setLoading(true);
     setErrorMessage('');
     setInfoMessage('');
-
     try {
       const { data, error } = await supabase.rpc('dispute_match_result', {
         p_match_id: match.id,
         p_reason: disputeReason || null,
       });
-
       if (error) throw error;
-
       const response = Array.isArray(data) ? data[0] as RpcStatusResponse | undefined : undefined;
       setInfoMessage(response?.result_message || 'Widerspruch gespeichert. Es wurde keine Elo vergeben.');
       await loadMatch();
@@ -351,7 +421,7 @@ export default function MatchResult() {
       </div>
 
       <nav className="relative z-10 border-b border-white/10 bg-black/45 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-xl font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
             <div>
@@ -359,7 +429,6 @@ export default function MatchResult() {
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Result Center</div>
             </div>
           </Link>
-
           <button onClick={() => router.push('/profile')} className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10">
             Zurück zum Profil
           </button>
@@ -374,7 +443,7 @@ export default function MatchResult() {
               Ergebnis & Matchanalyse
             </div>
             <h1 className="mt-6 text-6xl font-black leading-[0.9] tracking-[-0.07em] md:text-8xl">Result Center</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-300">Trage das Ergebnis ein, ergänze wichtige Stats und bestätige fair. Die Kernwerte werden wie bisher an Supabase gesendet; zusätzliche Analysewerte werden lokal pro Match vorbereitet.</p>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-300">Trage das Ergebnis ein, ergänze wichtige Stats und bestätige fair.</p>
           </div>
 
           <div className="rounded-[2rem] border border-white/10 bg-zinc-950/86 p-6 backdrop-blur-xl">
@@ -391,6 +460,19 @@ export default function MatchResult() {
           </div>
         </div>
 
+        {/* Countdown-Banner */}
+        {countdown !== null && match?.status === 'awaiting_confirmation' && (
+          <div className={`mb-8 rounded-3xl border p-5 flex items-center gap-4 ${countdownIsUrgent ? 'border-red-400/40 bg-red-500/10 text-red-100' : 'border-amber-400/30 bg-amber-400/10 text-amber-100'}`}>
+            <Clock className={`h-6 w-6 shrink-0 ${countdownIsUrgent ? 'text-red-300' : 'text-amber-300'}`} />
+            <div className="flex-1">
+              {needsMyConfirmation
+                ? <span className="font-bold">Du hast noch <strong className={`text-2xl font-black ${countdownIsUrgent ? 'text-red-200' : 'text-amber-200'}`}>{formatCountdown(countdown)}</strong> um zu bestätigen oder zu widersprechen.</span>
+                : <span className="font-bold">Dein Gegner hat noch <strong className={`text-2xl font-black ${countdownIsUrgent ? 'text-red-200' : 'text-amber-200'}`}>{formatCountdown(countdown)}</strong> um zu bestätigen. Danach wird dein Ergebnis automatisch gewertet.</span>
+              }
+            </div>
+          </div>
+        )}
+
         {(errorMessage || infoMessage) && (
           <div className={`mb-8 rounded-3xl border p-5 ${errorMessage ? 'border-red-400/25 bg-red-500/10 text-red-100' : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'}`}>
             {errorMessage || infoMessage}
@@ -399,6 +481,7 @@ export default function MatchResult() {
 
         <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-[2.5rem] border border-white/10 bg-zinc-950/86 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
+
             {match?.status === 'pending_result' && (
               <div>
                 <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
@@ -440,7 +523,6 @@ export default function MatchResult() {
                     </div>
                     <div className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-sm font-black text-emerald-200">{statsCompletionPercent}% ausgefüllt</div>
                   </div>
-
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-zinc-400">Checkouts getroffen</span>
@@ -459,7 +541,6 @@ export default function MatchResult() {
                       <input type="number" value={tonPlus} onChange={(event) => setTonPlus(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-emerald-300/60" placeholder="12" />
                     </label>
                   </div>
-
                   <label className="mt-4 block">
                     <span className="mb-2 block text-sm font-bold text-zinc-400">Match-Notiz</span>
                     <textarea value={matchNote} onChange={(event) => setMatchNote(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-emerald-300/60" rows={3} placeholder="Zum Beispiel: Gegner hat 104 gecheckt, ein Leg war sehr knapp, Stream vorhanden..." />
@@ -476,7 +557,10 @@ export default function MatchResult() {
               <div className="rounded-[2rem] border border-cyan-300/20 bg-cyan-400/10 p-8 text-center">
                 <ClipboardCheck className="mx-auto h-14 w-14 text-cyan-200" />
                 <h2 className="mt-5 text-3xl font-black tracking-[-0.04em]">Warte auf Bestätigung</h2>
-                <p className="mx-auto mt-4 max-w-xl text-zinc-300">Du hast das Ergebnis <strong className="text-white">{submittedResultForMe?.resultText}</strong> eingereicht. Elo wird erst vergeben, wenn {opponent?.username} bestätigt.</p>
+                <p className="mx-auto mt-4 max-w-xl text-zinc-300">
+                  Du hast das Ergebnis <strong className="text-white">{submittedResultForMe?.resultText}</strong> eingereicht.
+                  Elo wird vergeben, sobald {opponent?.username} bestätigt — oder automatisch nach Ablauf des Timers.
+                </p>
               </div>
             )}
 
@@ -517,7 +601,7 @@ export default function MatchResult() {
               <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/[0.07] p-8 text-center">
                 <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-200" />
                 <h2 className="mt-5 text-3xl font-black tracking-[-0.04em]">Match abgeschlossen</h2>
-                <p className="mx-auto mt-4 max-w-xl text-zinc-300">Dieses Match wurde bereits bestätigt und in der History gespeichert.</p>
+                <p className="mx-auto mt-4 max-w-xl text-zinc-300">Dieses Match wurde bestätigt und in der History gespeichert. Du wirst weitergeleitet...</p>
                 <button onClick={() => router.push('/history')} className="mt-8 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black">
                   Zur History
                 </button>
