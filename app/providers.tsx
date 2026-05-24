@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
@@ -54,12 +55,6 @@ const AuthContext = createContext<AuthContextValue>({
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-/**
- * Gibt die aktuelle Auth-Session, den User und das Profil zurück.
- *
- * @example
- * const { user, profile, loading } = useAuth();
- */
 export function useAuth() {
   return useContext(AuthContext);
 }
@@ -70,11 +65,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
+  // router in einem Ref speichern damit fetchProfile stabil bleibt
+  // und den useEffect nicht bei jedem Render neu triggert.
+  const routerRef = useRef(router);
+  useEffect(() => { routerRef.current = router; }, [router]);
+
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Profil aus der Datenbank laden
+  // Profil aus der Datenbank laden – router kommt aus dem Ref, kein Re-Render-Trigger
   const fetchProfile = useCallback(
     async (userId: string) => {
       const { data } = await supabase
@@ -87,7 +87,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         // Gebannte Nutzer sofort ausloggen und zur Ban-Seite weiterleiten
         if (data.is_banned) {
           await supabase.auth.signOut();
-          router.push('/auth/banned');
+          routerRef.current.push('/auth/banned');
           return;
         }
 
@@ -109,7 +109,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         setProfile(null);
       }
     },
-    [supabase, router]
+    [supabase] // router ist bewusst nicht hier – wird über routerRef gelesen
   );
 
   // Öffentliche Methode zum manuellen Neu-Laden des Profils
@@ -130,7 +130,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       if (initialSession?.user) {
         await fetchProfile(initialSession.user.id);
       }
-      setLoading(false);
+      // Loading immer beenden – egal ob Session vorhanden oder nicht
+      if (mounted) setLoading(false);
     });
 
     // Auf Auth-Änderungen reagieren (Login, Logout, Token-Refresh)
@@ -146,7 +147,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }
 
         // Nach einem Token-Refresh kein erneutes Loading-Flackern
-        if (event !== 'TOKEN_REFRESHED') {
+        if (event !== 'TOKEN_REFRESHED' && mounted) {
           setLoading(false);
         }
       }
@@ -156,7 +157,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfile, supabase]);
+  }, [fetchProfile, supabase]); // fetchProfile ist jetzt stabil (kein router als Dep)
 
   const value = useMemo<AuthContextValue>(
     () => ({
