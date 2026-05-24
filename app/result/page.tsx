@@ -204,12 +204,14 @@ export default function MatchResult() {
         if (remaining <= 0 && !autoConfirmCalledRef.current) {
           autoConfirmCalledRef.current = true;
           clearInterval(countdownRef.current!);
-          if (isSubmitterArg) {
-            try {
-              await supabase.rpc('auto_confirm_match_result', { p_match_id: matchId });
-            } catch (err) {
-              console.error('Auto-Confirm fehlgeschlagen:', err);
-            }
+          // Beide Spieler versuchen den Auto-Confirm auszulösen.
+          // Die DB-Funktion ist idempotent: sie prüft selbst ob der Timeout
+          // erreicht ist und ob das Match noch awaiting_confirmation ist.
+          // Race-Conditions werden durch FOR UPDATE in der SQL-Funktion verhindert.
+          try {
+            await supabase.rpc('auto_confirm_match_result', { p_match_id: matchId });
+          } catch (err) {
+            console.error('Auto-Confirm fehlgeschlagen:', err);
           }
         }
       }, 1000);
