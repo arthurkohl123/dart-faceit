@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { useAuth } from '@/app/providers';
 import { useRouter } from 'next/navigation';
 import { Trophy, TrendingUp, TrendingDown, Menu, X } from 'lucide-react';
 
@@ -22,7 +21,6 @@ type MatchEntry = {
 };
 
 export default function MatchHistory() {
-  const { user, loading: authLoading } = useAuth();
   const [matches, setMatches] = useState<MatchEntry[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'wins' | 'losses'>('all');
@@ -31,26 +29,26 @@ export default function MatchHistory() {
   const router = useRouter();
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) { setMatchesLoading(false); return; }
+    let isMounted = true;
 
-    const fetchHistory = async () => {
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/auth/login'); return; }
+
       const { data, error } = await supabase
         .from('matches')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error(error);
-      } else {
-        setMatches((data || []) as MatchEntry[]);
-      }
+      if (!isMounted) return;
+      if (!error) setMatches((data || []) as MatchEntry[]);
       setMatchesLoading(false);
-    };
+    }
 
-    fetchHistory();
-  }, [authLoading, user, supabase, router]);
+    void load();
+    return () => { isMounted = false; };
+  }, [supabase, router]);
 
   const filtered = matches.filter(m => {
     if (filter === 'wins') return m.is_win;
@@ -63,7 +61,7 @@ export default function MatchHistory() {
   const winrate = matches.length > 0 ? Math.round((totalWins / matches.length) * 100) : 0;
   const totalEloChange = matches.reduce((sum, m) => sum + (m.elo_change || 0), 0);
 
-  if (authLoading || matchesLoading) {
+  if (matchesLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">

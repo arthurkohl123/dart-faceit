@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { useAuth } from '@/app/providers';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
@@ -111,7 +110,6 @@ export default function AdminPanel() {
   const [loadingDisputes, setLoadingDisputes] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  const { profile: myProfile, loading: authLoading } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -165,17 +163,30 @@ export default function AdminPanel() {
     setLoadingDisputes(false);
   }, [supabase]);
 
-  // Admin-Check über globalen Auth-Context – kein separater Supabase-Aufruf nötig
   useEffect(() => {
-    if (authLoading) return;
-    if (!myProfile) { router.push('/auth/login'); return; }
-    if (!myProfile.is_admin) {
-      alert('Du hast keinen Admin-Zugriff!');
-      router.push('/');
-      return;
+    let isMounted = true;
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/auth/login'); return; }
+
+      const { data: me, error } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('supabaseId', session.user.id)
+        .single();
+
+      if (!isMounted) return;
+      if (error || !me?.is_admin) {
+        alert('Du hast keinen Admin-Zugriff!');
+        router.push('/');
+        return;
+      }
+      await Promise.all([loadProfiles(), loadDisputedMatches()]);
+      if (isMounted) setLoading(false);
     }
-    void Promise.all([loadProfiles(), loadDisputedMatches()]).then(() => setLoading(false));
-  }, [authLoading, myProfile, loadProfiles, loadDisputedMatches, router]);
+    void init();
+    return () => { isMounted = false; };
+  }, [supabase, router, loadProfiles, loadDisputedMatches]);
 
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);

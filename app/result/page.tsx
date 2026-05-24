@@ -16,7 +16,6 @@ import {
   XCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
-import { useAuth } from '@/app/providers';
 import { useRouter } from 'next/navigation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -159,14 +158,8 @@ export default function MatchResult() {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
 
-  const { user, loading: authLoading } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-
-  // currentUserId aus globalem Auth-Context beziehen
-  useEffect(() => {
-    if (user) setCurrentUserId(user.id);
-  }, [user]);
 
   // ── Derived ──────────────────────────────────────────────────────────────────
 
@@ -237,7 +230,10 @@ export default function MatchResult() {
         setPageLoading(false);
         return;
       }
-      if (!user) { router.push('/auth/login'); return; }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/auth/login'); return; }
+      const userId = session.user.id;
+      setCurrentUserId(userId);
 
       const { data, error } = await supabase
         .from('active_matches')
@@ -247,14 +243,14 @@ export default function MatchResult() {
       if (error) throw error;
 
       const m = data as ActiveMatch;
-      if (m.player1_id !== user.id && m.player2_id !== user.id) {
+      if (m.player1_id !== userId && m.player2_id !== userId) {
         setErrorMessage('Du bist kein Teilnehmer dieses Matches.');
         setPageLoading(false);
         return;
       }
       setMatch(m);
       if (m.status === 'awaiting_confirmation' && m.confirmation_requested_at) {
-        const submitter = m.submitted_by === user.id;
+        const submitter = m.submitted_by === userId;
         startCountdown(m.confirmation_requested_at, m.id, submitter);
       }
     } catch (err) {
@@ -262,11 +258,11 @@ export default function MatchResult() {
     } finally {
       setPageLoading(false);
     }
-  }, [router, startCountdown, supabase, user]);
+  }, [router, startCountdown, supabase]);
 
   useEffect(() => {
-    if (!authLoading) void loadMatch();
-  }, [authLoading, loadMatch]);
+    void loadMatch();
+  }, [loadMatch]);
 
   // ── Realtime ─────────────────────────────────────────────────────────────────
 
@@ -283,8 +279,8 @@ export default function MatchResult() {
         (payload) => {
           const updated = payload.new as ActiveMatch;
           setMatch(updated);
-          if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at && user) {
-            const submitter = updated.submitted_by === user.id;
+          if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at && currentUserId) {
+            const submitter = updated.submitted_by === currentUserId;
             autoConfirmCalledRef.current = false;
             startCountdown(updated.confirmation_requested_at, updated.id, submitter);
           }

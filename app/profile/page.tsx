@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { useAuth } from '@/app/providers';
 import { useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 
@@ -25,38 +24,49 @@ type MatchData = {
   result?: string;
 };
 
+type ProfileData = {
+  username: string | null;
+  elo: number;
+  gamesPlayed: number;
+  wins: number;
+  phone_verified: boolean;
+  phone_number: string | null;
+  is_admin: boolean;
+};
+
 export default function Profile() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchData[]>([]);
-  const [matchesLoading, setMatchesLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  // Middleware übernimmt den Auth-Guard – hier nur Matches laden sobald User bekannt ist
   useEffect(() => {
-    if (authLoading) return;
-    // Kein User → Middleware leitet weiter, aber Loading beenden damit kein Dauerladen
-    if (!user) { setMatchesLoading(false); return; }
-
     let isMounted = true;
 
-    async function loadMatches() {
-      const { data: matchData } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/auth/login'); return; }
+
+      const uid = session.user.id;
+      if (isMounted) setUserId(uid);
+
+      const [{ data: profileData }, { data: matchData }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('supabaseId', uid).single(),
+        supabase.from('matches').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(5),
+      ]);
 
       if (!isMounted) return;
+      setProfile(profileData ?? null);
       setMatches((matchData || []) as MatchData[]);
-      setMatchesLoading(false);
+      setLoading(false);
     }
 
-    void loadMatches();
+    void load();
     return () => { isMounted = false; };
-  }, [authLoading, user, supabase]);
+  }, [supabase, router]);
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -77,7 +87,7 @@ export default function Profile() {
   const phoneVerified = Boolean(profile?.phone_verified);
   const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
 
-  if (authLoading || matchesLoading) {
+  if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">Profil wird geladen...</div>
@@ -233,37 +243,47 @@ export default function Profile() {
 
             <div className="mt-5 grid grid-cols-3 gap-3">
               <div className="rounded-2xl bg-white/[0.04] p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{currentRank.min}</span>Rang Start</div>
-              <div className="rounded-2xl bg-white/[0.04] p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{elo}</span>Aktuell</div>
-              <div className="rounded-2xl bg-white/[0.04] p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{nextRank.min}</span>Ziel</div>
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-center text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-emerald-300 sm:text-xl">{elo}</span>Aktuell</div>
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-right text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{nextRank.min}</span>Ziel</div>
             </div>
           </section>
         </div>
 
-        {/* Letzte Matches */}
+        {/* Match History */}
         <section className="mt-6 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7 md:p-8">
-          <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div className="mb-5 flex items-center justify-between gap-4">
             <div>
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Letzte Matches</div>
-              <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Aktuelle Form</h2>
+              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Verlauf</div>
+              <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Letzte Matches</h2>
             </div>
-            <Link href="/history" className="text-sm font-bold text-zinc-400 transition hover:text-white">Match-History öffnen →</Link>
+            <Link href="/history" className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-zinc-300 transition hover:border-white/30 hover:bg-white/10 sm:text-sm">
+              Alle ansehen
+            </Link>
           </div>
 
-          {matches.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-              {matches.slice(0, 5).map((match) => (
-                <div key={match.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center transition hover:-translate-y-1 hover:border-emerald-300/35">
-                  <div className="text-xs text-zinc-500">{new Date(match.created_at).toLocaleDateString('de-DE')}</div>
-                  <div className="mt-2 truncate text-sm font-bold">vs {match.opponent_name || 'Gegner'}</div>
-                  <div className={`mt-3 text-2xl font-black sm:text-3xl ${match.is_win ? 'text-emerald-300' : 'text-zinc-300'}`}>{match.result || '—'}</div>
-                  <div className="mt-1.5 text-xs uppercase tracking-[0.2em] text-zinc-500">{match.is_win ? 'Sieg' : 'Match'}</div>
+          {matches.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">Noch keine Matches gespielt.</div>
+          ) : (
+            <div className="space-y-3">
+              {matches.map((match) => (
+                <div key={match.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
+                  <div className="text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div>
+                  <div className={`rounded-full px-3 py-1 text-xs font-black ${match.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
+                    {match.is_win ? 'SIEG' : 'NIEDERLAGE'}
+                  </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-sm text-zinc-400 sm:text-base">Noch keine Matches vorhanden. Starte dein erstes Ranked Match über das Matchmaking.</div>
           )}
         </section>
+
+        {profile?.is_admin && (
+          <div className="mt-6 text-center">
+            <Link href="/admin" className="inline-flex rounded-full border border-red-400/25 bg-red-500/10 px-6 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/20">
+              Admin-Panel öffnen
+            </Link>
+          </div>
+        )}
       </section>
     </main>
   );
