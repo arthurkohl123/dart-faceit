@@ -66,9 +66,27 @@ export async function middleware(request: NextRequest) {
   if (!user && isProtected) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/auth/login'
-    // Ursprüngliche Ziel-URL als Query-Parameter mitgeben für Redirect nach Login
     loginUrl.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // ── Eingeloggt → Ban-Check ────────────────────────────────────────────────
+  // Nur für geschützte Routen prüfen, um unnötige DB-Abfragen zu vermeiden.
+  // /auth/banned ist ausgenommen, damit gebannte Nutzer die Seite sehen können.
+  if (user && isProtected && !pathname.startsWith('/auth/banned')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_banned')
+      .eq('supabaseId', user.id)
+      .single()
+
+    if (profile?.is_banned) {
+      // Session beenden und zur Ban-Seite weiterleiten
+      await supabase.auth.signOut()
+      const bannedUrl = request.nextUrl.clone()
+      bannedUrl.pathname = '/auth/banned'
+      return NextResponse.redirect(bannedUrl)
+    }
   }
 
   // ── Eingeloggt → Auth-Route → Profil ─────────────────────────────────────
@@ -76,16 +94,6 @@ export async function middleware(request: NextRequest) {
     const profileUrl = request.nextUrl.clone()
     profileUrl.pathname = '/profile'
     return NextResponse.redirect(profileUrl)
-  }
-
-  // ── Admin-Schutz ──────────────────────────────────────────────────────────
-  // Grobe Prüfung auf Middleware-Ebene: Nur eingeloggte Nutzer kommen durch.
-  // Die feingranulare is_admin-Prüfung findet weiterhin in der Seite selbst statt.
-  if (pathname.startsWith('/admin') && !user) {
-    const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/auth/login'
-    loginUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(loginUrl)
   }
 
   // Aktualisierte Cookies (Token-Refresh) an den Browser zurückgeben

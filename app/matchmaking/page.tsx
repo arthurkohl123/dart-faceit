@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, CheckCircle2, Radar, ShieldCheck, Timer, Users, XCircle, Menu, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { useAuth } from '@/app/providers';
 import { useRouter } from 'next/navigation';
 
 type MatchmakingStatus = 'idle' | 'selecting' | 'searching' | 'found' | 'error';
@@ -58,6 +59,7 @@ const appConfig = {
 } as const;
 
 export default function Matchmaking() {
+  const { user, profile, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<MatchmakingStatus>('idle');
   const [selectedApp, setSelectedApp] = useState<AppChoice | null>(null);
   const [opponent, setOpponent] = useState<Opponent | null>(null);
@@ -65,13 +67,15 @@ export default function Matchmaking() {
   const [queueCounts, setQueueCounts] = useState<Record<AppChoice, number>>({ scolia: 0, dartcounter: 0 });
   const [errorMessage, setErrorMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
   const isPollingRef = useRef(false);
   const statusRef = useRef<MatchmakingStatus>('idle');
   const selectedAppRef = useRef<AppChoice | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+
+  // phoneVerified direkt aus dem globalen Profil lesen
+  const phoneVerified = profile?.phone_verified ?? null;
 
   useEffect(() => { statusRef.current = status; }, [status]);
   useEffect(() => { selectedAppRef.current = selectedApp; }, [selectedApp]);
@@ -90,7 +94,6 @@ export default function Matchmaking() {
     setTimeout(() => router.push(`/result?matchId=${matchId}`), 1500);
   }, [router]);
 
-  // Queue-Counts für beide Apps laden
   const fetchQueueCounts = useCallback(async () => {
     const [{ count: scoliaCount }, { count: dartCount }] = await Promise.all([
       supabase.from('matchmaking_queue').select('*', { count: 'exact', head: true }).eq('app', 'scolia'),
@@ -111,9 +114,6 @@ export default function Matchmaking() {
     const maxEloDiff = getMaxEloDiff(seconds);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/auth/login'); return; }
-
       const { data, error } = await supabase.rpc('find_or_create_match', {
         p_max_elo_diff: maxEloDiff,
         p_app: app,
@@ -139,13 +139,13 @@ export default function Matchmaking() {
     } finally {
       isPollingRef.current = false;
     }
-  }, [fetchQueueCounts, redirectToResult, router, supabase]);
+  }, [fetchQueueCounts, redirectToResult, supabase]);
 
   const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
     setOpponent(null);
 
-    if (phoneVerified !== true) {
+    if (!phoneVerified) {
       setErrorMessage('Bitte bestätige zuerst deine Handynummer.');
       router.push('/auth/verify-phone');
       return;
@@ -171,34 +171,22 @@ export default function Matchmaking() {
     }
   };
 
-  // Profil + Telefon-Verifizierung laden
+  // Queue-Counts beim Laden holen (kein separater Auth-Check nötig – Middleware übernimmt das)
   useEffect(() => {
-    let isMounted = true;
-    async function checkPhoneVerification() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/auth/login'); return; }
-      const { data: profile } = await supabase
-        .from('profiles').select('phone_verified').eq('supabaseId', session.user.id).single();
-      if (!isMounted) return;
-      setPhoneVerified(Boolean(profile?.phone_verified || session.user.phone_confirmed_at));
-    }
-    void checkPhoneVerification();
+    if (authLoading) return;
     void fetchQueueCounts();
-    return () => { isMounted = false; };
-  }, [router, supabase, fetchQueueCounts]);
+  }, [authLoading, fetchQueueCounts]);
 
   // Realtime + Polling während der Suche
   useEffect(() => {
     if (status !== 'searching') return;
-    const app = selectedAppRef.current;
 
     const channel = supabase
       .channel('match-updates')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'active_matches' }, async (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'active_matches' }, (payload) => {
         const newMatch = payload.new;
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session && (newMatch.player1_id === session.user.id || newMatch.player2_id === session.user.id)) {
-          const isPlayer1 = newMatch.player1_id === session.user.id;
+        if (user && (newMatch.player1_id === user.id || newMatch.player2_id === user.id)) {
+          const isPlayer1 = newMatch.player1_id === user.id;
           setOpponent({
             username: isPlayer1 ? newMatch.player2_username : newMatch.player1_username,
             elo: isPlayer1 ? newMatch.player2_elo : newMatch.player1_elo,
@@ -222,9 +210,17 @@ export default function Matchmaking() {
       clearInterval(pollingInterval);
       void supabase.rpc('cancel_matchmaking');
     };
-  }, [pollForMatch, status, supabase, redirectToResult]);
+  }, [pollForMatch, status, supabase, redirectToResult, user]);
 
   const cfg = selectedApp ? appConfig[selectedApp] : appConfig.scolia;
+
+  if (authLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">Laden...</div>
+      </main>
+    );
+  }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">

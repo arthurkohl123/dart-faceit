@@ -10,6 +10,7 @@ import {
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ export function useAuth() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -82,6 +84,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
         .single();
 
       if (data) {
+        // Gebannte Nutzer sofort ausloggen und zur Ban-Seite weiterleiten
+        if (data.is_banned) {
+          await supabase.auth.signOut();
+          router.push('/auth/banned');
+          return;
+        }
+
         setProfile({
           id: data.id,
           username: data.username ?? null,
@@ -92,7 +101,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           phone_verified_at: data.phone_verified_at ?? null,
           phone_number: data.phone_number ?? null,
           is_admin: Boolean(data.is_admin),
-          is_banned: Boolean(data.is_banned),
+          is_banned: false,
           ban_reason: data.ban_reason ?? null,
           isPremium: Boolean(data.isPremium),
         });
@@ -100,7 +109,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         setProfile(null);
       }
     },
-    [supabase]
+    [supabase, router]
   );
 
   // Öffentliche Methode zum manuellen Neu-Laden des Profils

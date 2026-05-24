@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -18,8 +19,16 @@ export default function Login() {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) alert('Fehler: ' + error.message);
-    else router.push('/profile');
+    if (error) {
+      alert('Fehler: ' + error.message);
+      setLoading(false);
+      return;
+    }
+
+    // Nach erfolgreichem Login zur ursprünglichen Ziel-URL weiterleiten,
+    // falls vorhanden – sonst zum Profil.
+    const redirectTo = searchParams.get('redirectTo');
+    router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/profile');
 
     setLoading(false);
   };

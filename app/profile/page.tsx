@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import { useAuth } from '@/app/providers';
 import { useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 
@@ -16,18 +17,6 @@ const rankTiers = [
   { name: 'Legende', min: 2500, color: 'text-emerald-200', accent: 'from-emerald-300/25 to-zinc-950', badge: 'LG' },
 ];
 
-type ProfileData = {
-  id?: string;
-  email?: string;
-  username?: string;
-  elo?: number;
-  gamesPlayed?: number;
-  wins?: number;
-  phone_number?: string;
-  phone_verified?: boolean;
-  phone_verified_at?: string | null;
-};
-
 type MatchData = {
   id: string | number;
   created_at: string;
@@ -37,65 +26,45 @@ type MatchData = {
 };
 
 export default function Profile() {
-  const [user, setUser] = useState<ProfileData | null>(null);
+  const { user, profile, loading: authLoading } = useAuth();
   const [matches, setMatches] = useState<MatchData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [matchesLoading, setMatchesLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
+  // Middleware übernimmt den Auth-Guard – hier nur Matches laden sobald User bekannt ist
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return; // Middleware leitet bereits weiter
+
     let isMounted = true;
 
-    async function loadProfile() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/auth/login');
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('supabaseId', session.user.id)
-        .single();
-
+    async function loadMatches() {
       const { data: matchData } = await supabase
         .from('matches')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
         .limit(5);
 
       if (!isMounted) return;
-
-      setUser({
-        id: session.user.id,
-        email: session.user.email,
-        ...(profile || {}),
-        phone_number: profile?.phone_number || session.user.phone || '',
-        phone_verified: Boolean(profile?.phone_verified || session.user.phone_confirmed_at),
-        phone_verified_at: profile?.phone_verified_at || session.user.phone_confirmed_at || null,
-      });
       setMatches((matchData || []) as MatchData[]);
-      setLoading(false);
+      setMatchesLoading(false);
     }
 
-    void loadProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [router, supabase]);
+    void loadMatches();
+    return () => { isMounted = false; };
+  }, [authLoading, user, supabase]);
 
   const logout = async () => {
     await supabase.auth.signOut();
     router.push('/auth/login');
   };
 
-  const elo = user?.elo || 1000;
-  const gamesPlayed = user?.gamesPlayed || 0;
-  const wins = user?.wins || 0;
+  const elo = profile?.elo ?? 1000;
+  const gamesPlayed = profile?.gamesPlayed ?? 0;
+  const wins = profile?.wins ?? 0;
   const losses = Math.max(gamesPlayed - wins, 0);
   const winrate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
   const currentRankIndex = rankTiers.reduce((current, rank, index) => (elo >= rank.min ? index : current), 0);
@@ -104,10 +73,10 @@ export default function Profile() {
   const eloToNext = Math.max(nextRank.min - elo, 0);
   const rankRange = nextRank.min - currentRank.min;
   const progress = nextRank === currentRank ? 100 : Math.min(Math.max(((elo - currentRank.min) / rankRange) * 100, 0), 100);
-  const phoneVerified = Boolean(user?.phone_verified);
+  const phoneVerified = Boolean(profile?.phone_verified);
   const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
 
-  if (loading) {
+  if (authLoading || matchesLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">Profil wird geladen...</div>
@@ -133,7 +102,6 @@ export default function Profile() {
             </div>
           </Link>
 
-          {/* Desktop Nav */}
           <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
             <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
@@ -145,7 +113,6 @@ export default function Profile() {
             <button onClick={logout} className="hidden rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10 sm:block">
               Logout
             </button>
-            {/* Hamburger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
@@ -155,7 +122,6 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Mobile Dropdown */}
         {mobileMenuOpen && (
           <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
             <div className="flex flex-col gap-1">
@@ -178,7 +144,7 @@ export default function Profile() {
           <div className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} p-6 shadow-2xl shadow-black/50 sm:p-8 md:p-10`}>
             <div className="absolute right-5 top-5 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200 sm:right-8 sm:top-8 sm:px-4 sm:py-2 sm:text-xs">Aktives Profil</div>
             <div className="grid h-20 w-20 place-items-center rounded-[1.75rem] border border-white/10 bg-black/35 text-2xl font-black text-emerald-200 shadow-[0_0_40px_rgba(34,197,94,0.16)] sm:h-24 sm:w-24 sm:text-3xl">{currentRank.badge}</div>
-            <h1 className="mt-5 text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">{user?.username || 'Spieler'}</h1>
+            <h1 className="mt-5 text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">{profile?.username || 'Spieler'}</h1>
             <div className={`mt-2 text-2xl font-black tracking-[-0.05em] sm:text-3xl sm:mt-3 ${currentRank.color}`}>{currentRank.name}</div>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base sm:leading-8">Dein aktueller RankedDarts-Status. Starte neue Matches, bestätige Ergebnisse und arbeite dich in Richtung der nächsten Division.</p>
           </div>
@@ -202,7 +168,7 @@ export default function Profile() {
                 {phoneVerified ? 'Dein Account ist für Fair-Play und Ranked vorbereitet.' : 'Bestätige deine Nummer, bevor du vollständig in Ranked startest.'}
               </div>
               {!phoneVerified && (
-                <Link href={`/auth/verify-phone${user?.phone_number ? `?phone=${encodeURIComponent(user.phone_number)}` : ''}`} className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs font-black text-amber-100 transition hover:bg-amber-300/15 sm:text-sm">
+                <Link href={`/auth/verify-phone${profile?.phone_number ? `?phone=${encodeURIComponent(profile.phone_number)}` : ''}`} className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs font-black text-amber-100 transition hover:bg-amber-300/15 sm:text-sm">
                   Jetzt verifizieren
                 </Link>
               )}
