@@ -36,7 +36,8 @@ export default function Profile() {
   // Middleware übernimmt den Auth-Guard – hier nur Matches laden sobald User bekannt ist
   useEffect(() => {
     if (authLoading) return;
-    if (!user) return; // Middleware leitet bereits weiter
+    // Kein User → Middleware leitet weiter, aber Loading beenden damit kein Dauerladen
+    if (!user) { setMatchesLoading(false); return; }
 
     let isMounted = true;
 

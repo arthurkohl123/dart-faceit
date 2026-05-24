@@ -262,7 +262,7 @@ export default function MatchResult() {
     } finally {
       setPageLoading(false);
     }
-  }, [router, startCountdown, supabase]);
+  }, [router, startCountdown, supabase, user]);
 
   useEffect(() => {
     if (!authLoading) void loadMatch();

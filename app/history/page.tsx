@@ -32,7 +32,7 @@ export default function MatchHistory() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) return; // Middleware leitet bereits weiter
+    if (!user) { setMatchesLoading(false); return; }
 
     const fetchHistory = async () => {
       const { data, error } = await supabase

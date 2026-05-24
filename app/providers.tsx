@@ -102,25 +102,41 @@ export function Providers({ children }: { children: React.ReactNode }) {
     if (current?.user?.id) await fetchProfile(current.user.id);
   }, [fetchProfile, supabase]);
 
-  // Einziger Auth-Mechanismus: onAuthStateChange feuert beim Mount sofort
-  // mit dem initialen State (INITIAL_SESSION Event) – kein separates getSession nötig.
   useEffect(() => {
+    let mounted = true;
+
+    // 1. getSession() sofort aufrufen – liefert die Session synchron aus dem Cookie.
+    //    Damit wird loading garantiert beendet, auch wenn onAuthStateChange verzögert feuert.
+    supabase.auth.getSession().then(async ({ data: { session: initial } }) => {
+      if (!mounted) return;
+      setSession(initial);
+      if (initial?.user) {
+        await fetchProfile(initial.user.id);
+      }
+      if (mounted) setLoading(false);
+    });
+
+    // 2. onAuthStateChange für spätere Updates (Login, Logout, Token-Refresh).
+    //    INITIAL_SESSION wird hier ignoriert – getSession() hat das bereits erledigt.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        setSession(newSession);
+        if (!mounted) return;
+        if (event === 'INITIAL_SESSION') return; // bereits via getSession() behandelt
 
+        setSession(newSession);
         if (newSession?.user) {
           await fetchProfile(newSession.user.id);
         } else {
           setProfile(null);
         }
-
-        // Loading nach dem ersten Event immer beenden
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [supabase, fetchProfile]);
 
   const value = useMemo<AuthContextValue>(
