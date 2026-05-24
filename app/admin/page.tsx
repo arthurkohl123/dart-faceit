@@ -163,37 +163,30 @@ export default function AdminPanel() {
     setLoadingDisputes(false);
   }, [supabase]);
 
-  const checkAdminAndLoad = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) {
-      router.push('/auth/login');
-      return;
-    }
-
-    const { data: me, error } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('supabaseId', session.user.id)
-      .single();
-
-    if (error || !me?.is_admin) {
-      alert('Du hast keinen Admin-Zugriff!');
-      router.push('/');
-      return;
-    }
-
-    await Promise.all([loadProfiles(), loadDisputedMatches()]);
-    setLoading(false);
-  }, [loadDisputedMatches, loadProfiles, router, supabase]);
-
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void checkAdminAndLoad();
-    }, 0);
+    let isMounted = true;
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/auth/login'); return; }
 
-    return () => window.clearTimeout(timer);
-  }, [checkAdminAndLoad]);
+      const { data: me, error } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('supabaseId', session.user.id)
+        .single();
+
+      if (!isMounted) return;
+      if (error || !me?.is_admin) {
+        alert('Du hast keinen Admin-Zugriff!');
+        router.push('/');
+        return;
+      }
+      await Promise.all([loadProfiles(), loadDisputedMatches()]);
+      if (isMounted) setLoading(false);
+    }
+    void init();
+    return () => { isMounted = false; };
+  }, [supabase, router, loadProfiles, loadDisputedMatches]);
 
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
