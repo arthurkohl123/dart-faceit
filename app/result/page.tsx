@@ -103,27 +103,28 @@ function LegCounter({
   accent: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-1 flex-col items-center gap-3">
       <span className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">{label}</span>
-      <div className="flex items-center gap-5">
-        <button
-          type="button"
-          onClick={() => onChange(Math.max(0, value - 1))}
-          className="grid h-14 w-14 place-items-center rounded-2xl border border-white/10 text-4xl font-black text-zinc-500 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95"
-        >
-          −
-        </button>
-        <span className={`min-w-[3.5rem] text-center text-6xl font-black leading-none tracking-[-0.1em] sm:min-w-[4.5rem] sm:text-8xl ${accent}`}>
-          {value}
-        </span>
-        <button
-          type="button"
-          onClick={() => onChange(value + 1)}
-          className="grid h-14 w-14 place-items-center rounded-2xl border border-white/10 text-4xl font-black text-zinc-500 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95"
-        >
-          +
-        </button>
-      </div>
+      {/* + Button */}
+      <button
+        type="button"
+        onClick={() => onChange(value + 1)}
+        className="grid h-16 w-full max-w-[10rem] place-items-center rounded-2xl border border-white/10 text-4xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95 sm:h-14 sm:max-w-[8rem]"
+      >
+        +
+      </button>
+      {/* Zahl */}
+      <span className={`text-7xl font-black leading-none tracking-[-0.1em] sm:text-8xl ${accent}`}>
+        {value}
+      </span>
+      {/* − Button */}
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(0, value - 1))}
+        className="grid h-16 w-full max-w-[10rem] place-items-center rounded-2xl border border-white/10 text-4xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95 sm:h-14 sm:max-w-[8rem]"
+      >
+        −
+      </button>
     </div>
   );
 }
@@ -569,13 +570,13 @@ export default function MatchResult() {
               </p>
             </div>
 
-            <div className="px-8 py-8 space-y-8">
+            <div className="px-4 py-8 space-y-8 sm:px-8">
               {/* Legs */}
               <div>
                 <p className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Legs</p>
-                <div className="flex items-center justify-center gap-6">
+                <div className="flex items-start justify-center gap-4">
                   <LegCounter label="Deine Legs" value={legsWon} onChange={setLegsWon} accent="text-emerald-300" />
-                  <span className="text-5xl font-black text-zinc-700 pb-8">:</span>
+                  <span className="mt-[4.5rem] text-4xl font-black text-zinc-700 sm:mt-[5rem] sm:text-5xl">:</span>
                   <LegCounter label="Gegner Legs" value={legsLost} onChange={setLegsLost} accent="text-zinc-300" />
                 </div>
                 {legsWon === legsLost && (legsWon > 0 || legsLost > 0) && (
