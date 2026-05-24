@@ -16,6 +16,18 @@ const rankTiers = [
   { name: 'Legende', min: 2500, color: 'text-emerald-200', accent: 'from-emerald-300/25 to-zinc-950', badge: 'LG' },
 ];
 
+type ProfileData = {
+  id?: string;
+  email?: string;
+  username?: string;
+  elo?: number;
+  gamesPlayed?: number;
+  wins?: number;
+  phone_number?: string;
+  phone_verified?: boolean;
+  phone_verified_at?: string | null;
+};
+
 type MatchData = {
   id: string | number;
   created_at: string;
@@ -24,19 +36,8 @@ type MatchData = {
   result?: string;
 };
 
-type ProfileData = {
-  username: string | null;
-  elo: number;
-  gamesPlayed: number;
-  wins: number;
-  phone_verified: boolean;
-  phone_number: string | null;
-  is_admin: boolean;
-};
-
 export default function Profile() {
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<ProfileData | null>(null);
   const [matches, setMatches] = useState<MatchData[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -46,36 +47,55 @@ export default function Profile() {
   useEffect(() => {
     let isMounted = true;
 
-    async function load() {
+    async function loadProfile() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/auth/login'); return; }
+      if (!session) {
+        router.push('/auth/login');
+        return;
+      }
 
-      const uid = session.user.id;
-      if (isMounted) setUserId(uid);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('supabaseId', session.user.id)
+        .single();
 
-      const [{ data: profileData }, { data: matchData }] = await Promise.all([
-        supabase.from('profiles').select('*').eq('supabaseId', uid).single(),
-        supabase.from('matches').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(5),
-      ]);
+      const { data: matchData } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
       if (!isMounted) return;
-      setProfile(profileData ?? null);
+
+      setUser({
+        id: session.user.id,
+        email: session.user.email,
+        ...(profile || {}),
+        phone_number: profile?.phone_number || session.user.phone || '',
+        phone_verified: Boolean(profile?.phone_verified || session.user.phone_confirmed_at),
+        phone_verified_at: profile?.phone_verified_at || session.user.phone_confirmed_at || null,
+      });
       setMatches((matchData || []) as MatchData[]);
       setLoading(false);
     }
 
-    void load();
-    return () => { isMounted = false; };
-  }, [supabase, router]);
+    void loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router, supabase]);
 
   const logout = async () => {
     await supabase.auth.signOut();
     router.push('/auth/login');
   };
 
-  const elo = profile?.elo ?? 1000;
-  const gamesPlayed = profile?.gamesPlayed ?? 0;
-  const wins = profile?.wins ?? 0;
+  const elo = user?.elo || 1000;
+  const gamesPlayed = user?.gamesPlayed || 0;
+  const wins = user?.wins || 0;
   const losses = Math.max(gamesPlayed - wins, 0);
   const winrate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
   const currentRankIndex = rankTiers.reduce((current, rank, index) => (elo >= rank.min ? index : current), 0);
@@ -84,7 +104,7 @@ export default function Profile() {
   const eloToNext = Math.max(nextRank.min - elo, 0);
   const rankRange = nextRank.min - currentRank.min;
   const progress = nextRank === currentRank ? 100 : Math.min(Math.max(((elo - currentRank.min) / rankRange) * 100, 0), 100);
-  const phoneVerified = Boolean(profile?.phone_verified);
+  const phoneVerified = Boolean(user?.phone_verified);
   const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
 
   if (loading) {
@@ -113,6 +133,7 @@ export default function Profile() {
             </div>
           </Link>
 
+          {/* Desktop Nav */}
           <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
             <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
@@ -124,6 +145,7 @@ export default function Profile() {
             <button onClick={logout} className="hidden rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10 sm:block">
               Logout
             </button>
+            {/* Hamburger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
@@ -133,6 +155,7 @@ export default function Profile() {
           </div>
         </div>
 
+        {/* Mobile Dropdown */}
         {mobileMenuOpen && (
           <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
             <div className="flex flex-col gap-1">
@@ -155,7 +178,7 @@ export default function Profile() {
           <div className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} p-6 shadow-2xl shadow-black/50 sm:p-8 md:p-10`}>
             <div className="absolute right-5 top-5 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200 sm:right-8 sm:top-8 sm:px-4 sm:py-2 sm:text-xs">Aktives Profil</div>
             <div className="grid h-20 w-20 place-items-center rounded-[1.75rem] border border-white/10 bg-black/35 text-2xl font-black text-emerald-200 shadow-[0_0_40px_rgba(34,197,94,0.16)] sm:h-24 sm:w-24 sm:text-3xl">{currentRank.badge}</div>
-            <h1 className="mt-5 text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">{profile?.username || 'Spieler'}</h1>
+            <h1 className="mt-5 text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">{user?.username || 'Spieler'}</h1>
             <div className={`mt-2 text-2xl font-black tracking-[-0.05em] sm:text-3xl sm:mt-3 ${currentRank.color}`}>{currentRank.name}</div>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base sm:leading-8">Dein aktueller RankedDarts-Status. Starte neue Matches, bestätige Ergebnisse und arbeite dich in Richtung der nächsten Division.</p>
           </div>
@@ -179,7 +202,7 @@ export default function Profile() {
                 {phoneVerified ? 'Dein Account ist für Fair-Play und Ranked vorbereitet.' : 'Bestätige deine Nummer, bevor du vollständig in Ranked startest.'}
               </div>
               {!phoneVerified && (
-                <Link href={`/auth/verify-phone${profile?.phone_number ? `?phone=${encodeURIComponent(profile.phone_number)}` : ''}`} className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs font-black text-amber-100 transition hover:bg-amber-300/15 sm:text-sm">
+                <Link href={`/auth/verify-phone${user?.phone_number ? `?phone=${encodeURIComponent(user.phone_number)}` : ''}`} className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs font-black text-amber-100 transition hover:bg-amber-300/15 sm:text-sm">
                   Jetzt verifizieren
                 </Link>
               )}
@@ -243,47 +266,37 @@ export default function Profile() {
 
             <div className="mt-5 grid grid-cols-3 gap-3">
               <div className="rounded-2xl bg-white/[0.04] p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{currentRank.min}</span>Rang Start</div>
-              <div className="rounded-2xl bg-white/[0.04] p-3 text-center text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-emerald-300 sm:text-xl">{elo}</span>Aktuell</div>
-              <div className="rounded-2xl bg-white/[0.04] p-3 text-right text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{nextRank.min}</span>Ziel</div>
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{elo}</span>Aktuell</div>
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{nextRank.min}</span>Ziel</div>
             </div>
           </section>
         </div>
 
-        {/* Match History */}
+        {/* Letzte Matches */}
         <section className="mt-6 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7 md:p-8">
-          <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
             <div>
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Verlauf</div>
-              <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Letzte Matches</h2>
+              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Letzte Matches</div>
+              <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Aktuelle Form</h2>
             </div>
-            <Link href="/history" className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-zinc-300 transition hover:border-white/30 hover:bg-white/10 sm:text-sm">
-              Alle ansehen
-            </Link>
+            <Link href="/history" className="text-sm font-bold text-zinc-400 transition hover:text-white">Match-History öffnen →</Link>
           </div>
 
-          {matches.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">Noch keine Matches gespielt.</div>
-          ) : (
-            <div className="space-y-3">
-              {matches.map((match) => (
-                <div key={match.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
-                  <div className="text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div>
-                  <div className={`rounded-full px-3 py-1 text-xs font-black ${match.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
-                    {match.is_win ? 'SIEG' : 'NIEDERLAGE'}
-                  </div>
+          {matches.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+              {matches.slice(0, 5).map((match) => (
+                <div key={match.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center transition hover:-translate-y-1 hover:border-emerald-300/35">
+                  <div className="text-xs text-zinc-500">{new Date(match.created_at).toLocaleDateString('de-DE')}</div>
+                  <div className="mt-2 truncate text-sm font-bold">vs {match.opponent_name || 'Gegner'}</div>
+                  <div className={`mt-3 text-2xl font-black sm:text-3xl ${match.is_win ? 'text-emerald-300' : 'text-zinc-300'}`}>{match.result || '—'}</div>
+                  <div className="mt-1.5 text-xs uppercase tracking-[0.2em] text-zinc-500">{match.is_win ? 'Sieg' : 'Match'}</div>
                 </div>
               ))}
             </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-sm text-zinc-400 sm:text-base">Noch keine Matches vorhanden. Starte dein erstes Ranked Match über das Matchmaking.</div>
           )}
         </section>
-
-        {profile?.is_admin && (
-          <div className="mt-6 text-center">
-            <Link href="/admin" className="inline-flex rounded-full border border-red-400/25 bg-red-500/10 px-6 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/20">
-              Admin-Panel öffnen
-            </Link>
-          </div>
-        )}
       </section>
     </main>
   );

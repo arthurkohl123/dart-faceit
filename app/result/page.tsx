@@ -230,10 +230,11 @@ export default function MatchResult() {
         setPageLoading(false);
         return;
       }
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) { router.push('/auth/login'); return; }
-      const userId = session.user.id;
-      setCurrentUserId(userId);
+      setCurrentUserId(session.user.id);
 
       const { data, error } = await supabase
         .from('active_matches')
@@ -243,14 +244,14 @@ export default function MatchResult() {
       if (error) throw error;
 
       const m = data as ActiveMatch;
-      if (m.player1_id !== userId && m.player2_id !== userId) {
+      if (m.player1_id !== session.user.id && m.player2_id !== session.user.id) {
         setErrorMessage('Du bist kein Teilnehmer dieses Matches.');
         setPageLoading(false);
         return;
       }
       setMatch(m);
       if (m.status === 'awaiting_confirmation' && m.confirmation_requested_at) {
-        const submitter = m.submitted_by === userId;
+        const submitter = m.submitted_by === session.user.id;
         startCountdown(m.confirmation_requested_at, m.id, submitter);
       }
     } catch (err) {
@@ -260,9 +261,7 @@ export default function MatchResult() {
     }
   }, [router, startCountdown, supabase]);
 
-  useEffect(() => {
-    void loadMatch();
-  }, [loadMatch]);
+  useEffect(() => { void loadMatch(); }, [loadMatch]);
 
   // ── Realtime ─────────────────────────────────────────────────────────────────
 
@@ -276,13 +275,16 @@ export default function MatchResult() {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'active_matches', filter: `id=eq.${matchId}` },
-        (payload) => {
+        async (payload) => {
           const updated = payload.new as ActiveMatch;
           setMatch(updated);
-          if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at && currentUserId) {
-            const submitter = updated.submitted_by === currentUserId;
-            autoConfirmCalledRef.current = false;
-            startCountdown(updated.confirmation_requested_at, updated.id, submitter);
+          if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              const submitter = updated.submitted_by === session.user.id;
+              autoConfirmCalledRef.current = false;
+              startCountdown(updated.confirmation_requested_at, updated.id, submitter);
+            }
           }
           if (updated.status === 'completed') {
             if (countdownRef.current) clearInterval(countdownRef.current);

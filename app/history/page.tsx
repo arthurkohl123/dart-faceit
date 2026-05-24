@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Trophy, TrendingUp, TrendingDown, Menu, X } from 'lucide-react';
+import { Trophy, Target, TrendingUp, TrendingDown, Menu, X } from 'lucide-react';
 
 type MatchEntry = {
   id: string;
@@ -22,18 +22,19 @@ type MatchEntry = {
 
 export default function MatchHistory() {
   const [matches, setMatches] = useState<MatchEntry[]>([]);
-  const [matchesLoading, setMatchesLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'wins' | 'losses'>('all');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function load() {
+    const fetchHistory = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/auth/login'); return; }
+      if (!session) {
+        router.push('/auth/login');
+        return;
+      }
 
       const { data, error } = await supabase
         .from('matches')
@@ -41,13 +42,15 @@ export default function MatchHistory() {
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
 
-      if (!isMounted) return;
-      if (!error) setMatches((data || []) as MatchEntry[]);
-      setMatchesLoading(false);
-    }
+      if (error) {
+        console.error(error);
+      } else {
+        setMatches((data || []) as MatchEntry[]);
+      }
+      setLoading(false);
+    };
 
-    void load();
-    return () => { isMounted = false; };
+    fetchHistory();
   }, [supabase, router]);
 
   const filtered = matches.filter(m => {
@@ -61,7 +64,7 @@ export default function MatchHistory() {
   const winrate = matches.length > 0 ? Math.round((totalWins / matches.length) * 100) : 0;
   const totalEloChange = matches.reduce((sum, m) => sum + (m.elo_change || 0), 0);
 
-  if (matchesLoading) {
+  if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">
@@ -73,11 +76,13 @@ export default function MatchHistory() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+      {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.18),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(6,182,212,0.12),transparent_28%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
         <div className="absolute inset-0 opacity-[0.06] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
       </div>
 
+      {/* Nav */}
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
@@ -118,11 +123,14 @@ export default function MatchHistory() {
       </nav>
 
       <section className="relative z-10 mx-auto max-w-5xl px-5 pb-20 pt-32 md:px-8">
+
+        {/* Header */}
         <div className="mb-10">
           <h1 className="text-5xl font-black tracking-[-0.06em] md:text-6xl">MATCH HISTORY</h1>
           <p className="mt-3 text-lg text-zinc-400">{matches.length} gespielte Matches insgesamt</p>
         </div>
 
+        {/* Stats-Übersicht */}
         <div className="mb-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
             <div className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300">Siege</div>
@@ -144,6 +152,7 @@ export default function MatchHistory() {
           </div>
         </div>
 
+        {/* Filter */}
         <div className="mb-8 flex gap-3">
           {(['all', 'wins', 'losses'] as const).map((f) => (
             <button
@@ -160,12 +169,16 @@ export default function MatchHistory() {
           ))}
         </div>
 
+        {/* Match-Liste */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-[2.5rem] border border-white/10 bg-white/[0.03] py-24 backdrop-blur-xl">
             <div className="mb-5 grid h-20 w-20 place-items-center rounded-3xl border border-white/10 bg-white/[0.06] text-4xl">🎯</div>
             <h3 className="text-2xl font-black tracking-[-0.04em]">Noch keine Matches</h3>
             <p className="mt-3 text-zinc-400">Starte dein erstes Match über Matchmaking</p>
-            <Link href="/matchmaking" className="mt-8 rounded-full bg-emerald-400 px-8 py-3 text-sm font-black text-black transition hover:bg-emerald-300">
+            <Link
+              href="/matchmaking"
+              className="mt-8 rounded-full bg-emerald-400 px-8 py-3 text-sm font-black text-black transition hover:bg-emerald-300"
+            >
               Match suchen
             </Link>
           </div>
@@ -180,9 +193,13 @@ export default function MatchHistory() {
                     : 'border-red-400/15 bg-red-400/[0.04] hover:border-red-400/30'
                 }`}
               >
+                {/* Farbiger Seitenstreifen */}
                 <div className={`absolute left-0 top-0 h-full w-1 ${match.is_win ? 'bg-emerald-400' : 'bg-red-500'}`} />
+
                 <div className="px-8 py-6 pl-10">
                   <div className="flex flex-wrap items-center justify-between gap-4">
+
+                    {/* Linke Seite: Datum + Gegner */}
                     <div>
                       <div className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
                         {new Date(match.created_at).toLocaleDateString('de-DE', {
@@ -197,18 +214,24 @@ export default function MatchHistory() {
                         </span>
                       </div>
                     </div>
+
+                    {/* Rechte Seite: Ergebnis + Badge */}
                     <div className="flex items-center gap-4">
                       <div className={`text-4xl font-black tracking-[-0.06em] ${match.is_win ? 'text-emerald-400' : 'text-red-400'}`}>
                         {match.result || (match.legs_won != null ? `${match.legs_won}:${match.legs_lost}` : '—')}
                       </div>
                       <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black ${
-                        match.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'
+                        match.is_win
+                          ? 'bg-emerald-400/15 text-emerald-300'
+                          : 'bg-red-400/15 text-red-300'
                       }`}>
                         {match.is_win ? <Trophy size={15} /> : <span className="text-base">↓</span>}
                         {match.is_win ? 'Sieg' : 'Niederlage'}
                       </div>
                     </div>
                   </div>
+
+                  {/* Stats-Zeile */}
                   <div className="mt-5 grid grid-cols-3 gap-4 border-t border-white/[0.06] pt-5">
                     <div>
                       <div className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-500">Average</div>
@@ -218,14 +241,19 @@ export default function MatchHistory() {
                     </div>
                     <div>
                       <div className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-500">Höchster Checkout</div>
-                      <div className="mt-1.5 text-2xl font-black tracking-[-0.04em]">{match.highest_checkout ?? '—'}</div>
+                      <div className="mt-1.5 text-2xl font-black tracking-[-0.04em]">
+                        {match.highest_checkout ?? '—'}
+                      </div>
                     </div>
                     <div>
                       <div className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-500">Elo-Änderung</div>
                       <div className={`mt-1.5 flex items-center gap-1.5 text-2xl font-black tracking-[-0.04em] ${
                         match.elo_change >= 0 ? 'text-emerald-400' : 'text-red-400'
                       }`}>
-                        {match.elo_change >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                        {match.elo_change >= 0
+                          ? <TrendingUp size={18} />
+                          : <TrendingDown size={18} />
+                        }
                         {match.elo_change >= 0 ? '+' : ''}{match.elo_change}
                       </div>
                     </div>
