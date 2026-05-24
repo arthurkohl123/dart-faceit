@@ -39,15 +39,20 @@ export default function Leaderboard() {
     let isMounted = true;
 
     async function fetchLeaderboard() {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('username, elo, gamesPlayed, wins, isPremium')
-        .order('elo', { ascending: false })
-        .limit(100);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username, elo, gamesPlayed, wins, isPremium')
+          .order('elo', { ascending: false })
+          .limit(100);
 
-      if (error) console.error(error);
-      else if (isMounted) setPlayers((data || []) as Player[]);
-      if (isMounted) setLoading(false);
+        if (error) console.error(error);
+        else if (isMounted) setPlayers((data || []) as Player[]);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
 
     void fetchLeaderboard();
