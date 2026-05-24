@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
+import { createClient } from '@/lib/supabase';
 
 const stats = [
   { value: '0', label: 'Aktive Spieler', detail: 'Online & bereit für Matches' },
@@ -39,6 +40,20 @@ const ranks = [
 export default function Home() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    // Sofort Session prüfen
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setIsLoggedIn(true);
+    });
+    // Auch auf Auth-Änderungen reagieren (z.B. nach Login)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#050607] text-white">
@@ -69,18 +84,29 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/auth/login')}
-              className="hidden rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10 sm:block"
-            >
-              Login
-            </button>
-            <button
-              onClick={() => router.push('/auth/register')}
-              className="hidden rounded-full bg-white px-5 py-2.5 text-sm font-black text-black shadow-[0_0_28px_rgba(255,255,255,0.16)] transition hover:scale-[1.03] hover:bg-emerald-200 sm:block md:px-6"
-            >
-              Kostenlos starten
-            </button>
+            {isLoggedIn ? (
+              <button
+                onClick={() => router.push('/profile')}
+                className="hidden rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-5 py-2.5 text-sm font-black text-black shadow-[0_0_28px_rgba(34,197,94,0.25)] transition hover:scale-[1.03] sm:block md:px-6"
+              >
+                Zum Profil
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => router.push('/auth/login')}
+                  className="hidden rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10 sm:block"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => router.push('/auth/register')}
+                  className="hidden rounded-full bg-white px-5 py-2.5 text-sm font-black text-black shadow-[0_0_28px_rgba(255,255,255,0.16)] transition hover:scale-[1.03] hover:bg-emerald-200 sm:block md:px-6"
+                >
+                  Kostenlos starten
+                </button>
+              </>
+            )}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
@@ -98,8 +124,14 @@ export default function Home() {
               <a href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</a>
               <a href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Premium</a>
               <div className="mt-2 border-t border-white/10 pt-2 flex flex-col gap-1">
-                <a href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Login</a>
-                <a href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/25">Kostenlos starten →</a>
+                {isLoggedIn ? (
+                  <a href="/profile" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/25">Zum Profil →</a>
+                ) : (
+                  <>
+                    <a href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Login</a>
+                    <a href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/25">Kostenlos starten →</a>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -125,19 +157,39 @@ export default function Home() {
           </p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            <button
-              onClick={() => router.push('/auth/register')}
-              className="group rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-5 text-base font-black uppercase tracking-[0.18em] text-black shadow-[0_24px_80px_rgba(34,197,94,0.28)] transition hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(34,197,94,0.42)]"
-            >
-              Account erstellen
-              <span className="ml-3 inline-block transition group-hover:translate-x-1">→</span>
-            </button>
-            <button
-              onClick={() => router.push('/leaderboard')}
-              className="rounded-3xl border border-white/15 bg-white/[0.04] px-8 py-5 text-base font-bold text-white backdrop-blur transition hover:-translate-y-1 hover:border-white/35 hover:bg-white/[0.08]"
-            >
-              Leaderboard ansehen
-            </button>
+            {isLoggedIn ? (
+              <>
+                <button
+                  onClick={() => router.push('/matchmaking')}
+                  className="group rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-5 text-base font-black uppercase tracking-[0.18em] text-black shadow-[0_24px_80px_rgba(34,197,94,0.28)] transition hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(34,197,94,0.42)]"
+                >
+                  Matchmaking starten
+                  <span className="ml-3 inline-block transition group-hover:translate-x-1">→</span>
+                </button>
+                <button
+                  onClick={() => router.push('/profile')}
+                  className="rounded-3xl border border-white/15 bg-white/[0.04] px-8 py-5 text-base font-bold text-white backdrop-blur transition hover:-translate-y-1 hover:border-white/35 hover:bg-white/[0.08]"
+                >
+                  Mein Profil
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => router.push('/auth/register')}
+                  className="group rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-5 text-base font-black uppercase tracking-[0.18em] text-black shadow-[0_24px_80px_rgba(34,197,94,0.28)] transition hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(34,197,94,0.42)]"
+                >
+                  Account erstellen
+                  <span className="ml-3 inline-block transition group-hover:translate-x-1">→</span>
+                </button>
+                <button
+                  onClick={() => router.push('/leaderboard')}
+                  className="rounded-3xl border border-white/15 bg-white/[0.04] px-8 py-5 text-base font-bold text-white backdrop-blur transition hover:-translate-y-1 hover:border-white/35 hover:bg-white/[0.08]"
+                >
+                  Leaderboard ansehen
+                </button>
+              </>
+            )}
           </div>
 
           <div className="mt-12 grid max-w-2xl grid-cols-3 gap-3 text-sm text-zinc-400">
