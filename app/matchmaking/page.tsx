@@ -6,7 +6,8 @@ import { Activity, CheckCircle2, Radar, ShieldCheck, Timer, Users, XCircle } fro
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
-type MatchmakingStatus = 'idle' | 'searching' | 'found' | 'error';
+type MatchmakingStatus = 'idle' | 'selecting' | 'searching' | 'found' | 'error';
+type AppChoice = 'scolia' | 'dartcounter';
 
 type MatchmakingResponse = {
   match_id: string | null;
@@ -14,7 +15,7 @@ type MatchmakingResponse = {
   opponent_username: string | null;
   opponent_elo: number | null;
   player_elo: number | null;
-  match_status: 'searching' | 'matched';
+  match_status: 'searching' | 'matched' | 'already_in_match';
 };
 
 type Opponent = {
@@ -29,22 +30,50 @@ const searchSteps = [
   { time: '60s+', range: '±600 Elo', label: 'Maximale Reichweite' },
 ];
 
+const appConfig = {
+  scolia: {
+    label: 'Scolia',
+    description: '',
+    color: 'emerald',
+    icon: '📷',
+    borderActive: 'border-emerald-300/50 bg-emerald-400/[0.10]',
+    borderHover: 'hover:border-emerald-300/30 hover:bg-emerald-400/[0.06]',
+    badge: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200',
+    button: 'from-emerald-400 via-lime-300 to-emerald-400',
+    queueLabel: 'text-emerald-300',
+    dot: 'bg-emerald-300',
+  },
+  dartcounter: {
+    label: 'DartCounter',
+    description: '',
+    color: 'cyan',
+    icon: '📱',
+    borderActive: 'border-cyan-300/50 bg-cyan-400/[0.10]',
+    borderHover: 'hover:border-cyan-300/30 hover:bg-cyan-400/[0.06]',
+    badge: 'border-cyan-300/25 bg-cyan-400/10 text-cyan-200',
+    button: 'from-cyan-400 via-sky-300 to-cyan-400',
+    queueLabel: 'text-cyan-300',
+    dot: 'bg-cyan-300',
+  },
+} as const;
+
 export default function Matchmaking() {
   const [status, setStatus] = useState<MatchmakingStatus>('idle');
+  const [selectedApp, setSelectedApp] = useState<AppChoice | null>(null);
   const [opponent, setOpponent] = useState<Opponent | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [queueCount, setQueueCount] = useState(0);
+  const [queueCounts, setQueueCounts] = useState<Record<AppChoice, number>>({ scolia: 0, dartcounter: 0 });
   const [errorMessage, setErrorMessage] = useState('');
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
   const isPollingRef = useRef(false);
   const statusRef = useRef<MatchmakingStatus>('idle');
+  const selectedAppRef = useRef<AppChoice | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
+  useEffect(() => { statusRef.current = status; }, [status]);
+  useEffect(() => { selectedAppRef.current = selectedApp; }, [selectedApp]);
 
   const getMaxEloDiff = (seconds: number) => {
     if (seconds < 20) return 100;
@@ -60,21 +89,33 @@ export default function Matchmaking() {
     setTimeout(() => router.push(`/result?matchId=${matchId}`), 1500);
   }, [router]);
 
+  // Queue-Counts für beide Apps laden
+  const fetchQueueCounts = useCallback(async () => {
+    const [{ count: scoliaCount }, { count: dartCount }] = await Promise.all([
+      supabase.from('matchmaking_queue').select('*', { count: 'exact', head: true }).eq('app', 'scolia'),
+      supabase.from('matchmaking_queue').select('*', { count: 'exact', head: true }).eq('app', 'dartcounter'),
+    ]);
+    setQueueCounts({
+      scolia: scoliaCount || 0,
+      dartcounter: dartCount || 0,
+    });
+  }, [supabase]);
+
   const pollForMatch = useCallback(async (seconds: number) => {
     if (isPollingRef.current || statusRef.current !== 'searching') return;
+    const app = selectedAppRef.current;
+    if (!app) return;
 
     isPollingRef.current = true;
     const maxEloDiff = getMaxEloDiff(seconds);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/auth/login');
-        return;
-      }
+      if (!session) { router.push('/auth/login'); return; }
 
       const { data, error } = await supabase.rpc('find_or_create_match', {
         p_max_elo_diff: maxEloDiff,
+        p_app: app,
       });
 
       if (statusRef.current !== 'searching') return;
@@ -82,43 +123,37 @@ export default function Matchmaking() {
 
       const result = Array.isArray(data) ? data[0] as MatchmakingResponse | undefined : data as MatchmakingResponse | undefined;
 
-      const { count } = await supabase
-        .from('matchmaking_queue')
-        .select('*', { count: 'exact', head: true });
-
-      setQueueCount(count || 0);
+      await fetchQueueCounts();
 
       if (result?.match_status === 'matched' && result.match_id && result.opponent_username) {
-        setOpponent({
-          username: result.opponent_username,
-          elo: result.opponent_elo || 1000,
-        });
+        setOpponent({ username: result.opponent_username, elo: result.opponent_elo || 1000 });
         setStatus('found');
         redirectToResult(result.match_id);
       }
     } catch (error) {
       if (statusRef.current === 'searching') {
-        console.error('Matchmaking fehlgeschlagen:', error);
         setErrorMessage(error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.');
         setStatus('error');
       }
     } finally {
       isPollingRef.current = false;
     }
-  }, [redirectToResult, router, supabase]);
+  }, [fetchQueueCounts, redirectToResult, router, supabase]);
 
-  const startSearch = async () => {
+  const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
     setOpponent(null);
 
     if (phoneVerified !== true) {
-      setErrorMessage('Bitte bestätige zuerst deine Handynummer, bevor du Ranked-Matchmaking startest.');
+      setErrorMessage('Bitte bestätige zuerst deine Handynummer.');
       router.push('/auth/verify-phone');
       return;
     }
 
+    setSelectedApp(app);
     setElapsedSeconds(0);
     setStatus('searching');
+    selectedAppRef.current = app;
     await pollForMatch(0);
   };
 
@@ -129,69 +164,50 @@ export default function Matchmaking() {
       console.error('Matchmaking-Abbruch fehlgeschlagen:', error);
     } finally {
       setStatus('idle');
+      setSelectedApp(null);
       setElapsedSeconds(0);
-      setQueueCount(0);
+      await fetchQueueCounts();
     }
   };
 
+  // Profil + Telefon-Verifizierung laden
   useEffect(() => {
     let isMounted = true;
-
     async function checkPhoneVerification() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/auth/login');
-        return;
-      }
-
+      if (!session) { router.push('/auth/login'); return; }
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('supabaseId', session.user.id)
-        .single();
-
+        .from('profiles').select('phone_verified').eq('supabaseId', session.user.id).single();
       if (!isMounted) return;
       setPhoneVerified(Boolean(profile?.phone_verified || session.user.phone_confirmed_at));
     }
-
     void checkPhoneVerification();
+    void fetchQueueCounts();
+    return () => { isMounted = false; };
+  }, [router, supabase, fetchQueueCounts]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [router, supabase]);
-
+  // Realtime + Polling während der Suche
   useEffect(() => {
     if (status !== 'searching') return;
+    const app = selectedAppRef.current;
 
-    // 1. Realtime Subscription: Sofort reagieren, wenn ein Match für mich erstellt wird
     const channel = supabase
       .channel('match-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'active_matches',
-        },
-        async (payload) => {
-          const newMatch = payload.new;
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          if (session && (newMatch.player1_id === session.user.id || newMatch.player2_id === session.user.id)) {
-            const isPlayer1 = newMatch.player1_id === session.user.id;
-            setOpponent({
-              username: isPlayer1 ? newMatch.player2_username : newMatch.player1_username,
-              elo: isPlayer1 ? newMatch.player2_elo : newMatch.player1_elo,
-            });
-            setStatus('found');
-            redirectToResult(newMatch.id);
-          }
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'active_matches' }, async (payload) => {
+        const newMatch = payload.new;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && (newMatch.player1_id === session.user.id || newMatch.player2_id === session.user.id)) {
+          const isPlayer1 = newMatch.player1_id === session.user.id;
+          setOpponent({
+            username: isPlayer1 ? newMatch.player2_username : newMatch.player1_username,
+            elo: isPlayer1 ? newMatch.player2_elo : newMatch.player1_elo,
+          });
+          setStatus('found');
+          redirectToResult(newMatch.id);
         }
-      )
+      })
       .subscribe();
 
-    // 2. Backup-Polling (etwas seltener, da Realtime jetzt primär ist)
     const pollingInterval = setInterval(() => {
       setElapsedSeconds((current) => {
         const next = current + 2;
@@ -207,13 +223,17 @@ export default function Matchmaking() {
     };
   }, [pollForMatch, status, supabase, redirectToResult]);
 
+  const cfg = selectedApp ? appConfig[selectedApp] : appConfig.scolia;
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+      {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.24),transparent_34%),radial-gradient(circle_at_82%_8%,rgba(6,182,212,0.14),transparent_28%),radial-gradient(circle_at_50%_50%,rgba(163,230,53,0.08),transparent_34%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
         <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
       </div>
 
+      {/* Nav */}
       <nav className="relative z-10 border-b border-white/10 bg-black/45 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8">
           <Link href="/" className="flex items-center gap-3">
@@ -223,79 +243,101 @@ export default function Matchmaking() {
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Matchmaking</div>
             </div>
           </Link>
-
-          <button
-            onClick={() => router.push('/profile')}
-            className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10"
-          >
+          <button onClick={() => router.push('/profile')} className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10">
             Zum Profil
           </button>
         </div>
       </nav>
 
       <section className="relative z-10 mx-auto grid min-h-[calc(100vh-88px)] max-w-7xl items-center gap-10 px-5 py-14 md:px-8 lg:grid-cols-[0.92fr_1.08fr]">
+
+        {/* Linke Spalte: Info */}
         <div>
           <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
             Live Queue
           </div>
           <h1 className="mt-6 text-6xl font-black leading-[0.88] tracking-[-0.07em] md:text-8xl">Finde dein nächstes Match.</h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Die Suche startet eng an deinem Elo-Level und erweitert den Radius automatisch, damit du schnell einen fairen Gegner findest. Für Ranked-Matches ist jetzt eine bestätigte Handynummer vorgesehen.</p>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Wähle deine Dart-App und tritt der passenden Queue bei. Du wirst nur mit Spielern gematcht, die dieselbe App nutzen.</p>
 
           {phoneVerified === false && (
             <div className="mt-8 rounded-[1.7rem] border border-amber-300/20 bg-amber-400/[0.08] p-5 text-sm leading-6 text-amber-100 backdrop-blur-xl">
-              Dein Account ist noch nicht telefonisch verifiziert. Bestätige deine Nummer, damit das Matchmaking fair und anti-smurf-sicher bleibt.
-              <Link href="/auth/verify-phone" className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 font-black text-amber-50 transition hover:bg-amber-300/15">
-                Telefonnummer verifizieren
+              Dein Account ist noch nicht telefonisch verifiziert.
+              <Link href="/auth/verify-phone" className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 font-black text-amber-50 transition hover:bg-amber-300/15 ml-3">
+                Jetzt verifizieren
               </Link>
             </div>
           )}
 
+          {/* Queue-Übersicht */}
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
               <Timer className="h-6 w-6 text-emerald-300" />
-              <div className="mt-4 text-4xl font-black tracking-[-0.05em]">{elapsedSeconds}s</div>
+              <div className="mt-4 text-4xl font-black tracking-[-0.05em]">{status === 'searching' ? `${elapsedSeconds}s` : '—'}</div>
               <div className="mt-1 text-sm text-zinc-500">Suchzeit</div>
             </div>
-            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
-              <Users className="h-6 w-6 text-cyan-300" />
-              <div className="mt-4 text-4xl font-black tracking-[-0.05em]">{queueCount}</div>
-              <div className="mt-1 text-sm text-zinc-500">In Queue</div>
+            <div className="rounded-[1.7rem] border border-emerald-300/15 bg-emerald-400/[0.04] p-5 backdrop-blur-xl">
+              <Users className="h-6 w-6 text-emerald-300" />
+              <div className="mt-4 text-4xl font-black tracking-[-0.05em] text-emerald-300">{queueCounts.scolia}</div>
+              <div className="mt-1 text-sm text-zinc-500">Scolia Queue</div>
             </div>
-            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
-              <Radar className="h-6 w-6 text-lime-300" />
-              <div className="mt-4 text-4xl font-black tracking-[-0.05em]">±{currentRange}</div>
-              <div className="mt-1 text-sm text-zinc-500">Elo Radius</div>
+            <div className="rounded-[1.7rem] border border-cyan-300/15 bg-cyan-400/[0.04] p-5 backdrop-blur-xl">
+              <Users className="h-6 w-6 text-cyan-300" />
+              <div className="mt-4 text-4xl font-black tracking-[-0.05em] text-cyan-300">{queueCounts.dartcounter}</div>
+              <div className="mt-1 text-sm text-zinc-500">DartCounter Queue</div>
             </div>
           </div>
         </div>
 
+        {/* Rechte Spalte: Matchmaking-Box */}
         <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/86 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
           <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-emerald-400/20 blur-3xl" />
 
+          {/* IDLE: App-Auswahl */}
           {status === 'idle' && (
-            <div className="relative text-center">
-              <div className="mx-auto grid h-28 w-28 place-items-center rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_45px_rgba(34,197,94,0.18)]">
-                <Radar className="h-14 w-14" />
+            <div className="relative">
+              <div className="mx-auto mb-8 grid h-24 w-24 place-items-center rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_45px_rgba(34,197,94,0.18)]">
+                <Radar className="h-12 w-12" />
               </div>
-              <h2 className="mt-8 text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für das Oche?</h2>
-              <p className="mx-auto mt-4 max-w-xl text-zinc-400">Starte die Suche, bleib auf der Seite und du wirst automatisch zur Ergebnis-Eingabe weitergeleitet, sobald ein Match gefunden wurde.</p>
-              <button
-                onClick={startSearch}
-                className="mt-8 w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-6 text-2xl font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.24)] transition hover:-translate-y-1"
-              >
-                Match suchen
-              </button>
+              <h2 className="text-center text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für die Oche?</h2>
+              <p className="mx-auto mt-3 max-w-xl text-center text-zinc-400">Wähle zuerst deine Dart-App, um in die passende Queue einzutreten.</p>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                {(Object.keys(appConfig) as AppChoice[]).map((app) => {
+                  const c = appConfig[app];
+                  return (
+                    <button
+                      key={app}
+                      onClick={() => void startSearch(app)}
+                      className={`group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-6 text-left transition-all duration-300 ${c.borderHover} hover:scale-[1.02]`}
+                    >
+                      <div className="text-4xl mb-3">{c.icon}</div>
+                      <div className="text-xl font-black tracking-[-0.03em]">{c.label}</div>
+                      <div className={`mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${c.badge}`}>
+                        <span className={`h-2 w-2 rounded-full ${c.dot}`} />
+                        {queueCounts[app]} in Queue
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
-          {status === 'searching' && (
+          {/* SEARCHING */}
+          {status === 'searching' && selectedApp && (
             <div className="relative text-center">
-              <div className="mx-auto grid h-28 w-28 animate-pulse place-items-center rounded-full border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_55px_rgba(34,197,94,0.24)]">
+              <div className={`mx-auto grid h-28 w-28 animate-pulse place-items-center rounded-full border ${cfg.borderActive} text-white shadow-[0_0_55px_rgba(34,197,94,0.24)]`}>
                 <Activity className="h-14 w-14" />
               </div>
-              <h2 className="mt-8 text-4xl font-black tracking-[-0.05em]">Gegner wird gesucht</h2>
+
+              <div className={`mt-6 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${cfg.badge}`}>
+                <span className={`h-2 w-2 rounded-full ${cfg.dot} animate-pulse`} />
+                {appConfig[selectedApp].label} Queue
+              </div>
+
+              <h2 className="mt-4 text-4xl font-black tracking-[-0.05em]">Gegner wird gesucht</h2>
               <p className="mt-3 text-zinc-400">Aktueller Elo-Suchradius: <span className="font-black text-emerald-300">±{currentRange}</span></p>
 
               <div className="mt-8 h-4 overflow-hidden rounded-full bg-white/10">
@@ -319,21 +361,26 @@ export default function Matchmaking() {
             </div>
           )}
 
-          {status === 'found' && opponent && (
+          {/* FOUND */}
+          {status === 'found' && opponent && selectedApp && (
             <div className="relative text-center">
               <div className="mx-auto grid h-28 w-28 place-items-center rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_55px_rgba(34,197,94,0.24)]">
                 <CheckCircle2 className="h-14 w-14" />
               </div>
               <h2 className="mt-8 text-4xl font-black tracking-[-0.05em]">Gegner gefunden</h2>
               <div className="mt-6 rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.07] p-6">
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold mb-4 ${cfg.badge}`}>
+                  {appConfig[selectedApp].icon} {appConfig[selectedApp].label}
+                </div>
                 <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Dein Match</div>
-                <div className="mt-3 text-5xl font-black tracking-[-0.06em]">vs {opponent.username}</div>
+                <div className="mt-3 text-4xl font-black tracking-[-0.05em]">{opponent.username}</div>
                 <div className="mt-2 text-zinc-400">{opponent.elo} Elo</div>
               </div>
               <p className="mt-7 animate-pulse font-bold text-emerald-300">Du wirst zur Ergebnis-Eingabe weitergeleitet...</p>
             </div>
           )}
 
+          {/* ERROR */}
           {status === 'error' && (
             <div className="relative text-center">
               <div className="mx-auto grid h-24 w-24 place-items-center rounded-[2rem] border border-red-400/25 bg-red-500/10 text-red-300">
@@ -348,16 +395,17 @@ export default function Matchmaking() {
           )}
         </div>
 
+        {/* Feature-Cards */}
         <div className="lg:col-span-2 grid gap-5 md:grid-cols-3">
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
             <ShieldCheck className="h-7 w-7 text-emerald-300" />
-            <h3 className="mt-4 text-xl font-black">Fairer Radius</h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Der Suchbereich wächst automatisch, damit Matches fair bleiben und trotzdem zustande kommen.</p>
+            <h3 className="mt-4 text-xl font-black">App-getrennte Queues</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Scolia- und DartCounter-Spieler werden in separaten Queues geführt und nur untereinander gematcht.</p>
           </div>
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
             <Timer className="h-7 w-7 text-cyan-300" />
-            <h3 className="mt-4 text-xl font-black">Live Polling</h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Die Seite prüft regelmäßig, ob ein passender Gegner gefunden wurde.</p>
+            <h3 className="mt-4 text-xl font-black">Fairer Elo-Radius</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Der Suchbereich wächst automatisch, damit Matches fair bleiben und trotzdem schnell zustande kommen.</p>
           </div>
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
             <CheckCircle2 className="h-7 w-7 text-lime-300" />
