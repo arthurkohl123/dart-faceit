@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function Login() {
+// ─── Innere Komponente (nutzt useSearchParams) ────────────────────────────────
+// useSearchParams() erfordert ein Suspense-Boundary im App Router.
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,6 +35,61 @@ export default function Login() {
     setLoading(false);
   };
 
+  return (
+    <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
+      <div className="mb-8 text-center">
+        <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">Login</div>
+        <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">Willkommen zurück</h2>
+        <p className="mt-3 text-sm leading-6 text-zinc-400">Logge dich mit deiner E-Mail und deinem Passwort ein.</p>
+      </div>
+
+      <form onSubmit={handleLogin} className="space-y-4">
+        <label className="block">
+          <span className="mb-2 block text-sm font-bold text-zinc-300">E-Mail</span>
+          <input
+            type="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"
+            required
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-sm font-bold text-zinc-300">Passwort</span>
+          <input
+            type="password"
+            placeholder="Dein Passwort"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"
+            required
+          />
+        </label>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-4 font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.24)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? 'Einloggen...' : 'Einloggen'}
+        </button>
+      </form>
+
+      <p className="mt-7 text-center text-sm text-zinc-400">
+        Noch kein Account?{' '}
+        <Link href="/auth/register" className="font-bold text-emerald-300 transition hover:text-emerald-200">
+          Kostenlos registrieren
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+// ─── Seiten-Komponente ────────────────────────────────────────────────────────
+export default function Login() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
       <div className="pointer-events-none absolute inset-0">
@@ -72,55 +129,14 @@ export default function Login() {
             <span className="text-2xl font-black tracking-[-0.04em]">RANKEDDARTS</span>
           </Link>
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
-            <div className="mb-8 text-center">
-              <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">Login</div>
-              <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">Willkommen zurück</h2>
-              <p className="mt-3 text-sm leading-6 text-zinc-400">Logge dich mit deiner E-Mail und deinem Passwort ein.</p>
+          {/* Suspense-Boundary für useSearchParams() */}
+          <Suspense fallback={
+            <div className="rounded-[2rem] border border-white/10 bg-zinc-950/85 p-8 text-center text-zinc-400 backdrop-blur-2xl">
+              Wird geladen...
             </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-zinc-300">E-Mail</span>
-                <input
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"
-                  required
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-zinc-300">Passwort</span>
-                <input
-                  type="password"
-                  placeholder="Dein Passwort"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"
-                  required
-                />
-              </label>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-4 font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.24)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? 'Einloggen...' : 'Einloggen'}
-              </button>
-            </form>
-
-            <p className="mt-7 text-center text-sm text-zinc-400">
-              Noch kein Account?{' '}
-              <Link href="/auth/register" className="font-bold text-emerald-300 transition hover:text-emerald-200">
-                Kostenlos registrieren
-              </Link>
-            </p>
-          </div>
+          }>
+            <LoginForm />
+          </Suspense>
         </section>
       </div>
     </main>
