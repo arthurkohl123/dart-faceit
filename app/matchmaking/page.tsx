@@ -279,7 +279,7 @@ export default function Matchmaking() {
               <div className="mx-auto grid h-28 w-28 place-items-center rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_45px_rgba(34,197,94,0.18)]">
                 <Radar className="h-14 w-14" />
               </div>
-              <h2 className="mt-8 text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für die Oche?</h2>
+              <h2 className="mt-8 text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für das Oche?</h2>
               <p className="mx-auto mt-4 max-w-xl text-zinc-400">Starte die Suche, bleib auf der Seite und du wirst automatisch zur Ergebnis-Eingabe weitergeleitet, sobald ein Match gefunden wurde.</p>
               <button
                 onClick={startSearch}
