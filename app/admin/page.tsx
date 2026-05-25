@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Ban,
   CheckCircle2,
+  ClipboardList,
   Crown,
   ExternalLink,
   Gavel,
@@ -57,6 +58,18 @@ type DisputedMatch = {
   dispute_reason: string | null;
   dispute_screenshot_url: string | null;
   confirmation_requested_at: string | null;
+  created_at: string;
+};
+
+type AdminLog = {
+  id: string;
+  admin_id: string;
+  admin_username: string;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  target_label: string | null;
+  details: string | null;
   created_at: string;
 };
 
@@ -119,6 +132,7 @@ export default function AdminPanel() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [disputedMatches, setDisputedMatches] = useState<DisputedMatch[]>([]);
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
+  const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
   const [resolveForms, setResolveForms] = useState<Record<string, ResolveFormState>>({});
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -158,6 +172,15 @@ export default function AdminPanel() {
     setActionMessage('Match wurde durch Admin abgebrochen.');
     await loadLiveMatches();
   };
+
+  const loadAdminLogs = useCallback(async () => {
+    const { data } = await supabase
+      .from('admin_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (data) setAdminLogs(data as AdminLog[]);
+  }, [supabase]);
 
   const loadDisputedMatches = useCallback(async () => {
     setLoadingDisputes(true);
@@ -213,17 +236,17 @@ export default function AdminPanel() {
         router.push('/');
         return;
       }
-      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches()]);
+      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs()]);
       if (isMounted) setLoading(false);
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches]);
+  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs]);
 
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
-    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches()]);
-  }, [loadDisputedMatches, loadLiveMatches, loadProfiles]);
+    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs()]);
+  }, [loadAdminLogs, loadDisputedMatches, loadLiveMatches, loadProfiles]);
 
   const updateElo = async (id: string, newElo: number) => {
     const { error } = await supabase.from('profiles').update({ elo: newElo }).eq('id', id);
@@ -849,6 +872,90 @@ export default function AdminPanel() {
           <p className="mt-8 text-center text-sm font-semibold text-zinc-500">
             {filtered.length} von {profiles.length} Spielern sichtbar
           </p>
+        </section>
+
+        {/* Admin-Aktions-Log */}
+        <section className="mt-10 rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-200">
+                <ClipboardList className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Admin-Aktions-Log</h2>
+                <p className="mt-1 text-sm text-zinc-400">Alle Admin-Aktionen der letzten 100 Einträge. Wer hat was wann gemacht.</p>
+              </div>
+            </div>
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-5 py-2.5 text-sm font-black text-cyan-100">
+              {adminLogs.length} Einträge
+            </span>
+          </div>
+
+          {adminLogs.length === 0 ? (
+            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.035] p-7 text-zinc-500">
+              <div className="flex items-center gap-3 font-bold">
+                <ClipboardList className="h-5 w-5" />
+                Noch keine Admin-Aktionen protokolliert
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-[1.7rem] border border-white/10">
+              {/* Header-Zeile */}
+              <div className="hidden grid-cols-[1fr_1fr_1.5fr_1fr_auto] gap-4 border-b border-white/10 bg-white/[0.03] px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 sm:grid">
+                <span>Admin</span>
+                <span>Aktion</span>
+                <span>Ziel</span>
+                <span>Details</span>
+                <span>Zeit</span>
+              </div>
+              <div className="divide-y divide-white/[0.06]">
+                {adminLogs.map((log) => (
+                  <div key={log.id} className="grid gap-2 px-5 py-3.5 transition hover:bg-white/[0.02] sm:grid-cols-[1fr_1fr_1.5fr_1fr_auto] sm:items-center sm:gap-4">
+                    {/* Admin */}
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
+                      <span className="text-sm font-black text-cyan-100">{log.admin_username}</span>
+                    </div>
+                    {/* Aktion */}
+                    <div>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] ${
+                        log.action.includes('BAN') ? 'border border-rose-300/20 bg-rose-400/10 text-rose-200' :
+                        log.action.includes('UNBAN') ? 'border border-emerald-300/20 bg-emerald-400/10 text-emerald-200' :
+                        log.action.includes('CANCEL') ? 'border border-red-300/20 bg-red-400/10 text-red-200' :
+                        log.action.includes('RESOLVE') ? 'border border-amber-300/20 bg-amber-400/10 text-amber-200' :
+                        log.action.includes('ELO') ? 'border border-blue-300/20 bg-blue-400/10 text-blue-200' :
+                        log.action.includes('ADMIN') ? 'border border-cyan-300/20 bg-cyan-400/10 text-cyan-200' :
+                        'border border-white/10 bg-white/[0.04] text-zinc-300'
+                      }`}>
+                        {log.action}
+                      </span>
+                    </div>
+                    {/* Ziel */}
+                    <div className="min-w-0">
+                      {log.target_label ? (
+                        <span className="truncate text-sm font-semibold text-zinc-200">{log.target_label}</span>
+                      ) : (
+                        <span className="text-xs text-zinc-600">—</span>
+                      )}
+                      {log.target_type && (
+                        <span className="ml-2 text-[10px] text-zinc-600">{log.target_type}</span>
+                      )}
+                    </div>
+                    {/* Details */}
+                    <div className="min-w-0">
+                      {log.details ? (
+                        <span className="truncate text-xs text-zinc-400">{log.details}</span>
+                      ) : (
+                        <span className="text-xs text-zinc-600">—</span>
+                      )}
+                    </div>
+                    {/* Zeit */}
+                    <div className="shrink-0 text-xs text-zinc-500">{formatDate(log.created_at)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </main>
