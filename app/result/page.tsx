@@ -325,9 +325,14 @@ export default function MatchResult() {
             if (countdownRef.current) clearInterval(countdownRef.current);
             setTimeout(() => router.push('/history'), 2500);
           }
-          if (updated.status === 'disputed' || updated.status === 'cancelled') {
+          if (updated.status === 'disputed') {
             if (countdownRef.current) clearInterval(countdownRef.current);
             setCountdown(null);
+          }
+          if (updated.status === 'cancelled') {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            setCountdown(null);
+            setInfoMessage('Dieses Match wurde durch einen Administrator abgebrochen.');
           }
         }
       )
@@ -444,22 +449,47 @@ export default function MatchResult() {
   // ── Chat ──────────────────────────────────────────────────────────────────────
 
   // Nachrichten beim Match-Load initial laden
+  // Admins die nicht Teilnehmer sind, lesen über eine eigene RPC-Funktion
+  // die SECURITY DEFINER hat und die RLS umgeht.
   useEffect(() => {
     if (!match?.id) return;
     const fetchMessages = async () => {
-      const { data } = await supabase
-        .from('match_messages')
-        .select('*')
-        .eq('match_id', match.id)
-        .order('created_at', { ascending: true });
+      let data;
+      if (isAdmin && !(currentUserId === match.player1_id || currentUserId === match.player2_id)) {
+        // Admin-Pfad: RPC-Funktion mit SECURITY DEFINER
+        const result = await supabase.rpc('admin_get_match_messages', { p_match_id: match.id });
+        data = result.data;
+      } else {
+        // Normaler Pfad: RLS greift, Teilnehmer lesen direkt
+        const result = await supabase
+          .from('match_messages')
+          .select('*')
+          .eq('match_id', match.id)
+          .order('created_at', { ascending: true });
+        data = result.data;
+      }
       if (data) setChatMessages(data as ChatMessage[]);
     };
     void fetchMessages();
-  }, [match?.id, supabase]);
+  }, [match?.id, match?.player1_id, match?.player2_id, currentUserId, isAdmin, supabase]);
 
   // Realtime-Subscription für neue Chat-Nachrichten
+  // Admins nutzen Broadcast-Kanal statt postgres_changes (umgeht RLS-Filter)
   useEffect(() => {
     if (!match?.id) return;
+    const isParticipant = currentUserId === match.player1_id || currentUserId === match.player2_id;
+
+    if (isAdmin && !isParticipant) {
+      // Admin-Pfad: Nachrichten per Polling alle 3 Sekunden nachladen
+      // (einfachste Lösung die keine zusätzliche DB-Konfiguration braucht)
+      const pollInterval = setInterval(async () => {
+        const { data } = await supabase.rpc('admin_get_match_messages', { p_match_id: match.id });
+        if (data) setChatMessages(data as ChatMessage[]);
+      }, 3000);
+      return () => clearInterval(pollInterval);
+    }
+
+    // Normaler Pfad: Realtime via postgres_changes
     const channel = supabase
       .channel(`chat-${match.id}`)
       .on(
@@ -471,7 +501,7 @@ export default function MatchResult() {
       )
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [match?.id, supabase]);
+  }, [match?.id, match?.player1_id, match?.player2_id, currentUserId, isAdmin, supabase]);
 
   // Automatisch nach unten scrollen wenn neue Nachrichten ankommen
   useEffect(() => {
@@ -997,6 +1027,29 @@ export default function MatchResult() {
                 <span className="h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.8)]" />
                 Admin-Entscheidung ausstehend
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════
+            STATE: cancelled
+        ════════════════════════════════════════════════════════════ */}
+        {match?.status === 'cancelled' && (
+          <div className="rounded-[2.5rem] border border-red-400/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl">
+            <div className="flex flex-col items-center px-8 py-14 text-center">
+              <div className="grid h-20 w-20 place-items-center rounded-3xl border border-red-400/25 bg-red-500/10">
+                <XCircle className="h-10 w-10 text-red-300" />
+              </div>
+              <h2 className="mt-6 text-3xl font-black tracking-[-0.05em]">Match abgebrochen</h2>
+              <p className="mx-auto mt-4 max-w-sm text-zinc-400">
+                Dieses Match wurde durch einen Administrator abgebrochen. Es wird keine Elo vergeben.
+              </p>
+              <button
+                onClick={() => router.push('/matchmaking')}
+                className="mt-8 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black"
+              >
+                Neues Match suchen
+              </button>
             </div>
           </div>
         )}
