@@ -8,6 +8,8 @@ import {
   Clock,
   Image as ImageIcon,
   Menu,
+  MessageCircle,
+  Send,
   Shield,
   Target,
   Trophy,
@@ -47,6 +49,15 @@ type RpcStatusResponse = {
   result_status: string;
   result_message: string;
   elo_change?: number;
+};
+
+type ChatMessage = {
+  id: string;
+  match_id: string;
+  user_id: string;
+  username: string;
+  content: string;
+  created_at: string;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -154,6 +165,12 @@ export default function MatchResult() {
   const [infoMessage, setInfoMessage] = useState('');
   const [countdown, setCountdown] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
@@ -401,6 +418,68 @@ export default function MatchResult() {
       setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Widerspruch.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Chat ──────────────────────────────────────────────────────────────────────
+
+  // Nachrichten beim Match-Load initial laden
+  useEffect(() => {
+    if (!match?.id) return;
+    const fetchMessages = async () => {
+      const { data } = await supabase
+        .from('match_messages')
+        .select('*')
+        .eq('match_id', match.id)
+        .order('created_at', { ascending: true });
+      if (data) setChatMessages(data as ChatMessage[]);
+    };
+    void fetchMessages();
+  }, [match?.id, supabase]);
+
+  // Realtime-Subscription für neue Chat-Nachrichten
+  useEffect(() => {
+    if (!match?.id) return;
+    const channel = supabase
+      .channel(`chat-${match.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'match_messages', filter: `match_id=eq.${match.id}` },
+        (payload) => {
+          setChatMessages((prev) => [...prev, payload.new as ChatMessage]);
+        }
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [match?.id, supabase]);
+
+  // Automatisch nach unten scrollen wenn neue Nachrichten ankommen
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const sendChatMessage = async () => {
+    const content = chatInput.trim();
+    if (!content || !match?.id || chatSending) return;
+    setChatSending(true);
+    setChatInput('');
+    try {
+      await supabase.from('match_messages').insert({
+        match_id: match.id,
+        content,
+      });
+    } catch (err) {
+      console.error('Nachricht konnte nicht gesendet werden:', err);
+      setChatInput(content); // Eingabe wiederherstellen bei Fehler
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void sendChatMessage();
     }
   };
 
@@ -850,6 +929,84 @@ export default function MatchResult() {
               <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-400/10 px-5 py-2.5 text-sm font-bold text-amber-200">
                 <span className="h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.8)]" />
                 Admin-Entscheidung ausstehend
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════
+            MATCHROOM CHAT
+        ════════════════════════════════════════════════════════════ */}
+        {match && (
+          <div className="mt-6 overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/60 backdrop-blur-2xl">
+            {/* Header */}
+            <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.03] px-6 py-4">
+              <MessageCircle className="h-5 w-5 text-emerald-300" />
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Matchroom</div>
+                <div className="text-sm font-bold text-zinc-300">
+                  {match.player1_username} &amp; {match.player2_username}
+                </div>
+              </div>
+            </div>
+
+            {/* Nachrichtenliste */}
+            <div className="flex h-64 flex-col gap-2 overflow-y-auto px-5 py-4 sm:h-72">
+              {chatMessages.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+                  <MessageCircle className="h-8 w-8 text-zinc-700" />
+                  <p className="text-sm font-semibold text-zinc-600">Noch keine Nachrichten.</p>
+                  <p className="text-xs text-zinc-700">Schreib deinem Gegner!</p>
+                </div>
+              ) : (
+                chatMessages.map((msg) => {
+                  const isMe = msg.user_id === currentUserId;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col gap-0.5 ${
+                        isMe ? 'items-end' : 'items-start'
+                      }`}
+                    >
+                      <span className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600">
+                        {isMe ? 'Du' : msg.username}
+                      </span>
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold leading-relaxed ${
+                          isMe
+                            ? 'rounded-br-sm bg-emerald-400/15 text-emerald-100'
+                            : 'rounded-bl-sm bg-white/[0.07] text-zinc-200'
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Eingabefeld */}
+            <div className="border-t border-white/10 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={handleChatKeyDown}
+                  placeholder="Nachricht schreiben..."
+                  maxLength={300}
+                  disabled={chatSending}
+                  className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/40 focus:bg-white/[0.07] disabled:opacity-50"
+                />
+                <button
+                  onClick={() => void sendChatMessage()}
+                  disabled={!chatInput.trim() || chatSending}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-400/15 text-emerald-300 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>
