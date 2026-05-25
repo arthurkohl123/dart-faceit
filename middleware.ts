@@ -4,7 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 const PROTECTED_ROUTES = ['/matchmaking', '/result', '/history', '/profile', '/admin'];
 const AUTH_ROUTES = ['/auth/login', '/auth/register'];
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
   let response = NextResponse.next({ request });
@@ -31,6 +31,7 @@ export async function proxy(request: NextRequest) {
   const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
   const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
 
+  // Nicht eingeloggte User von geschützten Seiten auf Login weiterleiten
   if (!session && isProtected) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/auth/login';
@@ -38,6 +39,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Gebannte User auf die Banned-Seite weiterleiten
   if (session && isProtected && pathname !== '/auth/banned') {
     const { data: profile } = await supabase
       .from('profiles')
@@ -53,6 +55,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Bereits eingeloggte User von Login/Register wegweiterleiten
   if (session && isAuthRoute) {
     const redirectTo = searchParams.get('redirectTo') || '/profile';
     const dest = request.nextUrl.clone();
