@@ -460,17 +460,26 @@ export default function MatchResult() {
 
   const sendChatMessage = async () => {
     const content = chatInput.trim();
-    if (!content || !match?.id || chatSending) return;
+    if (!content || !match?.id || !currentUserId || chatSending) return;
+    const myUsername = currentUserId === match.player1_id
+      ? match.player1_username
+      : match.player2_username;
     setChatSending(true);
     setChatInput('');
     try {
-      await supabase.from('match_messages').insert({
+      const { error } = await supabase.from('match_messages').insert({
         match_id: match.id,
+        user_id: currentUserId,
+        username: myUsername,
         content,
       });
+      if (error) {
+        console.error('Insert-Fehler:', error);
+        setChatInput(content); // Eingabe wiederherstellen bei Fehler
+      }
     } catch (err) {
       console.error('Nachricht konnte nicht gesendet werden:', err);
-      setChatInput(content); // Eingabe wiederherstellen bei Fehler
+      setChatInput(content);
     } finally {
       setChatSending(false);
     }
