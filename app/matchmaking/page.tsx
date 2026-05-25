@@ -231,6 +231,28 @@ export default function Matchmaking() {
     };
   }, [pollForMatch, status, supabase, redirectToResult]);
 
+  // Heartbeat: solange gesucht wird, alle 20 Sekunden last_seen aktualisieren.
+  // Die DB-Funktion cleanup_stale_queue_entries löscht Einträge die älter als
+  // 45 Sekunden sind – so werden verwaiste Einträge (Browser geschlossen)
+  // automatisch aus der Queue entfernt.
+  useEffect(() => {
+    if (status !== 'searching') return;
+
+    const sendHeartbeat = async () => {
+      try {
+        await supabase.rpc('queue_heartbeat');
+      } catch (err) {
+        console.error('Heartbeat fehlgeschlagen:', err);
+      }
+    };
+
+    // Sofort beim Start senden, dann alle 20 Sekunden
+    void sendHeartbeat();
+    const heartbeatInterval = setInterval(sendHeartbeat, 20_000);
+
+    return () => clearInterval(heartbeatInterval);
+  }, [status, supabase]);
+
   const cfg = selectedApp ? appConfig[selectedApp] : appConfig.scolia;
 
   if (pageLoading) {
