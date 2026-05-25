@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, CheckCircle2, Radar, ShieldCheck, Timer, Users, XCircle, Menu, X } from 'lucide-react';
+import { Activity, CheckCircle2, Radar, ShieldCheck, Swords, Timer, Users, XCircle, Menu, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -21,6 +21,16 @@ type MatchmakingResponse = {
 type Opponent = {
   username: string;
   elo: number;
+};
+
+type LiveMatch = {
+  id: string;
+  player1_username: string;
+  player2_username: string;
+  player1_elo: number;
+  player2_elo: number;
+  status: string;
+  created_at: string;
 };
 
 const searchSteps = [
@@ -68,6 +78,7 @@ export default function Matchmaking() {
   const [queueCounts, setQueueCounts] = useState<Record<AppChoice, number>>({ scolia: 0, dartcounter: 0 });
   const [errorMessage, setErrorMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
   const isPollingRef = useRef(false);
   const statusRef = useRef<MatchmakingStatus>('idle');
   const selectedAppRef = useRef<AppChoice | null>(null);
@@ -102,6 +113,16 @@ export default function Matchmaking() {
       scolia: scoliaCount || 0,
       dartcounter: dartCount || 0,
     });
+  }, [supabase]);
+
+  const fetchLiveMatches = useCallback(async () => {
+    const { data } = await supabase
+      .from('active_matches')
+      .select('id, player1_username, player2_username, player1_elo, player2_elo, status, created_at')
+      .in('status', ['pending_result', 'awaiting_confirmation'])
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (data) setLiveMatches(data as LiveMatch[]);
   }, [supabase]);
 
   const pollForMatch = useCallback(async (seconds: number) => {
@@ -171,6 +192,8 @@ export default function Matchmaking() {
   };
 
   // Auth-Check + Profil laden + Queue-Counts
+  // Prüft außerdem ob der Spieler bereits ein aktives Match hat und leitet
+  // ihn direkt in den Matchroom weiter, statt die Suche zu erlauben.
   useEffect(() => {
     let isMounted = true;
     async function init() {
@@ -179,6 +202,22 @@ export default function Matchmaking() {
       const uid = session.user.id;
       userIdRef.current = uid;
       if (isMounted) setUserId(uid);
+
+      // Aktives Match prüfen: läuft noch ein pending_result oder awaiting_confirmation?
+      const { data: activeMatch } = await supabase
+        .from('active_matches')
+        .select('id, status')
+        .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
+        .in('status', ['pending_result', 'awaiting_confirmation'])
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (activeMatch?.id) {
+        // Spieler hat noch ein offenes Match → direkt in den Matchroom
+        router.replace(`/result?matchId=${activeMatch.id}`);
+        return;
+      }
 
       const { data: profileData } = await supabase
         .from('profiles')
@@ -190,10 +229,22 @@ export default function Matchmaking() {
       setPhoneVerified(Boolean(profileData?.phone_verified));
       setPageLoading(false);
       void fetchQueueCounts();
+      void fetchLiveMatches();
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, fetchQueueCounts]);
+  }, [supabase, router, fetchQueueCounts, fetchLiveMatches]);
+
+  // Realtime: Live-Matches aktualisieren wenn sich active_matches ändert
+  useEffect(() => {
+    const channel = supabase
+      .channel('live-matches-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'active_matches' }, () => {
+        void fetchLiveMatches();
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [supabase, fetchLiveMatches]);
 
   // Realtime + Polling während der Suche
   useEffect(() => {
@@ -455,6 +506,52 @@ export default function Matchmaking() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Live-Matches */}
+        <div className="lg:col-span-2">
+          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/85 backdrop-blur-xl">
+            <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.03] px-5 py-4">
+              <Swords className="h-5 w-5 text-emerald-300" />
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Live</div>
+                <div className="text-sm font-bold text-zinc-300">Laufende Matches</div>
+              </div>
+              <span className="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-400/20 px-1.5 text-[10px] font-black text-emerald-300">
+                {liveMatches.length}
+              </span>
+            </div>
+            {liveMatches.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+                <Swords className="h-7 w-7 text-zinc-700" />
+                <p className="text-sm font-semibold text-zinc-600">Keine laufenden Matches</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/[0.06]">
+                {liveMatches.map((m) => (
+                  <div key={m.id} className="flex items-center gap-3 px-5 py-3.5">
+                    <div className="flex flex-1 items-center gap-2 min-w-0">
+                      <span className="truncate text-sm font-black text-white">{m.player1_username}</span>
+                      <span className="shrink-0 text-xs font-black text-zinc-600">vs</span>
+                      <span className="truncate text-sm font-black text-white">{m.player2_username}</span>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${
+                        m.status === 'awaiting_confirmation'
+                          ? 'border border-amber-300/20 bg-amber-400/10 text-amber-200'
+                          : 'border border-emerald-300/20 bg-emerald-400/10 text-emerald-200'
+                      }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${
+                          m.status === 'awaiting_confirmation' ? 'bg-amber-300' : 'bg-emerald-300'
+                        }`} />
+                        {m.status === 'awaiting_confirmation' ? 'Bestätigung' : 'Läuft'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Feature-Cards */}

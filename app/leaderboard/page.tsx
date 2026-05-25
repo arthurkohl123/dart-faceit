@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Trophy, Flame, Star, Menu, X } from 'lucide-react';
+import { Trophy, Flame, Search, Star, Menu, X } from 'lucide-react';
 
 type Player = {
   username: string;
@@ -32,6 +32,7 @@ export default function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -122,6 +123,26 @@ export default function Leaderboard() {
 
       <section className="relative z-10 mx-auto max-w-5xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
 
+        {/* Suchfeld */}
+        <div className="mb-6 relative">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Spieler suchen..."
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] py-3.5 pl-11 pr-5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/40 focus:bg-white/[0.07]"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+
         <div className="mb-8 md:mb-10">
           <div className="mb-4 inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
             <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
@@ -140,8 +161,9 @@ export default function Leaderboard() {
               const rank = getRank(player.elo);
               const isGold = idx === 0;
               return (
-                <div
+                <Link
                   key={player.username}
+                  href={`/players/${encodeURIComponent(player.username)}`}
                   className={`rounded-[2rem] border p-5 text-center backdrop-blur-xl transition hover:-translate-y-1 ${
                     isGold
                       ? 'border-yellow-300/30 bg-yellow-400/[0.07] sm:scale-105'
@@ -155,7 +177,7 @@ export default function Leaderboard() {
                   <div className="mt-1 text-xs text-zinc-500">
                     {player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0}% WR
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -177,15 +199,18 @@ export default function Leaderboard() {
           </div>
 
           <div className="divide-y divide-white/[0.07]">
-            {players.map((player, index) => {
+            {players
+              .filter((p) => !searchQuery || p.username.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((player, index) => {
               const rank = getRank(player.elo);
               const winrate = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               const isTop3 = index < 3;
               const prize = index === 0 ? '100€' : index === 1 ? '50€' : index === 2 ? '25€' : null;
 
               return (
-                <div
+                <Link
                   key={`${player.username}-${index}`}
+                  href={`/players/${encodeURIComponent(player.username)}`}
                   className={`flex items-center gap-3 px-5 py-4 transition hover:bg-emerald-400/[0.04] sm:gap-4 sm:px-6 sm:py-5 ${isTop3 ? 'bg-white/[0.02]' : ''}`}
                 >
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-black sm:h-12 sm:w-12 sm:text-base ${
@@ -225,7 +250,7 @@ export default function Leaderboard() {
                       </div>
                     )}
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
