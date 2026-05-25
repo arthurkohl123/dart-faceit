@@ -76,7 +76,7 @@ type AdminLog = {
 };
 
 type FlaggedPlayer = {
-  id: string;
+  id: string;           // TEXT (Prisma-ID, kein UUID)
   username: string;
   elo: number;
   gamesPlayed: number;
