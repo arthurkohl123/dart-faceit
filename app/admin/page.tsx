@@ -21,8 +21,10 @@ import {
   Sparkles,
   Swords,
   Trophy,
+  TriangleAlert,
   Users,
   XCircle,
+  Zap,
 } from 'lucide-react';
 
 type Profile = {
@@ -71,6 +73,18 @@ type AdminLog = {
   target_label: string | null;
   details: string | null;
   created_at: string;
+};
+
+type FlaggedPlayer = {
+  id: string;
+  username: string;
+  elo: number;
+  gamesPlayed: number;
+  wins: number;
+  winrate: number;
+  elo_gain_7d: number;
+  account_age_days: number;
+  flags: string[];
 };
 
 type LiveMatch = {
@@ -133,6 +147,7 @@ export default function AdminPanel() {
   const [disputedMatches, setDisputedMatches] = useState<DisputedMatch[]>([]);
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
   const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
+  const [flaggedPlayers, setFlaggedPlayers] = useState<FlaggedPlayer[]>([]);
   const [resolveForms, setResolveForms] = useState<Record<string, ResolveFormState>>({});
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -180,6 +195,11 @@ export default function AdminPanel() {
       .order('created_at', { ascending: false })
       .limit(100);
     if (data) setAdminLogs(data as AdminLog[]);
+  }, [supabase]);
+
+  const loadFlaggedPlayers = useCallback(async () => {
+    const { data } = await supabase.rpc('get_flagged_players');
+    if (data) setFlaggedPlayers(data as FlaggedPlayer[]);
   }, [supabase]);
 
   const loadDisputedMatches = useCallback(async () => {
@@ -236,17 +256,17 @@ export default function AdminPanel() {
         router.push('/');
         return;
       }
-      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs()]);
+      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers()]);
       if (isMounted) setLoading(false);
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs]);
+  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs, loadFlaggedPlayers]);
 
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
-    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs()]);
-  }, [loadAdminLogs, loadDisputedMatches, loadLiveMatches, loadProfiles]);
+    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers()]);
+  }, [loadAdminLogs, loadDisputedMatches, loadFlaggedPlayers, loadLiveMatches, loadProfiles]);
 
   const updateElo = async (id: string, newElo: number) => {
     const { error } = await supabase.from('profiles').update({ elo: newElo }).eq('id', id);
@@ -457,10 +477,10 @@ export default function AdminPanel() {
               <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{activeCount}</div>
               <div className="mt-1 text-sm font-semibold text-zinc-400">Aktive Accounts</div>
             </div>
-            <div className={statCardClassName}>
-              <Crown className="h-7 w-7 text-cyan-300" />
-              <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{adminCount}</div>
-              <div className="mt-1 text-sm font-semibold text-zinc-400">Admins</div>
+            <div className={`${statCardClassName} ${flaggedPlayers.length > 0 ? 'border-orange-400/30 bg-orange-400/[0.06]' : ''}`}>
+              <TriangleAlert className={`h-7 w-7 ${flaggedPlayers.length > 0 ? 'text-orange-300' : 'text-zinc-500'}`} />
+              <div className={`mt-5 text-4xl font-black tracking-[-0.05em] ${flaggedPlayers.length > 0 ? 'text-orange-300' : ''}`}>{flaggedPlayers.length}</div>
+              <div className="mt-1 text-sm font-semibold text-zinc-400">Verdächtige Accounts</div>
             </div>
           </div>
         </header>
@@ -469,6 +489,92 @@ export default function AdminPanel() {
           <div className="mt-8 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
             {actionMessage}
           </div>
+        )}
+
+        {/* Verdächtige Accounts / Anti-Smurf-Flagging */}
+        {flaggedPlayers.length > 0 && (
+          <section className="mt-10 rounded-[2.4rem] border border-orange-400/20 bg-orange-400/[0.03] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-orange-400/25 bg-orange-400/10 text-orange-200">
+                  <TriangleAlert className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Verdächtige Accounts</h2>
+                  <p className="mt-1 text-sm text-zinc-400">Automatisch geflaggte Spieler basierend auf Winrate, Elo-Anstieg und Account-Alter. Kein automatischer Ban – nur ein Hinweis zur manuellen Prüfung.</p>
+                </div>
+              </div>
+              <span className="inline-flex w-fit items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-5 py-2.5 text-sm font-black text-orange-100">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-orange-300" />
+                {flaggedPlayers.length} zur Prüfung
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {flaggedPlayers.map((player) => {
+                const winrate = Math.round(player.winrate);
+                return (
+                  <div key={player.id} className="overflow-hidden rounded-[1.5rem] border border-orange-400/15 bg-zinc-950/60 p-4 sm:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-black text-zinc-100">{player.username}</span>
+                          <span className="text-sm font-bold text-emerald-300">{player.elo} Elo</span>
+                          {player.account_age_days < 14 && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-blue-300/20 bg-blue-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-blue-200">
+                              <Zap className="h-2.5 w-2.5" /> Neuer Account ({player.account_age_days}d)
+                            </span>
+                          )}
+                        </div>
+                        {/* Flag-Badges */}
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {player.flags.map((flag) => (
+                            <span key={flag} className="inline-flex items-center gap-1 rounded-full border border-orange-400/20 bg-orange-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-orange-200">
+                              <AlertTriangle className="h-2.5 w-2.5" />
+                              {flag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Stats */}
+                      <div className="flex shrink-0 gap-4 text-center text-xs">
+                        <div>
+                          <div className="text-zinc-500">Spiele</div>
+                          <div className="font-black text-zinc-200">{player.gamesPlayed}</div>
+                        </div>
+                        <div>
+                          <div className="text-zinc-500">Winrate</div>
+                          <div className={`font-black ${winrate >= 85 ? 'text-orange-300' : 'text-zinc-200'}`}>{winrate}%</div>
+                        </div>
+                        <div>
+                          <div className="text-zinc-500">Elo +7d</div>
+                          <div className={`font-black ${player.elo_gain_7d >= 200 ? 'text-orange-300' : 'text-zinc-200'}`}>+{player.elo_gain_7d}</div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Aktionen */}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => {
+                          const user = profiles.find((p) => p.id === player.id);
+                          if (user) void toggleBan(user);
+                        }}
+                        className="rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-rose-100 transition hover:bg-rose-400/15"
+                      >
+                        Bannen
+                      </button>
+                      <button
+                        onClick={() => refreshAdminData()}
+                        className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-zinc-300 transition hover:bg-white/10"
+                      >
+                        Ignorieren
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         )}
 
         {/* Live-Matches-Übersicht */}
