@@ -518,7 +518,14 @@ export default function AdminPanel() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-black text-zinc-100">{player.username}</span>
+                          <a
+                            href={`/players/${encodeURIComponent(player.username)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-black text-zinc-100 underline-offset-2 hover:text-emerald-300 hover:underline transition"
+                          >
+                            {player.username}
+                          </a>
                           <span className="text-sm font-bold text-emerald-300">{player.elo} Elo</span>
                           {player.account_age_days < 14 && (
                             <span className="inline-flex items-center gap-1 rounded-full border border-blue-300/20 bg-blue-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-blue-200">
