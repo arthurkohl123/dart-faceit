@@ -118,18 +118,42 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     // 2. onAuthStateChange für spätere Updates (Login, Logout, Token-Refresh).
     //    INITIAL_SESSION wird hier ignoriert – getSession() hat das bereits erledigt.
+    //
+    //    WICHTIG – Deadlock-Prävention:
+    //    Der Callback darf KEINE Supabase-Operationen direkt awaiten!
+    //    Supabase Auth-JS hält beim Feuern von TOKEN_REFRESHED / SIGNED_IN einen
+    //    exklusiven Navigator Lock (Web Locks API). Wenn der Callback dann
+    //    fetchProfile() aufruft, versucht supabase.from() intern getSession()
+    //    → _acquireLock() → der Lock ist bereits gehalten → DEADLOCK
+    //    → infinite loading auf allen Seiten.
+    //    Fix: Supabase-DB-Operationen via setTimeout(fn, 0) aus dem Lock-Kontext
+    //    herausverschieben, sodass der Callback zuerst beendet wird und der
+    //    Navigator Lock freigegeben wird, bevor fetchProfile() läuft.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         if (!mounted) return;
         if (event === 'INITIAL_SESSION') return; // bereits via getSession() behandelt
 
+        // Session-State synchron setzen – kein Supabase-Aufruf, kein Lock-Problem
         setSession(newSession);
-        if (newSession?.user) {
-          await fetchProfile(newSession.user.id);
-        } else {
+
+        if (!newSession?.user) {
           setProfile(null);
+          if (mounted) setLoading(false);
+          return;
         }
-        if (mounted) setLoading(false);
+
+        const userId = newSession.user.id;
+
+        // fetchProfile() MUSS außerhalb des Lock-Kontexts laufen.
+        // setTimeout(fn, 0) stellt sicher, dass der onAuthStateChange-Callback
+        // vollständig beendet ist (und der Navigator Lock freigegeben wurde),
+        // bevor fetchProfile() ausgeführt wird.
+        setTimeout(async () => {
+          if (!mounted) return;
+          await fetchProfile(userId);
+          if (mounted) setLoading(false);
+        }, 0);
       }
     );
 
