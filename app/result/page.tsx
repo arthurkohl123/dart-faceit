@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Gavel,
   Image as ImageIcon,
   Menu,
   MessageCircle,
@@ -58,6 +59,7 @@ type ChatMessage = {
   username: string;
   content: string;
   created_at: string;
+  is_admin_message?: boolean;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -172,6 +174,12 @@ export default function MatchResult() {
   const [chatSending, setChatSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Admin state
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminWinnerId, setAdminWinnerId] = useState('');
+  const [adminCancelling, setAdminCancelling] = useState(false);
+  const [adminForcing, setAdminForcing] = useState(false);
+
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
 
@@ -260,12 +268,24 @@ export default function MatchResult() {
       if (error) throw error;
 
       const m = data as ActiveMatch;
-      if (m.player1_id !== userId && m.player2_id !== userId) {
+      const isParticipant = m.player1_id === userId || m.player2_id === userId;
+
+      // Admin-Status prüfen: Admins dürfen alle Matchrooms betreten
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('supabaseId', userId)
+        .single();
+      const adminFlag = Boolean(profileData?.is_admin);
+      setIsAdmin(adminFlag);
+
+      if (!isParticipant && !adminFlag) {
         setErrorMessage('Du bist kein Teilnehmer dieses Matches.');
         setPageLoading(false);
         return;
       }
       setMatch(m);
+      if (adminFlag && m.player1_id) setAdminWinnerId(m.player1_id);
       if (m.status === 'awaiting_confirmation' && m.confirmation_requested_at) {
         const submitter = m.submitted_by === userId;
         startCountdown(m.confirmation_requested_at, m.id, submitter);
@@ -461,9 +481,12 @@ export default function MatchResult() {
   const sendChatMessage = async () => {
     const content = chatInput.trim();
     if (!content || !match?.id || !currentUserId || chatSending) return;
-    const myUsername = currentUserId === match.player1_id
-      ? match.player1_username
-      : match.player2_username;
+    // Admins die nicht Teilnehmer sind, senden unter ihrem eigenen Username
+    // mit is_admin_message = true (rot dargestellt)
+    const isParticipant = currentUserId === match.player1_id || currentUserId === match.player2_id;
+    const myUsername = isParticipant
+      ? (currentUserId === match.player1_id ? match.player1_username : match.player2_username)
+      : `[Admin]`;
     setChatSending(true);
     setChatInput('');
     try {
@@ -472,16 +495,51 @@ export default function MatchResult() {
         user_id: currentUserId,
         username: myUsername,
         content,
+        is_admin_message: isAdmin && !isParticipant,
       });
       if (error) {
         console.error('Insert-Fehler:', error);
-        setChatInput(content); // Eingabe wiederherstellen bei Fehler
+        setChatInput(content);
       }
     } catch (err) {
       console.error('Nachricht konnte nicht gesendet werden:', err);
       setChatInput(content);
     } finally {
       setChatSending(false);
+    }
+  };
+
+  // ── Admin-Aktionen ────────────────────────────────────────────────────────────
+
+  const adminForceCancel = async () => {
+    if (!match || !confirm('Match ohne Elo-Wertung abbrechen?')) return;
+    setAdminCancelling(true);
+    try {
+      const { error } = await supabase.rpc('admin_force_cancel_match', { p_match_id: match.id });
+      if (error) throw error;
+      setInfoMessage('Match wurde durch Admin abgebrochen.');
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Abbrechen.');
+    } finally {
+      setAdminCancelling(false);
+    }
+  };
+
+  const adminForceResult = async () => {
+    if (!match || !adminWinnerId) return;
+    if (!confirm(`Gewinner auf ${adminWinnerId === match.player1_id ? match.player1_username : match.player2_username} setzen und Elo vergeben?`)) return;
+    setAdminForcing(true);
+    try {
+      const { error } = await supabase.rpc('admin_force_match_result', {
+        p_match_id: match.id,
+        p_winner_id: adminWinnerId,
+      });
+      if (error) throw error;
+      setInfoMessage('Ergebnis wurde durch Admin gesetzt.');
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Setzen des Ergebnisses.');
+    } finally {
+      setAdminForcing(false);
     }
   };
 
@@ -957,6 +1015,12 @@ export default function MatchResult() {
                   {match.player1_username} &amp; {match.player2_username}
                 </div>
               </div>
+              {isAdmin && !(currentUserId === match.player1_id || currentUserId === match.player2_id) && (
+                <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-red-300">
+                  <Gavel className="h-3 w-3" />
+                  Admin-Ansicht
+                </span>
+              )}
             </div>
 
             {/* Nachrichtenliste */}
@@ -970,19 +1034,24 @@ export default function MatchResult() {
               ) : (
                 chatMessages.map((msg) => {
                   const isMe = msg.user_id === currentUserId;
+                  const isAdminMsg = Boolean(msg.is_admin_message);
                   return (
                     <div
                       key={msg.id}
                       className={`flex flex-col gap-0.5 ${
-                        isMe ? 'items-end' : 'items-start'
+                        isAdminMsg ? 'items-center' : isMe ? 'items-end' : 'items-start'
                       }`}
                     >
-                      <span className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600">
-                        {isMe ? 'Du' : msg.username}
+                      <span className={`px-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                        isAdminMsg ? 'text-red-400' : 'text-zinc-600'
+                      }`}>
+                        {isAdminMsg ? '⚖ Admin' : isMe ? 'Du' : msg.username}
                       </span>
                       <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold leading-relaxed ${
-                          isMe
+                        className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm font-semibold leading-relaxed ${
+                          isAdminMsg
+                            ? 'rounded-sm border border-red-400/25 bg-red-500/10 text-red-100 text-center'
+                            : isMe
                             ? 'rounded-br-sm bg-emerald-400/15 text-emerald-100'
                             : 'rounded-bl-sm bg-white/[0.07] text-zinc-200'
                         }`}
@@ -1017,6 +1086,75 @@ export default function MatchResult() {
                   <Send className="h-4 w-4" />
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════
+            ADMIN-TOOLS (nur für Admins sichtbar)
+        ════════════════════════════════════════════════════════════ */}
+        {isAdmin && match && (
+          <div className="mt-6 overflow-hidden rounded-[2.5rem] border border-red-400/20 bg-red-500/[0.04] shadow-2xl shadow-black/60 backdrop-blur-2xl">
+            {/* Header */}
+            <div className="flex items-center gap-3 border-b border-red-400/15 bg-red-500/[0.04] px-6 py-4">
+              <Gavel className="h-5 w-5 text-red-300" />
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.28em] text-red-300">Admin-Tools</div>
+                <div className="text-sm font-bold text-zinc-400">Nur für Administratoren sichtbar</div>
+              </div>
+            </div>
+
+            <div className="space-y-5 px-6 py-5">
+              {/* Match-Info */}
+              <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs">
+                <div>
+                  <div className="text-zinc-500">Match-ID</div>
+                  <div className="mt-0.5 font-mono text-zinc-300 break-all">{match.id}</div>
+                </div>
+                <div>
+                  <div className="text-zinc-500">Status</div>
+                  <div className="mt-0.5 font-black text-zinc-200 uppercase">{match.status}</div>
+                </div>
+              </div>
+
+              {/* Ergebnis erzwingen */}
+              {match.status !== 'completed' && match.status !== 'cancelled' && (
+                <div className="rounded-2xl border border-amber-400/15 bg-amber-400/[0.05] p-4">
+                  <div className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-amber-300">Gewinner manuell setzen</div>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <select
+                      value={adminWinnerId}
+                      onChange={(e) => setAdminWinnerId(e.target.value)}
+                      className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none [color-scheme:dark] focus:border-amber-300/40"
+                    >
+                      <option value={match.player1_id}>{match.player1_username} ({match.player1_elo} Elo)</option>
+                      <option value={match.player2_id}>{match.player2_username} ({match.player2_elo} Elo)</option>
+                    </select>
+                    <button
+                      onClick={adminForceResult}
+                      disabled={adminForcing}
+                      className="shrink-0 rounded-xl border border-amber-300/25 bg-amber-400/10 px-4 py-2.5 text-sm font-black text-amber-200 transition hover:bg-amber-400/20 disabled:opacity-40"
+                    >
+                      {adminForcing ? 'Wird gesetzt...' : 'Ergebnis setzen & Elo vergeben'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Match abbrechen */}
+              {match.status !== 'completed' && match.status !== 'cancelled' && (
+                <div className="rounded-2xl border border-red-400/15 bg-red-500/[0.05] p-4">
+                  <div className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-red-300">Match abbrechen</div>
+                  <p className="mb-3 text-xs text-zinc-500">Bricht das Match ohne Elo-Wertung ab. Beide Spieler können danach neu suchen.</p>
+                  <button
+                    onClick={adminForceCancel}
+                    disabled={adminCancelling}
+                    className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-2.5 text-sm font-black text-red-200 transition hover:bg-red-500/15 disabled:opacity-40"
+                  >
+                    {adminCancelling ? 'Wird abgebrochen...' : 'Match ohne Wertung abbrechen'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

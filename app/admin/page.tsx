@@ -18,8 +18,10 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Swords,
   Trophy,
   Users,
+  XCircle,
 } from 'lucide-react';
 
 type Profile = {
@@ -55,6 +57,18 @@ type DisputedMatch = {
   dispute_reason: string | null;
   dispute_screenshot_url: string | null;
   confirmation_requested_at: string | null;
+  created_at: string;
+};
+
+type LiveMatch = {
+  id: string;
+  player1_id: string;
+  player2_id: string;
+  player1_username: string;
+  player2_username: string;
+  player1_elo: number;
+  player2_elo: number;
+  status: string;
   created_at: string;
 };
 
@@ -104,6 +118,7 @@ function formatDate(value: string | null) {
 export default function AdminPanel() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [disputedMatches, setDisputedMatches] = useState<DisputedMatch[]>([]);
+  const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
   const [resolveForms, setResolveForms] = useState<Record<string, ResolveFormState>>({});
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -126,6 +141,23 @@ export default function AdminPanel() {
 
     setProfiles((data || []) as Profile[]);
   }, [supabase]);
+
+  const loadLiveMatches = useCallback(async () => {
+    const { data } = await supabase
+      .from('active_matches')
+      .select('id, player1_id, player2_id, player1_username, player2_username, player1_elo, player2_elo, status, created_at')
+      .in('status', ['pending_result', 'awaiting_confirmation'])
+      .order('created_at', { ascending: false });
+    if (data) setLiveMatches(data as LiveMatch[]);
+  }, [supabase]);
+
+  const adminCancelMatch = async (matchId: string) => {
+    if (!confirm('Dieses Match wirklich ohne Elo-Wertung abbrechen?')) return;
+    const { error } = await supabase.rpc('admin_force_cancel_match', { p_match_id: matchId });
+    if (error) { setActionMessage(`Fehler: ${error.message}`); return; }
+    setActionMessage('Match wurde durch Admin abgebrochen.');
+    await loadLiveMatches();
+  };
 
   const loadDisputedMatches = useCallback(async () => {
     setLoadingDisputes(true);
@@ -181,17 +213,17 @@ export default function AdminPanel() {
         router.push('/');
         return;
       }
-      await Promise.all([loadProfiles(), loadDisputedMatches()]);
+      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches()]);
       if (isMounted) setLoading(false);
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, loadProfiles, loadDisputedMatches]);
+  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches]);
 
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
-    await Promise.all([loadProfiles(), loadDisputedMatches()]);
-  }, [loadDisputedMatches, loadProfiles]);
+    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches()]);
+  }, [loadDisputedMatches, loadLiveMatches, loadProfiles]);
 
   const updateElo = async (id: string, newElo: number) => {
     const { error } = await supabase.from('profiles').update({ elo: newElo }).eq('id', id);
@@ -415,6 +447,84 @@ export default function AdminPanel() {
             {actionMessage}
           </div>
         )}
+
+        {/* Live-Matches-Übersicht */}
+        <section className="mt-10 rounded-[2.4rem] border border-emerald-300/15 bg-emerald-300/[0.025] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-200">
+                <Swords className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Laufende Matches</h2>
+                <p className="mt-1 text-sm text-zinc-400">Alle aktiven Matches in Echtzeit. Direkt in den Matchroom springen oder Match abbrechen.</p>
+              </div>
+            </div>
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-5 py-2.5 text-sm font-black text-emerald-100">
+              <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.8)]" />
+              {liveMatches.length} aktiv
+            </span>
+          </div>
+
+          {liveMatches.length === 0 ? (
+            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.035] p-7 text-zinc-300">
+              <div className="flex items-center gap-3 font-bold text-zinc-400">
+                <Swords className="h-5 w-5" />
+                Keine laufenden Matches
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {liveMatches.map((m) => (
+                <div key={m.id} className="flex flex-wrap items-center gap-4 rounded-[1.5rem] border border-white/10 bg-zinc-950/60 px-5 py-4">
+                  {/* Spieler */}
+                  <div className="flex flex-1 min-w-0 items-center gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-black text-white">{m.player1_username}</span>
+                        <span className="text-xs text-zinc-600">vs</span>
+                        <span className="truncate font-black text-white">{m.player2_username}</span>
+                      </div>
+                      <div className="mt-0.5 text-xs text-zinc-500">
+                        {m.player1_elo} vs {m.player2_elo} Elo · {formatDate(m.created_at)}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Status */}
+                  <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
+                    m.status === 'awaiting_confirmation'
+                      ? 'border border-amber-300/20 bg-amber-400/10 text-amber-200'
+                      : 'border border-emerald-300/20 bg-emerald-400/10 text-emerald-200'
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${
+                      m.status === 'awaiting_confirmation' ? 'bg-amber-300' : 'bg-emerald-300'
+                    }`} />
+                    {m.status === 'awaiting_confirmation' ? 'Bestätigung' : 'Läuft'}
+                  </span>
+                  {/* Aktionen */}
+                  <div className="flex shrink-0 gap-2">
+                    <a
+                      href={`/result?matchId=${m.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-200 transition hover:bg-emerald-400/20"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Matchroom
+                    </a>
+                    <button
+                      onClick={() => adminCancelMatch(m.id)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-1.5 text-xs font-black text-rose-200 transition hover:bg-rose-400/15"
+                    >
+                      <XCircle className="h-3.5 w-3.5" />
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="mt-10 rounded-[2.4rem] border border-amber-300/15 bg-amber-300/[0.035] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
           <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
