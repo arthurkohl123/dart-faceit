@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
 const PROTECTED_ROUTES = ['/matchmaking', '/result', '/history', '/profile', '/admin'];
+const ADMIN_ROUTES = ['/admin'];
 const AUTH_ROUTES = ['/auth/login', '/auth/register'];
 
 export async function middleware(request: NextRequest) {
@@ -39,11 +40,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Gebannte User auf die Banned-Seite weiterleiten
+  // Gebannte User auf die Banned-Seite weiterleiten + Admin-Route serverseitig absichern
   if (session && isProtected && pathname !== '/auth/banned') {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_banned')
+      .select('is_banned, is_admin')
       .eq('supabaseId', session.user.id)
       .single();
 
@@ -52,6 +53,13 @@ export async function middleware(request: NextRequest) {
       const bannedUrl = request.nextUrl.clone();
       bannedUrl.pathname = '/auth/banned';
       return NextResponse.redirect(bannedUrl);
+    }
+
+    // Admin-Route: nur Admins dürfen /admin betreten
+    // Diese Prüfung läuft serverseitig in der Middleware – kein Flash, kein clientseitiger Bypass möglich
+    const isAdminRoute = ADMIN_ROUTES.some((r) => pathname.startsWith(r));
+    if (isAdminRoute && !profile?.is_admin) {
+      return NextResponse.redirect(new URL('/', request.url));
     }
   }
 
