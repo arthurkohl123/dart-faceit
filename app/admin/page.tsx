@@ -41,6 +41,7 @@ type Profile = {
   is_banned: boolean | null;
   ban_reason: string | null;
   is_admin: boolean | null;
+  is_moderator: boolean | null;
   phone_verified: boolean | null;
 };
 
@@ -390,6 +391,20 @@ export default function AdminPanel() {
     }
 
     await loadProfiles();
+  };
+
+  const toggleModerator = async (id: string, current: boolean | null) => {
+    const { error } = await supabase.rpc('admin_set_moderator', {
+      p_user_id: id,
+      p_is_mod: !current,
+    });
+    if (error) {
+      alert('Fehler: ' + error.message);
+      return;
+    }
+    setProfiles(prev =>
+      prev.map(p => p.id === id ? { ...p, is_moderator: !current } : p)
+    );
   };
 
   const toggleAdmin = async (id: string, current: boolean | null) => {
@@ -1026,9 +1041,11 @@ export default function AdminPanel() {
                       <span className="font-black text-zinc-100">{user.username || 'Unbekannt'}</span>
                       {user.is_banned ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-rose-300/20 bg-rose-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-rose-100"><Ban className="h-3 w-3" />Gesperrt</span>
-                      ) : user.is_admin ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100"><Crown className="h-3 w-3" />Admin</span>
-                      ) : (
+                       ) : user.is_admin ? (
+                         <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100"><Crown className="h-3 w-3" />Admin</span>
+                       ) : user.is_moderator ? (
+                         <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/20 bg-violet-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-violet-100"><Shield className="h-3 w-3" />Mod</span>
+                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100"><Trophy className="h-3 w-3" />Aktiv</span>
                       )}
                       <button
@@ -1076,6 +1093,12 @@ export default function AdminPanel() {
                       className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-zinc-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/10"
                     >
                       {user.is_admin ? 'Admin weg' : 'Admin'}
+                    </button>
+                    <button
+                      onClick={() => toggleModerator(user.id, user.is_moderator)}
+                      className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-zinc-200 transition hover:border-violet-300/30 hover:bg-violet-400/10"
+                    >
+                      {user.is_moderator ? 'Mod weg' : 'Mod'}
                     </button>
                   </div>
                 </div>
