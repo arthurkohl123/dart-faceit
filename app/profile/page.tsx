@@ -310,7 +310,7 @@ export default function Profile() {
                 <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/40 text-lg">📷</div>
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Scolia</div>
-                  <div className="text-sm font-bold text-zinc-300">Kamera-Tracking</div>
+                  <div className="text-sm font-bold text-zinc-300"></div>
                 </div>
                 {profile?.scolia_username
                   ? <CheckCircle2 size={16} className="ml-auto text-emerald-400" />
@@ -341,7 +341,7 @@ export default function Profile() {
                 <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/40 text-lg">📱</div>
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">DartCounter</div>
-                  <div className="text-sm font-bold text-zinc-300">App-Tracking</div>
+                  <div className="text-sm font-bold text-zinc-300"></div>
                 </div>
                 {profile?.dartcounter_username
                   ? <CheckCircle2 size={16} className="ml-auto text-cyan-400" />
