@@ -43,6 +43,10 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Performance-Stats
+  const [avgAverage, setAvgAverage] = useState<number>(0);
+  const [total180s, setTotal180s] = useState<number>(0);
+
   // Plattform-Usernamen Bearbeitungsstatus
   const [editingPlatforms, setEditingPlatforms] = useState(false);
   const [scoliaInput, setScoliaInput] = useState('');
@@ -63,9 +67,10 @@ export default function Profile() {
       const uid = session.user.id;
       if (isMounted) setUserId(uid);
 
-      const [{ data: profileData }, { data: matchData }] = await Promise.all([
+      const [{ data: profileData }, { data: matchData }, { data: statsData }] = await Promise.all([
         supabase.from('profiles').select('*').eq('supabaseId', uid).single(),
         supabase.from('matches').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(5),
+        supabase.rpc('get_my_stats'),
       ]);
 
       if (!isMounted) return;
@@ -73,6 +78,11 @@ export default function Profile() {
       setScoliaInput(profileData?.scolia_username ?? '');
       setDartcounterInput(profileData?.dartcounter_username ?? '');
       setMatches((matchData || []) as MatchData[]);
+      if (statsData) {
+        const s = statsData as { avg_average: number; total_180s: number };
+        setAvgAverage(s.avg_average ?? 0);
+        setTotal180s(s.total_180s ?? 0);
+      }
       setLoading(false);
     }
 
@@ -247,6 +257,22 @@ export default function Profile() {
               </div>
             </div>
 
+            {/* Performance-Stats: Average & 180er */}
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-yellow-300/20 bg-yellow-400/[0.06] p-4 sm:p-5">
+                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-yellow-300 mb-1">Ø Average</div>
+                <div className="text-2xl font-black text-yellow-200 sm:text-3xl">
+                  {avgAverage > 0 ? avgAverage.toFixed(2) : '—'}
+                </div>
+                <div className="mt-1 text-xs text-zinc-500">Durchschnitt über alle Matches</div>
+              </div>
+              <div className="rounded-2xl border border-red-300/20 bg-red-400/[0.06] p-4 sm:p-5">
+                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-red-300 mb-1">180er</div>
+                <div className="text-2xl font-black text-red-200 sm:text-3xl">{total180s}</div>
+                <div className="mt-1 text-xs text-zinc-500">Gesamt geworfene 180er</div>
+              </div>
+            </div>
+
             <button
               onClick={() => router.push(phoneVerified ? '/matchmaking' : '/auth/verify-phone')}
               className="mt-6 w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.22)] transition hover:-translate-y-1 sm:py-5"
@@ -310,7 +336,7 @@ export default function Profile() {
                 <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/40 text-lg">📷</div>
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Scolia</div>
-                  <div className="text-sm font-bold text-zinc-300"></div>
+                  <div className="text-sm font-bold text-zinc-300">Kamera-Tracking</div>
                 </div>
                 {profile?.scolia_username
                   ? <CheckCircle2 size={16} className="ml-auto text-emerald-400" />
@@ -341,7 +367,7 @@ export default function Profile() {
                 <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/40 text-lg">📱</div>
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">DartCounter</div>
-                  <div className="text-sm font-bold text-zinc-300"></div>
+                  <div className="text-sm font-bold text-zinc-300">App-Tracking</div>
                 </div>
                 {profile?.dartcounter_username
                   ? <CheckCircle2 size={16} className="ml-auto text-cyan-400" />

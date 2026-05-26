@@ -394,6 +394,7 @@ export default function MatchResult() {
         p_opponent_legs: legsLost,
         p_my_average: average ? Number.parseFloat(average) : null,
         p_highest_checkout: null,
+        p_my_180s: oneEighties ? Number.parseInt(oneEighties, 10) : 0,
       });
       if (error) throw error;
       const r = Array.isArray(data) ? (data[0] as RpcStatusResponse | undefined) : undefined;
