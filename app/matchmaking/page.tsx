@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, CheckCircle2, Radar, ShieldCheck, Swords, Timer, Users, XCircle, Menu, X } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, Clock, Radar, ShieldCheck, Swords, Timer, Users, XCircle, Menu, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -81,6 +81,11 @@ export default function Matchmaking() {
   const [errorMessage, setErrorMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
+
+  // Cooldown-State
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [cancelCount24h, setCancelCount24h] = useState(0);
+  const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isPollingRef = useRef(false);
   const statusRef = useRef<MatchmakingStatus>('idle');
   const selectedAppRef = useRef<AppChoice | null>(null);
@@ -105,6 +110,35 @@ export default function Matchmaking() {
   const redirectToResult = useCallback((matchId: string) => {
     setTimeout(() => router.push(`/result?matchId=${matchId}`), 1500);
   }, [router]);
+
+  const fetchCooldown = useCallback(async () => {
+    const { data } = await supabase.rpc('get_my_cooldown');
+    if (data) {
+      setCooldownSeconds(data.on_cooldown ? data.seconds_remaining : 0);
+      setCancelCount24h(data.cancel_count_24h ?? 0);
+    }
+  }, [supabase]);
+
+  // Cooldown-Countdown
+  useEffect(() => {
+    if (cooldownSeconds > 0) {
+      cooldownIntervalRef.current = setInterval(() => {
+        setCooldownSeconds(prev => {
+          if (prev <= 1) {
+            if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => { if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current); };
+  }, [cooldownSeconds]);
+
+  const formatCooldown = (secs: number) => {
+    if (secs >= 60) return `${Math.ceil(secs / 60)} Min.`;
+    return `${secs} Sek.`;
+  };
 
   const fetchQueueCounts = useCallback(async () => {
     const [{ count: scoliaCount }, { count: dartCount }] = await Promise.all([
@@ -136,7 +170,7 @@ export default function Matchmaking() {
     const maxEloDiff = getMaxEloDiff(seconds);
 
     try {
-      const { data, error } = await supabase.rpc('find_or_create_match', {
+      const { data, error } = await supabase.rpc('check_and_join_queue', {
         p_max_elo_diff: maxEloDiff,
         p_app: app,
       });
@@ -155,7 +189,14 @@ export default function Matchmaking() {
       }
     } catch (error) {
       if (statusRef.current === 'searching') {
-        setErrorMessage(error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.');
+        const msg = error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.';
+        if (msg.includes('COOLDOWN:')) {
+          const secs = parseInt(msg.split('COOLDOWN:')[1] ?? '30', 10);
+          setCooldownSeconds(secs);
+          setErrorMessage(`Du bist noch ${secs >= 60 ? Math.ceil(secs / 60) + ' Min.' : secs + ' Sek.'} gesperrt.`);
+        } else {
+          setErrorMessage(msg);
+        }
         setStatus('error');
       }
     } finally {
@@ -166,6 +207,11 @@ export default function Matchmaking() {
   const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
     setOpponent(null);
+
+    if (cooldownSeconds > 0) {
+      setErrorMessage(`Du bist noch ${cooldownSeconds >= 60 ? Math.ceil(cooldownSeconds / 60) + ' Min.' : cooldownSeconds + ' Sek.'} gesperrt.`);
+      return;
+    }
 
     if (!phoneVerified) {
       setErrorMessage('Bitte bestätige zuerst deine Handynummer.');
@@ -246,6 +292,7 @@ export default function Matchmaking() {
       setPageLoading(false);
       void fetchQueueCounts();
       void fetchLiveMatches();
+      void fetchCooldown();
     }
     void init();
     return () => { isMounted = false; };
@@ -523,21 +570,40 @@ export default function Matchmaking() {
           {/* ERROR */}
           {status === 'error' && (
             <div className="relative text-center">
-              <div className="mx-auto grid h-24 w-24 place-items-center rounded-[2rem] border border-red-400/25 bg-red-500/10 text-red-300">
-                <XCircle className="h-12 w-12" />
-              </div>
-              <h2 className="mt-7 text-4xl font-black tracking-[-0.05em]">Matchmaking-Fehler</h2>
-              <p className="mt-4 rounded-3xl border border-red-400/20 bg-red-500/10 p-5 text-zinc-300">{errorMessage}</p>
-              <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                <button onClick={() => setStatus('idle')} className="rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black">
-                  Erneut versuchen
-                </button>
-                {(errorMessage.includes('Scolia') || errorMessage.includes('DartCounter')) && (
-                  <a href="/profile" className="rounded-3xl border border-white/15 px-8 py-4 font-black uppercase tracking-[0.16em] text-zinc-300 transition hover:bg-white/10">
-                    Zum Profil
-                  </a>
-                )}
-              </div>
+              {cooldownSeconds > 0 ? (
+                <>
+                  <div className="mx-auto grid h-24 w-24 place-items-center rounded-[2rem] border border-amber-400/25 bg-amber-500/10 text-amber-300">
+                    <Clock className="h-12 w-12" />
+                  </div>
+                  <h2 className="mt-7 text-4xl font-black tracking-[-0.05em]">Cooldown aktiv</h2>
+                  <div className="mt-4 rounded-3xl border border-amber-400/20 bg-amber-500/10 p-6">
+                    <div className="text-5xl font-black tracking-[-0.05em] text-amber-300">{formatCooldown(cooldownSeconds)}</div>
+                    <p className="mt-2 text-sm text-zinc-400">Bitte warte bevor du wieder eine Queue betrittst.</p>
+                    {cancelCount24h >= 2 && (
+                      <p className="mt-3 text-xs text-amber-400/70">{cancelCount24h}. Abbruch heute — Cooldown eskaliert bei weiteren Abbrüchen.</p>
+                    )}
+                  </div>
+                  <p className="mt-4 text-xs text-zinc-600">Cooldowns schützen die Queue vor Spam und sorgen für faire Matches.</p>
+                </>
+              ) : (
+                <>
+                  <div className="mx-auto grid h-24 w-24 place-items-center rounded-[2rem] border border-red-400/25 bg-red-500/10 text-red-300">
+                    <XCircle className="h-12 w-12" />
+                  </div>
+                  <h2 className="mt-7 text-4xl font-black tracking-[-0.05em]">Matchmaking-Fehler</h2>
+                  <p className="mt-4 rounded-3xl border border-red-400/20 bg-red-500/10 p-5 text-zinc-300">{errorMessage}</p>
+                  <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                    <button onClick={() => setStatus('idle')} className="rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black">
+                      Erneut versuchen
+                    </button>
+                    {(errorMessage.includes('Scolia') || errorMessage.includes('DartCounter')) && (
+                      <a href="/profile" className="rounded-3xl border border-white/15 px-8 py-4 font-black uppercase tracking-[0.16em] text-zinc-300 transition hover:bg-white/10">
+                        Zum Profil
+                      </a>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
