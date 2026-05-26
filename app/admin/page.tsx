@@ -8,14 +8,19 @@ import {
   ArrowLeft,
   Ban,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ClipboardList,
   Crown,
   ExternalLink,
   Gavel,
+  Headphones,
   Image as ImageIcon,
   Loader2,
+  MessageCircle,
   RefreshCw,
   Search,
+  Send,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -73,6 +78,53 @@ type AdminLog = {
   target_label: string | null;
   details: string | null;
   created_at: string;
+};
+
+type AdminTicket = {
+  id: string;
+  username: string;
+  subject: string;
+  category: string;
+  status: string;
+  priority: string;
+  created_at: string;
+  updated_at: string;
+  admin_note: string | null;
+  message_count: number;
+  last_message: string | null;
+};
+
+type TicketMsg = {
+  id: string;
+  sender_name: string;
+  is_staff: boolean;
+  content: string;
+  created_at: string;
+};
+
+type AdminTicketDetail = {
+  ticket: AdminTicket;
+  messages: TicketMsg[];
+};
+
+const ticketStatusConfig: Record<string, { label: string; color: string; dot: string }> = {
+  open:             { label: 'Offen',           color: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200', dot: 'bg-emerald-300' },
+  in_progress:      { label: 'In Bearbeitung',  color: 'border-cyan-300/25 bg-cyan-400/10 text-cyan-200',         dot: 'bg-cyan-300' },
+  waiting_for_user: { label: 'Warte auf User',  color: 'border-amber-300/25 bg-amber-400/10 text-amber-200',      dot: 'bg-amber-300' },
+  resolved:         { label: 'Gelöst',          color: 'border-zinc-300/25 bg-zinc-400/10 text-zinc-300',         dot: 'bg-zinc-400' },
+  closed:           { label: 'Geschlossen',     color: 'border-zinc-700/25 bg-zinc-800/10 text-zinc-500',         dot: 'bg-zinc-600' },
+};
+
+const ticketCategoryLabels: Record<string, string> = {
+  general: 'Allgemein', bug: 'Bug', account: 'Account',
+  match_dispute: 'Match-Streit', ban_appeal: 'Ban-Einspruch', other: 'Sonstiges',
+};
+
+const ticketPriorityConfig: Record<string, { label: string; color: string }> = {
+  low:    { label: 'Niedrig', color: 'text-zinc-400' },
+  normal: { label: 'Normal',  color: 'text-zinc-300' },
+  high:   { label: 'Hoch',    color: 'text-amber-300' },
+  urgent: { label: 'Dringend',color: 'text-red-300' },
 };
 
 type FlaggedPlayer = {
@@ -154,6 +206,14 @@ export default function AdminPanel() {
   const [loadingDisputes, setLoadingDisputes] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
+  // Ticket-System State
+  const [tickets, setTickets] = useState<AdminTicket[]>([]);
+  const [ticketFilter, setTicketFilter] = useState<string | null>(null);
+  const [openTicketId, setOpenTicketId] = useState<string | null>(null);
+  const [ticketDetail, setTicketDetail] = useState<AdminTicketDetail | null>(null);
+  const [ticketReply, setTicketReply] = useState('');
+  const [ticketSending, setTicketSending] = useState(false);
+
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -201,6 +261,42 @@ export default function AdminPanel() {
     const { data } = await supabase.rpc('get_flagged_players');
     if (data) setFlaggedPlayers(data as FlaggedPlayer[]);
   }, [supabase]);
+
+  const loadTickets = useCallback(async (status?: string | null) => {
+    const { data } = await supabase.rpc('admin_get_all_tickets', {
+      p_status: status ?? null,
+      p_limit: 100,
+      p_offset: 0,
+    });
+    if (data) setTickets(data as AdminTicket[]);
+  }, [supabase]);
+
+  const openTicketDetail = async (ticketId: string) => {
+    if (openTicketId === ticketId) { setOpenTicketId(null); setTicketDetail(null); return; }
+    const { data } = await supabase.rpc('admin_get_ticket_detail', { p_ticket_id: ticketId });
+    if (data) { setTicketDetail(data as AdminTicketDetail); setOpenTicketId(ticketId); }
+  };
+
+  const sendTicketReply = async (ticketId: string) => {
+    if (!ticketReply.trim()) return;
+    setTicketSending(true);
+    await supabase.rpc('send_ticket_message', { p_ticket_id: ticketId, p_content: ticketReply.trim() });
+    setTicketReply('');
+    setTicketSending(false);
+    await openTicketDetail(ticketId);
+    await loadTickets(ticketFilter);
+  };
+
+  const updateTicketStatus = async (ticketId: string, status: string) => {
+    await supabase.rpc('admin_update_ticket', { p_ticket_id: ticketId, p_status: status });
+    await loadTickets(ticketFilter);
+    if (openTicketId === ticketId) await openTicketDetail(ticketId);
+  };
+
+  const updateTicketPriority = async (ticketId: string, priority: string) => {
+    await supabase.rpc('admin_update_ticket', { p_ticket_id: ticketId, p_priority: priority });
+    await loadTickets(ticketFilter);
+  };
 
   const loadDisputedMatches = useCallback(async () => {
     setLoadingDisputes(true);
@@ -256,7 +352,7 @@ export default function AdminPanel() {
         router.push('/');
         return;
       }
-      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers()]);
+      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadTickets(null)]);
       if (isMounted) setLoading(false);
     }
     void init();
@@ -265,8 +361,8 @@ export default function AdminPanel() {
 
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
-    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers()]);
-  }, [loadAdminLogs, loadDisputedMatches, loadFlaggedPlayers, loadLiveMatches, loadProfiles]);
+    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadTickets(ticketFilter)]);
+  }, [loadAdminLogs, loadDisputedMatches, loadFlaggedPlayers, loadLiveMatches, loadProfiles, loadTickets, ticketFilter]);
 
   const updateElo = async (id: string, newElo: number) => {
     const { error } = await supabase.from('profiles').update({ elo: newElo }).eq('id', id);
@@ -471,6 +567,11 @@ export default function AdminPanel() {
               <ShieldAlert className="h-7 w-7 text-amber-300" />
               <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{disputedMatches.length}</div>
               <div className="mt-1 text-sm font-semibold text-zinc-400">Offene Disputes</div>
+            </div>
+            <div className={`${statCardClassName} col-span-2 sm:col-span-1`}>
+              <Headphones className="h-7 w-7 text-violet-300" />
+              <div className="mt-5 text-4xl font-black tracking-[-0.05em] text-violet-300">{tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length}</div>
+              <div className="mt-1 text-sm font-semibold text-zinc-400">Offene Tickets</div>
             </div>
             <div className={statCardClassName}>
               <CheckCircle2 className="h-7 w-7 text-lime-300" />
@@ -985,6 +1086,163 @@ export default function AdminPanel() {
           <p className="mt-8 text-center text-sm font-semibold text-zinc-500">
             {filtered.length} von {profiles.length} Spielern sichtbar
           </p>
+        </section>
+
+        {/* ── Support-Tickets ── */}
+        <section className="mt-10 rounded-[2.4rem] border border-violet-400/20 bg-violet-400/[0.03] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-violet-400/25 bg-violet-400/10 text-violet-200">
+                <Headphones className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Support-Tickets</h2>
+                <p className="mt-1 text-sm text-zinc-400">Benutzer-Anfragen verwalten, beantworten und schließen.</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[null, 'open', 'in_progress', 'waiting_for_user', 'resolved', 'closed'].map((s) => (
+                <button
+                  key={s ?? 'all'}
+                  onClick={() => { setTicketFilter(s); void loadTickets(s); }}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${
+                    ticketFilter === s
+                      ? 'border-violet-300/40 bg-violet-400/20 text-violet-200'
+                      : 'border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-white'
+                  }`}
+                >
+                  {s === null ? 'Alle' : (ticketStatusConfig[s]?.label ?? s)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {tickets.length === 0 ? (
+            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">
+              <Headphones className="mx-auto mb-3 h-8 w-8 text-zinc-700" />
+              <p className="font-bold">Keine Tickets vorhanden</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tickets.map((ticket) => {
+                const sc = ticketStatusConfig[ticket.status] ?? ticketStatusConfig.open;
+                const pc = ticketPriorityConfig[ticket.priority] ?? ticketPriorityConfig.normal;
+                const isOpen = openTicketId === ticket.id;
+                return (
+                  <div key={ticket.id} className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/70">
+                    {/* Ticket-Header */}
+                    <button
+                      onClick={() => void openTicketDetail(ticket.id)}
+                      className="flex w-full items-start gap-3 p-5 text-left transition hover:bg-white/[0.03]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${sc.color}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
+                            {sc.label}
+                          </span>
+                          <span className={`text-xs font-black ${pc.color}`}>{pc.label}</span>
+                          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-zinc-400">
+                            {ticketCategoryLabels[ticket.category] ?? ticket.category}
+                          </span>
+                          <span className="text-xs font-bold text-zinc-500">{ticket.username}</span>
+                        </div>
+                        <p className="truncate text-base font-black text-white">{ticket.subject}</p>
+                        {ticket.last_message && (
+                          <p className="mt-1 truncate text-xs text-zinc-500">{ticket.last_message}</p>
+                        )}
+                        <p className="mt-1 text-xs text-zinc-600">
+                          {new Date(ticket.updated_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · {ticket.message_count} Nachricht{ticket.message_count !== 1 ? 'en' : ''}
+                        </p>
+                      </div>
+                      <div className="shrink-0 mt-1 text-zinc-600">
+                        {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </div>
+                    </button>
+
+                    {/* Ticket-Detail */}
+                    {isOpen && ticketDetail && ticketDetail.ticket.id === ticket.id && (
+                      <div className="border-t border-white/10 px-5 pb-5">
+                        {/* Aktionen */}
+                        <div className="flex flex-wrap gap-2 py-4">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500 self-center mr-2">Status:</span>
+                          {['open', 'in_progress', 'waiting_for_user', 'resolved', 'closed'].map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => void updateTicketStatus(ticket.id, s)}
+                              className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${
+                                ticket.status === s
+                                  ? `${ticketStatusConfig[s]?.color ?? ''} opacity-100`
+                                  : 'border-white/10 bg-white/[0.03] text-zinc-500 hover:border-white/20 hover:text-white'
+                              }`}
+                            >
+                              {ticketStatusConfig[s]?.label ?? s}
+                            </button>
+                          ))}
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500 self-center ml-4 mr-2">Priorität:</span>
+                          {['low', 'normal', 'high', 'urgent'].map((p) => (
+                            <button
+                              key={p}
+                              onClick={() => void updateTicketPriority(ticket.id, p)}
+                              className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${
+                                ticket.priority === p
+                                  ? 'border-violet-300/40 bg-violet-400/15 text-violet-200'
+                                  : 'border-white/10 bg-white/[0.03] text-zinc-500 hover:border-white/20 hover:text-white'
+                              }`}
+                            >
+                              {ticketPriorityConfig[p]?.label ?? p}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Nachrichten */}
+                        <div className="space-y-3 max-h-96 overflow-y-auto rounded-2xl border border-white/10 bg-black/30 p-4">
+                          {ticketDetail.messages.map((msg) => (
+                            <div key={msg.id} className={`rounded-2xl p-4 ${
+                              msg.is_staff
+                                ? 'border border-emerald-300/20 bg-emerald-400/[0.07] ml-8'
+                                : 'border border-white/10 bg-white/[0.04] mr-8'
+                            }`}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className={`text-xs font-black ${ msg.is_staff ? 'text-emerald-300' : 'text-white'}`}>{msg.sender_name}</span>
+                                {msg.is_staff && (
+                                  <span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-300">Support</span>
+                                )}
+                                <span className="ml-auto text-[10px] text-zinc-600">
+                                  {new Date(msg.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-sm leading-6 text-zinc-300 whitespace-pre-wrap">{msg.content}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Antwort */}
+                        {!['resolved', 'closed'].includes(ticket.status) && (
+                          <div className="mt-4 flex gap-3">
+                            <textarea
+                              value={ticketReply}
+                              onChange={(e) => setTicketReply(e.target.value)}
+                              placeholder="Als Support antworten…"
+                              rows={3}
+                              className="flex-1 resize-none rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-violet-300/40 focus:bg-white/[0.07]"
+                            />
+                            <button
+                              onClick={() => void sendTicketReply(ticket.id)}
+                              disabled={ticketSending || !ticketReply.trim()}
+                              className="grid h-12 w-12 shrink-0 place-items-center self-end rounded-2xl bg-gradient-to-br from-violet-400 to-purple-300 text-black transition hover:scale-105 disabled:opacity-40"
+                            >
+                              <Send size={18} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* Admin-Aktions-Log */}
