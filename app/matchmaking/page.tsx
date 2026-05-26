@@ -70,6 +70,8 @@ const appConfig = {
 export default function Matchmaking() {
   const [userId, setUserId] = useState<string | null>(null);
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
+  const [scoliaUsername, setScoliaUsername] = useState<string | null>(null);
+  const [dartcounterUsername, setDartcounterUsername] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [status, setStatus] = useState<MatchmakingStatus>('idle');
   const [selectedApp, setSelectedApp] = useState<AppChoice | null>(null);
@@ -171,6 +173,18 @@ export default function Matchmaking() {
       return;
     }
 
+    // Plattform-Username-Prüfung
+    if (app === 'scolia' && !scoliaUsername) {
+      setErrorMessage('Du musst zuerst deinen Scolia-Nutzernamen im Profil hinterlegen.');
+      setStatus('error');
+      return;
+    }
+    if (app === 'dartcounter' && !dartcounterUsername) {
+      setErrorMessage('Du musst zuerst deinen DartCounter-Nutzernamen im Profil hinterlegen.');
+      setStatus('error');
+      return;
+    }
+
     setSelectedApp(app);
     setElapsedSeconds(0);
     setStatus('searching');
@@ -221,12 +235,14 @@ export default function Matchmaking() {
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('phone_verified')
+        .select('phone_verified, scolia_username, dartcounter_username')
         .eq('supabaseId', uid)
         .single();
 
       if (!isMounted) return;
       setPhoneVerified(Boolean(profileData?.phone_verified));
+      setScoliaUsername(profileData?.scolia_username ?? null);
+      setDartcounterUsername(profileData?.dartcounter_username ?? null);
       setPageLoading(false);
       void fetchQueueCounts();
       void fetchLiveMatches();
@@ -431,6 +447,17 @@ export default function Matchmaking() {
                         <span className={`h-2 w-2 rounded-full ${c.dot}`} />
                         {queueCounts[app]} in Queue
                       </div>
+                      {/* Hinweis wenn Plattform-Username fehlt */}
+                      {app === 'scolia' && !scoliaUsername && (
+                        <div className="mt-3 flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                          <span>⚠</span> Scolia-Username fehlt
+                        </div>
+                      )}
+                      {app === 'dartcounter' && !dartcounterUsername && (
+                        <div className="mt-3 flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                          <span>⚠</span> DartCounter-Username fehlt
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -501,9 +528,16 @@ export default function Matchmaking() {
               </div>
               <h2 className="mt-7 text-4xl font-black tracking-[-0.05em]">Matchmaking-Fehler</h2>
               <p className="mt-4 rounded-3xl border border-red-400/20 bg-red-500/10 p-5 text-zinc-300">{errorMessage}</p>
-              <button onClick={() => setStatus('idle')} className="mt-7 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black">
-                Erneut versuchen
-              </button>
+              <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <button onClick={() => setStatus('idle')} className="rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black">
+                  Erneut versuchen
+                </button>
+                {(errorMessage.includes('Scolia') || errorMessage.includes('DartCounter')) && (
+                  <a href="/profile" className="rounded-3xl border border-white/15 px-8 py-4 font-black uppercase tracking-[0.16em] text-zinc-300 transition hover:bg-white/10">
+                    Zum Profil
+                  </a>
+                )}
+              </div>
             </div>
           )}
         </div>

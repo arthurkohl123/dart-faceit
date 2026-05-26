@@ -4,15 +4,15 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { CheckCircle2, Menu, Pencil, Save, X, XCircle } from 'lucide-react';
 
 const rankTiers = [
-  { name: 'Eisen', min: 0, color: 'text-zinc-300', accent: 'from-zinc-400/20 to-zinc-950', badge: 'EI' },
-  { name: 'Bronze', min: 1000, color: 'text-amber-300', accent: 'from-amber-500/20 to-zinc-950', badge: 'BR' },
-  { name: 'Silber', min: 1250, color: 'text-slate-200', accent: 'from-slate-300/20 to-zinc-950', badge: 'SI' },
-  { name: 'Gold', min: 1500, color: 'text-yellow-200', accent: 'from-yellow-300/20 to-zinc-950', badge: 'GO' },
-  { name: 'Platin', min: 1750, color: 'text-cyan-200', accent: 'from-cyan-300/20 to-zinc-950', badge: 'PL' },
-  { name: 'Diamant', min: 2000, color: 'text-blue-200', accent: 'from-blue-300/20 to-zinc-950', badge: 'DI' },
+  { name: 'Eisen',   min: 0,    color: 'text-zinc-300',    accent: 'from-zinc-400/20 to-zinc-950',    badge: 'EI' },
+  { name: 'Bronze',  min: 1000, color: 'text-amber-300',   accent: 'from-amber-500/20 to-zinc-950',   badge: 'BR' },
+  { name: 'Silber',  min: 1250, color: 'text-slate-200',   accent: 'from-slate-300/20 to-zinc-950',   badge: 'SI' },
+  { name: 'Gold',    min: 1500, color: 'text-yellow-200',  accent: 'from-yellow-300/20 to-zinc-950',  badge: 'GO' },
+  { name: 'Platin',  min: 1750, color: 'text-cyan-200',    accent: 'from-cyan-300/20 to-zinc-950',    badge: 'PL' },
+  { name: 'Diamant', min: 2000, color: 'text-blue-200',    accent: 'from-blue-300/20 to-zinc-950',    badge: 'DI' },
   { name: 'Legende', min: 2500, color: 'text-emerald-200', accent: 'from-emerald-300/25 to-zinc-950', badge: 'LG' },
 ];
 
@@ -32,6 +32,8 @@ type ProfileData = {
   phone_verified: boolean;
   phone_number: string | null;
   is_admin: boolean;
+  scolia_username: string | null;
+  dartcounter_username: string | null;
 };
 
 export default function Profile() {
@@ -40,6 +42,14 @@ export default function Profile() {
   const [matches, setMatches] = useState<MatchData[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Plattform-Usernamen Bearbeitungsstatus
+  const [editingPlatforms, setEditingPlatforms] = useState(false);
+  const [scoliaInput, setScoliaInput] = useState('');
+  const [dartcounterInput, setDartcounterInput] = useState('');
+  const [savingPlatforms, setSavingPlatforms] = useState(false);
+  const [platformSaveMsg, setPlatformSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -60,6 +70,8 @@ export default function Profile() {
 
       if (!isMounted) return;
       setProfile(profileData ?? null);
+      setScoliaInput(profileData?.scolia_username ?? '');
+      setDartcounterInput(profileData?.dartcounter_username ?? '');
       setMatches((matchData || []) as MatchData[]);
       setLoading(false);
     }
@@ -71,6 +83,29 @@ export default function Profile() {
   const logout = async () => {
     await supabase.auth.signOut();
     router.push('/auth/login');
+  };
+
+  const savePlatformUsernames = async () => {
+    setSavingPlatforms(true);
+    setPlatformSaveMsg(null);
+    try {
+      const { error } = await supabase.rpc('update_platform_usernames', {
+        p_scolia_username:      scoliaInput.trim() || null,
+        p_dartcounter_username: dartcounterInput.trim() || null,
+      });
+      if (error) throw error;
+      setProfile((prev) => prev ? {
+        ...prev,
+        scolia_username:      scoliaInput.trim() || null,
+        dartcounter_username: dartcounterInput.trim() || null,
+      } : prev);
+      setPlatformSaveMsg({ type: 'success', text: 'Gespeichert!' });
+      setEditingPlatforms(false);
+    } catch (err) {
+      setPlatformSaveMsg({ type: 'error', text: err instanceof Error ? err.message : 'Fehler beim Speichern.' });
+    } finally {
+      setSavingPlatforms(false);
+    }
   };
 
   const elo = profile?.elo ?? 1000;
@@ -248,6 +283,128 @@ export default function Profile() {
             </div>
           </section>
         </div>
+
+        {/* ── Plattform-Verbindungen ─────────────────────────────────────── */}
+        <section className="mt-6 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7 md:p-8">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Plattformen</div>
+              <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Verbundene Accounts</h2>
+              <p className="mt-1 text-sm text-zinc-400">Hinterlege deine Nutzernamen, um die jeweilige Queue zu betreten.</p>
+            </div>
+            {!editingPlatforms && (
+              <button
+                onClick={() => { setEditingPlatforms(true); setPlatformSaveMsg(null); }}
+                className="flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:border-white/30 hover:bg-white/10"
+              >
+                <Pencil size={14} />
+                Bearbeiten
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Scolia */}
+            <div className={`rounded-2xl border p-5 transition sm:p-6 ${profile?.scolia_username ? 'border-emerald-300/25 bg-emerald-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
+              <div className="mb-3 flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/40 text-lg">📷</div>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Scolia</div>
+                  <div className="text-sm font-bold text-zinc-300">Kamera-Tracking</div>
+                </div>
+                {profile?.scolia_username
+                  ? <CheckCircle2 size={16} className="ml-auto text-emerald-400" />
+                  : <XCircle size={16} className="ml-auto text-zinc-600" />
+                }
+              </div>
+              {editingPlatforms ? (
+                <input
+                  type="text"
+                  value={scoliaInput}
+                  onChange={(e) => setScoliaInput(e.target.value)}
+                  placeholder="Dein Scolia-Username"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/50 focus:bg-white/[0.08]"
+                />
+              ) : (
+                <div className="text-sm font-bold text-white">
+                  {profile?.scolia_username
+                    ? <span className="text-emerald-200">{profile.scolia_username}</span>
+                    : <span className="text-zinc-600">Nicht hinterlegt</span>
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* DartCounter */}
+            <div className={`rounded-2xl border p-5 transition sm:p-6 ${profile?.dartcounter_username ? 'border-cyan-300/25 bg-cyan-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
+              <div className="mb-3 flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/40 text-lg">📱</div>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">DartCounter</div>
+                  <div className="text-sm font-bold text-zinc-300">App-Tracking</div>
+                </div>
+                {profile?.dartcounter_username
+                  ? <CheckCircle2 size={16} className="ml-auto text-cyan-400" />
+                  : <XCircle size={16} className="ml-auto text-zinc-600" />
+                }
+              </div>
+              {editingPlatforms ? (
+                <input
+                  type="text"
+                  value={dartcounterInput}
+                  onChange={(e) => setDartcounterInput(e.target.value)}
+                  placeholder="Dein DartCounter-Username"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-300/50 focus:bg-white/[0.08]"
+                />
+              ) : (
+                <div className="text-sm font-bold text-white">
+                  {profile?.dartcounter_username
+                    ? <span className="text-cyan-200">{profile.dartcounter_username}</span>
+                    : <span className="text-zinc-600">Nicht hinterlegt</span>
+                  }
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Speichern / Abbrechen */}
+          {editingPlatforms && (
+            <div className="mt-5 flex items-center gap-3">
+              <button
+                onClick={savePlatformUsernames}
+                disabled={savingPlatforms}
+                className="flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-6 py-2.5 text-sm font-black text-black transition hover:opacity-90 disabled:opacity-50"
+              >
+                <Save size={14} />
+                {savingPlatforms ? 'Speichern...' : 'Speichern'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingPlatforms(false);
+                  setScoliaInput(profile?.scolia_username ?? '');
+                  setDartcounterInput(profile?.dartcounter_username ?? '');
+                  setPlatformSaveMsg(null);
+                }}
+                className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-300 transition hover:bg-white/10"
+              >
+                <X size={14} />
+                Abbrechen
+              </button>
+              {platformSaveMsg && (
+                <span className={`text-sm font-bold ${platformSaveMsg.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {platformSaveMsg.text}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Hinweis wenn keine Plattform hinterlegt */}
+          {!profile?.scolia_username && !profile?.dartcounter_username && !editingPlatforms && (
+            <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-400/[0.06] px-5 py-4 text-sm text-amber-200">
+              Hinterlege mindestens einen Plattform-Account, um am Matchmaking teilzunehmen.
+            </div>
+          )}
+        </section>
 
         {/* Match History */}
         <section className="mt-6 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7 md:p-8">
