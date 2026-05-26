@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Menu, Pencil, Save, X, XCircle } from 'lucide-react';
+import { CheckCircle2, Headphones, Menu, Pencil, Save, X, XCircle } from 'lucide-react';
 
 const rankTiers = [
   { name: 'Eisen',   min: 0,    color: 'text-zinc-300',    accent: 'from-zinc-400/20 to-zinc-950',    badge: 'EI' },
@@ -162,6 +162,7 @@ export default function Profile() {
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
             <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
+            <Link href="/support" className="inline-flex items-center gap-1.5 transition hover:text-white"><Headphones size={14} />Support</Link>
             <Link href="/premium" className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-200 transition hover:bg-emerald-400/20">Premium</Link>
           </div>
 
@@ -185,6 +186,7 @@ export default function Profile() {
               <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
               <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
+              <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Headphones size={15} />Support</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
               <div className="mt-2 border-t border-white/10 pt-2">
                 <button onClick={logout} className="w-full rounded-2xl px-4 py-3 text-left text-sm font-bold text-zinc-400 transition hover:bg-white/10 hover:text-white">Logout</button>
