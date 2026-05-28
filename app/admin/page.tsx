@@ -311,14 +311,23 @@ export default function AdminPanel() {
   };
 
   const updateTicketStatus = async (ticketId: string, status: string) => {
-    await supabase.rpc('admin_update_ticket', { p_ticket_id: ticketId, p_status: status });
+    const { error } = await supabase.rpc('admin_update_ticket', { p_ticket_id: ticketId, p_status: status });
+    if (error) {
+      setActionMessage(`Fehler beim Status-Update: ${error.message}`);
+      return;
+    }
     await loadTickets(ticketFilter, ticketAssignmentFilter === 'my' ? currentAdminId : null);
     if (openTicketId === ticketId) await openTicketDetail(ticketId);
   };
 
   const updateTicketPriority = async (ticketId: string, priority: string) => {
-    await supabase.rpc('admin_update_ticket', { p_ticket_id: ticketId, p_priority: priority });
+    const { error } = await supabase.rpc('admin_update_ticket', { p_ticket_id: ticketId, p_priority: priority });
+    if (error) {
+      setActionMessage(`Fehler beim Prioritäts-Update: ${error.message}`);
+      return;
+    }
     await loadTickets(ticketFilter, ticketAssignmentFilter === 'my' ? currentAdminId : null);
+    if (openTicketId === ticketId) await openTicketDetail(ticketId);
   };
 
   const loadDisputedMatches = useCallback(async () => {
