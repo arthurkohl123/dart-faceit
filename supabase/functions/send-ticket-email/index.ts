@@ -1,33 +1,3 @@
-
-
-Upgrade
-
-Teilen
-Lite
-Alles klar, ich habe die index.ts für die Supabase Edge Function angepasst. Die E-Mails werden nun direkt an support@rankeddarts.de gesendet.
-Ich bereite die vollständige Datei jetzt vor und schicke sie dir. Beachte bitte, dass du bei Resend deine Domain rankeddarts.de verifizieren musst, damit der Versand an diese Adresse (und von deiner eigenen Domain aus) reibungslos funktioniert. Solange die Domain nicht verifiziert ist, erlaubt Resend oft nur den Versand an die eigene Registrierungs-E-Mail.
-Lite
-Hier ist die angepasste index.ts für deine Supabase Edge Function.
-Was geändert wurde:
-Der Empfänger ist jetzt fest auf support@rankeddarts.de eingestellt.
-Der Absender wurde auf RankedDarts Support <support@rankeddarts.de> gesetzt (bitte verifiziere die Domain rankeddarts.de in deinem Resend-Account).
-Das E-Mail-Design wurde etwas verschönert und enthält nun einen direkten Link zum Admin-Panel.
-Wichtiger Hinweis:
-Damit der Versand von deiner Domain rankeddarts.de funktioniert, musst du diese in Resend unter "Domains" hinzufügen und die DNS-Einträge verifizieren. Solange das nicht geschehen ist, wird Resend den Versand möglicherweise blockieren oder du musst den Test-Absender onboarding@resend.dev verwenden.
-Kopiere diese Datei einfach in deinen Ordner supabase/functions/send-ticket-email/ und führe supabase functions deploy send-ticket-email aus. Viel Erfolg!
-index.ts
-Code · 4.06 KB
-Alle Dateien in dieser Aufgabe ansehen
-Aufgabe abgeschlossen
-Wie war dieses Ergebnis?
-Empfohlene Folgefragen
-
-
-
-Cloud-Computer
-Neu
-
-index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.5";
 
@@ -131,4 +101,3 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 });
-Review This Project and Start When Ready - Manus
