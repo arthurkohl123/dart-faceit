@@ -35,6 +35,7 @@ import {
 
 type Profile = {
   id: string;
+  supabaseId: string;
   username: string | null;
   elo: number | null;
   gamesPlayed: number | null;
@@ -1245,7 +1246,7 @@ export default function AdminPanel() {
                           >
                             <option value="">Nicht zugewiesen</option>
                             {profiles.filter((p) => p.is_admin || p.is_moderator).map((admin) => (
-                              <option key={admin.id} value={admin.id}>
+                              <option key={admin.supabaseId} value={admin.supabaseId}>
                                 {admin.username}
                               </option>
                             ))}
