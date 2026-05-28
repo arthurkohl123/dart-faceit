@@ -84,6 +84,7 @@ type AdminLog = {
 
 type AdminTicket = {
   id: string;
+  user_id: string;
   username: string;
   subject: string;
   category: string;
@@ -94,6 +95,8 @@ type AdminTicket = {
   admin_note: string | null;
   message_count: number;
   last_message: string | null;
+  assigned_to_id: string | null;
+  assigned_to_username: string | null;
 };
 
 type TicketMsg = {
@@ -211,10 +214,12 @@ export default function AdminPanel() {
   // Ticket-System State
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [ticketFilter, setTicketFilter] = useState<string | null>(null);
+  const [ticketAssignmentFilter, setTicketAssignmentFilter] = useState<string | null>(null);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [ticketDetail, setTicketDetail] = useState<AdminTicketDetail | null>(null);
   const [ticketReply, setTicketReply] = useState('');
   const [ticketSending, setTicketSending] = useState(false);
+  const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -264,14 +269,29 @@ export default function AdminPanel() {
     if (data) setFlaggedPlayers(data as FlaggedPlayer[]);
   }, [supabase]);
 
-  const loadTickets = useCallback(async (status?: string | null) => {
+  const loadTickets = useCallback(async (status?: string | null, assignedToId?: string | null) => {
     const { data } = await supabase.rpc('admin_get_all_tickets', {
       p_status: status ?? null,
+      p_assigned_to_id: assignedToId ?? null,
       p_limit: 100,
       p_offset: 0,
     });
     if (data) setTickets(data as AdminTicket[]);
   }, [supabase]);
+
+  const assignTicket = useCallback(async (ticketId: string, assignedToId: string | null) => {
+    const { error } = await supabase.rpc('admin_assign_ticket', {
+      p_ticket_id: ticketId,
+      p_assigned_to_id: assignedToId,
+    });
+    if (error) {
+      setActionMessage(`Fehler beim Zuweisen: ${error.message}`);
+      return;
+    }
+    setActionMessage('Ticket zugewiesen.');
+    await loadTickets(ticketFilter, ticketAssignmentFilter === 'my' ? currentAdminId : null);
+    if (openTicketId === ticketId) await openTicketDetail(ticketId);
+  }, [supabase, ticketFilter, ticketAssignmentFilter, currentAdminId, loadTickets, openTicketId]);
 
   const openTicketDetail = async (ticketId: string) => {
     if (openTicketId === ticketId) { setOpenTicketId(null); setTicketDetail(null); return; }
@@ -286,18 +306,18 @@ export default function AdminPanel() {
     setTicketReply('');
     setTicketSending(false);
     await openTicketDetail(ticketId);
-    await loadTickets(ticketFilter);
+    await loadTickets(ticketFilter, ticketAssignmentFilter === 'my' ? currentAdminId : null);
   };
 
   const updateTicketStatus = async (ticketId: string, status: string) => {
     await supabase.rpc('admin_update_ticket', { p_ticket_id: ticketId, p_status: status });
-    await loadTickets(ticketFilter);
+    await loadTickets(ticketFilter, ticketAssignmentFilter === 'my' ? currentAdminId : null);
     if (openTicketId === ticketId) await openTicketDetail(ticketId);
   };
 
   const updateTicketPriority = async (ticketId: string, priority: string) => {
     await supabase.rpc('admin_update_ticket', { p_ticket_id: ticketId, p_priority: priority });
-    await loadTickets(ticketFilter);
+    await loadTickets(ticketFilter, ticketAssignmentFilter === 'my' ? currentAdminId : null);
   };
 
   const loadDisputedMatches = useCallback(async () => {
@@ -342,6 +362,8 @@ export default function AdminPanel() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/auth/login'); return; }
 
+      if (isMounted) setCurrentAdminId(session.user.id);
+
       const { data: me, error } = await supabase
         .from('profiles')
         .select('is_admin')
@@ -354,7 +376,7 @@ export default function AdminPanel() {
         router.push('/');
         return;
       }
-      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadTickets(null)]);
+      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadTickets(null, null)]);
       if (isMounted) setLoading(false);
     }
     void init();
@@ -1128,7 +1150,7 @@ export default function AdminPanel() {
               {[null, 'open', 'in_progress', 'waiting_for_user', 'resolved', 'closed'].map((s) => (
                 <button
                   key={s ?? 'all'}
-                  onClick={() => { setTicketFilter(s); void loadTickets(s); }}
+                  onClick={() => { setTicketFilter(s); void loadTickets(s, ticketAssignmentFilter === 'my' ? currentAdminId : null); }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${
                     ticketFilter === s
                       ? 'border-violet-300/40 bg-violet-400/20 text-violet-200'
@@ -1138,6 +1160,27 @@ export default function AdminPanel() {
                   {s === null ? 'Alle' : (ticketStatusConfig[s]?.label ?? s)}
                 </button>
               ))}
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500 self-center ml-4 mr-2">Zugewiesen:</span>
+              <button
+                onClick={() => { setTicketAssignmentFilter(null); void loadTickets(ticketFilter, null); }}
+                className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${
+                  ticketAssignmentFilter === null
+                    ? 'border-emerald-300/40 bg-emerald-400/20 text-emerald-200'
+                    : 'border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                Alle
+              </button>
+              <button
+                onClick={() => { setTicketAssignmentFilter('my'); void loadTickets(ticketFilter, currentAdminId); }}
+                className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${
+                  ticketAssignmentFilter === 'my'
+                    ? 'border-emerald-300/40 bg-emerald-400/20 text-emerald-200'
+                    : 'border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                Meine
+              </button>
             </div>
           </div>
 
@@ -1170,6 +1213,11 @@ export default function AdminPanel() {
                             {ticketCategoryLabels[ticket.category] ?? ticket.category}
                           </span>
                           <span className="text-xs font-bold text-zinc-500">{ticket.username}</span>
+                          {ticket.assigned_to_username && (
+                            <span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-300">
+                              👤 {ticket.assigned_to_username}
+                            </span>
+                          )}
                         </div>
                         <p className="truncate text-base font-black text-white">{ticket.subject}</p>
                         {ticket.last_message && (
@@ -1187,6 +1235,23 @@ export default function AdminPanel() {
                     {/* Ticket-Detail */}
                     {isOpen && ticketDetail && ticketDetail.ticket.id === ticket.id && (
                       <div className="border-t border-white/10 px-5 pb-5">
+                        {/* Zuweisung */}
+                        <div className="mb-4 flex flex-wrap gap-2 items-center">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">Zugewiesen an:</span>
+                          <select
+                            value={ticket.assigned_to_id || ''}
+                            onChange={(e) => void assignTicket(ticket.id, e.target.value || null)}
+                            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black text-zinc-300 outline-none transition hover:border-white/20 [color-scheme:dark]"
+                          >
+                            <option value="">Nicht zugewiesen</option>
+                            {profiles.filter((p) => p.is_admin || p.is_moderator).map((admin) => (
+                              <option key={admin.id} value={admin.id}>
+                                {admin.username}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
                         {/* Aktionen */}
                         <div className="flex flex-wrap gap-2 py-4">
                           <span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500 self-center mr-2">Status:</span>
