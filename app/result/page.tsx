@@ -298,7 +298,12 @@ export default function MatchResult() {
   }, [router, startCountdown, supabase]);
 
   useEffect(() => {
-    void loadMatch();
+    let mounted = true;
+    if (mounted) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadMatch();
+    }
+    return () => { mounted = false; };
   }, [loadMatch]);
 
   // ── Realtime ─────────────────────────────────────────────────────────────────

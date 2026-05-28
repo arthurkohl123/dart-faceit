@@ -172,7 +172,14 @@ export default function SupportPage() {
     setLoading(false);
   }, [supabase]);
 
-  useEffect(() => { void loadTickets(); }, [loadTickets]);
+  useEffect(() => {
+    let mounted = true;
+    if (mounted) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadTickets();
+    }
+    return () => { mounted = false; };
+  }, [loadTickets]);
 
   const openDetail = async (ticketId: string) => {
     setError('');

@@ -22,6 +22,7 @@ import {
   Search,
   Send,
   ShieldAlert,
+  Shield,
   ShieldCheck,
   Sparkles,
   Swords,
