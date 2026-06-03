@@ -203,7 +203,6 @@ export default function MatchResult() {
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
-  const noShowIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -238,7 +237,7 @@ export default function MatchResult() {
   // ── Countdown ────────────────────────────────────────────────────────────────
 
   const startCountdown = useCallback(
-    (requestedAt: string, matchId: string, isSubmitterArg: boolean) => {
+    (requestedAt: string, matchId: string) => {
       if (countdownRef.current) clearInterval(countdownRef.current);
       const calcRemaining = () => {
         const elapsed = Math.floor((Date.now() - new Date(requestedAt).getTime()) / 1000);
@@ -323,8 +322,7 @@ export default function MatchResult() {
       setMatch(m);
       if (adminFlag && m.player1_id) setAdminWinnerId(m.player1_id);
       if (m.status === 'awaiting_confirmation' && m.confirmation_requested_at) {
-        const submitter = m.submitted_by === userId;
-        startCountdown(m.confirmation_requested_at, m.id, submitter);
+        startCountdown(m.confirmation_requested_at, m.id);
       }
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Match konnte nicht geladen werden.');
@@ -600,6 +598,8 @@ export default function MatchResult() {
           if (result?.status === 'resolved') {
             setNoShowMessage('Gegner nicht erschienen. Match wurde abgebrochen und Sperre vergeben.');
             setNoShowResolved(true);
+            setNoShowCountdown(0);
+            setMatch((prev) => prev ? { ...prev, status: 'cancelled' } : prev);
           } else if (result?.status === 'not_expired') {
             noShowResolveCalledRef.current = false;
           }
@@ -660,9 +660,8 @@ export default function MatchResult() {
           }
 
           if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at && currentUserId) {
-            const submitter = updated.submitted_by === currentUserId;
             autoConfirmCalledRef.current = false;
-            startCountdown(updated.confirmation_requested_at, updated.id, submitter);
+            startCountdown(updated.confirmation_requested_at, updated.id);
           }
           if (updated.status === 'completed') {
             if (countdownRef.current) clearInterval(countdownRef.current);

@@ -68,7 +68,6 @@ const appConfig = {
 } as const;
 
 export default function Matchmaking() {
-  const [userId, setUserId] = useState<string | null>(null);
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
   const [scoliaUsername, setScoliaUsername] = useState<string | null>(null);
   const [dartcounterUsername, setDartcounterUsername] = useState<string | null>(null);
@@ -94,6 +93,7 @@ export default function Matchmaking() {
   // Cooldown-State
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [cancelCount24h, setCancelCount24h] = useState(0);
+  const [queueBanReason, setQueueBanReason] = useState<string | null>(null);
   const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Toast-Benachrichtigung
@@ -195,10 +195,32 @@ export default function Matchmaking() {
 
   const fetchCooldown = useCallback(async () => {
     const { data } = await supabase.rpc('get_my_cooldown');
-    if (data) {
-      setCooldownSeconds(data.on_cooldown ? data.seconds_remaining : 0);
-      setCancelCount24h(data.cancel_count_24h ?? 0);
+    let nextCooldown = data?.on_cooldown ? Number(data.seconds_remaining ?? 0) : 0;
+    if (data) setCancelCount24h(data.cancel_count_24h ?? 0);
+
+    const uid = userIdRef.current;
+    if (uid) {
+      const { data: profileCooldown } = await supabase
+        .from('profiles')
+        .select('queue_banned_until, queue_ban_reason')
+        .eq('supabaseId', uid)
+        .single();
+
+      const queueBannedUntil = profileCooldown?.queue_banned_until as string | null | undefined;
+      if (queueBannedUntil) {
+        const queueBanSeconds = Math.max(0, Math.ceil((new Date(queueBannedUntil).getTime() - Date.now()) / 1000));
+        if (queueBanSeconds > nextCooldown) {
+          nextCooldown = queueBanSeconds;
+          setQueueBanReason(profileCooldown?.queue_ban_reason ?? 'Queue-Sperre aktiv.');
+        } else if (queueBanSeconds <= 0) {
+          setQueueBanReason(null);
+        }
+      } else {
+        setQueueBanReason(null);
+      }
     }
+
+    setCooldownSeconds(nextCooldown);
   }, [supabase]);
 
   // Cooldown-Countdown
@@ -281,7 +303,7 @@ export default function Matchmaking() {
         if (msg.includes('COOLDOWN:')) {
           const secs = parseInt(msg.split('COOLDOWN:')[1] ?? '30', 10);
           setCooldownSeconds(secs);
-          setErrorMessage(`Du bist noch ${secs >= 60 ? Math.ceil(secs / 60) + ' Min.' : secs + ' Sek.'} gesperrt.`);
+          setErrorMessage(`Du bist noch ${secs >= 60 ? Math.ceil(secs / 60) + ' Min.' : secs + ' Sek.'} gesperrt.${queueBanReason ? ` Grund: ${queueBanReason}` : ''}`);
         } else {
           setErrorMessage(msg);
         }
@@ -290,14 +312,14 @@ export default function Matchmaking() {
     } finally {
       isPollingRef.current = false;
     }
-  }, [fetchQueueCounts, redirectToResult, supabase]);
+  }, [fetchQueueCounts, queueBanReason, startAcceptCountdown, supabase]);
 
   const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
     setOpponent(null);
 
     if (cooldownSeconds > 0) {
-      setErrorMessage(`Du bist noch ${cooldownSeconds >= 60 ? Math.ceil(cooldownSeconds / 60) + ' Min.' : cooldownSeconds + ' Sek.'} gesperrt.`);
+      setErrorMessage(`Du bist noch ${cooldownSeconds >= 60 ? Math.ceil(cooldownSeconds / 60) + ' Min.' : cooldownSeconds + ' Sek.'} gesperrt.${queueBanReason ? ` Grund: ${queueBanReason}` : ''}`);
       return;
     }
 
@@ -357,7 +379,6 @@ export default function Matchmaking() {
       if (!session) { router.push('/auth/login'); return; }
       const uid = session.user.id;
       userIdRef.current = uid;
-      if (isMounted) setUserId(uid);
 
       // Aktives Match prüfen: pending_accept, pending_result oder awaiting_confirmation?
       const { data: activeMatch } = await supabase
@@ -395,7 +416,7 @@ export default function Matchmaking() {
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('phone_verified, scolia_username, dartcounter_username')
+        .select('phone_verified, scolia_username, dartcounter_username, queue_banned_until, queue_ban_reason')
         .eq('supabaseId', uid)
         .single();
 
@@ -403,6 +424,14 @@ export default function Matchmaking() {
       setPhoneVerified(Boolean(profileData?.phone_verified));
       setScoliaUsername(profileData?.scolia_username ?? null);
       setDartcounterUsername(profileData?.dartcounter_username ?? null);
+      const queueBannedUntil = profileData?.queue_banned_until as string | null | undefined;
+      if (queueBannedUntil) {
+        const queueBanSeconds = Math.max(0, Math.ceil((new Date(queueBannedUntil).getTime() - Date.now()) / 1000));
+        if (queueBanSeconds > 0) {
+          setCooldownSeconds(queueBanSeconds);
+          setQueueBanReason(profileData?.queue_ban_reason ?? 'Queue-Sperre aktiv.');
+        }
+      }
       setPageLoading(false);
       void fetchQueueCounts();
       void fetchLiveMatches();
@@ -410,7 +439,7 @@ export default function Matchmaking() {
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, fetchQueueCounts, fetchLiveMatches]);
+  }, [supabase, router, fetchQueueCounts, fetchLiveMatches, fetchCooldown, startAcceptCountdown]);
 
   // Realtime: Live-Matches aktualisieren wenn sich active_matches ändert
   useEffect(() => {
@@ -491,7 +520,7 @@ export default function Matchmaking() {
       clearInterval(pollingInterval);
       void supabase.rpc('cancel_matchmaking');
     };
-  }, [pollForMatch, status, supabase, redirectToResult]);
+  }, [pollForMatch, status, supabase, redirectToResult, fetchCooldown, startAcceptCountdown]);
 
   // Realtime: Accept-Phase — separater Kanal der auch bei status='accepting' aktiv ist
   useEffect(() => {
@@ -534,7 +563,7 @@ export default function Matchmaking() {
       .subscribe();
 
     return () => { void supabase.removeChannel(channel); };
-  }, [acceptMatchId, redirectToResult, supabase]);
+  }, [acceptMatchId, redirectToResult, startAcceptCountdown, supabase]);
 
   // Heartbeat: solange gesucht wird, alle 20 Sekunden last_seen aktualisieren.
   // Die DB-Funktion cleanup_stale_queue_entries löscht Einträge die älter als
@@ -878,7 +907,8 @@ export default function Matchmaking() {
                   <h2 className="mt-7 text-4xl font-black tracking-[-0.05em]">Cooldown aktiv</h2>
                   <div className="mt-4 rounded-3xl border border-amber-400/20 bg-amber-500/10 p-6">
                     <div className="text-5xl font-black tracking-[-0.05em] text-amber-300">{formatCooldown(cooldownSeconds)}</div>
-                    <p className="mt-2 text-sm text-zinc-400">Du hast die Queue zu oft verlassen. Bitte kurz warten.</p>
+                    <p className="mt-2 text-sm text-zinc-400">Du bist aktuell für die Queue gesperrt. Bitte kurz warten.</p>
+                    {queueBanReason && <p className="mt-3 text-xs font-bold text-amber-200/80">Grund: {queueBanReason}</p>}
                     <p className="mt-3 text-xs text-amber-400/70">{cancelCount24h}. Abbruch heute — ab dem 3. Abbruch gibt es 20 Sek. Cooldown.</p>
                   </div>
                 </>
