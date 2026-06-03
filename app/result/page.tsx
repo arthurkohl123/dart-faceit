@@ -828,9 +828,19 @@ export default function MatchResult() {
         {/* ════════════════════════════════════════════════════════════
             NO-SHOW BANNER
         ════════════════════════════════════════════════════════════ */}
-        {match && (match.status === 'pending_result' || (match.status === 'cancelled' && noShowResolved)) && (noShowReportedAt || noShowResolved) && (
+        {match && (match.status === 'pending_result' || (match.status === 'cancelled' && noShowResolved)) && (
           <div className="mb-6">
-            {noShowReportedAt ? (
+            {noShowResolved ? (
+              <div className="flex items-center gap-3 rounded-3xl border border-red-400/30 bg-red-500/10 px-5 py-4">
+                <XCircle className="h-5 w-5 shrink-0 text-red-300" />
+                <div>
+                  <p className="text-sm font-black text-red-200">Gegner ist nicht erschienen.</p>
+                  <p className="mt-0.5 text-xs font-bold text-red-200/80">
+                    Das Match wurde abgebrochen und eine Queue-Sperre wurde vergeben.
+                  </p>
+                </div>
+              </div>
+            ) : noShowReportedAt ? (
               /* Timer läuft bereits */
               <div className={`flex items-center gap-4 rounded-3xl border p-5 transition-colors ${
                 (noShowCountdown ?? 999) <= 60
@@ -851,9 +861,8 @@ export default function MatchResult() {
                   <p className="mt-0.5 text-xs text-zinc-500">
                     {noShowReportedBy === currentUserId
                       ? 'Wenn der Gegner nicht reagiert, wird das Match automatisch abgebrochen.'
-                      : 'Drücke den Button um zu bestätigen dass du da bist!'}
+                      : 'Drücke den Button, um zu bestätigen, dass du da bist.'}
                   </p>
-                  {/* Bug 3 Fix: 'Ich bin da'-Button für den gemeldeten User */}
                   {noShowReportedBy !== currentUserId && (
                     <button
                       onClick={async () => {
@@ -897,23 +906,16 @@ export default function MatchResult() {
                 )}
               </div>
             ) : (
-              /* Button: Gegner erscheint nicht */
+              /* Button: Gegner ist nicht da */
               <button
+                type="button"
                 onClick={() => void reportNoShow()}
                 disabled={noShowLoading}
                 className="group flex w-full items-center justify-center gap-3 rounded-3xl border border-orange-400/25 bg-orange-400/[0.06] px-6 py-4 text-sm font-black text-orange-200 transition hover:border-orange-400/40 hover:bg-orange-400/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <UserX className="h-5 w-5 shrink-0 transition group-hover:scale-110" />
-                {noShowLoading ? 'Wird gemeldet…' : 'Gegner erscheint nicht'}
+                {noShowLoading ? 'Wird gemeldet…' : 'Gegner ist nicht da'}
               </button>
-            )}
-            {noShowResolved && (
-              <div className="mt-3 flex items-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3">
-                <XCircle className="h-4 w-4 shrink-0 text-red-300" />
-                <p className="text-xs font-black text-red-200">
-                  Gegner nicht erschienen. Match wurde abgebrochen und eine Queue-Sperre wurde vergeben.
-                </p>
-              </div>
             )}
             {!noShowResolved && noShowMessage && (
               <p className="mt-2 text-center text-xs font-bold text-orange-300">{noShowMessage}</p>
