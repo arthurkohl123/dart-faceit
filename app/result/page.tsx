@@ -342,79 +342,6 @@ export default function MatchResult() {
     return () => { mounted = false; };
   }, [loadMatch]);
 
-  // ── Realtime ─────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const matchId = params.get('matchId');
-    if (!matchId) return;
-
-    const channel = supabase
-      .channel(`match-result-${matchId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'active_matches', filter: `id=eq.${matchId}` },
-        (payload) => {
-          const updated = payload.new as ActiveMatch & {
-            no_show_reported_by?: string | null;
-            no_show_reported_at?: string | null;
-            no_show_resolved?: boolean;
-          };
-          setMatch(updated);
-
-          // No-Show-State aus Realtime-Payload synchronisieren
-          if (updated.no_show_reported_at && !updated.no_show_resolved) {
-            // No-Show wurde gemeldet (oder ist noch aktiv)
-            noShowResolveCalledRef.current = false;
-            setNoShowReportedAt(updated.no_show_reported_at);
-            setNoShowReportedBy(updated.no_show_reported_by ?? null);
-            startNoShowCountdown(updated.no_show_reported_at, updated.id);
-          } else if (!updated.no_show_reported_at && !updated.no_show_resolved) {
-            // No-Show wurde zurückgezogen (cancel_no_show) → Banner für beide ausblenden
-            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
-            setNoShowReportedAt(null);
-            setNoShowReportedBy(null);
-            setNoShowCountdown(null);
-            setNoShowResolved(false);
-            noShowResolveCalledRef.current = false;
-          }
-          if (updated.no_show_resolved) {
-            // No-Show wurde aufgelöst (Match abgebrochen, Sperre vergeben)
-            setNoShowResolved(true);
-            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
-            setNoShowCountdown(null);
-          }
-
-          if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at && currentUserId) {
-            const submitter = updated.submitted_by === currentUserId;
-            autoConfirmCalledRef.current = false;
-            startCountdown(updated.confirmation_requested_at, updated.id, submitter);
-          }
-          if (updated.status === 'completed') {
-            if (countdownRef.current) clearInterval(countdownRef.current);
-            setTimeout(() => router.push('/history'), 2500);
-          }
-          if (updated.status === 'disputed') {
-            if (countdownRef.current) clearInterval(countdownRef.current);
-            setCountdown(null);
-          }
-          if (updated.status === 'cancelled') {
-            if (countdownRef.current) clearInterval(countdownRef.current);
-            setCountdown(null);
-            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
-            setNoShowCountdown(null);
-            setInfoMessage('Dieses Match wurde abgebrochen.');
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
-  }, [router, startCountdown, startNoShowCountdown, supabase]);
-
   // ── Screenshot ───────────────────────────────────────────────────────────────
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -683,6 +610,77 @@ export default function MatchResult() {
       }
     }, 1000);
   }, [supabase]);
+
+  // ── Realtime (hier platziert damit startNoShowCountdown bereits deklariert ist) ──────────
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const matchId = params.get('matchId');
+    if (!matchId) return;
+
+    const channel = supabase
+      .channel(`match-result-${matchId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'active_matches', filter: `id=eq.${matchId}` },
+        (payload) => {
+          const updated = payload.new as ActiveMatch & {
+            no_show_reported_by?: string | null;
+            no_show_reported_at?: string | null;
+            no_show_resolved?: boolean;
+          };
+          setMatch(updated);
+
+          // No-Show-State aus Realtime-Payload synchronisieren
+          if (updated.no_show_reported_at && !updated.no_show_resolved) {
+            noShowResolveCalledRef.current = false;
+            setNoShowReportedAt(updated.no_show_reported_at);
+            setNoShowReportedBy(updated.no_show_reported_by ?? null);
+            startNoShowCountdown(updated.no_show_reported_at, updated.id);
+          } else if (!updated.no_show_reported_at && !updated.no_show_resolved) {
+            // No-Show zurückgezogen (cancel_no_show) → Banner für beide ausblenden
+            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
+            setNoShowReportedAt(null);
+            setNoShowReportedBy(null);
+            setNoShowCountdown(null);
+            setNoShowResolved(false);
+            noShowResolveCalledRef.current = false;
+          }
+          if (updated.no_show_resolved) {
+            setNoShowResolved(true);
+            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
+            setNoShowCountdown(null);
+          }
+
+          if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at && currentUserId) {
+            const submitter = updated.submitted_by === currentUserId;
+            autoConfirmCalledRef.current = false;
+            startCountdown(updated.confirmation_requested_at, updated.id, submitter);
+          }
+          if (updated.status === 'completed') {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            setTimeout(() => router.push('/history'), 2500);
+          }
+          if (updated.status === 'disputed') {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            setCountdown(null);
+          }
+          if (updated.status === 'cancelled') {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            setCountdown(null);
+            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
+            setNoShowCountdown(null);
+            setInfoMessage('Dieses Match wurde abgebrochen.');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [currentUserId, router, startCountdown, startNoShowCountdown, supabase]);
 
   const reportNoShow = async () => {
     if (!match || noShowLoading) return;
