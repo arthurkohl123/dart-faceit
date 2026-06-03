@@ -32,6 +32,10 @@ type DeveloperNoticeSetting = {
   message?: string;
 };
 
+type SmsVerificationSetting = {
+  enabled?: boolean;
+};
+
 function getObjectSetting<T extends object>(settings: Record<string, unknown> | undefined, key: string): T {
   const value = settings?.[key];
   return value && typeof value === 'object' ? value as T : {} as T;
@@ -49,6 +53,7 @@ export default function DeveloperDashboard() {
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('RankedDarts wird gerade aktualisiert. Bitte versuche es gleich erneut.');
   const [noShowBanMinutes, setNoShowBanMinutes] = useState(15);
+  const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [developerNotice, setDeveloperNotice] = useState('');
 
   const showSuccess = (message: string) => {
@@ -89,12 +94,14 @@ export default function DeveloperDashboard() {
     const settings = payload?.settings;
     const maintenance = getObjectSetting<MaintenanceSetting>(settings, 'maintenance_mode');
     const banMinutes = getObjectSetting<BanMinutesSetting>(settings, 'no_show_queue_ban_minutes');
+    const smsVerification = getObjectSetting<SmsVerificationSetting>(settings, 'sms_verification');
     const notice = getObjectSetting<DeveloperNoticeSetting>(settings, 'developer_notice');
 
     setStats(payload?.stats ?? {});
     setMaintenanceEnabled(Boolean(maintenance.enabled));
     setMaintenanceMessage(maintenance.message ?? 'RankedDarts wird gerade aktualisiert. Bitte versuche es gleich erneut.');
     setNoShowBanMinutes(Number(banMinutes.minutes ?? 15));
+    setSmsVerificationEnabled(smsVerification.enabled !== false);
     setDeveloperNotice(notice.message ?? '');
     setLoading(false);
   }, [router, supabase]);
@@ -166,7 +173,7 @@ export default function DeveloperDashboard() {
             </div>
             <h1 className="mt-6 text-5xl font-black tracking-[-0.07em] md:text-7xl">RankedDarts Steuerung</h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-zinc-400">
-              Diese Oberfläche ist für technische Eingriffe gedacht. Du kannst hier den Wartungsmodus schalten, No-Show-Strafen einstellen und operative Kennzahlen prüfen.
+              Diese Oberfläche ist für technische Eingriffe gedacht. Du kannst hier den Wartungsmodus schalten, No-Show-Strafen einstellen, die SMS-Verifizierung aktivieren oder deaktivieren und operative Kennzahlen prüfen.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -270,6 +277,34 @@ export default function DeveloperDashboard() {
               className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-cyan-300/25 bg-cyan-400/10 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/15 disabled:opacity-50"
             >
               <Save className="h-4 w-4" /> {saving === 'no_show_queue_ban_minutes' ? 'Speichert…' : 'Sperrdauer speichern'}
+            </button>
+          </section>
+
+          <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">
+                  <Shield className="h-3.5 w-3.5" /> SMS-Verifizierung
+                </div>
+                <h2 className="mt-4 text-3xl font-black tracking-[-0.05em]">Telefon-Verifizierung steuern</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">Wenn deaktiviert, dürfen Nutzer Matchmaking auch ohne bestätigte Telefonnummer verwenden. Neue Registrierungen werden dann automatisch als telefonisch verifiziert markiert.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSmsVerificationEnabled((value) => !value)}
+                className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${smsVerificationEnabled ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border border-zinc-500/30 bg-zinc-500/10 text-zinc-200'}`}
+              >
+                {smsVerificationEnabled ? 'Aktiv' : 'Aus'}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              disabled={saving === 'sms_verification'}
+              onClick={() => void updateSetting('sms_verification', { enabled: smsVerificationEnabled }, smsVerificationEnabled ? 'SMS-Verifizierung aktiviert.' : 'SMS-Verifizierung deaktiviert.')}
+              className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/15 disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" /> {saving === 'sms_verification' ? 'Speichert…' : 'SMS-Einstellung speichern'}
             </button>
           </section>
         </div>

@@ -69,6 +69,7 @@ const appConfig = {
 
 export default function Matchmaking() {
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
+  const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [scoliaUsername, setScoliaUsername] = useState<string | null>(null);
   const [dartcounterUsername, setDartcounterUsername] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
@@ -94,6 +95,7 @@ export default function Matchmaking() {
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [cancelCount24h, setCancelCount24h] = useState(0);
   const [queueBanReason, setQueueBanReason] = useState<string | null>(null);
+  const [queueBannedUntil, setQueueBannedUntil] = useState<string | null>(null);
   const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Toast-Benachrichtigung
@@ -125,6 +127,7 @@ export default function Matchmaking() {
 
   const searchProgress = Math.min((elapsedSeconds / 60) * 100, 100);
   const currentRange = getMaxEloDiff(elapsedSeconds);
+  const effectivePhoneVerified = !smsVerificationEnabled || phoneVerified === true;
 
   const redirectToResult = useCallback((matchId: string) => {
     setTimeout(() => router.push(`/result?matchId=${matchId}`), 1500);
@@ -212,11 +215,14 @@ export default function Matchmaking() {
         if (queueBanSeconds > nextCooldown) {
           nextCooldown = queueBanSeconds;
           setQueueBanReason(profileCooldown?.queue_ban_reason ?? 'Queue-Sperre aktiv.');
+          setQueueBannedUntil(queueBannedUntil);
         } else if (queueBanSeconds <= 0) {
           setQueueBanReason(null);
+          setQueueBannedUntil(null);
         }
       } else {
         setQueueBanReason(null);
+        setQueueBannedUntil(null);
       }
     }
 
@@ -243,6 +249,17 @@ export default function Matchmaking() {
     if (secs >= 60) return `${Math.ceil(secs / 60)} Min.`;
     return `${secs} Sek.`;
   };
+
+  const getCooldownMessage = useCallback((secs = cooldownSeconds) => {
+    const duration = formatCooldown(secs);
+    if (queueBanReason) {
+      const untilText = queueBannedUntil
+        ? ` Ablauf: ${new Date(queueBannedUntil).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })} Uhr.`
+        : '';
+      return `Du bist aktuell für die Queue gesperrt. Verbleibend: ${duration}. Grund: ${queueBanReason}.${untilText}`;
+    }
+    return `Du hast die Suche zu oft abgebrochen und bist noch ${duration} im Cooldown.`;
+  }, [cooldownSeconds, queueBanReason, queueBannedUntil]);
 
   const fetchQueueCounts = useCallback(async () => {
     const [{ count: scoliaCount }, { count: dartCount }] = await Promise.all([
@@ -303,7 +320,7 @@ export default function Matchmaking() {
         if (msg.includes('COOLDOWN:')) {
           const secs = parseInt(msg.split('COOLDOWN:')[1] ?? '30', 10);
           setCooldownSeconds(secs);
-          setErrorMessage(`Du bist noch ${secs >= 60 ? Math.ceil(secs / 60) + ' Min.' : secs + ' Sek.'} gesperrt.${queueBanReason ? ` Grund: ${queueBanReason}` : ''}`);
+          setErrorMessage(getCooldownMessage(secs));
         } else {
           setErrorMessage(msg);
         }
@@ -312,18 +329,18 @@ export default function Matchmaking() {
     } finally {
       isPollingRef.current = false;
     }
-  }, [fetchQueueCounts, queueBanReason, startAcceptCountdown, supabase]);
+  }, [fetchQueueCounts, getCooldownMessage, startAcceptCountdown, supabase]);
 
   const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
     setOpponent(null);
 
     if (cooldownSeconds > 0) {
-      setErrorMessage(`Du bist noch ${cooldownSeconds >= 60 ? Math.ceil(cooldownSeconds / 60) + ' Min.' : cooldownSeconds + ' Sek.'} gesperrt.${queueBanReason ? ` Grund: ${queueBanReason}` : ''}`);
+      setErrorMessage(getCooldownMessage());
       return;
     }
 
-    if (!phoneVerified) {
+    if (!effectivePhoneVerified) {
       setErrorMessage('Bitte bestätige zuerst deine Handynummer.');
       router.push('/auth/verify-phone');
       return;
@@ -363,7 +380,9 @@ export default function Matchmaking() {
       if (newCount >= 3) {
         // Ab dem 3. Abbruch: 20 Sekunden Cooldown
         setCooldownSeconds(20);
-        showToast(`3. Abbruch — du hast einen Cooldown von 20 Sekunden erhalten.`, 'warning');
+        const message = 'Du hast die Suche zum dritten Mal abgebrochen und erhältst jetzt 20 Sekunden Cooldown.';
+        setErrorMessage(message);
+        showToast(message, 'warning');
       }
       await fetchQueueCounts();
     }
@@ -414,6 +433,15 @@ export default function Matchmaking() {
         }
       }
 
+      const { data: smsSetting } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'sms_verification')
+        .maybeSingle();
+
+      const smsEnabled = (smsSetting?.value as { enabled?: boolean } | null)?.enabled !== false;
+      setSmsVerificationEnabled(smsEnabled);
+
       const { data: profileData } = await supabase
         .from('profiles')
         .select('phone_verified, scolia_username, dartcounter_username, queue_banned_until, queue_ban_reason')
@@ -421,7 +449,7 @@ export default function Matchmaking() {
         .single();
 
       if (!isMounted) return;
-      setPhoneVerified(Boolean(profileData?.phone_verified));
+      setPhoneVerified(!smsEnabled || Boolean(profileData?.phone_verified));
       setScoliaUsername(profileData?.scolia_username ?? null);
       setDartcounterUsername(profileData?.dartcounter_username ?? null);
       const queueBannedUntil = profileData?.queue_banned_until as string | null | undefined;
@@ -430,6 +458,7 @@ export default function Matchmaking() {
         if (queueBanSeconds > 0) {
           setCooldownSeconds(queueBanSeconds);
           setQueueBanReason(profileData?.queue_ban_reason ?? 'Queue-Sperre aktiv.');
+          setQueueBannedUntil(queueBannedUntil);
         }
       }
       setPageLoading(false);
@@ -673,18 +702,17 @@ export default function Matchmaking() {
           <h1 className="mt-6 text-4xl font-black leading-[0.88] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Finde dein nächstes Match.</h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Wähle deine Dart-App und tritt der passenden Queue bei. Du wirst nur mit Spielern gematcht, die dieselbe App nutzen.</p>
 
-          {/* Abbruch-Zähler-Hinweis */}
-          {cancelCount24h > 0 && cancelCount24h < 3 && (
-            <div className="mt-5 flex items-center gap-2.5 rounded-2xl border border-zinc-700/50 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-400">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-              <span>
-                {cancelCount24h}/3 Abbrüche heute
-                {cancelCount24h === 2 && <span className="ml-1 font-bold text-amber-300"> — nächster Abbruch gibt 20 Sek. Cooldown</span>}
-              </span>
+          {cooldownSeconds > 0 && (
+            <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-4 text-sm leading-6 text-amber-100">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+              <div>
+                <div className="font-black">{queueBanReason ? 'Queue-Sperre aktiv' : 'Cooldown aktiv'}</div>
+                <p className="mt-1 text-amber-100/85">{getCooldownMessage()}</p>
+              </div>
             </div>
           )}
 
-          {phoneVerified === false && (
+          {effectivePhoneVerified === false && (
             <div className="mt-8 rounded-[1.7rem] border border-amber-300/20 bg-amber-400/[0.08] p-5 text-sm leading-6 text-amber-100 backdrop-blur-xl">
               Dein Account ist noch nicht telefonisch verifiziert.
               <Link href="/auth/verify-phone" className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 font-black text-amber-50 transition hover:bg-amber-300/15 ml-3">
@@ -734,7 +762,9 @@ export default function Matchmaking() {
                     <button
                       key={app}
                       onClick={() => void startSearch(app)}
-                      className={`group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-6 text-left transition-all duration-300 ${c.borderHover} hover:scale-[1.02]`}
+                      disabled={cooldownSeconds > 0}
+                      title={cooldownSeconds > 0 ? getCooldownMessage() : undefined}
+                      className={`group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-6 text-left transition-all duration-300 ${cooldownSeconds > 0 ? 'cursor-not-allowed opacity-55' : `${c.borderHover} hover:scale-[1.02]`}`}
                     >
                       <div className="text-xl font-black tracking-[-0.03em]">{c.label}</div>
                       <div className={`mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${c.badge}`}>

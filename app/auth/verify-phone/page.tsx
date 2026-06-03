@@ -19,6 +19,7 @@ export default function VerifyPhone() {
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   const router = useRouter();
@@ -33,6 +34,30 @@ export default function VerifyPhone() {
       const { data } = await supabase.auth.getSession();
       setIsLoggedIn(Boolean(data.session));
 
+      const { data: smsSetting } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'sms_verification')
+        .maybeSingle();
+
+      const smsEnabled = (smsSetting?.value as { enabled?: boolean } | null)?.enabled !== false;
+      setSmsVerificationEnabled(smsEnabled);
+
+      if (!smsEnabled) {
+        if (data.session?.user.id) {
+          await supabase
+            .from('profiles')
+            .update({
+              phone_verified: true,
+              phone_verified_at: new Date().toISOString(),
+            })
+            .eq('supabaseId', data.session.user.id);
+        }
+        setVerified(true);
+        setMessage('Die SMS-Verifizierung ist aktuell deaktiviert. Dein Ranked-Profil ist freigeschaltet.');
+        return;
+      }
+
       if (data.session?.user.phone_confirmed_at) {
         setVerified(true);
         setMessage('Deine Handynummer ist bereits verifiziert.');
@@ -45,6 +70,12 @@ export default function VerifyPhone() {
   const sendVerificationCode = async () => {
     setErrorMessage('');
     setMessage('');
+
+    if (!smsVerificationEnabled) {
+      setVerified(true);
+      setMessage('Die SMS-Verifizierung ist aktuell deaktiviert. Es muss kein Code gesendet werden.');
+      return;
+    }
 
     if (!phoneNumberIsValid) {
       setErrorMessage('Bitte gib deine Handynummer im internationalen Format ein, zum Beispiel +491701234567.');
@@ -69,6 +100,12 @@ export default function VerifyPhone() {
   const verifyCode = async () => {
     setErrorMessage('');
     setMessage('');
+
+    if (!smsVerificationEnabled) {
+      setVerified(true);
+      setMessage('Die SMS-Verifizierung ist aktuell deaktiviert. Dein Ranked-Profil ist freigeschaltet.');
+      return;
+    }
 
     if (!phoneNumberIsValid || !codeIsValid) {
       setErrorMessage('Bitte gib eine gültige Handynummer und den 6-stelligen SMS-Code ein.');
@@ -170,7 +207,7 @@ export default function VerifyPhone() {
             <div className="mt-8 text-center">
               <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">SMS-Verifizierung</div>
               <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">Handynummer bestätigen</h2>
-              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-zinc-400">Sende dir einen Code per SMS und bestätige ihn auf dieser Seite. Danach kann dein Profil als telefonisch verifiziert markiert werden.</p>
+              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-zinc-400">{smsVerificationEnabled ? 'Sende dir einen Code per SMS und bestätige ihn auf dieser Seite. Danach kann dein Profil als telefonisch verifiziert markiert werden.' : 'Die SMS-Verifizierung ist aktuell deaktiviert. Du kannst RankedDarts ohne SMS-Code verwenden.'}</p>
             </div>
 
             {isLoggedIn === false && (

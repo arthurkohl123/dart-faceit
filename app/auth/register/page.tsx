@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -12,17 +12,33 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
   const normalizedPhoneNumber = useMemo(() => normalizePhoneNumber(phoneNumber), [phoneNumber]);
   const phoneNumberIsValid = /^\+[1-9]\d{7,14}$/.test(normalizedPhoneNumber);
+  const canSubmit = !smsVerificationEnabled || phoneNumberIsValid;
+
+  useEffect(() => {
+    const loadSmsSetting = async () => {
+      const { data } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'sms_verification')
+        .maybeSingle();
+
+      setSmsVerificationEnabled((data?.value as { enabled?: boolean } | null)?.enabled !== false);
+    };
+
+    void loadSmsSetting();
+  }, [supabase]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!phoneNumberIsValid) {
+    if (smsVerificationEnabled && !phoneNumberIsValid) {
       alert('Bitte gib deine Handynummer im internationalen Format ein, zum Beispiel +491701234567.');
       return;
     }
@@ -36,7 +52,7 @@ export default function Register() {
         data: {
           username,
           phone_number: normalizedPhoneNumber,
-          phone_verified: false,
+          phone_verified: !smsVerificationEnabled,
         },
       },
     });
@@ -59,14 +75,19 @@ export default function Register() {
       await supabase
         .from('profiles')
         .update({
-          phone_number: normalizedPhoneNumber,
-          phone_verified: false,
-          phone_verified_at: null,
+          phone_number: normalizedPhoneNumber || null,
+          phone_verified: !smsVerificationEnabled,
+          phone_verified_at: smsVerificationEnabled ? null : new Date().toISOString(),
         })
         .eq('supabaseId', data.user.id);
 
-      alert('Registrierung erfolgreich! Bestätige jetzt deine Handynummer, damit dein Ranked-Profil verifiziert wird.');
-      router.push(`/auth/verify-phone?phone=${encodeURIComponent(normalizedPhoneNumber)}`);
+      if (smsVerificationEnabled) {
+        alert('Registrierung erfolgreich! Bestätige jetzt deine Handynummer, damit dein Ranked-Profil verifiziert wird.');
+        router.push(`/auth/verify-phone?phone=${encodeURIComponent(normalizedPhoneNumber)}`);
+      } else {
+        alert('Registrierung erfolgreich! Die SMS-Verifizierung ist aktuell deaktiviert, dein Ranked-Profil ist direkt bereit.');
+        router.push('/profile');
+      }
     }
 
     setLoading(false);
@@ -92,7 +113,7 @@ export default function Register() {
           <div className="rounded-[2.5rem] border border-white/10 bg-white/[0.04] p-8 backdrop-blur-xl">
             <div className="inline-flex rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">Anti-Smurf Verifizierung</div>
             <h1 className="mt-7 text-6xl font-black leading-[0.9] tracking-[-0.07em]">Erstelle dein verifiziertes Ranked-Profil.</h1>
-            <p className="mt-6 text-lg leading-8 text-zinc-300">Dein Account startet mit 1000 Elo. Die Handynummer-Verifizierung macht RankedDarts fairer, weil Multiaccounts und Fake-Profile deutlich schwerer werden.</p>
+            <p className="mt-6 text-lg leading-8 text-zinc-300">Dein Account startet mit 1000 Elo. Die Handynummer-Verifizierung macht RankedDarts fairer, kann aber bei Bedarf temporär durch die Developer-Oberfläche deaktiviert werden.</p>
 
             <div className="mt-10 grid gap-4">
               <div className="rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.06] p-6">
@@ -131,7 +152,7 @@ export default function Register() {
             <div className="mb-8 text-center">
               <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">Registrierung</div>
               <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">Kostenlos starten</h2>
-              <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Spielernamen und hinterlege deine Handynummer für die anschließende SMS-Verifizierung.</p>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Spielernamen{smsVerificationEnabled ? ' und hinterlege deine Handynummer für die anschließende SMS-Verifizierung.' : '. Die SMS-Verifizierung ist aktuell deaktiviert.'}</p>
             </div>
 
             <form onSubmit={handleRegister} className="space-y-4">
@@ -168,9 +189,9 @@ export default function Register() {
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"
-                  required
+                  required={smsVerificationEnabled}
                 />
-                <span className={`mt-2 block text-xs ${phoneNumber && !phoneNumberIsValid ? 'text-amber-300' : 'text-zinc-500'}`}>Bitte im internationalen Format eintragen, zum Beispiel +49...</span>
+                <span className={`mt-2 block text-xs ${phoneNumber && !phoneNumberIsValid ? 'text-amber-300' : 'text-zinc-500'}`}>{smsVerificationEnabled ? 'Bitte im internationalen Format eintragen, zum Beispiel +49...' : 'Optional, solange die SMS-Verifizierung deaktiviert ist.'}</span>
               </label>
 
               <label className="block">
@@ -187,7 +208,7 @@ export default function Register() {
 
               <button
                 type="submit"
-                disabled={loading || !phoneNumberIsValid}
+                disabled={loading || !canSubmit}
                 className="w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-4 font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.24)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Wird erstellt...' : 'Account erstellen'}
