@@ -828,7 +828,7 @@ export default function MatchResult() {
         {/* ════════════════════════════════════════════════════════════
             NO-SHOW BANNER
         ════════════════════════════════════════════════════════════ */}
-        {match && match.status === 'pending_result' && !noShowResolved && (
+        {match && (match.status === 'pending_result' || (match.status === 'cancelled' && noShowResolved)) && (noShowReportedAt || noShowResolved) && (
           <div className="mb-6">
             {noShowReportedAt ? (
               /* Timer läuft bereits */
@@ -907,7 +907,15 @@ export default function MatchResult() {
                 {noShowLoading ? 'Wird gemeldet…' : 'Gegner erscheint nicht'}
               </button>
             )}
-            {noShowMessage && (
+            {noShowResolved && (
+              <div className="mt-3 flex items-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3">
+                <XCircle className="h-4 w-4 shrink-0 text-red-300" />
+                <p className="text-xs font-black text-red-200">
+                  Gegner nicht erschienen. Match wurde abgebrochen und eine Queue-Sperre wurde vergeben.
+                </p>
+              </div>
+            )}
+            {!noShowResolved && noShowMessage && (
               <p className="mt-2 text-center text-xs font-bold text-orange-300">{noShowMessage}</p>
             )}
           </div>
