@@ -629,7 +629,14 @@ export default function MatchResult() {
             no_show_reported_at?: string | null;
             no_show_resolved?: boolean;
           };
-          setMatch(updated);
+          // Plattform-Usernamen aus dem alten State beibehalten (nicht in active_matches gespeichert)
+          setMatch(prev => ({
+            ...updated,
+            player1_scolia_username: updated.player1_scolia_username ?? prev?.player1_scolia_username ?? null,
+            player1_dartcounter_username: updated.player1_dartcounter_username ?? prev?.player1_dartcounter_username ?? null,
+            player2_scolia_username: updated.player2_scolia_username ?? prev?.player2_scolia_username ?? null,
+            player2_dartcounter_username: updated.player2_dartcounter_username ?? prev?.player2_dartcounter_username ?? null,
+          }));
 
           // No-Show-State aus Realtime-Payload synchronisieren
           if (updated.no_show_reported_at && !updated.no_show_resolved) {

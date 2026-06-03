@@ -493,6 +493,49 @@ export default function Matchmaking() {
     };
   }, [pollForMatch, status, supabase, redirectToResult]);
 
+  // Realtime: Accept-Phase — separater Kanal der auch bei status='accepting' aktiv ist
+  useEffect(() => {
+    if (!acceptMatchId) return;
+    const uid = userIdRef.current;
+
+    const channel = supabase
+      .channel(`accept-match-${acceptMatchId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'active_matches', filter: `id=eq.${acceptMatchId}` },
+        (payload) => {
+          const updated = payload.new;
+          if (!uid || !(updated.player1_id === uid || updated.player2_id === uid)) return;
+          const isPlayer1 = updated.player1_id === uid;
+
+          // Gegner-Accept-Status aktualisieren
+          if (updated.status === 'pending_accept') {
+            const oppAccepted = isPlayer1 ? updated.player2_accepted : updated.player1_accepted;
+            setOpponentAccepted(Boolean(oppAccepted));
+          }
+
+          // Beide haben akzeptiert → Match startet (auch für den ersten Accepter)
+          if (updated.status === 'pending_result') {
+            if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
+            setStatus('found');
+            redirectToResult(updated.id);
+          }
+
+          // Match abgelehnt/abgebrochen → zurück zur Auswahl
+          if (updated.status === 'cancelled') {
+            if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
+            setAcceptMatchId(null);
+            setIHaveAccepted(false);
+            setOpponentAccepted(false);
+            setStatus('idle');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [acceptMatchId, redirectToResult, supabase]);
+
   // Heartbeat: solange gesucht wird, alle 20 Sekunden last_seen aktualisieren.
   // Die DB-Funktion cleanup_stale_queue_entries löscht Einträge die älter als
   // 45 Sekunden sind – so werden verwaiste Einträge (Browser geschlossen)
