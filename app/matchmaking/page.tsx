@@ -95,6 +95,16 @@ export default function Matchmaking() {
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [cancelCount24h, setCancelCount24h] = useState(0);
   const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Toast-Benachrichtigung
+  const [toast, setToast] = useState<{ message: string; type: 'warning' | 'info' } | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (message: string, type: 'warning' | 'info' = 'warning') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ message, type });
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 4000);
+  };
   const isPollingRef = useRef(false);
   const statusRef = useRef<MatchmakingStatus>('idle');
   const selectedAppRef = useRef<AppChoice | null>(null);
@@ -255,17 +265,16 @@ export default function Matchmaking() {
       await fetchQueueCounts();
 
       if (result?.match_status === 'pending_accept' && result.match_id) {
-        // Match gefunden → Accept-Screen anzeigen
+        // Match gefunden → Accept-Screen anzeigen (kein direkter Redirect!)
         setAcceptMatchId(result.match_id);
         setIHaveAccepted(false);
         setOpponentAccepted(false);
         setStatus('accepting');
         startAcceptCountdown(result.match_id);
-      } else if (result?.match_status === 'matched' && result.match_id && result.opponent_username) {
-        setOpponent({ username: result.opponent_username, elo: result.opponent_elo || 1000 });
-        setStatus('found');
-        redirectToResult(result.match_id);
       }
+      // Hinweis: 'matched' wird nicht mehr direkt weitergeleitet.
+      // Die DB gibt jetzt immer 'pending_accept' zurück, der Accept-Screen
+      // leitet nach beidseitiger Bestätigung weiter.
     } catch (error) {
       if (statusRef.current === 'searching') {
         const msg = error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.';
@@ -326,6 +335,14 @@ export default function Matchmaking() {
       setStatus('idle');
       setSelectedApp(null);
       setElapsedSeconds(0);
+      // Abbruch-Zähler erhöhen und ggf. Cooldown setzen
+      const newCount = cancelCount24h + 1;
+      setCancelCount24h(newCount);
+      if (newCount >= 3) {
+        // Ab dem 3. Abbruch: 20 Sekunden Cooldown
+        setCooldownSeconds(20);
+        showToast(`3. Abbruch — du hast einen Cooldown von 20 Sekunden erhalten.`, 'warning');
+      }
       await fetchQueueCounts();
     }
   };
@@ -342,20 +359,38 @@ export default function Matchmaking() {
       userIdRef.current = uid;
       if (isMounted) setUserId(uid);
 
-      // Aktives Match prüfen: läuft noch ein pending_result oder awaiting_confirmation?
+      // Aktives Match prüfen: pending_accept, pending_result oder awaiting_confirmation?
       const { data: activeMatch } = await supabase
         .from('active_matches')
-        .select('id, status')
+        .select('id, status, accept_deadline')
         .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
-        .in('status', ['pending_result', 'awaiting_confirmation'])
+        .in('status', ['pending_accept', 'pending_result', 'awaiting_confirmation'])
         .maybeSingle();
 
       if (!isMounted) return;
 
       if (activeMatch?.id) {
-        // Spieler hat noch ein offenes Match → direkt in den Matchroom
-        router.replace(`/result?matchId=${activeMatch.id}`);
-        return;
+        if (activeMatch.status === 'pending_accept') {
+          // Accept-Screen wiederherstellen (z.B. nach Seiten-Reload)
+          const deadline = activeMatch.accept_deadline as string | null;
+          const remaining = deadline
+            ? Math.max(0, Math.round((new Date(deadline).getTime() - Date.now()) / 1000))
+            : 0;
+          if (remaining > 0) {
+            setAcceptMatchId(activeMatch.id);
+            setIHaveAccepted(false);
+            setOpponentAccepted(false);
+            setStatus('accepting');
+            setPageLoading(false);
+            startAcceptCountdown(activeMatch.id, deadline ?? undefined);
+            return;
+          }
+          // Deadline abgelaufen → als normal behandeln
+        } else {
+          // Spieler hat noch ein offenes Match → direkt in den Matchroom
+          router.replace(`/result?matchId=${activeMatch.id}`);
+          return;
+        }
       }
 
       const { data: profileData } = await supabase
@@ -538,6 +573,23 @@ export default function Matchmaking() {
         )}
       </nav>
 
+      {/* Toast-Benachrichtigung */}
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 flex items-center gap-3 rounded-2xl border px-5 py-3.5 shadow-2xl backdrop-blur-xl transition-all ${
+          toast.type === 'warning'
+            ? 'border-amber-400/30 bg-amber-500/15 text-amber-100'
+            : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+        }`}>
+          <AlertTriangle className={`h-4 w-4 shrink-0 ${
+            toast.type === 'warning' ? 'text-amber-300' : 'text-emerald-300'
+          }`} />
+          <span className="text-sm font-bold">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-2 text-zinc-500 hover:text-white">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <section className="relative z-10 mx-auto grid max-w-7xl items-start gap-8 px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32 lg:min-h-[calc(100vh-88px)] lg:items-center lg:gap-10 lg:grid-cols-[0.92fr_1.08fr]">
 
         {/* Linke Spalte: Info */}
@@ -548,6 +600,17 @@ export default function Matchmaking() {
           </div>
           <h1 className="mt-6 text-4xl font-black leading-[0.88] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Finde dein nächstes Match.</h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Wähle deine Dart-App und tritt der passenden Queue bei. Du wirst nur mit Spielern gematcht, die dieselbe App nutzen.</p>
+
+          {/* Abbruch-Zähler-Hinweis */}
+          {cancelCount24h > 0 && cancelCount24h < 3 && (
+            <div className="mt-5 flex items-center gap-2.5 rounded-2xl border border-zinc-700/50 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-400">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+              <span>
+                {cancelCount24h}/3 Abbrüche heute
+                {cancelCount24h === 2 && <span className="ml-1 font-bold text-amber-300"> — nächster Abbruch gibt 20 Sek. Cooldown</span>}
+              </span>
+            </div>
+          )}
 
           {phoneVerified === false && (
             <div className="mt-8 rounded-[1.7rem] border border-amber-300/20 bg-amber-400/[0.08] p-5 text-sm leading-6 text-amber-100 backdrop-blur-xl">
@@ -772,12 +835,9 @@ export default function Matchmaking() {
                   <h2 className="mt-7 text-4xl font-black tracking-[-0.05em]">Cooldown aktiv</h2>
                   <div className="mt-4 rounded-3xl border border-amber-400/20 bg-amber-500/10 p-6">
                     <div className="text-5xl font-black tracking-[-0.05em] text-amber-300">{formatCooldown(cooldownSeconds)}</div>
-                    <p className="mt-2 text-sm text-zinc-400">Bitte warte bevor du wieder eine Queue betrittst.</p>
-                    {cancelCount24h >= 2 && (
-                      <p className="mt-3 text-xs text-amber-400/70">{cancelCount24h}. Abbruch heute — Cooldown eskaliert bei weiteren Abbrüchen.</p>
-                    )}
+                    <p className="mt-2 text-sm text-zinc-400">Du hast die Queue zu oft verlassen. Bitte kurz warten.</p>
+                    <p className="mt-3 text-xs text-amber-400/70">{cancelCount24h}. Abbruch heute — ab dem 3. Abbruch gibt es 20 Sek. Cooldown.</p>
                   </div>
-                  <p className="mt-4 text-xs text-zinc-600">Cooldowns schützen die Queue vor Spam und sorgen für faire Matches.</p>
                 </>
               ) : (
                 <>

@@ -306,6 +306,30 @@ export default function MatchResult() {
         setPageLoading(false);
         return;
       }
+      // Plattform-Usernamen aus Profilen nachladen falls nicht direkt in active_matches
+      if (!m.player1_scolia_username && !m.player1_dartcounter_username) {
+        const { data: p1Profile } = await supabase
+          .from('profiles')
+          .select('scolia_username, dartcounter_username')
+          .eq('supabaseId', m.player1_id)
+          .single();
+        if (p1Profile) {
+          m.player1_scolia_username = p1Profile.scolia_username ?? null;
+          m.player1_dartcounter_username = p1Profile.dartcounter_username ?? null;
+        }
+      }
+      if (!m.player2_scolia_username && !m.player2_dartcounter_username) {
+        const { data: p2Profile } = await supabase
+          .from('profiles')
+          .select('scolia_username, dartcounter_username')
+          .eq('supabaseId', m.player2_id)
+          .single();
+        if (p2Profile) {
+          m.player2_scolia_username = p2Profile.scolia_username ?? null;
+          m.player2_dartcounter_username = p2Profile.dartcounter_username ?? null;
+        }
+      }
+
       setMatch(m);
       if (adminFlag && m.player1_id) setAdminWinnerId(m.player1_id);
       if (m.status === 'awaiting_confirmation' && m.confirmation_requested_at) {
@@ -341,8 +365,25 @@ export default function MatchResult() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'active_matches', filter: `id=eq.${matchId}` },
         (payload) => {
-          const updated = payload.new as ActiveMatch;
+          const updated = payload.new as ActiveMatch & {
+            no_show_reported_by?: string | null;
+            no_show_reported_at?: string | null;
+            no_show_resolved?: boolean;
+          };
           setMatch(updated);
+
+          // Bug 2 Fix: No-Show-State aus Realtime-Payload synchronisieren
+          if (updated.no_show_reported_at && !updated.no_show_resolved) {
+            setNoShowReportedAt(updated.no_show_reported_at);
+            setNoShowReportedBy(updated.no_show_reported_by ?? null);
+            startNoShowCountdown(updated.no_show_reported_at, updated.id);
+          }
+          if (updated.no_show_resolved) {
+            setNoShowResolved(true);
+            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
+            setNoShowCountdown(null);
+          }
+
           if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at && currentUserId) {
             const submitter = updated.submitted_by === currentUserId;
             autoConfirmCalledRef.current = false;
@@ -359,7 +400,9 @@ export default function MatchResult() {
           if (updated.status === 'cancelled') {
             if (countdownRef.current) clearInterval(countdownRef.current);
             setCountdown(null);
-            setInfoMessage('Dieses Match wurde durch einen Administrator abgebrochen.');
+            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
+            setNoShowCountdown(null);
+            setInfoMessage('Dieses Match wurde abgebrochen.');
           }
         }
       )
@@ -797,8 +840,37 @@ export default function MatchResult() {
                   <p className="mt-0.5 text-xs text-zinc-500">
                     {noShowReportedBy === currentUserId
                       ? 'Wenn der Gegner nicht reagiert, wird das Match automatisch abgebrochen.'
-                      : 'Reagiere jetzt — starte das Match oder schreib im Chat!'}
+                      : 'Drücke den Button um zu bestätigen dass du da bist!'}
                   </p>
+                  {/* Bug 3 Fix: 'Ich bin da'-Button für den gemeldeten User */}
+                  {noShowReportedBy !== currentUserId && (
+                    <button
+                      onClick={async () => {
+                        if (!match) return;
+                        setNoShowLoading(true);
+                        try {
+                          const { data } = await supabase.rpc('cancel_no_show', { p_match_id: match.id });
+                          const r = data as { status: string } | null;
+                          if (r?.status === 'cancelled') {
+                            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
+                            setNoShowReportedAt(null);
+                            setNoShowReportedBy(null);
+                            setNoShowCountdown(null);
+                            setNoShowMessage('');
+                          }
+                        } catch (err) {
+                          console.error('cancel_no_show fehlgeschlagen:', err);
+                        } finally {
+                          setNoShowLoading(false);
+                        }
+                      }}
+                      disabled={noShowLoading}
+                      className="mt-3 flex items-center gap-2 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 text-xs font-black text-emerald-200 transition hover:bg-emerald-400/15 disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {noShowLoading ? 'Wird bestätigt…' : 'Ich bin da!'}
+                    </button>
+                  )}
                 </div>
                 {noShowCountdown !== null && (
                   <div className={`shrink-0 rounded-2xl border px-4 py-2 text-center ${
