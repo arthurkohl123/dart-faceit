@@ -306,28 +306,18 @@ export default function MatchResult() {
         setPageLoading(false);
         return;
       }
-      // Plattform-Usernamen aus Profilen nachladen falls nicht direkt in active_matches
-      if (!m.player1_scolia_username && !m.player1_dartcounter_username) {
-        const { data: p1Profile } = await supabase
-          .from('profiles')
-          .select('scolia_username, dartcounter_username')
-          .eq('supabaseId', m.player1_id)
-          .single();
-        if (p1Profile) {
-          m.player1_scolia_username = p1Profile.scolia_username ?? null;
-          m.player1_dartcounter_username = p1Profile.dartcounter_username ?? null;
-        }
+      // Plattform-Usernamen immer aus Profilen laden (active_matches hat diese Felder ggf. nicht)
+      const [{ data: p1Profile }, { data: p2Profile }] = await Promise.all([
+        supabase.from('profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player1_id).single(),
+        supabase.from('profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player2_id).single(),
+      ]);
+      if (p1Profile) {
+        m.player1_scolia_username = p1Profile.scolia_username ?? null;
+        m.player1_dartcounter_username = p1Profile.dartcounter_username ?? null;
       }
-      if (!m.player2_scolia_username && !m.player2_dartcounter_username) {
-        const { data: p2Profile } = await supabase
-          .from('profiles')
-          .select('scolia_username, dartcounter_username')
-          .eq('supabaseId', m.player2_id)
-          .single();
-        if (p2Profile) {
-          m.player2_scolia_username = p2Profile.scolia_username ?? null;
-          m.player2_dartcounter_username = p2Profile.dartcounter_username ?? null;
-        }
+      if (p2Profile) {
+        m.player2_scolia_username = p2Profile.scolia_username ?? null;
+        m.player2_dartcounter_username = p2Profile.dartcounter_username ?? null;
       }
 
       setMatch(m);
@@ -372,13 +362,24 @@ export default function MatchResult() {
           };
           setMatch(updated);
 
-          // Bug 2 Fix: No-Show-State aus Realtime-Payload synchronisieren
+          // No-Show-State aus Realtime-Payload synchronisieren
           if (updated.no_show_reported_at && !updated.no_show_resolved) {
+            // No-Show wurde gemeldet (oder ist noch aktiv)
+            noShowResolveCalledRef.current = false;
             setNoShowReportedAt(updated.no_show_reported_at);
             setNoShowReportedBy(updated.no_show_reported_by ?? null);
             startNoShowCountdown(updated.no_show_reported_at, updated.id);
+          } else if (!updated.no_show_reported_at && !updated.no_show_resolved) {
+            // No-Show wurde zurückgezogen (cancel_no_show) → Banner für beide ausblenden
+            if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
+            setNoShowReportedAt(null);
+            setNoShowReportedBy(null);
+            setNoShowCountdown(null);
+            setNoShowResolved(false);
+            noShowResolveCalledRef.current = false;
           }
           if (updated.no_show_resolved) {
+            // No-Show wurde aufgelöst (Match abgebrochen, Sperre vergeben)
             setNoShowResolved(true);
             if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
             setNoShowCountdown(null);
@@ -412,7 +413,7 @@ export default function MatchResult() {
       void supabase.removeChannel(channel);
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [router, startCountdown, supabase]);
+  }, [router, startCountdown, startNoShowCountdown, supabase]);
 
   // ── Screenshot ───────────────────────────────────────────────────────────────
 
@@ -690,13 +691,18 @@ export default function MatchResult() {
     try {
       const { data, error } = await supabase.rpc('report_no_show', { p_match_id: match.id });
       if (error) throw error;
-      const result = data as { status: string; message: string } | null;
+      const result = data as { status: string; message: string; deadline?: string } | null;
       if (result?.status === 'reported' || result?.status === 'already_reported') {
-        const now = new Date().toISOString();
-        setNoShowReportedAt(now);
+        // noShowResolveCalledRef zurücksetzen damit resolve beim nächsten Ablauf funktioniert
+        noShowResolveCalledRef.current = false;
+        // reported_at aus der DB-Antwort nehmen (nicht lokale Zeit) damit Timer synchron ist
+        const reportedAt = result.deadline
+          ? new Date(new Date(result.deadline).getTime() - 5 * 60 * 1000).toISOString()
+          : new Date().toISOString();
+        setNoShowReportedAt(reportedAt);
         setNoShowReportedBy(currentUserId);
         setNoShowMessage('Gegner wurde gemeldet. Er hat 5 Minuten Zeit zu reagieren.');
-        startNoShowCountdown(now, match.id);
+        startNoShowCountdown(reportedAt, match.id);
       } else {
         setNoShowMessage(result?.message || 'Fehler beim Melden.');
       }
