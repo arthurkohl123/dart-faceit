@@ -15,6 +15,7 @@ import {
   Target,
   Trophy,
   Upload,
+  UserX,
   X,
   XCircle,
 } from 'lucide-react';
@@ -44,6 +45,11 @@ type ActiveMatch = {
   dispute_reason: string | null;
   dispute_screenshot_url: string | null;
   confirmation_requested_at: string | null;
+  app: string | null;
+  player1_scolia_username: string | null;
+  player1_dartcounter_username: string | null;
+  player2_scolia_username: string | null;
+  player2_dartcounter_username: string | null;
 };
 
 type RpcStatusResponse = {
@@ -65,6 +71,7 @@ type ChatMessage = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CONFIRM_TIMEOUT_SECONDS = 300;
+const NO_SHOW_TIMEOUT_SECONDS = 300; // 5 Minuten
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -72,6 +79,10 @@ function formatCountdown(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatChatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -174,6 +185,16 @@ export default function MatchResult() {
   const [chatSending, setChatSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // No-Show state
+  const [noShowReportedAt, setNoShowReportedAt] = useState<string | null>(null);
+  const [noShowReportedBy, setNoShowReportedBy] = useState<string | null>(null);
+  const [noShowCountdown, setNoShowCountdown] = useState<number | null>(null);
+  const [noShowResolved, setNoShowResolved] = useState(false);
+  const [noShowLoading, setNoShowLoading] = useState(false);
+  const [noShowMessage, setNoShowMessage] = useState('');
+  const noShowCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const noShowResolveCalledRef = useRef(false);
+
   // Admin state
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminWinnerId, setAdminWinnerId] = useState('');
@@ -182,6 +203,7 @@ export default function MatchResult() {
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
+  const noShowIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -586,6 +608,85 @@ export default function MatchResult() {
     }
   };
 
+  // ── No-Show ──────────────────────────────────────────────────────────────────────────────
+
+  const startNoShowCountdown = useCallback((reportedAt: string, matchId: string) => {
+    if (noShowCountdownRef.current) clearInterval(noShowCountdownRef.current);
+    const calcRemaining = () => {
+      const elapsed = Math.floor((Date.now() - new Date(reportedAt).getTime()) / 1000);
+      return Math.max(0, NO_SHOW_TIMEOUT_SECONDS - elapsed);
+    };
+    setNoShowCountdown(calcRemaining());
+    noShowCountdownRef.current = setInterval(async () => {
+      const remaining = calcRemaining();
+      setNoShowCountdown(remaining);
+      if (remaining <= 0 && !noShowResolveCalledRef.current) {
+        noShowResolveCalledRef.current = true;
+        clearInterval(noShowCountdownRef.current!);
+        try {
+          const { data } = await supabase.rpc('resolve_no_show', { p_match_id: matchId });
+          const result = data as { status: string; message: string } | null;
+          if (result?.status === 'resolved') {
+            setNoShowMessage('Gegner nicht erschienen. Match wurde abgebrochen und Sperre vergeben.');
+            setNoShowResolved(true);
+          } else if (result?.status === 'not_expired') {
+            noShowResolveCalledRef.current = false;
+          }
+        } catch (err) {
+          console.error('resolve_no_show fehlgeschlagen:', err);
+          noShowResolveCalledRef.current = false;
+        }
+      }
+    }, 1000);
+  }, [supabase]);
+
+  const reportNoShow = async () => {
+    if (!match || noShowLoading) return;
+    setNoShowLoading(true);
+    setNoShowMessage('');
+    try {
+      const { data, error } = await supabase.rpc('report_no_show', { p_match_id: match.id });
+      if (error) throw error;
+      const result = data as { status: string; message: string } | null;
+      if (result?.status === 'reported' || result?.status === 'already_reported') {
+        const now = new Date().toISOString();
+        setNoShowReportedAt(now);
+        setNoShowReportedBy(currentUserId);
+        setNoShowMessage('Gegner wurde gemeldet. Er hat 5 Minuten Zeit zu reagieren.');
+        startNoShowCountdown(now, match.id);
+      } else {
+        setNoShowMessage(result?.message || 'Fehler beim Melden.');
+      }
+    } catch (err) {
+      setNoShowMessage(err instanceof Error ? err.message : 'Fehler beim Melden.');
+    } finally {
+      setNoShowLoading(false);
+    }
+  };
+
+  // No-Show-Status beim Match-Load initialisieren (falls bereits gemeldet)
+  useEffect(() => {
+    if (!match?.id) return;
+    const checkNoShowStatus = async () => {
+      const { data } = await supabase.rpc('get_no_show_status', { p_match_id: match.id });
+      const s = data as {
+        reported: boolean;
+        reported_by: string | null;
+        reported_at: string | null;
+        resolved: boolean;
+        remaining_seconds: number | null;
+      } | null;
+      if (!s || !s.reported) return;
+      setNoShowReportedAt(s.reported_at);
+      setNoShowReportedBy(s.reported_by);
+      setNoShowResolved(s.resolved);
+      if (!s.resolved && s.reported_at && (s.remaining_seconds ?? 0) > 0) {
+        startNoShowCountdown(s.reported_at, match.id);
+      }
+    };
+    void checkNoShowStatus();
+  }, [match?.id, supabase, startNoShowCountdown]);
+
   // ── Loading screen ────────────────────────────────────────────────────────────
 
   if (pageLoading) {
@@ -670,31 +771,117 @@ export default function MatchResult() {
 
       <section className="relative z-10 mx-auto max-w-2xl px-4 pb-12 pt-24 sm:px-5 md:px-8 md:pt-28">
 
-        {/* Match-Header — VS-Banner */}
-        {match && (
-          <div className="mb-8 overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/80 backdrop-blur-xl">
-            <div className="flex items-stretch">
-              <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 py-6">
-                <span className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300/70">Du</span>
-                <span className="text-2xl font-black tracking-[-0.04em]">
-                  {iAmPlayer1 ? match.player1_username : match.player2_username}
-                </span>
-                <span className="text-sm font-bold text-zinc-500">
-                  {iAmPlayer1 ? match.player1_elo : match.player2_elo} Elo
-                </span>
+        {/* ════════════════════════════════════════════════════════════
+            NO-SHOW BANNER
+        ════════════════════════════════════════════════════════════ */}
+        {match && match.status === 'pending_result' && !noShowResolved && (
+          <div className="mb-6">
+            {noShowReportedAt ? (
+              /* Timer läuft bereits */
+              <div className={`flex items-center gap-4 rounded-3xl border p-5 transition-colors ${
+                (noShowCountdown ?? 999) <= 60
+                  ? 'border-red-400/40 bg-red-500/10'
+                  : 'border-orange-400/25 bg-orange-400/[0.07]'
+              }`}>
+                <UserX className={`h-6 w-6 shrink-0 ${
+                  (noShowCountdown ?? 999) <= 60 ? 'text-red-300' : 'text-orange-300'
+                }`} />
+                <div className="flex-1">
+                  <p className={`text-sm font-black ${
+                    (noShowCountdown ?? 999) <= 60 ? 'text-red-200' : 'text-orange-200'
+                  }`}>
+                    {noShowReportedBy === currentUserId
+                      ? 'Du hast den Gegner als nicht erschienen gemeldet.'
+                      : `${opponentUsername} hat dich als nicht erschienen gemeldet.`}
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    {noShowReportedBy === currentUserId
+                      ? 'Wenn der Gegner nicht reagiert, wird das Match automatisch abgebrochen.'
+                      : 'Reagiere jetzt — starte das Match oder schreib im Chat!'}
+                  </p>
+                </div>
+                {noShowCountdown !== null && (
+                  <div className={`shrink-0 rounded-2xl border px-4 py-2 text-center ${
+                    (noShowCountdown ?? 999) <= 60
+                      ? 'border-red-400/30 bg-red-500/10'
+                      : 'border-orange-400/20 bg-orange-400/[0.07]'
+                  }`}>
+                    <div className={`text-2xl font-black tracking-[-0.04em] ${
+                      (noShowCountdown ?? 999) <= 60 ? 'text-red-300' : 'text-orange-300'
+                    }`}>{formatCountdown(noShowCountdown)}</div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600">verbleibend</div>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col items-center justify-center border-x border-white/10 px-6">
-                <Target className="h-6 w-6 text-zinc-600" />
-                <span className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-zinc-600">vs</span>
-              </div>
-              <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 py-6">
-                <span className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-300/70">Gegner</span>
-                <span className="text-2xl font-black tracking-[-0.04em]">{opponentUsername}</span>
-                <span className="text-sm font-bold text-zinc-500">{opponentElo} Elo</span>
-              </div>
-            </div>
+            ) : (
+              /* Button: Gegner erscheint nicht */
+              <button
+                onClick={() => void reportNoShow()}
+                disabled={noShowLoading}
+                className="group flex w-full items-center justify-center gap-3 rounded-3xl border border-orange-400/25 bg-orange-400/[0.06] px-6 py-4 text-sm font-black text-orange-200 transition hover:border-orange-400/40 hover:bg-orange-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <UserX className="h-5 w-5 shrink-0 transition group-hover:scale-110" />
+                {noShowLoading ? 'Wird gemeldet…' : 'Gegner erscheint nicht'}
+              </button>
+            )}
+            {noShowMessage && (
+              <p className="mt-2 text-center text-xs font-bold text-orange-300">{noShowMessage}</p>
+            )}
           </div>
         )}
+
+        {/* Match-Header — VS-Banner */}
+        {match && (() => {
+          const isScolia = match.app === 'scolia';
+          const myPlatformUsername = iAmPlayer1
+            ? (isScolia ? match.player1_scolia_username : match.player1_dartcounter_username)
+            : (isScolia ? match.player2_scolia_username : match.player2_dartcounter_username);
+          const oppPlatformUsername = iAmPlayer1
+            ? (isScolia ? match.player2_scolia_username : match.player2_dartcounter_username)
+            : (isScolia ? match.player1_scolia_username : match.player1_dartcounter_username);
+          const platformLabel = isScolia ? 'Scolia' : 'DartCounter';
+          const platformColor = isScolia ? 'text-emerald-300' : 'text-cyan-300';
+          const platformBorder = isScolia ? 'border-emerald-300/20 bg-emerald-400/[0.06]' : 'border-cyan-300/20 bg-cyan-400/[0.06]';
+
+          return (
+            <div className="mb-8 overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/80 backdrop-blur-xl">
+              <div className="flex items-stretch">
+                <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 py-6">
+                  <span className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300/70">Du</span>
+                  <span className="text-2xl font-black tracking-[-0.04em]">
+                    {iAmPlayer1 ? match.player1_username : match.player2_username}
+                  </span>
+                  <span className="text-sm font-bold text-zinc-500">
+                    {iAmPlayer1 ? match.player1_elo : match.player2_elo} Elo
+                  </span>
+                  {myPlatformUsername && (
+                    <span className={`mt-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${platformBorder} ${platformColor}`}>
+                      {platformLabel}: {myPlatformUsername}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col items-center justify-center border-x border-white/10 px-6">
+                  <Target className="h-6 w-6 text-zinc-600" />
+                  <span className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-zinc-600">vs</span>
+                </div>
+                <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 py-6">
+                  <span className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-300/70">Gegner</span>
+                  <span className="text-2xl font-black tracking-[-0.04em]">{opponentUsername}</span>
+                  <span className="text-sm font-bold text-zinc-500">{opponentElo} Elo</span>
+                  {oppPlatformUsername ? (
+                    <span className={`mt-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${platformBorder} ${platformColor}`}>
+                      {platformLabel}: {oppPlatformUsername}
+                    </span>
+                  ) : (
+                    <span className="mt-1 rounded-full border border-zinc-700/40 bg-zinc-800/40 px-2.5 py-0.5 text-[11px] font-bold text-zinc-600">
+                      {platformLabel}: nicht hinterlegt
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Countdown-Banner */}
         {countdown !== null && match?.status === 'awaiting_confirmation' && (
@@ -1101,10 +1288,11 @@ export default function MatchResult() {
                         isAdminMsg ? 'items-center' : isMe ? 'items-end' : 'items-start'
                       }`}
                     >
-                      <span className={`px-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                      <span className={`flex items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-[0.18em] ${
                         isAdminMsg ? 'text-red-400' : 'text-zinc-600'
                       }`}>
                         {isAdminMsg ? '⚖ Admin' : isMe ? 'Du' : msg.username}
+                        <span className="font-normal normal-case tracking-normal text-zinc-700">{formatChatTime(msg.created_at)}</span>
                       </span>
                       <div
                         className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm font-semibold leading-relaxed ${
