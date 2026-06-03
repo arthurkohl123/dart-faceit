@@ -12,7 +12,6 @@ import {
   Menu,
   Minus,
   Swords,
-  Target,
   TrendingDown,
   TrendingUp,
   Trophy,
@@ -206,14 +205,6 @@ function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
             <span className="text-xs text-zinc-600">Average:</span>
             <span className={`text-sm font-black ${match.my_average != null ? 'text-white' : 'text-zinc-600'}`}>
               {match.my_average != null ? Number(match.my_average).toFixed(1) : '—'}
-            </span>
-          </div>
-          <div className="h-3 w-px bg-white/10" />
-          <div className="flex items-center gap-2">
-            <Target size={13} className="text-zinc-600" />
-            <span className="text-xs text-zinc-600">Checkout:</span>
-            <span className={`text-sm font-black ${match.highest_checkout != null ? 'text-white' : 'text-zinc-600'}`}>
-              {match.highest_checkout ?? '—'}
             </span>
           </div>
           {match.one_eighties != null && match.one_eighties > 0 && (
