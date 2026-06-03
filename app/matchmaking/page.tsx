@@ -476,7 +476,7 @@ export default function Matchmaking() {
               <div className="mx-auto mb-8 grid h-24 w-24 place-items-center rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_45px_rgba(34,197,94,0.18)]">
                 <Radar className="h-12 w-12" />
               </div>
-              <h2 className="text-center text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für die Oche?</h2>
+              <h2 className="text-center text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für das Oche?</h2>
               <p className="mx-auto mt-3 max-w-xl text-center text-zinc-400">Wähle zuerst deine Dart-App, um in die passende Queue einzutreten.</p>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -488,7 +488,6 @@ export default function Matchmaking() {
                       onClick={() => void startSearch(app)}
                       className={`group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-6 text-left transition-all duration-300 ${c.borderHover} hover:scale-[1.02]`}
                     >
-                      <div className="text-4xl mb-3">{c.icon}</div>
                       <div className="text-xl font-black tracking-[-0.03em]">{c.label}</div>
                       <div className={`mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${c.badge}`}>
                         <span className={`h-2 w-2 rounded-full ${c.dot}`} />
@@ -557,7 +556,7 @@ export default function Matchmaking() {
               <h2 className="mt-8 text-4xl font-black tracking-[-0.05em]">Gegner gefunden</h2>
               <div className="mt-6 rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.07] p-6">
                 <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold mb-4 ${cfg.badge}`}>
-                  {appConfig[selectedApp].icon} {appConfig[selectedApp].label}
+                  {appConfig[selectedApp].label}
                 </div>
                 <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Dein Match</div>
                 <div className="mt-3 text-4xl font-black tracking-[-0.05em]">{opponent.username}</div>
