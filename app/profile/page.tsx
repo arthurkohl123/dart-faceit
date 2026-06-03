@@ -7,13 +7,13 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, Headphones, Menu, Pencil, Save, X, XCircle } from 'lucide-react';
 
 const rankTiers = [
-  { name: 'Eisen',   min: 0,    color: 'text-zinc-300',    accent: 'from-zinc-400/20 to-zinc-950',    badge: 'EI' },
-  { name: 'Bronze',  min: 1000, color: 'text-amber-300',   accent: 'from-amber-500/20 to-zinc-950',   badge: 'BR' },
-  { name: 'Silber',  min: 1250, color: 'text-slate-200',   accent: 'from-slate-300/20 to-zinc-950',   badge: 'SI' },
-  { name: 'Gold',    min: 1500, color: 'text-yellow-200',  accent: 'from-yellow-300/20 to-zinc-950',  badge: 'GO' },
-  { name: 'Platin',  min: 1750, color: 'text-cyan-200',    accent: 'from-cyan-300/20 to-zinc-950',    badge: 'PL' },
-  { name: 'Diamant', min: 2000, color: 'text-blue-200',    accent: 'from-blue-300/20 to-zinc-950',    badge: 'DI' },
-  { name: 'Legende', min: 2500, color: 'text-emerald-200', accent: 'from-emerald-300/25 to-zinc-950', badge: 'LG' },
+  { name: 'Eisen',   min: 0,    color: 'text-zinc-300',    accent: 'from-zinc-400/20 to-zinc-950',    ringColor: 'border-zinc-400/40',   glowColor: 'rgba(161,161,170,0.18)' },
+  { name: 'Bronze',  min: 1000, color: 'text-amber-300',   accent: 'from-amber-500/20 to-zinc-950',   ringColor: 'border-amber-400/40',  glowColor: 'rgba(251,191,36,0.18)' },
+  { name: 'Silber',  min: 1250, color: 'text-slate-200',   accent: 'from-slate-300/20 to-zinc-950',   ringColor: 'border-slate-300/40',  glowColor: 'rgba(203,213,225,0.18)' },
+  { name: 'Gold',    min: 1500, color: 'text-yellow-200',  accent: 'from-yellow-300/20 to-zinc-950',  ringColor: 'border-yellow-300/40', glowColor: 'rgba(253,224,71,0.18)' },
+  { name: 'Platin',  min: 1750, color: 'text-cyan-200',    accent: 'from-cyan-300/20 to-zinc-950',    ringColor: 'border-cyan-300/40',   glowColor: 'rgba(103,232,249,0.18)' },
+  { name: 'Diamant', min: 2000, color: 'text-blue-200',    accent: 'from-blue-300/20 to-zinc-950',    ringColor: 'border-blue-300/40',   glowColor: 'rgba(147,197,253,0.18)' },
+  { name: 'Legende', min: 2500, color: 'text-emerald-200', accent: 'from-emerald-300/25 to-zinc-950', ringColor: 'border-emerald-300/40',glowColor: 'rgba(110,231,183,0.22)' },
 ];
 
 type MatchData = {
@@ -197,123 +197,157 @@ export default function Profile() {
       </nav>
 
       <section className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
-        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
-          {/* Profil-Karte */}
-          <div className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} p-6 shadow-2xl shadow-black/50 sm:p-8 md:p-10`}>
-            <div className="absolute right-5 top-5 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200 sm:right-8 sm:top-8 sm:px-4 sm:py-2 sm:text-xs">Aktives Profil</div>
-            <div className="grid h-20 w-20 place-items-center rounded-[1.75rem] border border-white/10 bg-black/35 text-2xl font-black text-emerald-200 shadow-[0_0_40px_rgba(34,197,94,0.16)] sm:h-24 sm:w-24 sm:text-3xl">{currentRank.badge}</div>
-            <h1 className="mt-5 text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">{profile?.username || 'Spieler'}</h1>
-            <div className={`mt-2 text-2xl font-black tracking-[-0.05em] sm:text-3xl sm:mt-3 ${currentRank.color}`}>{currentRank.name}</div>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base sm:leading-8">Dein aktueller RankedDarts-Status. Starte neue Matches, bestätige Ergebnisse und arbeite dich in Richtung der nächsten Division.</p>
-          </div>
 
-          {/* Stats-Karten */}
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7">
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Aktuelles Rating</div>
-              <div className="mt-3 text-5xl font-black tracking-[-0.08em] sm:text-6xl lg:text-7xl">{elo}</div>
-              <div className="mt-1 text-sm text-zinc-400">Elo Punkte</div>
+        {/* ── Hero-Profil-Banner ──────────────────────────────────────────── */}
+        <div className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} p-7 shadow-2xl shadow-black/60 sm:p-10 md:p-12`}>
+          {/* Hintergrund-Glow */}
+          <div
+            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full blur-3xl opacity-30"
+            style={{ background: `radial-gradient(circle, ${currentRank.glowColor}, transparent 70%)` }}
+          />
+
+          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
+            {/* Avatar-Ring */}
+            <div
+              className={`relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.6rem] border-2 bg-black/40 shadow-lg sm:h-24 sm:w-24 ${currentRank.ringColor}`}
+              style={{ boxShadow: `0 0 32px ${currentRank.glowColor}` }}
+            >
+              <span className="text-3xl font-black text-white sm:text-4xl">
+                {(profile?.username ?? 'S').charAt(0).toUpperCase()}
+              </span>
             </div>
-            <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7">
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Winrate</div>
-              <div className="mt-3 text-5xl font-black tracking-[-0.08em] sm:text-6xl lg:text-7xl">{winrate}%</div>
-              <div className="mt-1 text-sm text-zinc-400">{wins} Siege aus {gamesPlayed} Spielen</div>
-            </div>
-            <div className={`col-span-2 rounded-[1.75rem] border p-5 backdrop-blur-xl sm:p-7 lg:col-span-1 ${phoneVerified ? 'border-emerald-300/20 bg-emerald-400/[0.07]' : 'border-amber-300/20 bg-amber-400/[0.07]'}`}>
-              <div className={`text-xs font-black uppercase tracking-[0.28em] ${phoneVerified ? 'text-emerald-300' : 'text-amber-300'}`}>Verifizierung</div>
-              <div className="mt-3 text-xl font-black tracking-[-0.04em] sm:text-2xl">{phoneStatusText}</div>
-              <div className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
-                {phoneVerified ? 'Dein Account ist für Fair-Play und Ranked vorbereitet.' : 'Bestätige deine Nummer, bevor du vollständig in Ranked startest.'}
+
+            {/* Name + Rang */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-3xl font-black tracking-[-0.06em] sm:text-4xl md:text-5xl lg:text-6xl truncate">
+                  {profile?.username || 'Spieler'}
+                </h1>
+                <span className={`rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.2em] ${currentRank.ringColor} bg-black/30 ${currentRank.color}`}>
+                  {currentRank.name}
+                </span>
               </div>
-              {!phoneVerified && (
-                <Link href={`/auth/verify-phone${profile?.phone_number ? `?phone=${encodeURIComponent(profile.phone_number)}` : ''}`} className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs font-black text-amber-100 transition hover:bg-amber-300/15 sm:text-sm">
-                  Jetzt verifizieren
-                </Link>
-              )}
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-zinc-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-base font-black text-white">{elo}</span>
+                  <span>Elo</span>
+                </span>
+                <span className="h-3.5 w-px bg-white/15" />
+                <span className="flex items-center gap-1.5">
+                  <span className="text-base font-black text-white">{gamesPlayed}</span>
+                  <span>Spiele</span>
+                </span>
+                <span className="h-3.5 w-px bg-white/15" />
+                <span className="flex items-center gap-1.5">
+                  <span className={`text-base font-black ${winrate >= 50 ? 'text-emerald-300' : 'text-zinc-300'}`}>{winrate}%</span>
+                  <span>Winrate</span>
+                </span>
+              </div>
             </div>
+
+            {/* CTA */}
+            <button
+              onClick={() => router.push(phoneVerified ? '/matchmaking' : '/auth/verify-phone')}
+              className="shrink-0 rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_12px_40px_rgba(34,197,94,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_50px_rgba(34,197,94,0.38)] sm:px-8 sm:py-4"
+            >
+              {phoneVerified ? 'Match suchen →' : 'Verifizieren →'}
+            </button>
           </div>
         </div>
 
-        {/* Statistiken + Fortschritt */}
-        <div className="mt-6 grid gap-5 lg:grid-cols-[0.82fr_1.18fr]">
-          <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7 md:p-8">
-            <div className="mb-5 flex items-end justify-between gap-4">
-              <div>
-                <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Statistiken</div>
-                <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Season Snapshot</h2>
+        {/* ── Stats-Grid ──────────────────────────────────────────────────── */}
+        <div className="mt-5 grid gap-4 grid-cols-2 sm:grid-cols-4">
+          <div className="rounded-[1.5rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-emerald-300">Rating</div>
+            <div className="mt-2 text-4xl font-black tracking-[-0.07em] sm:text-5xl">{elo}</div>
+            <div className="mt-1 text-xs text-zinc-500">Elo Punkte</div>
+          </div>
+          <div className="rounded-[1.5rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-cyan-300">Winrate</div>
+            <div className="mt-2 text-4xl font-black tracking-[-0.07em] sm:text-5xl">{winrate}%</div>
+            <div className="mt-1 text-xs text-zinc-500">{wins}W / {losses}L</div>
+          </div>
+          <div className="rounded-[1.5rem] border border-yellow-300/15 bg-yellow-400/[0.05] p-5 backdrop-blur-xl sm:p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-yellow-300">Ø Average</div>
+            <div className="mt-2 text-4xl font-black tracking-[-0.07em] text-yellow-200 sm:text-5xl">
+              {avgAverage > 0 ? avgAverage.toFixed(1) : '—'}
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">Alle Matches</div>
+          </div>
+          <div className="rounded-[1.5rem] border border-red-300/15 bg-red-400/[0.05] p-5 backdrop-blur-xl sm:p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-red-300">180er</div>
+            <div className="mt-2 text-4xl font-black tracking-[-0.07em] text-red-200 sm:text-5xl">{total180s}</div>
+            <div className="mt-1 text-xs text-zinc-500">Gesamt</div>
+          </div>
+        </div>
+
+        {/* ── Fortschritt + Verifizierung ─────────────────────────────────── */}
+        <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
+          {/* Rang-Fortschritt */}
+          <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-8">
+            <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Nächster Rang</div>
+            <div className="mt-2 flex items-baseline justify-between gap-4">
+              <h2 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">Fortschritt zu <span className={nextRank.color}>{nextRank.name}</span></h2>
+              <span className="text-2xl font-black text-emerald-300">{Math.round(progress)}%</span>
+            </div>
+
+            <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/10 sm:h-3">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-all duration-700"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm">
+                <span className="block text-lg font-black text-white sm:text-xl">{currentRank.min}</span>
+                <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${currentRank.color}`}>{currentRank.name}</span>
+              </div>
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-center text-xs text-zinc-400 sm:p-4 sm:text-sm">
+                <span className="block text-lg font-black text-emerald-300 sm:text-xl">{elo}</span>
+                <span>Aktuell</span>
+              </div>
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-right text-xs text-zinc-400 sm:p-4 sm:text-sm">
+                <span className="block text-lg font-black text-white sm:text-xl">{nextRank.min}</span>
+                <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${nextRank.color}`}>{nextRank.name}</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-                <div className="text-3xl font-black sm:text-4xl">{gamesPlayed}</div>
-                <div className="mt-1.5 text-xs text-zinc-400 sm:text-sm">Spiele</div>
-              </div>
-              <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/[0.07] p-4 sm:p-5">
-                <div className="text-3xl font-black text-emerald-300 sm:text-4xl">{wins}</div>
-                <div className="mt-1.5 text-xs text-zinc-400 sm:text-sm">Siege</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-                <div className="text-3xl font-black text-zinc-300 sm:text-4xl">{losses}</div>
-                <div className="mt-1.5 text-xs text-zinc-400 sm:text-sm">Niederlagen</div>
-              </div>
-            </div>
-
-            {/* Performance-Stats: Average & 180er */}
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-yellow-300/20 bg-yellow-400/[0.06] p-4 sm:p-5">
-                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-yellow-300 mb-1">Ø Average</div>
-                <div className="text-2xl font-black text-yellow-200 sm:text-3xl">
-                  {avgAverage > 0 ? avgAverage.toFixed(2) : '—'}
-                </div>
-                <div className="mt-1 text-xs text-zinc-500">Durchschnitt über alle Matches</div>
-              </div>
-              <div className="rounded-2xl border border-red-300/20 bg-red-400/[0.06] p-4 sm:p-5">
-                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-red-300 mb-1">180er</div>
-                <div className="text-2xl font-black text-red-200 sm:text-3xl">{total180s}</div>
-                <div className="mt-1 text-xs text-zinc-500">Gesamt geworfene 180er</div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => router.push(phoneVerified ? '/matchmaking' : '/auth/verify-phone')}
-              className="mt-6 w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.22)] transition hover:-translate-y-1 sm:py-5"
-            >
-              {phoneVerified ? 'Match suchen' : 'Telefon verifizieren'}
-            </button>
+            {eloToNext > 0 && (
+              <p className="mt-4 text-sm text-zinc-500">
+                Noch <span className="font-black text-white">{eloToNext} Elo</span> bis {nextRank.name}.
+              </p>
+            )}
           </section>
 
-          <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7 md:p-8">
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Nächster Rang</div>
-                <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Fortschritt zu {nextRank.name}</h2>
-              </div>
-              <div className="grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-base font-black text-emerald-200 sm:h-16 sm:w-16 sm:text-lg">{nextRank.badge}</div>
+          {/* Verifizierung */}
+          <section className={`rounded-[1.75rem] border p-6 backdrop-blur-xl sm:p-8 ${phoneVerified ? 'border-emerald-300/20 bg-emerald-400/[0.06]' : 'border-amber-300/20 bg-amber-400/[0.06]'}`}>
+            <div className={`text-xs font-black uppercase tracking-[0.28em] ${phoneVerified ? 'text-emerald-300' : 'text-amber-300'}`}>Verifizierung</div>
+            <div className="mt-3 flex items-center gap-3">
+              {phoneVerified
+                ? <CheckCircle2 size={22} className="shrink-0 text-emerald-400" />
+                : <XCircle size={22} className="shrink-0 text-amber-400" />
+              }
+              <span className="text-lg font-black tracking-[-0.03em] sm:text-xl">{phoneStatusText}</span>
             </div>
-
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <div className={`text-3xl font-black tracking-[-0.05em] sm:text-4xl lg:text-5xl ${nextRank.color}`}>{nextRank.name}</div>
-                <div className="mt-2 text-sm text-zinc-400">{eloToNext > 0 ? `${eloToNext} Elo bis zum nächsten Rang` : 'Maximaler Rang erreicht'}</div>
-              </div>
-              <div className="text-right text-2xl font-black text-emerald-300 sm:text-3xl">{Math.round(progress)}%</div>
-            </div>
-
-            <div className="mt-6 h-3 overflow-hidden rounded-full bg-white/10 sm:h-4">
-              <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" style={{ width: `${progress}%` }} />
-            </div>
-
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              <div className="rounded-2xl bg-white/[0.04] p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{currentRank.min}</span>Rang Start</div>
-              <div className="rounded-2xl bg-white/[0.04] p-3 text-center text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-emerald-300 sm:text-xl">{elo}</span>Aktuell</div>
-              <div className="rounded-2xl bg-white/[0.04] p-3 text-right text-xs text-zinc-400 sm:p-4 sm:text-sm"><span className="block text-lg font-black text-white sm:text-xl">{nextRank.min}</span>Ziel</div>
-            </div>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">
+              {phoneVerified
+                ? 'Dein Account ist für Fair-Play und Ranked vorbereitet.'
+                : 'Bestätige deine Nummer, bevor du vollständig in Ranked startest.'}
+            </p>
+            {!phoneVerified && (
+              <Link
+                href={`/auth/verify-phone${profile?.phone_number ? `?phone=${encodeURIComponent(profile.phone_number)}` : ''}`}
+                className="mt-5 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 text-sm font-black text-amber-100 transition hover:bg-amber-300/18"
+              >
+                Jetzt verifizieren →
+              </Link>
+            )}
           </section>
         </div>
 
         {/* ── Plattform-Verbindungen ─────────────────────────────────────── */}
-        <section className="mt-6 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7 md:p-8">
+        <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-8">
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Plattformen</div>
@@ -334,15 +368,14 @@ export default function Profile() {
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Scolia */}
             <div className={`rounded-2xl border p-5 transition sm:p-6 ${profile?.scolia_username ? 'border-emerald-300/25 bg-emerald-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
-              <div className="mb-3 flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/40 text-lg">📷</div>
+              <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Scolia</div>
-                  <div className="text-sm font-bold text-zinc-300">Kamera-Tracking</div>
+                  <div className="mt-0.5 text-sm font-bold text-zinc-400">Kamera-Tracking</div>
                 </div>
                 {profile?.scolia_username
-                  ? <CheckCircle2 size={16} className="ml-auto text-emerald-400" />
-                  : <XCircle size={16} className="ml-auto text-zinc-600" />
+                  ? <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
+                  : <XCircle size={16} className="shrink-0 text-zinc-600" />
                 }
               </div>
               {editingPlatforms ? (
@@ -354,7 +387,7 @@ export default function Profile() {
                   className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/50 focus:bg-white/[0.08]"
                 />
               ) : (
-                <div className="text-sm font-bold text-white">
+                <div className="text-sm font-bold">
                   {profile?.scolia_username
                     ? <span className="text-emerald-200">{profile.scolia_username}</span>
                     : <span className="text-zinc-600">Nicht hinterlegt</span>
@@ -365,15 +398,14 @@ export default function Profile() {
 
             {/* DartCounter */}
             <div className={`rounded-2xl border p-5 transition sm:p-6 ${profile?.dartcounter_username ? 'border-cyan-300/25 bg-cyan-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
-              <div className="mb-3 flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-black/40 text-lg">📱</div>
+              <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">DartCounter</div>
-                  <div className="text-sm font-bold text-zinc-300">App-Tracking</div>
+                  <div className="mt-0.5 text-sm font-bold text-zinc-400">App-Tracking</div>
                 </div>
                 {profile?.dartcounter_username
-                  ? <CheckCircle2 size={16} className="ml-auto text-cyan-400" />
-                  : <XCircle size={16} className="ml-auto text-zinc-600" />
+                  ? <CheckCircle2 size={16} className="shrink-0 text-cyan-400" />
+                  : <XCircle size={16} className="shrink-0 text-zinc-600" />
                 }
               </div>
               {editingPlatforms ? (
@@ -385,7 +417,7 @@ export default function Profile() {
                   className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-300/50 focus:bg-white/[0.08]"
                 />
               ) : (
-                <div className="text-sm font-bold text-white">
+                <div className="text-sm font-bold">
                   {profile?.dartcounter_username
                     ? <span className="text-cyan-200">{profile.dartcounter_username}</span>
                     : <span className="text-zinc-600">Nicht hinterlegt</span>
@@ -434,8 +466,8 @@ export default function Profile() {
           )}
         </section>
 
-        {/* Match History */}
-        <section className="mt-6 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-7 md:p-8">
+        {/* ── Match History ──────────────────────────────────────────────── */}
+        <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-8">
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Verlauf</div>
