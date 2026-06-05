@@ -120,6 +120,9 @@ export default function Matchmaking() {
   const iHaveAcceptedRef = useRef(false);
   // Verhindert dass cancel_matchmaking beim re-queue nach Gegner-Ablehnung aufgerufen wird
   const skipCancelOnSearchingExitRef = useRef(false);
+  // Ref auf pollForMatch damit der searching-useEffect nicht bei jeder
+  // getCooldownMessage-Änderung (= jede Sekunde Countdown) neu gemountet wird
+  const pollForMatchRef = useRef<((seconds: number) => Promise<void>) | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -330,23 +333,39 @@ export default function Matchmaking() {
   }, [supabase]);
 
   // Cooldown-Countdown
+  // Der Interval startet nur wenn cooldownSeconds von 0 auf einen positiven Wert
+  // gesetzt wird (z.B. nach handleDecline oder nach F5 mit aktiver Sperre).
+  // Er läuft dann selbstständig durch ohne bei jedem Tick neu zu starten.
+  const cooldownIsActive = cooldownSeconds > 0;
   useEffect(() => {
-    if (cooldownSeconds > 0) {
-      cooldownIntervalRef.current = setInterval(() => {
-        setCooldownSeconds(prev => {
-          if (prev <= 1) {
-            if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
-            setQueueBanReason(null);
-            setQueueBannedUntil(null);
-            if (statusRef.current === 'error') setStatus('idle');
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    if (!cooldownIsActive) return;
+    // Alten Interval stoppen falls noch einer läuft
+    if (cooldownIntervalRef.current) {
+      clearInterval(cooldownIntervalRef.current);
+      cooldownIntervalRef.current = null;
     }
-    return () => { if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current); };
-  }, [cooldownSeconds]);
+    cooldownIntervalRef.current = setInterval(() => {
+      setCooldownSeconds(prev => {
+        if (prev <= 1) {
+          if (cooldownIntervalRef.current) {
+            clearInterval(cooldownIntervalRef.current);
+            cooldownIntervalRef.current = null;
+          }
+          setQueueBanReason(null);
+          setQueueBannedUntil(null);
+          if (statusRef.current === 'error') setStatus('idle');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => {
+      if (cooldownIntervalRef.current) {
+        clearInterval(cooldownIntervalRef.current);
+        cooldownIntervalRef.current = null;
+      }
+    };
+  }, [cooldownIsActive]); // nur wenn aktiv/inaktiv wechselt, nicht bei jedem Tick
 
   const formatCooldown = (secs: number) => {
     if (secs >= 60) return `${Math.ceil(secs / 60)} Min.`;
@@ -436,6 +455,10 @@ export default function Matchmaking() {
     }
   }, [fetchQueueCounts, getCooldownMessage, playMatchFoundSound, startAcceptCountdown, supabase]);
 
+  // Ref immer aktuell halten damit der searching-useEffect die neueste Version hat
+  // ohne selbst als Dependency aufgeführt zu sein
+  useEffect(() => { pollForMatchRef.current = pollForMatch; }, [pollForMatch]);
+
   const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
     setOpponent(null);
@@ -466,9 +489,11 @@ export default function Matchmaking() {
     unlockMatchFoundSound();
     lastMatchSoundIdRef.current = null;
     setSelectedApp(app);
-    setElapsedSeconds(0);
-    setStatus('searching');
     selectedAppRef.current = app;
+    setElapsedSeconds(0);
+    // statusRef synchron setzen damit pollForMatch(0) nicht durch den Guard abbricht
+    statusRef.current = 'searching';
+    setStatus('searching');
     await pollForMatch(0);
   };
 
@@ -560,15 +585,16 @@ export default function Matchmaking() {
       setPhoneVerified(!smsEnabled || Boolean(profileData?.phone_verified));
       setScoliaUsername(profileData?.scolia_username ?? null);
       setDartcounterUsername(profileData?.dartcounter_username ?? null);
-      const queueBannedUntil = profileData?.queue_banned_until as string | null | undefined;
-      if (queueBannedUntil) {
-        const queueBanSeconds = Math.max(0, Math.ceil((new Date(queueBannedUntil).getTime() - Date.now()) / 1000));
+      const queueBannedUntilRaw = profileData?.queue_banned_until as string | null | undefined;
+      let hasActiveQueueBan = false;
+      if (queueBannedUntilRaw) {
+        const queueBanSeconds = Math.max(0, Math.ceil((new Date(queueBannedUntilRaw).getTime() - Date.now()) / 1000));
         if (queueBanSeconds > 0) {
+          hasActiveQueueBan = true;
           setCooldownSeconds(queueBanSeconds);
           setQueueBanReason(profileData?.queue_ban_reason ?? 'Queue-Sperre aktiv.');
-          setQueueBannedUntil(queueBannedUntil);
-          // FIX BUG 3: Status auf 'error' setzen damit nach F5 der Cooldown-Screen
-          // angezeigt wird und nicht die idle-Seite mit der Phone-Verification-Box.
+          setQueueBannedUntil(queueBannedUntilRaw);
+          // Nach F5: Status auf 'error' setzen damit der Cooldown-Screen angezeigt wird
           setStatus('error');
           setErrorMessage('');
         }
@@ -576,7 +602,9 @@ export default function Matchmaking() {
       setPageLoading(false);
       void fetchQueueCounts();
       void fetchLiveMatches();
-      void fetchCooldown();
+      // fetchCooldown NICHT aufrufen wenn bereits eine aktive Queue-Sperre gefunden
+      // wurde – verhindert Race Condition die setCooldownSeconds(0) setzen könnte
+      if (!hasActiveQueueBan) void fetchCooldown();
     }
     void init();
     return () => { isMounted = false; };
@@ -594,6 +622,9 @@ export default function Matchmaking() {
   }, [supabase, fetchLiveMatches]);
 
   // Realtime + Polling während der Suche
+  // WICHTIG: pollForMatch ist NICHT in den Dependencies! Stattdessen nutzen wir
+  // pollForMatchRef.current – so wird der Effect nicht bei jeder getCooldownMessage-
+  // Änderung (jede Sekunde Countdown) neu gemountet, was cancel_matchmaking auslösen würde.
   useEffect(() => {
     if (status !== 'searching') return;
 
@@ -608,6 +639,7 @@ export default function Matchmaking() {
             playMatchFoundSound(newMatch.id);
             setAcceptMatchId(newMatch.id);
             setIHaveAccepted(false);
+            iHaveAcceptedRef.current = false;
             setOpponentAccepted(false);
             setOpponentDeclined(false);
             setStatus('accepting');
@@ -641,22 +673,14 @@ export default function Matchmaking() {
           setStatus('found');
           redirectToResult(updatedMatch.id);
         }
-        // Match wurde abgelehnt/abgebrochen → zurück in die Queue
-        if (updatedMatch.status === 'cancelled' && statusRef.current === 'accepting') {
-          if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
-          setAcceptMatchId(null);
-          setIHaveAccepted(false);
-          setOpponentAccepted(false);
-          setOpponentDeclined(false);
-          setStatus('searching');
-        }
       })
       .subscribe();
 
     const pollingInterval = setInterval(() => {
       setElapsedSeconds((current) => {
         const next = current + 2;
-        void pollForMatch(next);
+        // pollForMatchRef statt pollForMatch – kein Dependency-Problem
+        void pollForMatchRef.current?.(next);
         return next;
       });
     }, 2000);
@@ -670,7 +694,8 @@ export default function Matchmaking() {
       }
       skipCancelOnSearchingExitRef.current = false;
     };
-  }, [pollForMatch, status, supabase, redirectToResult, fetchCooldown, playMatchFoundSound, startAcceptCountdown]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, supabase, redirectToResult, playMatchFoundSound, startAcceptCountdown]);
 
   // Realtime: Accept-Phase — separater Kanal der auch bei status='accepting' aktiv ist
   useEffect(() => {
@@ -706,9 +731,10 @@ export default function Matchmaking() {
           // dann automatisch wieder in die Queue eintragen (echtes re-join).
           // Wer noch nicht angenommen hatte: zurück zur App-Auswahl (idle).
           if (updated.status === 'cancelled') {
-            // Timer SOFORT stoppen bevor irgendwas anderes passiert
+            // Timer SOFORT stoppen
             if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
             acceptIntervalRef.current = null;
+            acceptExpireCalledRef.current = true; // verhindert späten expire-Aufruf
             const acceptedBeforeCancel = iHaveAcceptedRef.current;
             const appBeforeCancel = selectedAppRef.current;
 
@@ -718,19 +744,23 @@ export default function Matchmaking() {
             setOpponentAccepted(false);
 
             if (acceptedBeforeCancel && appBeforeCancel) {
-              // "Gegner hat abgelehnt"-Screen sofort anzeigen (Timer bereits gestoppt)
+              // "Gegner hat abgelehnt"-Screen anzeigen
+              // Status bleibt 'accepting' damit der Screen sichtbar ist
               setOpponentDeclined(true);
               showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
 
               setTimeout(async () => {
                 setOpponentDeclined(false);
                 setElapsedSeconds(0);
-                skipCancelOnSearchingExitRef.current = true;
                 isPollingRef.current = false;
-                // statusRef SYNCHRON setzen BEVOR setStatus – pollForMatch prüft statusRef!
+                // skipCancel VOR setStatus setzen – der searching-useEffect
+                // Cleanup läuft wenn status von 'accepting' zu 'searching' wechselt
+                skipCancelOnSearchingExitRef.current = true;
+                // statusRef synchron setzen damit pollForMatch nicht abbricht
                 statusRef.current = 'searching';
                 setStatus('searching');
-                await pollForMatch(0);
+                // Direkt in die Queue eintragen
+                await pollForMatchRef.current?.(0);
               }, 1500);
             } else {
               setOpponentDeclined(false);
@@ -767,6 +797,7 @@ export default function Matchmaking() {
       } else if (data.status === 'cancelled') {
         if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
         acceptIntervalRef.current = null;
+        acceptExpireCalledRef.current = true;
         const acceptedBeforeCancel = iHaveAcceptedRef.current;
         const appBeforeCancel = selectedAppRef.current;
 
@@ -781,12 +812,11 @@ export default function Matchmaking() {
           setTimeout(async () => {
             setOpponentDeclined(false);
             setElapsedSeconds(0);
-            skipCancelOnSearchingExitRef.current = true;
             isPollingRef.current = false;
-            // statusRef SYNCHRON setzen BEVOR setStatus – pollForMatch prüft statusRef!
+            skipCancelOnSearchingExitRef.current = true;
             statusRef.current = 'searching';
             setStatus('searching');
-            await pollForMatch(0);
+            await pollForMatchRef.current?.(0);
           }, 1500);
         } else {
           setOpponentDeclined(false);
@@ -798,7 +828,8 @@ export default function Matchmaking() {
     void checkCurrentMatchStatus();
 
     return () => { void supabase.removeChannel(channel); };
-  }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase, pollForMatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase]);
 
   // Heartbeat: solange gesucht wird, alle 20 Sekunden last_seen aktualisieren.
   // Die DB-Funktion cleanup_stale_queue_entries löscht Einträge die älter als
