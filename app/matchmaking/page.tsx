@@ -99,7 +99,7 @@ export default function Matchmaking() {
 
   // Cooldown-State
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const [cancelCount24h, setCancelCount24h] = useState(0);
+
   const [queueBanReason, setQueueBanReason] = useState<string | null>(null);
   const [queueBannedUntil, setQueueBannedUntil] = useState<string | null>(null);
   const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -508,16 +508,7 @@ export default function Matchmaking() {
       setStatus('idle');
       setSelectedApp(null);
       setElapsedSeconds(0);
-      // Abbruch-Zähler erhöhen und ggf. Cooldown setzen
-      const newCount = cancelCount24h + 1;
-      setCancelCount24h(newCount);
-      if (newCount >= 3) {
-        // Ab dem 3. Abbruch: 20 Sekunden Cooldown
-        setCooldownSeconds(20);
-        const message = 'Du hast die Suche zum dritten Mal abgebrochen und erhältst jetzt 20 Sekunden Cooldown.';
-        setErrorMessage(message);
-        showToast(message, 'warning');
-      }
+
       await fetchQueueCounts();
     }
   };
@@ -1240,7 +1231,7 @@ export default function Matchmaking() {
                     <p className="mt-3 text-xs text-amber-400/70">
                       {queueBanReason
                         ? 'Du kannst nach Ablauf der Sperre automatisch wieder eine neue Suche starten.'
-                        : `${cancelCount24h}. Abbruch heute — ab dem 3. Abbruch gibt es 20 Sek. Cooldown.`}
+: 'Suche jederzeit abbrechen.'}
                     </p>
                   </div>
                 </>
