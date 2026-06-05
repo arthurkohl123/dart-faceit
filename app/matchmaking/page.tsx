@@ -118,6 +118,8 @@ export default function Matchmaking() {
   const selectedAppRef = useRef<AppChoice | null>(null);
   const userIdRef = useRef<string | null>(null);
   const iHaveAcceptedRef = useRef(false);
+  // Verhindert dass cancel_matchmaking beim re-queue nach Gegner-Ablehnung aufgerufen wird
+  const skipCancelOnSearchingExitRef = useRef(false);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -660,7 +662,11 @@ export default function Matchmaking() {
     return () => {
       supabase.removeChannel(channel);
       clearInterval(pollingInterval);
-      void supabase.rpc('cancel_matchmaking');
+      // Kein cancel_matchmaking wenn wir nach Gegner-Ablehnung re-queuen
+      if (!skipCancelOnSearchingExitRef.current) {
+        void supabase.rpc('cancel_matchmaking');
+      }
+      skipCancelOnSearchingExitRef.current = false;
     };
   }, [pollForMatch, status, supabase, redirectToResult, fetchCooldown, playMatchFoundSound, startAcceptCountdown]);
 
@@ -707,21 +713,22 @@ export default function Matchmaking() {
             setOpponentAccepted(false);
 
             if (acceptedBeforeCancel && appBeforeCancel) {
-              // FIX BUG 4: "Gegner hat abgelehnt"-Nachricht kurz anzeigen
+              // "Gegner hat abgelehnt"-Nachricht sofort anzeigen (kein Timer mehr)
               setOpponentDeclined(true);
               showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
 
-              // FIX BUG 1: Kurze Verzögerung damit der User die Nachricht sieht,
-              // dann echtes re-join in die Queue via pollForMatch.
+              // Kurze Anzeigezeit (1,5 Sek.) dann direkt re-queuen
               setTimeout(async () => {
                 setOpponentDeclined(false);
                 setElapsedSeconds(0);
-                setStatus('searching');
-                // Wichtig: pollForMatch trägt den Spieler wieder in die DB-Queue ein.
-                // isPollingRef muss false sein damit der Aufruf nicht geblockt wird.
+                // Flag setzen BEVOR setStatus('searching') – so wird der cleanup
+                // des searching-useEffect cancel_matchmaking NICHT aufrufen
+                skipCancelOnSearchingExitRef.current = true;
                 isPollingRef.current = false;
+                setStatus('searching');
+                // pollForMatch trägt den Spieler wieder in die DB-Queue ein
                 await pollForMatch(0);
-              }, 2500);
+              }, 1500);
             } else {
               setOpponentDeclined(false);
               setStatus('idle');
@@ -769,10 +776,11 @@ export default function Matchmaking() {
           setTimeout(async () => {
             setOpponentDeclined(false);
             setElapsedSeconds(0);
-            setStatus('searching');
+            skipCancelOnSearchingExitRef.current = true;
             isPollingRef.current = false;
+            setStatus('searching');
             await pollForMatch(0);
-          }, 2500);
+          }, 1500);
         } else {
           setOpponentDeclined(false);
           setStatus('idle');
@@ -1019,89 +1027,100 @@ export default function Matchmaking() {
           {/* ACCEPTING */}
           {status === 'accepting' && selectedApp && (
             <div className="relative text-center">
-              {/* FIX BUG 4: Gegner-hat-abgelehnt-Overlay */}
-              {opponentDeclined && (
-                <div className="mb-6 flex items-center justify-center gap-3 rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4">
-                  <XCircle className="h-5 w-5 shrink-0 text-red-300" />
-                  <span className="text-sm font-bold text-red-200">Der Gegner hat abgelehnt. Du wirst wieder in die Queue eingetragen…</span>
-                </div>
-              )}
-
-              {/* Pulsierender Ring */}
-              <div className="relative mx-auto h-32 w-32">
-                <div className="absolute inset-0 animate-ping rounded-full border-2 border-emerald-300/30" />
-                <div className="absolute inset-2 animate-ping rounded-full border border-emerald-300/20" style={{ animationDelay: '0.3s' }} />
-                <div className={`relative grid h-full w-full place-items-center rounded-full border-2 ${
-                  acceptCountdown <= 10 ? 'border-red-400/60 bg-red-500/10' : 'border-emerald-300/40 bg-emerald-400/10'
-                }`}>
-                  <span className={`text-4xl font-black tracking-[-0.06em] ${
-                    acceptCountdown <= 10 ? 'text-red-300' : 'text-emerald-200'
-                  }`}>{acceptCountdown}</span>
-                </div>
-              </div>
-
-              <h2 className="mt-8 text-4xl font-black tracking-[-0.05em]">Match gefunden!</h2>
-              <p className="mt-3 text-zinc-400">Bestätige innerhalb von <span className="font-black text-white">30 Sekunden</span> um das Match zu starten.</p>
-
-              {/* App-Badge */}
-              <div className={`mt-4 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${cfg.badge}`}>
-                <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
-                {appConfig[selectedApp].label}
-              </div>
-
-              {/* Status-Anzeige */}
-              <div className="mt-6 flex items-center justify-center gap-6">
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className={`grid h-10 w-10 place-items-center rounded-full border-2 ${
-                    iHaveAccepted ? 'border-emerald-400 bg-emerald-400/20' : 'border-zinc-700 bg-zinc-800/50'
-                  }`}>
-                    {iHaveAccepted
-                      ? <CheckCircle2 className="h-5 w-5 text-emerald-300" />
-                      : <Clock className="h-5 w-5 text-zinc-600" />}
+              {opponentDeclined ? (
+                /* Gegner hat abgelehnt: sauberer Vollscreen statt Timer */
+                <div className="flex flex-col items-center gap-6 py-4">
+                  <div className="grid h-24 w-24 place-items-center rounded-[2rem] border border-red-400/25 bg-red-500/10 text-red-300">
+                    <XCircle className="h-12 w-12" />
                   </div>
-                  <span className="text-xs font-bold text-zinc-500">Du</span>
-                </div>
-                <div className="h-px w-12 bg-zinc-800" />
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className={`grid h-10 w-10 place-items-center rounded-full border-2 ${
-                    opponentAccepted ? 'border-emerald-400 bg-emerald-400/20' : 'border-zinc-700 bg-zinc-800/50'
-                  }`}>
-                    {opponentAccepted
-                      ? <CheckCircle2 className="h-5 w-5 text-emerald-300" />
-                      : <Clock className="h-5 w-5 text-zinc-600 animate-pulse" />}
+                  <div>
+                    <h2 className="text-3xl font-black tracking-[-0.05em] text-red-200">Gegner hat abgelehnt</h2>
+                    <p className="mt-3 text-zinc-400">Du wirst automatisch wieder in die Queue eingetragen…</p>
                   </div>
-                  <span className="text-xs font-bold text-zinc-500">Gegner</span>
-                </div>
-              </div>
-
-              {/* Buttons */}
-              {!iHaveAccepted ? (
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                  <button
-                    onClick={() => void handleAccept()}
-                    disabled={acceptDeclineLoading}
-                    className="flex items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-10 py-5 text-lg font-black uppercase tracking-[0.16em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.25)] transition hover:-translate-y-0.5 disabled:opacity-50"
-                  >
-                    <UserCheck className="h-5 w-5" />
-                    {acceptDeclineLoading ? 'Wird bestätigt…' : 'Match annehmen'}
-                  </button>
-                  <button
-                    onClick={() => void handleDecline()}
-                    disabled={acceptDeclineLoading}
-                    className="flex items-center justify-center gap-2 rounded-3xl border border-red-400/25 bg-red-500/10 px-8 py-5 text-base font-black uppercase tracking-[0.16em] text-red-200 transition hover:bg-red-500/15 disabled:opacity-50"
-                  >
-                    <XCircle className="h-5 w-5" />
-                    Ablehnen
-                  </button>
+                  <div className="flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-800/50 px-5 py-3 text-sm font-bold text-zinc-400">
+                    <Activity className="h-4 w-4 animate-pulse text-emerald-300" />
+                    Suche wird gestartet…
+                  </div>
                 </div>
               ) : (
-                <div className="mt-8 flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200">
-                    <Zap className="h-4 w-4" />
-                    Bestätigt! Warte auf Gegner…
+                <>
+                  {/* Pulsierender Ring */}
+                  <div className="relative mx-auto h-32 w-32">
+                    <div className="absolute inset-0 animate-ping rounded-full border-2 border-emerald-300/30" />
+                    <div className="absolute inset-2 animate-ping rounded-full border border-emerald-300/20" style={{ animationDelay: '0.3s' }} />
+                    <div className={`relative grid h-full w-full place-items-center rounded-full border-2 ${
+                      acceptCountdown <= 10 ? 'border-red-400/60 bg-red-500/10' : 'border-emerald-300/40 bg-emerald-400/10'
+                    }`}>
+                      <span className={`text-4xl font-black tracking-[-0.06em] ${
+                        acceptCountdown <= 10 ? 'text-red-300' : 'text-emerald-200'
+                      }`}>{acceptCountdown}</span>
+                    </div>
                   </div>
-                  <p className="text-xs text-zinc-600">Das Match startet sobald der Gegner bestätigt.</p>
-                </div>
+
+                  <h2 className="mt-8 text-4xl font-black tracking-[-0.05em]">Match gefunden!</h2>
+                  <p className="mt-3 text-zinc-400">Bestätige innerhalb von <span className="font-black text-white">30 Sekunden</span> um das Match zu starten.</p>
+
+                  {/* App-Badge */}
+                  <div className={`mt-4 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${cfg.badge}`}>
+                    <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
+                    {appConfig[selectedApp].label}
+                  </div>
+
+                  {/* Status-Anzeige */}
+                  <div className="mt-6 flex items-center justify-center gap-6">
+                    <div className="flex flex-col items-center gap-1.5">
+                      <div className={`grid h-10 w-10 place-items-center rounded-full border-2 ${
+                        iHaveAccepted ? 'border-emerald-400 bg-emerald-400/20' : 'border-zinc-700 bg-zinc-800/50'
+                      }`}>
+                        {iHaveAccepted
+                          ? <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+                          : <Clock className="h-5 w-5 text-zinc-600" />}
+                      </div>
+                      <span className="text-xs font-bold text-zinc-500">Du</span>
+                    </div>
+                    <div className="h-px w-12 bg-zinc-800" />
+                    <div className="flex flex-col items-center gap-1.5">
+                      <div className={`grid h-10 w-10 place-items-center rounded-full border-2 ${
+                        opponentAccepted ? 'border-emerald-400 bg-emerald-400/20' : 'border-zinc-700 bg-zinc-800/50'
+                      }`}>
+                        {opponentAccepted
+                          ? <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+                          : <Clock className="h-5 w-5 text-zinc-600 animate-pulse" />}
+                      </div>
+                      <span className="text-xs font-bold text-zinc-500">Gegner</span>
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  {!iHaveAccepted ? (
+                    <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                      <button
+                        onClick={() => void handleAccept()}
+                        disabled={acceptDeclineLoading}
+                        className="flex items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-10 py-5 text-lg font-black uppercase tracking-[0.16em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.25)] transition hover:-translate-y-0.5 disabled:opacity-50"
+                      >
+                        <UserCheck className="h-5 w-5" />
+                        {acceptDeclineLoading ? 'Wird bestätigt…' : 'Match annehmen'}
+                      </button>
+                      <button
+                        onClick={() => void handleDecline()}
+                        disabled={acceptDeclineLoading}
+                        className="flex items-center justify-center gap-2 rounded-3xl border border-red-400/25 bg-red-500/10 px-8 py-5 text-base font-black uppercase tracking-[0.16em] text-red-200 transition hover:bg-red-500/15 disabled:opacity-50"
+                      >
+                        <XCircle className="h-5 w-5" />
+                        Ablehnen
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-8 flex flex-col items-center gap-2">
+                      <div className="flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200">
+                        <Zap className="h-4 w-4" />
+                        Bestätigt! Warte auf Gegner…
+                      </div>
+                      <p className="text-xs text-zinc-600">Das Match startet sobald der Gegner bestätigt.</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
