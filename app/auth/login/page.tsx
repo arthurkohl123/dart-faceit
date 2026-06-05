@@ -11,6 +11,7 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -35,6 +36,33 @@ function LoginForm() {
     router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/profile');
 
     setLoading(false);
+  };
+
+  const handlePasswordReset = async () => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      setFormMessage({ type: 'error', text: 'Bitte gib zuerst deine E-Mail-Adresse ein, damit wir dir den Reset-Link senden können.' });
+      return;
+    }
+
+    setResetLoading(true);
+    setFormMessage(null);
+
+    const redirectTo = typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/reset-password`
+      : undefined;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, { redirectTo });
+
+    if (error) {
+      setFormMessage({ type: 'error', text: 'Fehler beim Senden der Passwort-Reset-Mail: ' + error.message });
+      setResetLoading(false);
+      return;
+    }
+
+    setFormMessage({ type: 'success', text: 'Wenn ein Konto mit dieser E-Mail existiert, wurde ein Link zum Zurücksetzen des Passworts gesendet.' });
+    setResetLoading(false);
   };
 
   return (
@@ -70,7 +98,17 @@ function LoginForm() {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-sm font-bold text-zinc-300">Passwort</span>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="block text-sm font-bold text-zinc-300">Passwort</span>
+            <button
+              type="button"
+              onClick={handlePasswordReset}
+              disabled={resetLoading || loading}
+              className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300 transition hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {resetLoading ? 'Wird gesendet...' : 'Passwort vergessen?'}
+            </button>
+          </div>
           <input
             type="password"
             placeholder="Dein Passwort"
@@ -83,7 +121,7 @@ function LoginForm() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || resetLoading}
           className="w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-4 font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.24)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? 'Einloggen...' : 'Einloggen'}
