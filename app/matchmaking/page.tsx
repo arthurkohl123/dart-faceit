@@ -225,11 +225,13 @@ export default function Matchmaking() {
         acceptExpireCalledRef.current = true;
         clearInterval(acceptIntervalRef.current!);
         try {
+          // BUG FIX: Erst Backend bereinigen, dann State zurücksetzen
           await supabase.rpc('expire_match_accept', { p_match_id: matchId });
         } catch (err) {
           console.error('expire_match_accept fehlgeschlagen:', err);
         }
-        setStatus('searching');
+        // WICHTIG: Nach Timeout erst mal auf 'idle' setzen um Ghost-Queues zu vermeiden
+        setStatus('idle');
         setAcceptMatchId(null);
         setIHaveAccepted(false);
         setOpponentAccepted(false);
@@ -304,7 +306,7 @@ export default function Matchmaking() {
   const fetchCooldown = useCallback(async () => {
     const { data } = await supabase.rpc('get_my_cooldown');
     let nextCooldown = data?.on_cooldown ? Number(data.seconds_remaining ?? 0) : 0;
-    if (data) setCancelCount24h(data.cancel_count_24h ?? 0);
+
 
     const uid = userIdRef.current;
     if (uid) {
