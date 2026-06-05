@@ -64,33 +64,54 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string, authUser?: User | null) => {
     try {
       const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('supabaseId', userId)
-        .single();
+        .maybeSingle();
 
-      if (data?.is_banned) {
+      let profileRow = data;
+
+      if (!profileRow && authUser?.user_metadata?.username) {
+        const { data: createdProfile } = await supabase
+          .from('profiles')
+          .upsert({
+            supabaseId: userId,
+            username: authUser.user_metadata.username,
+            elo: 1000,
+            gamesPlayed: 0,
+            wins: 0,
+            phone_number: authUser.user_metadata.phone_number ?? null,
+            phone_verified: Boolean(authUser.user_metadata.phone_verified),
+            phone_verified_at: authUser.user_metadata.phone_verified ? new Date().toISOString() : null,
+          }, { onConflict: 'supabaseId' })
+          .select('*')
+          .maybeSingle();
+
+        profileRow = createdProfile ?? null;
+      }
+
+      if (profileRow?.is_banned) {
         await supabase.auth.signOut();
         routerRef.current.push('/auth/banned');
         return;
       }
 
-      setProfile(data ? {
-        id: data.id,
-        username: data.username ?? null,
-        elo: data.elo ?? 1000,
-        gamesPlayed: data.gamesPlayed ?? 0,
-        wins: data.wins ?? 0,
-        phone_verified: Boolean(data.phone_verified),
-        phone_verified_at: data.phone_verified_at ?? null,
-        phone_number: data.phone_number ?? null,
-        is_admin: Boolean(data.is_admin),
+      setProfile(profileRow ? {
+        id: profileRow.id,
+        username: profileRow.username ?? null,
+        elo: profileRow.elo ?? 1000,
+        gamesPlayed: profileRow.gamesPlayed ?? 0,
+        wins: profileRow.wins ?? 0,
+        phone_verified: Boolean(profileRow.phone_verified),
+        phone_verified_at: profileRow.phone_verified_at ?? null,
+        phone_number: profileRow.phone_number ?? null,
+        is_admin: Boolean(profileRow.is_admin),
         is_banned: false,
-        ban_reason: data.ban_reason ?? null,
-        isPremium: Boolean(data.isPremium),
+        ban_reason: profileRow.ban_reason ?? null,
+        isPremium: Boolean(profileRow.isPremium),
       } : null);
     } catch {
       setProfile(null);
@@ -99,7 +120,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     const { data: { session: current } } = await supabase.auth.getSession();
-    if (current?.user?.id) await fetchProfile(current.user.id);
+    if (current?.user?.id) await fetchProfile(current.user.id, current.user);
   }, [fetchProfile, supabase]);
 
   useEffect(() => {
@@ -111,7 +132,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
       setSession(initial);
       if (initial?.user) {
-        await fetchProfile(initial.user.id);
+        await fetchProfile(initial.user.id, initial.user);
       }
       if (mounted) setLoading(false);
     });
@@ -151,7 +172,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         // bevor fetchProfile() ausgeführt wird.
         setTimeout(async () => {
           if (!mounted) return;
-          await fetchProfile(userId);
+          await fetchProfile(userId, newSession.user);
           if (mounted) setLoading(false);
         }, 0);
       }

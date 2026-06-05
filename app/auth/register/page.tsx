@@ -7,6 +7,29 @@ import { useRouter } from 'next/navigation';
 
 const normalizePhoneNumber = (value: string) => value.replace(/[\s()-]/g, '');
 
+const getReadableAuthError = (error: unknown) => {
+  if (!error) return 'Ein unbekannter Fehler ist aufgetreten. Bitte versuche es erneut.';
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'object') {
+    const maybeError = error as { message?: unknown; error_description?: unknown; error?: unknown; details?: unknown };
+    const message = maybeError.message || maybeError.error_description || maybeError.error || maybeError.details;
+
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+
+  return 'Ein unbekannter Fehler ist aufgetreten. Bitte prüfe deine Eingaben und versuche es erneut.';
+};
+
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,10 +37,12 @@ export default function Register() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
+  const trimmedEmail = email.trim();
+  const trimmedUsername = username.trim();
   const normalizedPhoneNumber = useMemo(() => normalizePhoneNumber(phoneNumber), [phoneNumber]);
   const phoneNumberIsValid = /^\+[1-9]\d{7,14}$/.test(normalizedPhoneNumber);
   const canSubmit = !smsVerificationEnabled || phoneNumberIsValid;
@@ -36,10 +61,45 @@ export default function Register() {
     void loadSmsSetting();
   }, [supabase]);
 
+  const createProfileForActiveSession = async (userId: string) => {
+    const profilePayload = {
+      supabaseId: userId,
+      username: trimmedUsername,
+      elo: 1000,
+      gamesPlayed: 0,
+      wins: 0,
+      phone_number: normalizedPhoneNumber || null,
+      phone_verified: !smsVerificationEnabled,
+      phone_verified_at: smsVerificationEnabled ? null : new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert(profilePayload, { onConflict: 'supabaseId' });
+
+    if (error) {
+      throw error;
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setFormMessage(null);
+
+    if (!trimmedUsername) {
+      setFormMessage({ type: 'error', text: 'Bitte gib einen Benutzernamen ein.' });
+      return;
+    }
+
+    if (!trimmedEmail) {
+      setFormMessage({ type: 'error', text: 'Bitte gib eine gültige E-Mail-Adresse ein.' });
+      return;
+    }
+
+    if (password.length < 6) {
+      setFormMessage({ type: 'error', text: 'Dein Passwort muss mindestens 6 Zeichen lang sein.' });
+      return;
+    }
 
     if (smsVerificationEnabled && !phoneNumberIsValid) {
       setFormMessage({ type: 'error', text: 'Bitte gib deine Handynummer im internationalen Format ein, zum Beispiel +491701234567.' });
@@ -48,52 +108,60 @@ export default function Register() {
 
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username,
-          phone_number: normalizedPhoneNumber,
-          phone_verified: !smsVerificationEnabled,
+    try {
+      const emailRedirectTo = typeof window !== 'undefined'
+        ? `${window.location.origin}/auth/login?confirmed=1`
+        : undefined;
+
+      const { data, error } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+        options: {
+          emailRedirectTo,
+          data: {
+            username: trimmedUsername,
+            phone_number: normalizedPhoneNumber || null,
+            phone_verified: !smsVerificationEnabled,
+          },
         },
-      },
-    });
-
-    if (error) {
-      setFormMessage({ type: 'error', text: 'Fehler: ' + error.message });
-      setLoading(false);
-      return;
-    }
-
-    if (data.user) {
-      await supabase.from('profiles').insert({
-        supabaseId: data.user.id,
-        username,
-        elo: 1000,
-        gamesPlayed: 0,
-        wins: 0,
       });
 
-      await supabase
-        .from('profiles')
-        .update({
-          phone_number: normalizedPhoneNumber || null,
-          phone_verified: !smsVerificationEnabled,
-          phone_verified_at: smsVerificationEnabled ? null : new Date().toISOString(),
-        })
-        .eq('supabaseId', data.user.id);
+      if (error) {
+        setFormMessage({ type: 'error', text: `Registrierung fehlgeschlagen: ${getReadableAuthError(error)}` });
+        return;
+      }
+
+      if (!data.user) {
+        setFormMessage({
+          type: 'info',
+          text: 'Falls die E-Mail-Adresse gültig ist, erhältst du gleich eine Bestätigungs-E-Mail. Bitte prüfe auch deinen Spam-Ordner.',
+        });
+        return;
+      }
+
+      if (!data.session) {
+        setFormMessage({
+          type: 'success',
+          text: 'Registrierung erfolgreich. Bitte bestätige jetzt deine E-Mail-Adresse über den Link, den wir dir gesendet haben. Danach kannst du dich einloggen.',
+        });
+        setPassword('');
+        return;
+      }
+
+      await createProfileForActiveSession(data.user.id);
 
       if (smsVerificationEnabled) {
-        setFormMessage({ type: 'success', text: 'Registrierung erfolgreich! Bestätige jetzt deine Handynummer, damit dein Ranked-Profil verifiziert wird.' });
+        setFormMessage({ type: 'success', text: 'Registrierung erfolgreich. Bestätige jetzt deine Handynummer, damit dein Ranked-Profil verifiziert wird.' });
         setTimeout(() => router.push(`/auth/verify-phone?phone=${encodeURIComponent(normalizedPhoneNumber)}`), 1200);
       } else {
-        setFormMessage({ type: 'success', text: 'Registrierung erfolgreich! Die SMS-Verifizierung ist aktuell deaktiviert, dein Ranked-Profil ist direkt bereit.' });
+        setFormMessage({ type: 'success', text: 'Registrierung erfolgreich. Die SMS-Verifizierung ist aktuell deaktiviert, dein Ranked-Profil ist direkt bereit.' });
         setTimeout(() => router.push('/profile'), 1200);
       }
+    } catch (error) {
+      setFormMessage({ type: 'error', text: `Registrierung fehlgeschlagen: ${getReadableAuthError(error)}` });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -116,7 +184,7 @@ export default function Register() {
           <div className="rounded-[2.5rem] border border-white/10 bg-white/[0.04] p-8 backdrop-blur-xl">
             <div className="inline-flex rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">Anti-Smurf Verifizierung</div>
             <h1 className="mt-7 text-6xl font-black leading-[0.9] tracking-[-0.07em]">Erstelle dein verifiziertes Ranked-Profil.</h1>
-            <p className="mt-6 text-lg leading-8 text-zinc-300">Dein Account startet mit 1000 Elo. Die Handynummer-Verifizierung macht RankedDarts fairer, kann aber bei Bedarf temporär durch die Developer-Oberfläche deaktiviert werden.</p>
+            <p className="mt-6 text-lg leading-8 text-zinc-300">Dein Account startet mit 1000 Elo. Nach der Registrierung bestätigst du zuerst deine E-Mail-Adresse. Die Handynummer-Verifizierung macht RankedDarts fairer und kann bei Bedarf temporär deaktiviert werden.</p>
 
             <div className="mt-10 grid gap-4">
               <div className="rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.06] p-6">
@@ -128,7 +196,7 @@ export default function Register() {
                   </div>
                   <div className="rounded-2xl bg-black/25 p-4">
                     <div className="text-3xl font-black">2</div>
-                    <div className="text-xs text-zinc-400">SMS-Code</div>
+                    <div className="text-xs text-zinc-400">E-Mail</div>
                   </div>
                   <div className="rounded-2xl bg-black/25 p-4">
                     <div className="text-3xl font-black">3</div>
@@ -155,14 +223,16 @@ export default function Register() {
             <div className="mb-8 text-center">
               <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">Registrierung</div>
               <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">Kostenlos starten</h2>
-              <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Spielernamen{smsVerificationEnabled ? ' und hinterlege deine Handynummer für die anschließende SMS-Verifizierung.' : '. Die SMS-Verifizierung ist aktuell deaktiviert.'}</p>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Spielernamen{smsVerificationEnabled ? ' und hinterlege deine Handynummer für die spätere Verifizierung.' : '. Die SMS-Verifizierung ist aktuell deaktiviert.'}</p>
             </div>
 
             {formMessage && (
               <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm font-semibold leading-6 ${
                 formMessage.type === 'error'
                   ? 'border-red-400/25 bg-red-500/10 text-red-100'
-                  : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+                  : formMessage.type === 'info'
+                    ? 'border-sky-300/25 bg-sky-400/10 text-sky-100'
+                    : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
               }`}>
                 {formMessage.text}
               </div>
