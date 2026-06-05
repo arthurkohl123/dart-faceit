@@ -7,27 +7,59 @@ import { useRouter } from 'next/navigation';
 
 const normalizePhoneNumber = (value: string) => value.replace(/[\s()-]/g, '');
 
-const getReadableAuthError = (error: unknown) => {
-  if (!error) return 'Ein unbekannter Fehler ist aufgetreten. Bitte versuche es erneut.';
+const EMPTY_SUPABASE_ERROR_MESSAGE = 'Supabase hat nur ein leeres Fehlerobjekt zurückgegeben. Das passiert häufig, wenn die E-Mail-Bestätigung aktiv ist, aber SMTP-Absender, SMTP-Zugangsdaten oder Redirect-URL in Supabase nicht korrekt konfiguriert sind. Bitte prüfe Auth → Logs in Supabase und die SMTP-Einstellungen.';
 
-  if (error instanceof Error && error.message) {
-    return error.message;
+const normalizeErrorText = (value: unknown) => {
+  if (typeof value !== 'string') return '';
+
+  const text = value.trim();
+  if (!text || text === '{}' || text === '[]' || text === '[object Object]') return '';
+
+  return text;
+};
+
+const getReadableAuthError = (error: unknown) => {
+  if (!error) return EMPTY_SUPABASE_ERROR_MESSAGE;
+
+  const directString = normalizeErrorText(error);
+  if (directString) return directString;
+
+  if (error instanceof Error) {
+    const message = normalizeErrorText(error.message);
+    if (message) return message;
   }
 
   if (typeof error === 'object') {
-    const maybeError = error as { message?: unknown; error_description?: unknown; error?: unknown; details?: unknown };
-    const message = maybeError.message || maybeError.error_description || maybeError.error || maybeError.details;
+    const maybeError = error as {
+      message?: unknown;
+      error_description?: unknown;
+      error?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+      status?: unknown;
+      name?: unknown;
+    };
 
-    if (typeof message === 'string' && message.trim()) {
-      return message;
+    const parts = [
+      maybeError.message,
+      maybeError.error_description,
+      maybeError.error,
+      maybeError.details,
+      maybeError.hint,
+      maybeError.code ? `Code: ${String(maybeError.code)}` : '',
+      maybeError.status ? `Status: ${String(maybeError.status)}` : '',
+      maybeError.name ? `Typ: ${String(maybeError.name)}` : '',
+    ]
+      .map(normalizeErrorText)
+      .filter(Boolean);
+
+    if (parts.length > 0) {
+      return parts.join(' · ');
     }
   }
 
-  if (typeof error === 'string' && error.trim()) {
-    return error;
-  }
-
-  return 'Ein unbekannter Fehler ist aufgetreten. Bitte prüfe deine Eingaben und versuche es erneut.';
+  return EMPTY_SUPABASE_ERROR_MESSAGE;
 };
 
 export default function Register() {
@@ -127,6 +159,7 @@ export default function Register() {
       });
 
       if (error) {
+        console.error('Supabase signUp failed', error);
         setFormMessage({ type: 'error', text: `Registrierung fehlgeschlagen: ${getReadableAuthError(error)}` });
         return;
       }
@@ -158,6 +191,7 @@ export default function Register() {
         setTimeout(() => router.push('/profile'), 1200);
       }
     } catch (error) {
+      console.error('Registration flow failed', error);
       setFormMessage({ type: 'error', text: `Registrierung fehlgeschlagen: ${getReadableAuthError(error)}` });
     } finally {
       setLoading(false);
