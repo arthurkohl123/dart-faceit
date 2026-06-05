@@ -94,6 +94,9 @@ export default function Matchmaking() {
   const audioUnlockedRef = useRef(false);
   const lastMatchSoundIdRef = useRef<string | null>(null);
 
+  // FIX BUG 4: Neuer State für "Gegner hat abgelehnt"-Anzeige
+  const [opponentDeclined, setOpponentDeclined] = useState(false);
+
   // Cooldown-State
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [cancelCount24h, setCancelCount24h] = useState(0);
@@ -222,6 +225,7 @@ export default function Matchmaking() {
         setAcceptMatchId(null);
         setIHaveAccepted(false);
         setOpponentAccepted(false);
+        setOpponentDeclined(false);
       }
     }, 500);
   }, [supabase]);
@@ -248,13 +252,28 @@ export default function Matchmaking() {
     }
   };
 
+  // FIX BUG 2 + 3: Sperre wird jetzt auch in die DB geschrieben, damit sie nach F5 erhalten bleibt.
   const handleDecline = async () => {
     if (!acceptMatchId || acceptDeclineLoading) return;
     setAcceptDeclineLoading(true);
     const banUntil = new Date(Date.now() + 60_000).toISOString();
+    const banReason = 'Match abgelehnt – Queue-Sperre für 1 Minute.';
     try {
       const { error } = await supabase.rpc('decline_match', { p_match_id: acceptMatchId });
       if (error) throw error;
+
+      // FIX BUG 2 + 3: Queue-Sperre in der Datenbank persistieren,
+      // damit sie nach einem Seiten-Reload (F5) noch aktiv ist.
+      const uid = userIdRef.current;
+      if (uid) {
+        await supabase
+          .from('profiles')
+          .update({
+            queue_banned_until: banUntil,
+            queue_ban_reason: banReason,
+          })
+          .eq('supabaseId', uid);
+      }
     } catch (err) {
       console.error('decline_match fehlgeschlagen:', err);
     } finally {
@@ -262,8 +281,9 @@ export default function Matchmaking() {
       setAcceptMatchId(null);
       setIHaveAccepted(false);
       setOpponentAccepted(false);
+      setOpponentDeclined(false);
       setQueueBannedUntil(banUntil);
-      setQueueBanReason('Match abgelehnt – Queue-Sperre für 1 Minute.');
+      setQueueBanReason(banReason);
       setCooldownSeconds(60);
       setErrorMessage('Du hast das Match abgelehnt und bist deshalb für 1 Minute für die Queue gesperrt.');
       showToast('Match abgelehnt. Du bist für 1 Minute für die Queue gesperrt.', 'warning');
@@ -388,6 +408,7 @@ export default function Matchmaking() {
         setAcceptMatchId(result.match_id);
         setIHaveAccepted(false);
         setOpponentAccepted(false);
+        setOpponentDeclined(false);
         setStatus('accepting');
         startAcceptCountdown(result.match_id);
       }
@@ -502,6 +523,7 @@ export default function Matchmaking() {
             setAcceptMatchId(activeMatch.id);
             setIHaveAccepted(false);
             setOpponentAccepted(false);
+            setOpponentDeclined(false);
             setStatus('accepting');
             setPageLoading(false);
             startAcceptCountdown(activeMatch.id, deadline ?? undefined);
@@ -541,6 +563,10 @@ export default function Matchmaking() {
           setCooldownSeconds(queueBanSeconds);
           setQueueBanReason(profileData?.queue_ban_reason ?? 'Queue-Sperre aktiv.');
           setQueueBannedUntil(queueBannedUntil);
+          // FIX BUG 3: Status auf 'error' setzen damit nach F5 der Cooldown-Screen
+          // angezeigt wird und nicht die idle-Seite mit der Phone-Verification-Box.
+          setStatus('error');
+          setErrorMessage('');
         }
       }
       setPageLoading(false);
@@ -579,6 +605,7 @@ export default function Matchmaking() {
             setAcceptMatchId(newMatch.id);
             setIHaveAccepted(false);
             setOpponentAccepted(false);
+            setOpponentDeclined(false);
             setStatus('accepting');
             startAcceptCountdown(newMatch.id, newMatch.accept_deadline);
           } else {
@@ -616,6 +643,7 @@ export default function Matchmaking() {
           setAcceptMatchId(null);
           setIHaveAccepted(false);
           setOpponentAccepted(false);
+          setOpponentDeclined(false);
           setStatus('searching');
         }
       })
@@ -665,19 +693,37 @@ export default function Matchmaking() {
             redirectToResult(updated.id);
           }
 
-          // Match abgelehnt/abgebrochen:
-          // Wer bereits angenommen hatte, bleibt automatisch in der Suche.
-          // Wer noch nicht angenommen hatte, fällt zurück in die Auswahl.
+          // FIX BUG 1 + 4: Match abgelehnt/abgebrochen
+          // Wer bereits angenommen hatte: kurze "Gegner hat abgelehnt"-Anzeige,
+          // dann automatisch wieder in die Queue eintragen (echtes re-join).
+          // Wer noch nicht angenommen hatte: zurück zur App-Auswahl (idle).
           if (updated.status === 'cancelled') {
             if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
             const acceptedBeforeCancel = iHaveAcceptedRef.current;
+            const appBeforeCancel = selectedAppRef.current;
+
             setAcceptMatchId(null);
             setIHaveAccepted(false);
             setOpponentAccepted(false);
-            if (acceptedBeforeCancel && selectedAppRef.current) {
-              showToast('Der Gegner hat abgelehnt. Du bleibst automatisch in der Queue.', 'info');
-              setStatus('searching');
+
+            if (acceptedBeforeCancel && appBeforeCancel) {
+              // FIX BUG 4: "Gegner hat abgelehnt"-Nachricht kurz anzeigen
+              setOpponentDeclined(true);
+              showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
+
+              // FIX BUG 1: Kurze Verzögerung damit der User die Nachricht sieht,
+              // dann echtes re-join in die Queue via pollForMatch.
+              setTimeout(async () => {
+                setOpponentDeclined(false);
+                setElapsedSeconds(0);
+                setStatus('searching');
+                // Wichtig: pollForMatch trägt den Spieler wieder in die DB-Queue ein.
+                // isPollingRef muss false sein damit der Aufruf nicht geblockt wird.
+                isPollingRef.current = false;
+                await pollForMatch(0);
+              }, 2500);
             } else {
+              setOpponentDeclined(false);
               setStatus('idle');
             }
           }
@@ -685,8 +731,59 @@ export default function Matchmaking() {
       )
       .subscribe();
 
+    // FIX BUG 4 (Race Condition): Nach dem Subscribe sofort den aktuellen Match-Status
+    // aus der DB laden, um Events die während des Subscribe-Vorgangs eingetroffen sind
+    // nicht zu verpassen.
+    const checkCurrentMatchStatus = async () => {
+      if (!acceptMatchId || !uid) return;
+      const { data } = await supabase
+        .from('active_matches')
+        .select('status, player1_id, player2_id, player1_accepted, player2_accepted')
+        .eq('id', acceptMatchId)
+        .maybeSingle();
+
+      if (!data) return;
+      if (!(data.player1_id === uid || data.player2_id === uid)) return;
+      const isPlayer1 = data.player1_id === uid;
+
+      if (data.status === 'pending_accept') {
+        const oppAccepted = isPlayer1 ? data.player2_accepted : data.player1_accepted;
+        setOpponentAccepted(Boolean(oppAccepted));
+      } else if (data.status === 'pending_result') {
+        if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
+        playMatchFoundSound(acceptMatchId);
+        setStatus('found');
+        redirectToResult(acceptMatchId);
+      } else if (data.status === 'cancelled') {
+        if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
+        const acceptedBeforeCancel = iHaveAcceptedRef.current;
+        const appBeforeCancel = selectedAppRef.current;
+
+        setAcceptMatchId(null);
+        setIHaveAccepted(false);
+        setOpponentAccepted(false);
+
+        if (acceptedBeforeCancel && appBeforeCancel) {
+          setOpponentDeclined(true);
+          showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
+          setTimeout(async () => {
+            setOpponentDeclined(false);
+            setElapsedSeconds(0);
+            setStatus('searching');
+            isPollingRef.current = false;
+            await pollForMatch(0);
+          }, 2500);
+        } else {
+          setOpponentDeclined(false);
+          setStatus('idle');
+        }
+      }
+    };
+
+    void checkCurrentMatchStatus();
+
     return () => { void supabase.removeChannel(channel); };
-  }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase]);
+  }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase, pollForMatch]);
 
   // Heartbeat: solange gesucht wird, alle 20 Sekunden last_seen aktualisieren.
   // Die DB-Funktion cleanup_stale_queue_entries löscht Einträge die älter als
@@ -922,6 +1019,14 @@ export default function Matchmaking() {
           {/* ACCEPTING */}
           {status === 'accepting' && selectedApp && (
             <div className="relative text-center">
+              {/* FIX BUG 4: Gegner-hat-abgelehnt-Overlay */}
+              {opponentDeclined && (
+                <div className="mb-6 flex items-center justify-center gap-3 rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4">
+                  <XCircle className="h-5 w-5 shrink-0 text-red-300" />
+                  <span className="text-sm font-bold text-red-200">Der Gegner hat abgelehnt. Du wirst wieder in die Queue eingetragen…</span>
+                </div>
+              )}
+
               {/* Pulsierender Ring */}
               <div className="relative mx-auto h-32 w-32">
                 <div className="absolute inset-0 animate-ping rounded-full border-2 border-emerald-300/30" />
