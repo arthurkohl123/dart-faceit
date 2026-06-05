@@ -33,6 +33,10 @@ type LiveMatch = {
   created_at: string;
 };
 
+const ACCEPT_WINDOW_SECONDS = 30;
+const DECLINE_QUEUE_BAN_SECONDS = 60;
+const OPPONENT_DECLINED_REQUEUE_DELAY_MS = 1500;
+
 const searchSteps = [
   { time: '0–20s', range: '±100 Elo', label: 'Sehr nahes Skill-Level' },
   { time: '20–40s', range: '±200 Elo', label: 'Erweiterte Suche' },
@@ -90,6 +94,7 @@ export default function Matchmaking() {
   const [acceptDeclineLoading, setAcceptDeclineLoading] = useState(false);
   const acceptIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const acceptExpireCalledRef = useRef(false);
+  const acceptCancelHandledMatchIdRef = useRef<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioUnlockedRef = useRef(false);
   const lastMatchSoundIdRef = useRef<string | null>(null);
@@ -213,7 +218,8 @@ export default function Matchmaking() {
   const startAcceptCountdown = useCallback((matchId: string, deadlineIso?: string) => {
     if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
     acceptExpireCalledRef.current = false;
-    const deadline = deadlineIso ? new Date(deadlineIso).getTime() : Date.now() + 30_000;
+    acceptCancelHandledMatchIdRef.current = null;
+    const deadline = deadlineIso ? new Date(deadlineIso).getTime() : Date.now() + ACCEPT_WINDOW_SECONDS * 1000;
     const calcRemaining = () => Math.max(0, Math.round((deadline - Date.now()) / 1000));
     setAcceptCountdown(calcRemaining());
     acceptIntervalRef.current = setInterval(async () => {
@@ -263,7 +269,7 @@ export default function Matchmaking() {
   const handleDecline = async () => {
     if (!acceptMatchId || acceptDeclineLoading) return;
     setAcceptDeclineLoading(true);
-    const banUntil = new Date(Date.now() + 60_000).toISOString();
+    const banUntil = new Date(Date.now() + DECLINE_QUEUE_BAN_SECONDS * 1000).toISOString();
     const banReason = 'Match abgelehnt – Queue-Sperre für 1 Minute.';
     try {
       const { error } = await supabase.rpc('decline_match', { p_match_id: acceptMatchId });
@@ -273,13 +279,17 @@ export default function Matchmaking() {
       // damit sie nach einem Seiten-Reload (F5) noch aktiv ist.
       const uid = userIdRef.current;
       if (uid) {
-        await supabase
+        const { error: profileBanError } = await supabase
           .from('profiles')
           .update({
             queue_banned_until: banUntil,
             queue_ban_reason: banReason,
           })
           .eq('supabaseId', uid);
+
+        if (profileBanError) {
+          console.error('Queue-Sperre konnte nicht im Profil gespeichert werden:', profileBanError);
+        }
       }
     } catch (err) {
       console.error('decline_match fehlgeschlagen:', err);
@@ -291,7 +301,7 @@ export default function Matchmaking() {
       setOpponentDeclined(false);
       setQueueBannedUntil(banUntil);
       setQueueBanReason(banReason);
-      setCooldownSeconds(60);
+      setCooldownSeconds(DECLINE_QUEUE_BAN_SECONDS);
       setErrorMessage('Du hast das Match abgelehnt und bist deshalb für 1 Minute für die Queue gesperrt.');
       showToast('Match abgelehnt. Du bist für 1 Minute für die Queue gesperrt.', 'warning');
       setAcceptDeclineLoading(false);
@@ -330,6 +340,17 @@ export default function Matchmaking() {
     }
 
     setCooldownSeconds(nextCooldown);
+    if (nextCooldown > 0) {
+      setErrorMessage('Du bist aktuell für die Queue gesperrt. Bitte kurz warten.');
+      if (statusRef.current === 'idle') {
+        statusRef.current = 'error';
+        setStatus('error');
+      }
+    } else if (statusRef.current === 'error') {
+      setQueueBanReason(null);
+      setQueueBannedUntil(null);
+      setStatus('idle');
+    }
   }, [supabase]);
 
   // Cooldown-Countdown
@@ -694,7 +715,6 @@ export default function Matchmaking() {
       }
       skipCancelOnSearchingExitRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, supabase, redirectToResult, playMatchFoundSound, startAcceptCountdown]);
 
   // Realtime: Accept-Phase — separater Kanal der auch bei status='accepting' aktiv ist
@@ -731,10 +751,13 @@ export default function Matchmaking() {
           // dann automatisch wieder in die Queue eintragen (echtes re-join).
           // Wer noch nicht angenommen hatte: zurück zur App-Auswahl (idle).
           if (updated.status === 'cancelled') {
-            // Timer SOFORT stoppen
+            if (acceptCancelHandledMatchIdRef.current === updated.id) return;
+            acceptCancelHandledMatchIdRef.current = updated.id;
+
+            // Timer SOFORT stoppen, damit der annehmende Spieler nicht bis 0 warten muss.
             if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
             acceptIntervalRef.current = null;
-            acceptExpireCalledRef.current = true; // verhindert späten expire-Aufruf
+            acceptExpireCalledRef.current = true;
             const acceptedBeforeCancel = iHaveAcceptedRef.current;
             const appBeforeCancel = selectedAppRef.current;
 
@@ -744,27 +767,25 @@ export default function Matchmaking() {
             setOpponentAccepted(false);
 
             if (acceptedBeforeCancel && appBeforeCancel) {
-              // "Gegner hat abgelehnt"-Screen anzeigen
-              // Status bleibt 'accepting' damit der Screen sichtbar ist
               setOpponentDeclined(true);
               showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
 
-              setTimeout(async () => {
+              window.setTimeout(async () => {
                 setOpponentDeclined(false);
+                setSelectedApp(appBeforeCancel);
+                selectedAppRef.current = appBeforeCancel;
                 setElapsedSeconds(0);
                 isPollingRef.current = false;
-                // skipCancel VOR setStatus setzen – der searching-useEffect
-                // Cleanup läuft wenn status von 'accepting' zu 'searching' wechselt
-                skipCancelOnSearchingExitRef.current = true;
-                // statusRef synchron setzen damit pollForMatch nicht abbricht
                 statusRef.current = 'searching';
                 setStatus('searching');
-                // Direkt in die Queue eintragen
                 await pollForMatchRef.current?.(0);
-              }, 1500);
+                await fetchQueueCounts();
+              }, OPPONENT_DECLINED_REQUEUE_DELAY_MS);
             } else {
               setOpponentDeclined(false);
+              statusRef.current = 'idle';
               setStatus('idle');
+              void fetchQueueCounts();
             }
           }
         }
@@ -795,6 +816,9 @@ export default function Matchmaking() {
         setStatus('found');
         redirectToResult(acceptMatchId);
       } else if (data.status === 'cancelled') {
+        if (acceptCancelHandledMatchIdRef.current === acceptMatchId) return;
+        acceptCancelHandledMatchIdRef.current = acceptMatchId;
+
         if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
         acceptIntervalRef.current = null;
         acceptExpireCalledRef.current = true;
@@ -809,25 +833,35 @@ export default function Matchmaking() {
         if (acceptedBeforeCancel && appBeforeCancel) {
           setOpponentDeclined(true);
           showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
-          setTimeout(async () => {
+          window.setTimeout(async () => {
             setOpponentDeclined(false);
+            setSelectedApp(appBeforeCancel);
+            selectedAppRef.current = appBeforeCancel;
             setElapsedSeconds(0);
             isPollingRef.current = false;
-            skipCancelOnSearchingExitRef.current = true;
             statusRef.current = 'searching';
             setStatus('searching');
             await pollForMatchRef.current?.(0);
-          }, 1500);
+            await fetchQueueCounts();
+          }, OPPONENT_DECLINED_REQUEUE_DELAY_MS);
         } else {
           setOpponentDeclined(false);
+          statusRef.current = 'idle';
           setStatus('idle');
+          void fetchQueueCounts();
         }
       }
     };
 
     void checkCurrentMatchStatus();
+    const statusPollInterval = window.setInterval(() => {
+      void checkCurrentMatchStatus();
+    }, 1000);
 
-    return () => { void supabase.removeChannel(channel); };
+    return () => {
+      window.clearInterval(statusPollInterval);
+      void supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase]);
 
