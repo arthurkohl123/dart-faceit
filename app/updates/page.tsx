@@ -4,30 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 const updates = [
-  {
-    date: '21. Mai 2026',
-    title: 'Premium Abonnement ist live!',
-    category: 'Feature',
-    content: 'Ab sofort kannst du RankedDarts Premium für 4,99 €/Monat abschließen. Vorteile: Keine Wartezeit, exklusive Ränge, detaillierte Stats und werbefreies Erlebnis.',
-    highlight: true,
-  },
-  {
-    date: '19. Mai 2026',
-    title: 'Neues Design für Leaderboard',
-    category: 'Design',
-    content: 'Die Rangliste wurde komplett überarbeitet mit besserer Optik, Hover-Effekten und Premium-Hervorhebungen.',
-  },
-  {
-    date: '18. Mai 2026',
-    title: 'Matchmaking verbessert',
-    category: 'Matchmaking',
-    content: 'Die Wartezeit wurde reduziert und das System sucht jetzt noch genauer nach Gegnern mit ähnlichem Skill-Level.',
-  },
-  {
-    date: '15. Mai 2026',
-    title: 'Launch von RankedDarts',
+    {
+    date: '05. Juni 2026',
+    title: 'Launch von RankedDarts Beta',
     category: 'Announcement',
-    content: 'Offizieller Start der Plattform. Willkommen in der Dart-Community!',
+    content: 'Offizieller Beta Start der Plattform. Willkommen in der Dart-Community!',
     highlight: true,
   },
 ];
