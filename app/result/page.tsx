@@ -41,6 +41,8 @@ type ActiveMatch = {
   submitted_player2_legs: number | null;
   submitted_player1_average: number | null;
   submitted_player2_average: number | null;
+  submitted_player1_180s: number | null;
+  submitted_player2_180s: number | null;
   confirmed_by: string | null;
   dispute_reason: string | null;
   dispute_screenshot_url: string | null;
@@ -72,6 +74,8 @@ type ChatMessage = {
 
 const CONFIRM_TIMEOUT_SECONDS = 300;
 const NO_SHOW_TIMEOUT_SECONDS = 300; // 5 Minuten
+const BEST_OF_LEGS = 7;
+const LEGS_TO_WIN = Math.ceil(BEST_OF_LEGS / 2);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -159,8 +163,10 @@ export default function MatchResult() {
   // Form state
   const [legsWon, setLegsWon] = useState(0);
   const [legsLost, setLegsLost] = useState(0);
-  const [average, setAverage] = useState('');
-  const [oneEighties, setOneEighties] = useState('');
+  const [myAverage, setMyAverage] = useState('');
+  const [opponentAverageInput, setOpponentAverageInput] = useState('');
+  const [myOneEighties, setMyOneEighties] = useState('');
+  const [opponentOneEighties, setOpponentOneEighties] = useState('');
 
   // Dispute state
   const [disputeReason, setDisputeReason] = useState('');
@@ -219,7 +225,7 @@ export default function MatchResult() {
     match.submitted_by &&
     match.submitted_by !== currentUserId
   );
-  const resultIsValid = legsWon !== legsLost && (legsWon > 0 || legsLost > 0);
+  const resultIsValid = (legsWon === LEGS_TO_WIN && legsLost >= 0 && legsLost < LEGS_TO_WIN) || (legsLost === LEGS_TO_WIN && legsWon >= 0 && legsWon < LEGS_TO_WIN);
   const countdownIsUrgent = countdown !== null && countdown <= 60;
 
   const submittedData = useMemo(() => {
@@ -228,11 +234,13 @@ export default function MatchResult() {
     const oppLegs = iAmPlayer1 ? match.submitted_player2_legs : match.submitted_player1_legs;
     const myAvg = iAmPlayer1 ? match.submitted_player1_average : match.submitted_player2_average;
     const oppAvg = iAmPlayer1 ? match.submitted_player2_average : match.submitted_player1_average;
+    const my180s = iAmPlayer1 ? match.submitted_player1_180s : match.submitted_player2_180s;
+    const opp180s = iAmPlayer1 ? match.submitted_player2_180s : match.submitted_player1_180s;
     const submitterName =
       match.submitted_by === match.player1_id ? match.player1_username : match.player2_username;
     const winnerName =
       match.submitted_winner_id === match.player1_id ? match.player1_username : match.player2_username;
-    return { myLegs, oppLegs, myAvg, oppAvg, submitterName, winnerName };
+    return { myLegs, oppLegs, myAvg, oppAvg, my180s, opp180s, submitterName, winnerName };
   }, [currentUserId, iAmPlayer1, match]);
 
   // ── Countdown ────────────────────────────────────────────────────────────────
@@ -389,9 +397,11 @@ export default function MatchResult() {
         p_match_id: match.id,
         p_my_legs: legsWon,
         p_opponent_legs: legsLost,
-        p_my_average: average ? Number.parseFloat(average) : null,
+        p_my_average: myAverage ? Number.parseFloat(myAverage) : null,
+        p_opponent_average: opponentAverageInput ? Number.parseFloat(opponentAverageInput) : null,
         p_highest_checkout: null,
-        p_my_180s: oneEighties ? Number.parseInt(oneEighties, 10) : 0,
+        p_my_180s: myOneEighties ? Number.parseInt(myOneEighties, 10) : 0,
+        p_opponent_180s: opponentOneEighties ? Number.parseInt(opponentOneEighties, 10) : 0,
       });
       if (error) throw error;
       const r = Array.isArray(data) ? (data[0] as RpcStatusResponse | undefined) : undefined;
@@ -1041,7 +1051,7 @@ export default function MatchResult() {
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Scoreboard</p>
               <h2 className="mt-2 text-4xl font-black tracking-[-0.06em]">Ergebnis eintragen</h2>
               <p className="mt-2 text-sm text-zinc-500">
-                Trage das Ergebnis ein. Dein Gegner muss es danach bestätigen.
+                Trage das Best-of-7-Ergebnis sowie Average und 180er von beiden Spielern ein. Dein Gegner muss alles danach bestätigen.
               </p>
             </div>
 
@@ -1050,13 +1060,16 @@ export default function MatchResult() {
               <div>
                 <p className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Legs</p>
                 <div className="flex items-start justify-center gap-4">
-                  <LegCounter label="Deine Legs" value={legsWon} onChange={setLegsWon} accent="text-emerald-300" />
+                  <LegCounter label="Deine Legs" value={legsWon} onChange={(v) => setLegsWon(Math.min(LEGS_TO_WIN, v))} accent="text-emerald-300" />
                   <span className="mt-[4.5rem] text-4xl font-black text-zinc-700 sm:mt-[5rem] sm:text-5xl">:</span>
-                  <LegCounter label="Gegner Legs" value={legsLost} onChange={setLegsLost} accent="text-zinc-300" />
+                  <LegCounter label="Gegner Legs" value={legsLost} onChange={(v) => setLegsLost(Math.min(LEGS_TO_WIN, v))} accent="text-zinc-300" />
                 </div>
-                {legsWon === legsLost && (legsWon > 0 || legsLost > 0) && (
-                  <p className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-center text-sm font-bold text-red-200">
-                    Unentschieden kann nicht eingereicht werden.
+                <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-center text-sm font-bold text-zinc-400">
+                  Gespielt wird immer Best of 7. Ein gültiges Ergebnis endet mit 4 Legs für einen Spieler, zum Beispiel 4:0 bis 4:3.
+                </p>
+                {!resultIsValid && (legsWon > 0 || legsLost > 0) && (
+                  <p className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-center text-sm font-bold text-red-200">
+                    Ungültiges Best-of-7-Ergebnis. Ein Spieler muss genau 4 Legs erreicht haben.
                   </p>
                 )}
               </div>
@@ -1066,20 +1079,22 @@ export default function MatchResult() {
 
               {/* Stats */}
               <div>
-                <p className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Statistiken</p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <StatInput
-                    label="Average"
-                    value={average}
-                    onChange={setAverage}
-                    placeholder="84.70"
-                  />
-                  <StatInput
-                    label="180er"
-                    value={oneEighties}
-                    onChange={setOneEighties}
-                    placeholder="0"
-                  />
+                <p className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Statistiken beider Spieler</p>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <div className="rounded-3xl border border-emerald-300/15 bg-emerald-400/[0.04] p-5">
+                    <p className="mb-4 text-center text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Du</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <StatInput label="Dein Average" value={myAverage} onChange={setMyAverage} placeholder="84.70" />
+                      <StatInput label="Deine 180er" value={myOneEighties} onChange={setMyOneEighties} placeholder="0" />
+                    </div>
+                  </div>
+                  <div className="rounded-3xl border border-cyan-300/15 bg-cyan-400/[0.04] p-5">
+                    <p className="mb-4 text-center text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Gegner</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <StatInput label="Gegner Average" value={opponentAverageInput} onChange={setOpponentAverageInput} placeholder="82.10" />
+                      <StatInput label="Gegner 180er" value={opponentOneEighties} onChange={setOpponentOneEighties} placeholder="0" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1104,11 +1119,10 @@ export default function MatchResult() {
                       {legsWon > legsLost ? 'Sieg' : 'Niederlage'} — {legsWon}:{legsLost}
                     </span>
                   </div>
-                  {average && (
-                    <span className="text-sm font-bold text-zinc-400">
-                      Ø {Number.parseFloat(average).toFixed(2)}
-                    </span>
-                  )}
+                  <span className="text-right text-sm font-bold text-zinc-400">
+                    {myAverage && <>Du Ø {Number.parseFloat(myAverage).toFixed(2)}</>}<br />
+                    {opponentAverageInput && <>Gegner Ø {Number.parseFloat(opponentAverageInput).toFixed(2)}</>}
+                  </span>
                 </div>
               )}
 
@@ -1142,6 +1156,16 @@ export default function MatchResult() {
                 eingereicht. <strong className="text-white">{opponentUsername}</strong> muss das Ergebnis
                 bestätigen — oder es wird nach Ablauf des Timers automatisch gewertet.
               </p>
+              <div className="mt-6 grid w-full max-w-md grid-cols-2 gap-3 text-sm">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600">Dein Average / 180er</p>
+                  <p className="mt-1 font-black text-white">{submittedData?.myAvg != null ? submittedData.myAvg.toFixed(2) : '–'} · {submittedData?.my180s ?? 0}×180</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600">Gegner Average / 180er</p>
+                  <p className="mt-1 font-black text-white">{submittedData?.oppAvg != null ? submittedData.oppAvg.toFixed(2) : '–'} · {submittedData?.opp180s ?? 0}×180</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1177,16 +1201,22 @@ export default function MatchResult() {
                 </div>
               </div>
 
-              {/* Gewinner + Average */}
-              <div className="grid grid-cols-2 gap-px border-t border-white/10 bg-white/10">
+              {/* Gewinner + eingereichte Statistiken */}
+              <div className="grid gap-px border-t border-white/10 bg-white/10 md:grid-cols-3">
                 <div className="bg-zinc-950 px-6 py-4 text-center">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Gewinner</p>
                   <p className="mt-1 font-black text-emerald-300">{submittedData?.winnerName}</p>
                 </div>
                 <div className="bg-zinc-950 px-6 py-4 text-center">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Dein Average</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Dein Average / 180er</p>
                   <p className="mt-1 font-black text-white">
-                    {submittedData?.myAvg != null ? submittedData.myAvg.toFixed(2) : '–'}
+                    {submittedData?.myAvg != null ? submittedData.myAvg.toFixed(2) : '–'} · {submittedData?.my180s ?? 0}×180
+                  </p>
+                </div>
+                <div className="bg-zinc-950 px-6 py-4 text-center">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Gegner Average / 180er</p>
+                  <p className="mt-1 font-black text-white">
+                    {submittedData?.oppAvg != null ? submittedData.oppAvg.toFixed(2) : '–'} · {submittedData?.opp180s ?? 0}×180
                   </p>
                 </div>
               </div>
