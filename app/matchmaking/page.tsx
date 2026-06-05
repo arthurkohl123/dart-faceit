@@ -150,8 +150,6 @@ export default function Matchmaking() {
   // null = Profil noch nicht geladen → Box NICHT anzeigen (kein false-positive beim Status-Wechsel)
   const effectivePhoneVerified = phoneVerified === null ? null : (!smsVerificationEnabled || phoneVerified === true);
 
-  const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
-
   const unlockMatchFoundSound = useCallback(() => {
     if (typeof window === 'undefined' || audioUnlockedRef.current) return;
 
@@ -465,68 +463,45 @@ export default function Matchmaking() {
     setElapsedSeconds(0);
     setErrorMessage('');
     isPollingRef.current = false;
-    statusRef.current = 'searching';
-    setStatus('searching');
 
-    for (let attempt = 1; attempt <= 4; attempt += 1) {
-      const { data, error } = await supabase.rpc('check_and_join_queue', {
-        p_max_elo_diff: getMaxEloDiff(0),
-        p_app: app,
-      });
+    const { data, error } = await supabase.rpc('force_rejoin_queue_after_decline', {
+      p_app: app,
+      p_max_elo_diff: getMaxEloDiff(0),
+    });
 
-      if (statusRef.current !== 'searching') return;
-
-      if (error) {
-        const msg = error.message || 'Re-Queue nach Gegner-Ablehnung fehlgeschlagen.';
-        setErrorMessage(msg);
-        statusRef.current = 'error';
-        setStatus('error');
-        return;
-      }
-
-      const result = Array.isArray(data) ? data[0] as MatchmakingResponse | undefined : data as MatchmakingResponse | undefined;
+    if (error) {
+      const missingRpc = error.message?.includes('force_rejoin_queue_after_decline') || error.message?.includes('Could not find the function');
+      setErrorMessage(
+        missingRpc
+          ? 'Die Datenbankfunktion force_rejoin_queue_after_decline fehlt noch. Bitte zuerst den SQL-Patch supabase/force_rejoin_queue_after_decline.sql in Supabase ausführen.'
+          : (error.message || 'Re-Queue nach Gegner-Ablehnung fehlgeschlagen.')
+      );
+      statusRef.current = 'error';
+      setStatus('error');
       await fetchQueueCounts();
-
-      if (result?.match_status === 'pending_accept' && result.match_id) {
-        handlePendingAccept(result.match_id);
-        return;
-      }
-
-      if (result?.match_status === 'already_in_match') {
-        const uid = userIdRef.current;
-        if (uid) {
-          const { data: activeMatch } = await supabase
-            .from('active_matches')
-            .select('id, status, accept_deadline')
-            .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
-            .in('status', ['pending_accept', 'pending_result', 'awaiting_confirmation'])
-            .maybeSingle();
-
-          if (activeMatch?.status === 'pending_accept') {
-            handlePendingAccept(activeMatch.id, activeMatch.accept_deadline as string | null);
-            return;
-          }
-
-          if (activeMatch?.id) {
-            router.replace(`/result?matchId=${activeMatch.id}`);
-            return;
-          }
-        }
-      }
-
-      const queueState = await verifyOwnQueueEntry(app);
-      if (queueState === 'joined' || (queueState === 'unknown' && result?.match_status === 'searching')) {
-        await fetchQueueCounts();
-        return;
-      }
-
-      await sleep(350 * attempt);
+      return;
     }
 
-    setErrorMessage('Du wurdest nach der Gegner-Ablehnung nicht wirklich in die Queue eingetragen. Bitte starte die Suche einmal neu. Wenn das erneut passiert, muss die Supabase-Funktion check_and_join_queue cancelled Matches serverseitig ignorieren.');
+    const result = data as { status?: string; queued?: boolean; match_id?: string } | null;
+
+    if (result?.status === 'already_in_match' && result.match_id) {
+      router.replace(`/result?matchId=${result.match_id}`);
+      return;
+    }
+
+    const queueState = await verifyOwnQueueEntry(app);
+    if (result?.queued === true || queueState === 'joined') {
+      statusRef.current = 'searching';
+      setStatus('searching');
+      await fetchQueueCounts();
+      return;
+    }
+
+    setErrorMessage('Die Re-Queue-Funktion wurde ausgeführt, aber es wurde kein echter Queue-Eintrag gefunden. Bitte prüfe die Tabelle matchmaking_queue und die Funktion force_rejoin_queue_after_decline.');
     statusRef.current = 'error';
     setStatus('error');
-  }, [fetchQueueCounts, handlePendingAccept, router, supabase, verifyOwnQueueEntry]);
+    await fetchQueueCounts();
+  }, [fetchQueueCounts, router, supabase, verifyOwnQueueEntry]);
 
   const pollForMatch = useCallback(async (seconds: number) => {
     if (isPollingRef.current || statusRef.current !== 'searching') return;
