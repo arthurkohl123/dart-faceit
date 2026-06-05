@@ -118,6 +118,7 @@ export default function Matchmaking() {
   const selectedAppRef = useRef<AppChoice | null>(null);
   const userIdRef = useRef<string | null>(null);
   const iHaveAcceptedRef = useRef(false);
+  const opponentDeclineHandledRef = useRef(false);
   // Verhindert dass cancel_matchmaking beim re-queue nach Gegner-Ablehnung aufgerufen wird
   const skipCancelOnSearchingExitRef = useRef(false);
   // Ref auf pollForMatch damit der searching-useEffect nicht bei jeder
@@ -213,6 +214,7 @@ export default function Matchmaking() {
   const startAcceptCountdown = useCallback((matchId: string, deadlineIso?: string) => {
     if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
     acceptExpireCalledRef.current = false;
+    opponentDeclineHandledRef.current = false;
     const deadline = deadlineIso ? new Date(deadlineIso).getTime() : Date.now() + 30_000;
     const calcRemaining = () => Math.max(0, Math.round((deadline - Date.now()) / 1000));
     setAcceptCountdown(calcRemaining());
@@ -735,7 +737,7 @@ export default function Matchmaking() {
             if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
             acceptIntervalRef.current = null;
             acceptExpireCalledRef.current = true; // verhindert späten expire-Aufruf
-            const acceptedBeforeCancel = iHaveAcceptedRef.current;
+            const acceptedBeforeCancel = iHaveAcceptedRef.current || Boolean(isPlayer1 ? updated.player1_accepted : updated.player2_accepted);
             const appBeforeCancel = selectedAppRef.current;
 
             setAcceptMatchId(null);
@@ -744,6 +746,8 @@ export default function Matchmaking() {
             setOpponentAccepted(false);
 
             if (acceptedBeforeCancel && appBeforeCancel) {
+              if (opponentDeclineHandledRef.current) return;
+              opponentDeclineHandledRef.current = true;
               // "Gegner hat abgelehnt"-Screen anzeigen
               // Status bleibt 'accepting' damit der Screen sichtbar ist
               setOpponentDeclined(true);
@@ -753,6 +757,8 @@ export default function Matchmaking() {
                 setOpponentDeclined(false);
                 setElapsedSeconds(0);
                 isPollingRef.current = false;
+                selectedAppRef.current = appBeforeCancel;
+                setSelectedApp(appBeforeCancel);
                 // skipCancel VOR setStatus setzen – der searching-useEffect
                 // Cleanup läuft wenn status von 'accepting' zu 'searching' wechselt
                 skipCancelOnSearchingExitRef.current = true;
@@ -782,7 +788,33 @@ export default function Matchmaking() {
         .eq('id', acceptMatchId)
         .maybeSingle();
 
-      if (!data) return;
+      if (!data) {
+        const appBeforeCancel = selectedAppRef.current;
+        if (iHaveAcceptedRef.current && appBeforeCancel && !opponentDeclineHandledRef.current) {
+          opponentDeclineHandledRef.current = true;
+          if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
+          acceptIntervalRef.current = null;
+          acceptExpireCalledRef.current = true;
+          setAcceptMatchId(null);
+          setIHaveAccepted(false);
+          iHaveAcceptedRef.current = false;
+          setOpponentAccepted(false);
+          setOpponentDeclined(true);
+          showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
+          setTimeout(async () => {
+            setOpponentDeclined(false);
+            setElapsedSeconds(0);
+            isPollingRef.current = false;
+            selectedAppRef.current = appBeforeCancel;
+            setSelectedApp(appBeforeCancel);
+            skipCancelOnSearchingExitRef.current = true;
+            statusRef.current = 'searching';
+            setStatus('searching');
+            await pollForMatchRef.current?.(0);
+          }, 1500);
+        }
+        return;
+      }
       if (!(data.player1_id === uid || data.player2_id === uid)) return;
       const isPlayer1 = data.player1_id === uid;
 
@@ -798,7 +830,7 @@ export default function Matchmaking() {
         if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
         acceptIntervalRef.current = null;
         acceptExpireCalledRef.current = true;
-        const acceptedBeforeCancel = iHaveAcceptedRef.current;
+        const acceptedBeforeCancel = iHaveAcceptedRef.current || Boolean(isPlayer1 ? data.player1_accepted : data.player2_accepted);
         const appBeforeCancel = selectedAppRef.current;
 
         setAcceptMatchId(null);
@@ -807,12 +839,16 @@ export default function Matchmaking() {
         setOpponentAccepted(false);
 
         if (acceptedBeforeCancel && appBeforeCancel) {
+          if (opponentDeclineHandledRef.current) return;
+          opponentDeclineHandledRef.current = true;
           setOpponentDeclined(true);
           showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
           setTimeout(async () => {
             setOpponentDeclined(false);
             setElapsedSeconds(0);
             isPollingRef.current = false;
+            selectedAppRef.current = appBeforeCancel;
+            setSelectedApp(appBeforeCancel);
             skipCancelOnSearchingExitRef.current = true;
             statusRef.current = 'searching';
             setStatus('searching');
@@ -826,8 +862,14 @@ export default function Matchmaking() {
     };
 
     void checkCurrentMatchStatus();
+    const acceptStatusPollInterval = window.setInterval(() => {
+      void checkCurrentMatchStatus();
+    }, 1000);
 
-    return () => { void supabase.removeChannel(channel); };
+    return () => {
+      window.clearInterval(acceptStatusPollInterval);
+      void supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase]);
 
