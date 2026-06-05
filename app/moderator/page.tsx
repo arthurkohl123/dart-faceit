@@ -129,6 +129,21 @@ type ResolveForm = {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
+function parseTicketMessageContent(content: string) {
+  const images: { label: string; url: string }[] = [];
+  const text = content
+    .replace(/\n?\[Bildanhang: ([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, label: string, url: string) => {
+      images.push({ label, url });
+      return '';
+    })
+    .trim();
+  return { text, images };
+}
+
+function ticketImageAlt(fileName: string) {
+  return fileName.replace(/[-_]+/g, ' ').replace(/\.[^/.]+$/, '').trim() || 'Ticket-Bildanhang';
+}
+
 const statusCfg: Record<string, { label: string; cls: string; dot: string }> = {
   open:             { label: 'Offen',          cls: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200', dot: 'bg-emerald-300' },
   in_progress:      { label: 'In Bearbeitung', cls: 'border-cyan-300/25 bg-cyan-400/10 text-cyan-200',         dot: 'bg-cyan-300' },
@@ -616,7 +631,9 @@ export default function ModeratorPanel() {
 
                           {/* Nachrichten */}
                           <div className="mb-5 max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-white/[0.06] bg-black/30 p-4">
-                            {ticketDetail.messages.map(msg => (
+                            {ticketDetail.messages.map(msg => {
+                              const parsed = parseTicketMessageContent(msg.content);
+                              return (
                               <div key={msg.id} className={`flex gap-3 ${msg.is_staff ? 'flex-row-reverse' : ''}`}>
                                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
                                   msg.is_staff ? 'bg-violet-400/20 text-violet-300' : 'bg-white/10 text-zinc-300'
@@ -633,10 +650,23 @@ export default function ModeratorPanel() {
                                     {msg.is_staff && <span className="rounded-full bg-violet-400/20 px-1.5 py-0.5 text-[9px] font-black text-violet-300">MOD</span>}
                                     <span className="text-[10px] text-zinc-700">{timeAgo(msg.created_at)}</span>
                                   </div>
-                                  <p className="leading-relaxed">{msg.content}</p>
+                                  <div className="space-y-3">
+                                    {parsed.text && <p className="leading-relaxed whitespace-pre-wrap">{parsed.text}</p>}
+                                    {parsed.images.length > 0 && (
+                                      <div className="grid gap-2">
+                                        {parsed.images.map((image) => (
+                                          <a key={image.url} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-white/10 bg-black/25 transition hover:border-white/25">
+                                            <img src={image.url} alt={ticketImageAlt(image.label)} className="max-h-56 w-full object-cover" />
+                                            <div className="truncate px-3 py-2 text-[11px] font-bold text-zinc-400">{image.label}</div>
+                                          </a>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                             {ticketDetail.messages.length === 0 && (
                               <p className="text-center text-xs text-zinc-700">Noch keine Nachrichten</p>
                             )}

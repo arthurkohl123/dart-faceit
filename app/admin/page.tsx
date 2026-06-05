@@ -126,6 +126,22 @@ const ticketCategoryLabels: Record<string, string> = {
   match_dispute: 'Match-Streit', ban_appeal: 'Ban-Einspruch', other: 'Sonstiges',
 };
 
+
+function parseTicketMessageContent(content: string) {
+  const images: { label: string; url: string }[] = [];
+  const text = content
+    .replace(/\n?\[Bildanhang: ([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, label: string, url: string) => {
+      images.push({ label, url });
+      return '';
+    })
+    .trim();
+  return { text, images };
+}
+
+function ticketImageAlt(fileName: string) {
+  return fileName.replace(/[-_]+/g, ' ').replace(/\.[^/.]+$/, '').trim() || 'Ticket-Bildanhang';
+}
+
 const ticketPriorityConfig: Record<string, { label: string; color: string }> = {
   low:    { label: 'Niedrig', color: 'text-zinc-400' },
   normal: { label: 'Normal',  color: 'text-zinc-300' },
@@ -1296,7 +1312,9 @@ export default function AdminPanel() {
 
                         {/* Nachrichten */}
                         <div className="space-y-3 max-h-96 overflow-y-auto rounded-2xl border border-white/10 bg-black/30 p-4">
-                          {ticketDetail.messages.map((msg) => (
+                          {ticketDetail.messages.map((msg) => {
+                            const parsed = parseTicketMessageContent(msg.content);
+                            return (
                             <div key={msg.id} className={`rounded-2xl p-4 ${
                               msg.is_staff
                                 ? 'border border-emerald-300/20 bg-emerald-400/[0.07] ml-8'
@@ -1311,9 +1329,22 @@ export default function AdminPanel() {
                                   {new Date(msg.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
-                              <p className="text-sm leading-6 text-zinc-300 whitespace-pre-wrap">{msg.content}</p>
+                              <div className="space-y-3">
+                                {parsed.text && <p className="text-sm leading-6 text-zinc-300 whitespace-pre-wrap">{parsed.text}</p>}
+                                {parsed.images.length > 0 && (
+                                  <div className="grid gap-2 sm:grid-cols-2">
+                                    {parsed.images.map((image) => (
+                                      <a key={image.url} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-white/10 bg-black/25 transition hover:border-white/25">
+                                        <img src={image.url} alt={ticketImageAlt(image.label)} className="h-36 w-full object-cover" />
+                                        <div className="truncate px-3 py-2 text-[11px] font-bold text-zinc-400">{image.label}</div>
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
 
                         {/* Antwort */}

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import {
@@ -14,12 +14,15 @@ import {
   Gavel,
   Headphones,
   HelpCircle,
+  Image as ImageIcon,
   Menu,
   MessageCircle,
   Plus,
   Send,
   Shield,
   Sparkles,
+  Trash2,
+  Upload,
   User,
   X,
   XCircle,
@@ -55,7 +58,22 @@ type TicketDetail = {
   messages: TicketMessage[];
 };
 
+type SupportImage = {
+  file: File;
+  previewUrl: string;
+};
+
+type ParsedMessageContent = {
+  text: string;
+  images: { label: string; url: string }[];
+};
+
 // ─── Config ───────────────────────────────────────────────────────────────────
+
+const SUPPORT_IMAGE_BUCKET = 'dispute-screenshots';
+const SUPPORT_IMAGE_FOLDER = 'support-tickets';
+const MAX_SUPPORT_IMAGES = 4;
+const MAX_SUPPORT_IMAGE_SIZE = 5 * 1024 * 1024;
 
 const statusConfig: Record<TicketStatus, { label: string; color: string; dot: string; bg: string; ring: string }> = {
   open:             { label: 'Offen',           color: 'text-emerald-200', dot: 'bg-emerald-300', bg: 'border-emerald-300/20 bg-emerald-400/10', ring: 'shadow-emerald-400/10' },
@@ -99,6 +117,23 @@ function priorityLabel(priority: string) {
 
 function ticketIsClosed(status: TicketStatus) {
   return status === 'resolved' || status === 'closed';
+}
+
+
+function parseMessageContent(content: string): ParsedMessageContent {
+  const images: ParsedMessageContent['images'] = [];
+  const text = content
+    .replace(/\n?\[Bildanhang: ([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, label: string, url: string) => {
+      images.push({ label, url });
+      return '';
+    })
+    .trim();
+
+  return { text, images };
+}
+
+function imageAlt(fileName: string) {
+  return fileName.replace(/[-_]+/g, ' ').replace(/\.[^/.]+$/, '').trim() || 'Support-Bildanhang';
 }
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
@@ -159,9 +194,15 @@ export default function SupportPage() {
   const [subject, setSubject] = useState('');
   const [category, setCategory] = useState<TicketCategory>('general');
   const [message, setMessage] = useState('');
+  const [ticketImages, setTicketImages] = useState<SupportImage[]>([]);
 
   // Antwort
   const [replyText, setReplyText] = useState('');
+  const [replyImages, setReplyImages] = useState<SupportImage[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
+
+  const newTicketFileRef = useRef<HTMLInputElement | null>(null);
+  const replyFileRef = useRef<HTMLInputElement | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -193,6 +234,97 @@ export default function SupportPage() {
     return () => { mounted = false; };
   }, [loadTickets]);
 
+
+  useEffect(() => {
+    return () => {
+      ticketImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+      replyImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+    };
+  }, [ticketImages, replyImages]);
+
+  const addImages = (files: FileList | null, target: 'ticket' | 'reply') => {
+    if (!files?.length) return;
+
+    const setImages = target === 'ticket' ? setTicketImages : setReplyImages;
+    setError('');
+
+    setImages((current) => {
+      const next = [...current];
+      for (const file of Array.from(files)) {
+        if (next.length >= MAX_SUPPORT_IMAGES) {
+          setError(`Du kannst maximal ${MAX_SUPPORT_IMAGES} Bilder pro Nachricht anhängen.`);
+          break;
+        }
+
+        if (!file.type.startsWith('image/')) {
+          setError('Bitte lade nur Bilddateien hoch.');
+          continue;
+        }
+
+        if (file.size > MAX_SUPPORT_IMAGE_SIZE) {
+          setError('Ein Bild darf maximal 5 MB groß sein.');
+          continue;
+        }
+
+        next.push({ file, previewUrl: URL.createObjectURL(file) });
+      }
+      return next;
+    });
+  };
+
+  const removeImage = (index: number, target: 'ticket' | 'reply') => {
+    const setImages = target === 'ticket' ? setTicketImages : setReplyImages;
+    setImages((current) => {
+      const image = current[index];
+      if (image) URL.revokeObjectURL(image.previewUrl);
+      return current.filter((_, i) => i !== index);
+    });
+  };
+
+  const clearImages = (target: 'ticket' | 'reply') => {
+    const images = target === 'ticket' ? ticketImages : replyImages;
+    images.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+    if (target === 'ticket') {
+      setTicketImages([]);
+      if (newTicketFileRef.current) newTicketFileRef.current.value = '';
+    } else {
+      setReplyImages([]);
+      if (replyFileRef.current) replyFileRef.current.value = '';
+    }
+  };
+
+  const uploadSupportImages = async (images: SupportImage[], ticketId: string) => {
+    if (images.length === 0) return [];
+
+    setUploadingImages(true);
+    try {
+      const uploaded: { label: string; url: string }[] = [];
+
+      for (const image of images) {
+        const ext = image.file.name.split('.').pop()?.toLowerCase() || 'png';
+        const safeName = image.file.name.replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 80);
+        const path = `${SUPPORT_IMAGE_FOLDER}/${ticketId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from(SUPPORT_IMAGE_BUCKET)
+          .upload(path, image.file, { contentType: image.file.type, upsert: false });
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage.from(SUPPORT_IMAGE_BUCKET).getPublicUrl(path);
+        uploaded.push({ label: safeName, url: data.publicUrl });
+      }
+
+      return uploaded;
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const contentWithImages = (text: string, images: { label: string; url: string }[]) => {
+    const imageLines = images.map((image) => `[Bildanhang: ${image.label}](${image.url})`);
+    return [text.trim(), ...imageLines].filter(Boolean).join('\n\n');
+  };
+
   const openDetail = async (ticketId: string) => {
     setError('');
     const { data, error: err } = await supabase.rpc('get_ticket_detail', { p_ticket_id: ticketId });
@@ -204,30 +336,42 @@ export default function SupportPage() {
   const submitNewTicket = async () => {
     if (!subject.trim() || !message.trim()) { setError('Bitte Betreff und Nachricht ausfüllen.'); return; }
     setSending(true); setError('');
-    const { error: err } = await supabase.rpc('create_ticket', {
-      p_subject:  subject.trim(),
-      p_category: category,
-      p_message:  message.trim(),
-    });
-    setSending(false);
-    if (err) { setError(err.message); return; }
-    setSuccess('Ticket wurde erstellt! Wir melden uns so schnell wie möglich.');
-    setSubject(''); setCategory('general'); setMessage('');
-    await loadTickets();
-    setTimeout(() => { setSuccess(''); setView('list'); }, 2500);
+    try {
+      const uploadedImages = await uploadSupportImages(ticketImages, `new-${Date.now()}`);
+      const { error: err } = await supabase.rpc('create_ticket', {
+        p_subject:  subject.trim(),
+        p_category: category,
+        p_message:  contentWithImages(message, uploadedImages),
+      });
+      if (err) throw err;
+      setSuccess('Ticket wurde erstellt! Wir melden uns so schnell wie möglich.');
+      setSubject(''); setCategory('general'); setMessage(''); clearImages('ticket');
+      await loadTickets();
+      setTimeout(() => { setSuccess(''); setView('list'); }, 2500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bild-Upload oder Ticket-Erstellung fehlgeschlagen.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const sendReply = async () => {
-    if (!replyText.trim() || !detail) return;
+    if ((!replyText.trim() && replyImages.length === 0) || !detail) return;
     setSending(true); setError('');
-    const { error: err } = await supabase.rpc('send_ticket_message', {
-      p_ticket_id: detail.ticket.id,
-      p_content:   replyText.trim(),
-    });
-    setSending(false);
-    if (err) { setError(err.message); return; }
-    setReplyText('');
-    await openDetail(detail.ticket.id);
+    try {
+      const uploadedImages = await uploadSupportImages(replyImages, detail.ticket.id);
+      const { error: err } = await supabase.rpc('send_ticket_message', {
+        p_ticket_id: detail.ticket.id,
+        p_content:   contentWithImages(replyText, uploadedImages),
+      });
+      if (err) throw err;
+      setReplyText(''); clearImages('reply');
+      await openDetail(detail.ticket.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Antwort oder Bild-Upload fehlgeschlagen.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const openCount  = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
@@ -500,16 +644,42 @@ export default function SupportPage() {
                       className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-700 focus:border-violet-300/40 focus:bg-white/[0.07] focus:shadow-[0_0_0_3px_rgba(139,92,246,0.08)]"
                     />
                     <div className="mt-2 flex justify-end text-xs text-zinc-700">{message.length} Zeichen</div>
+
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">Bilder anhängen</p>
+                          <p className="mt-1 text-xs leading-5 text-zinc-600">Bis zu {MAX_SUPPORT_IMAGES} Bilder, maximal 5 MB pro Datei.</p>
+                        </div>
+                        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-violet-300/20 bg-violet-400/10 px-4 py-3 text-xs font-black text-violet-200 transition hover:border-violet-300/40 hover:bg-violet-400/15">
+                          <Upload size={14} /> Bilder auswählen
+                          <input ref={newTicketFileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => addImages(e.target.files, 'ticket')} />
+                        </label>
+                      </div>
+                      {ticketImages.length > 0 && (
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          {ticketImages.map((image, index) => (
+                            <div key={image.previewUrl} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+                              <img src={image.previewUrl} alt={imageAlt(image.file.name)} className="h-32 w-full object-cover" />
+                              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/70 px-3 py-2 text-xs backdrop-blur">
+                                <span className="truncate font-bold text-zinc-200">{image.file.name}</span>
+                                <button type="button" onClick={() => removeImage(index, 'ticket')} className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-red-400/15 text-red-200 transition hover:bg-red-400/25" aria-label="Bild entfernen"><Trash2 size={13} /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 <button
                   onClick={() => void submitNewTicket()}
-                  disabled={sending || !subject.trim() || !message.trim()}
+                  disabled={sending || uploadingImages || !subject.trim() || !message.trim()}
                   className="group relative w-full overflow-hidden rounded-3xl bg-gradient-to-r from-violet-500 via-purple-400 to-violet-500 py-5 font-black uppercase tracking-[0.16em] text-white shadow-[0_16px_50px_rgba(139,92,246,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_60px_rgba(139,92,246,0.35)] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-3">
-                    {sending ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />Wird gesendet…</> : <><Send size={17} />Ticket einreichen</>}
+                    {sending ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{uploadingImages ? 'Bilder werden hochgeladen…' : 'Wird gesendet…'}</> : <><Send size={17} />Ticket einreichen</>}
                   </span>
                 </button>
               </div>
@@ -589,7 +759,7 @@ export default function SupportPage() {
                       </div>
                       <div>
                         <p className="text-sm font-black text-violet-100">Support-Verlauf</p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">Alle Antworten bleiben hier gesammelt. Du kannst jederzeit nachlesen, was bereits besprochen wurde.</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">Alle Antworten und Bildanhänge bleiben hier gesammelt. Du kannst jederzeit nachlesen, was bereits besprochen wurde.</p>
                       </div>
                     </div>
                   </div>
@@ -612,6 +782,7 @@ export default function SupportPage() {
                   <div className="max-h-[640px] space-y-5 overflow-y-auto px-4 py-6 sm:px-6">
                     {detail.messages.map((msg) => {
                       const initials = msg.is_staff ? 'RD' : msg.sender_name.charAt(0).toUpperCase();
+                      const parsed = parseMessageContent(msg.content);
                       return (
                         <div key={msg.id} className={`flex gap-3 sm:gap-4 ${msg.is_staff ? 'justify-start' : 'justify-end'}`}>
                           {msg.is_staff && (
@@ -628,8 +799,21 @@ export default function SupportPage() {
                               {msg.is_staff && <span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-300">Team</span>}
                               <span className="ml-auto text-[10px] text-zinc-600">{timeAgo(msg.created_at)}</span>
                             </div>
-                            <div className="px-5 py-4">
-                              <p className="whitespace-pre-wrap text-sm leading-7 text-zinc-200">{msg.content}</p>
+                            <div className="space-y-4 px-5 py-4">
+                              {parsed.text && <p className="whitespace-pre-wrap text-sm leading-7 text-zinc-200">{parsed.text}</p>}
+                              {parsed.images.length > 0 && (
+                                <div className="grid gap-3">
+                                  {parsed.images.map((image) => (
+                                    <a key={image.url} href={image.url} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-2xl border border-white/10 bg-black/25 transition hover:border-white/25">
+                                      <img src={image.url} alt={imageAlt(image.label)} className="max-h-80 w-full object-cover transition duration-300 group-hover:scale-[1.015]" />
+                                      <div className="flex items-center gap-2 px-4 py-3 text-xs font-bold text-zinc-400">
+                                        <ImageIcon size={14} className="text-violet-200" />
+                                        <span className="truncate">{image.label}</span>
+                                      </div>
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -655,15 +839,35 @@ export default function SupportPage() {
                           rows={4}
                           className="w-full resize-none rounded-2xl border border-white/10 bg-black/25 px-5 py-4 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-700 focus:border-violet-300/40 focus:bg-white/[0.06]"
                         />
+                        <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <span className="inline-flex items-center gap-2 text-xs font-bold text-zinc-500"><ImageIcon size={14} /> Bilder oder Screenshots anhängen</span>
+                            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-violet-300/30 hover:text-white">
+                              <Upload size={13} /> Auswählen
+                              <input ref={replyFileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => addImages(e.target.files, 'reply')} />
+                            </label>
+                          </div>
+                          {replyImages.length > 0 && (
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                              {replyImages.map((image, index) => (
+                                <div key={image.previewUrl} className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+                                  <img src={image.previewUrl} alt={imageAlt(image.file.name)} className="h-24 w-full object-cover" />
+                                  <button type="button" onClick={() => removeImage(index, 'reply')} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-xl bg-black/70 text-red-200 backdrop-blur transition hover:bg-red-400/25" aria-label="Bild entfernen"><Trash2 size={13} /></button>
+                                  <div className="absolute inset-x-0 bottom-0 truncate bg-black/70 px-3 py-1.5 text-[11px] font-bold text-zinc-200 backdrop-blur">{image.file.name}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                         {error && <p className="mt-3 text-xs font-semibold text-red-300">{error}</p>}
                         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <span className="text-xs leading-5 text-zinc-600">Deine Nachricht wird direkt im Ticket gespeichert.</span>
                           <button
                             onClick={() => void sendReply()}
-                            disabled={sending || !replyText.trim()}
+                            disabled={sending || uploadingImages || (!replyText.trim() && replyImages.length === 0)}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-purple-400 px-6 py-3 text-sm font-black text-white shadow-[0_8px_25px_rgba(139,92,246,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            {sending ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />Senden…</> : <><Send size={15} />Antwort senden</>}
+                            {sending ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{uploadingImages ? 'Bilder hochladen…' : 'Senden…'}</> : <><Send size={15} />Antwort senden</>}
                           </button>
                         </div>
                       </div>
