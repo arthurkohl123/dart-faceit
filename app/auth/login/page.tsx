@@ -11,6 +11,7 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -18,11 +19,12 @@ function LoginForm() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setFormMessage(null);
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      alert('Fehler: ' + error.message);
+      setFormMessage({ type: 'error', text: 'Fehler: ' + error.message });
       setLoading(false);
       return;
     }
@@ -43,6 +45,16 @@ function LoginForm() {
         <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">Willkommen zurück</h2>
         <p className="mt-3 text-sm leading-6 text-zinc-400">Logge dich mit deiner E-Mail und deinem Passwort ein.</p>
       </div>
+
+      {formMessage && (
+        <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm font-semibold leading-6 ${
+          formMessage.type === 'error'
+            ? 'border-red-400/25 bg-red-500/10 text-red-100'
+            : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+        }`}>
+          {formMessage.text}
+        </div>
+      )}
 
       <form onSubmit={handleLogin} className="space-y-4">
         <label className="block">

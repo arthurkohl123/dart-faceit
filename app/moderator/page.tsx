@@ -221,6 +221,9 @@ export default function ModeratorPanel() {
   const [loading,  setLoading]  = useState(true);
   const [tab,      setTab]      = useState<'tickets' | 'disputes' | 'matches' | 'flagged' | 'logs'>('tickets');
   const [toast,    setToast]    = useState<{ msg: string; ok: boolean } | null>(null);
+  const [pendingCancelDisputeId, setPendingCancelDisputeId] = useState<string | null>(null);
+  const [pendingCancelMatchId, setPendingCancelMatchId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   // Tickets
   const [tickets,       setTickets]       = useState<ModTicket[]>([]);
@@ -320,8 +323,8 @@ export default function ModeratorPanel() {
 
       if (!mounted) return;
       if (!me?.is_moderator && !me?.is_admin) {
-        alert('Kein Moderator-Zugriff!');
-        router.push('/');
+        showToast('Kein Moderator-Zugriff. Du wirst zur Startseite weitergeleitet.', false);
+        setTimeout(() => router.push('/'), 1200);
         return;
       }
 
@@ -391,13 +394,18 @@ export default function ModeratorPanel() {
   };
 
   const cancelDispute = async (m: DisputedMatch) => {
-    if (!confirm('Match wirklich annullieren? Keine Elo-Wertung.')) return;
+    if (pendingCancelDisputeId !== m.match_id) {
+      setPendingCancelDisputeId(m.match_id);
+      showToast('Bitte bestätige die Annullierung direkt in der Dispute-Karte.', false);
+      return;
+    }
     const f = resolveForms[m.match_id];
     const { error } = await supabase.rpc('mod_cancel_dispute', {
       p_match_id: m.match_id, p_mod_note: f?.note || null,
     });
     if (error) { showToast('Fehler: ' + error.message, false); return; }
     showToast('Match annulliert.');
+    setPendingCancelDisputeId(null);
     setOpenDispute(null);
     await loadDisputes();
     await loadLogs();
@@ -406,11 +414,18 @@ export default function ModeratorPanel() {
   // ── Live Match Actions ────────────────────────────────────────────────────
 
   const cancelMatch = async (matchId: string) => {
-    if (!confirm('Dieses Match wirklich abbrechen? Keine Elo-Wertung.')) return;
-    const reason = prompt('Grund (optional):') ?? undefined;
-    const { error } = await supabase.rpc('mod_force_cancel_match', { p_match_id: matchId, p_reason: reason ?? null });
+    if (pendingCancelMatchId !== matchId) {
+      setPendingCancelMatchId(matchId);
+      setCancelReason('');
+      showToast('Bitte gib optional einen Grund ein und bestätige den Match-Abbruch direkt auf der Seite.', false);
+      return;
+    }
+    const reason = cancelReason.trim() || null;
+    const { error } = await supabase.rpc('mod_force_cancel_match', { p_match_id: matchId, p_reason: reason });
     if (error) { showToast('Fehler: ' + error.message, false); return; }
     showToast('Match abgebrochen.');
+    setPendingCancelMatchId(null);
+    setCancelReason('');
     await loadLiveMatches();
     await loadLogs();
   };
@@ -836,7 +851,7 @@ export default function ModeratorPanel() {
                                 onClick={() => cancelDispute(m)}
                                 className="flex items-center gap-2 rounded-2xl border border-red-400/25 bg-red-400/10 px-5 py-3 text-sm font-black text-red-200 transition hover:bg-red-400/20"
                               >
-                                <XCircle size={15} /> Annullieren
+                                <XCircle size={15} /> {pendingCancelDisputeId === m.match_id ? 'Annullierung bestätigen' : 'Annullieren'}
                               </button>
                             </div>
                           </div>
@@ -905,7 +920,7 @@ export default function ModeratorPanel() {
                             onClick={() => cancelMatch(m.id)}
                             className="flex items-center gap-2 rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-2.5 text-xs font-black text-red-200 transition hover:bg-red-400/20"
                           >
-                            <XCircle size={14} /> Match abbrechen
+                            <XCircle size={14} /> {pendingCancelMatchId === m.id ? 'Abbruch bestätigen' : 'Match abbrechen'}
                           </button>
                         </div>
                       </div>

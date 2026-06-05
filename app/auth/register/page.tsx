@@ -14,6 +14,7 @@ export default function Register() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -38,8 +39,10 @@ export default function Register() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    setFormMessage(null);
+
     if (smsVerificationEnabled && !phoneNumberIsValid) {
-      alert('Bitte gib deine Handynummer im internationalen Format ein, zum Beispiel +491701234567.');
+      setFormMessage({ type: 'error', text: 'Bitte gib deine Handynummer im internationalen Format ein, zum Beispiel +491701234567.' });
       return;
     }
 
@@ -58,7 +61,7 @@ export default function Register() {
     });
 
     if (error) {
-      alert('Fehler: ' + error.message);
+      setFormMessage({ type: 'error', text: 'Fehler: ' + error.message });
       setLoading(false);
       return;
     }
@@ -82,11 +85,11 @@ export default function Register() {
         .eq('supabaseId', data.user.id);
 
       if (smsVerificationEnabled) {
-        alert('Registrierung erfolgreich! Bestätige jetzt deine Handynummer, damit dein Ranked-Profil verifiziert wird.');
-        router.push(`/auth/verify-phone?phone=${encodeURIComponent(normalizedPhoneNumber)}`);
+        setFormMessage({ type: 'success', text: 'Registrierung erfolgreich! Bestätige jetzt deine Handynummer, damit dein Ranked-Profil verifiziert wird.' });
+        setTimeout(() => router.push(`/auth/verify-phone?phone=${encodeURIComponent(normalizedPhoneNumber)}`), 1200);
       } else {
-        alert('Registrierung erfolgreich! Die SMS-Verifizierung ist aktuell deaktiviert, dein Ranked-Profil ist direkt bereit.');
-        router.push('/profile');
+        setFormMessage({ type: 'success', text: 'Registrierung erfolgreich! Die SMS-Verifizierung ist aktuell deaktiviert, dein Ranked-Profil ist direkt bereit.' });
+        setTimeout(() => router.push('/profile'), 1200);
       }
     }
 
@@ -154,6 +157,16 @@ export default function Register() {
               <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">Kostenlos starten</h2>
               <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Spielernamen{smsVerificationEnabled ? ' und hinterlege deine Handynummer für die anschließende SMS-Verifizierung.' : '. Die SMS-Verifizierung ist aktuell deaktiviert.'}</p>
             </div>
+
+            {formMessage && (
+              <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm font-semibold leading-6 ${
+                formMessage.type === 'error'
+                  ? 'border-red-400/25 bg-red-500/10 text-red-100'
+                  : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+              }`}>
+                {formMessage.text}
+              </div>
+            )}
 
             <form onSubmit={handleRegister} className="space-y-4">
               <label className="block">

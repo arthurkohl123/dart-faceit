@@ -200,6 +200,7 @@ export default function MatchResult() {
   const [adminWinnerId, setAdminWinnerId] = useState('');
   const [adminCancelling, setAdminCancelling] = useState(false);
   const [adminForcing, setAdminForcing] = useState(false);
+  const [adminPendingAction, setAdminPendingAction] = useState<'cancel' | 'force_result' | null>(null);
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
@@ -413,8 +414,8 @@ export default function MatchResult() {
       const eloText = typeof r?.elo_change === 'number'
         ? ` Elo-Änderung: ${r.elo_change > 0 ? '+' : ''}${r.elo_change}`
         : '';
-      alert(`${r?.result_message || 'Ergebnis bestätigt.'}${eloText}`);
-      router.push('/history');
+      setInfoMessage(`${r?.result_message || 'Ergebnis bestätigt.'}${eloText}`);
+      setTimeout(() => router.push('/history'), 1200);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Bestätigen.');
     } finally {
@@ -539,12 +540,19 @@ export default function MatchResult() {
   // ── Admin-Aktionen ────────────────────────────────────────────────────────────
 
   const adminForceCancel = async () => {
-    if (!match || !confirm('Match ohne Elo-Wertung abbrechen?')) return;
+    if (!match) return;
+    if (adminPendingAction !== 'cancel') {
+      setAdminPendingAction('cancel');
+      setInfoMessage('Bitte bestätige den Match-Abbruch direkt auf der Seite.');
+      setErrorMessage('');
+      return;
+    }
     setAdminCancelling(true);
     try {
       const { error } = await supabase.rpc('admin_force_cancel_match', { p_match_id: match.id });
       if (error) throw error;
       setInfoMessage('Match wurde durch Admin abgebrochen.');
+      setAdminPendingAction(null);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Abbrechen.');
     } finally {
@@ -554,7 +562,12 @@ export default function MatchResult() {
 
   const adminForceResult = async () => {
     if (!match || !adminWinnerId) return;
-    if (!confirm(`Gewinner auf ${adminWinnerId === match.player1_id ? match.player1_username : match.player2_username} setzen und Elo vergeben?`)) return;
+    if (adminPendingAction !== 'force_result') {
+      setAdminPendingAction('force_result');
+      setInfoMessage(`Bitte bestätige direkt auf der Seite, dass ${adminWinnerId === match.player1_id ? match.player1_username : match.player2_username} als Gewinner gesetzt und Elo vergeben werden soll.`);
+      setErrorMessage('');
+      return;
+    }
     setAdminForcing(true);
     try {
       const { error } = await supabase.rpc('admin_force_match_result', {
@@ -563,6 +576,7 @@ export default function MatchResult() {
       });
       if (error) throw error;
       setInfoMessage('Ergebnis wurde durch Admin gesetzt.');
+      setAdminPendingAction(null);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Setzen des Ergebnisses.');
     } finally {
@@ -1444,6 +1458,19 @@ export default function MatchResult() {
             </div>
 
             <div className="space-y-5 px-6 py-5">
+              {adminPendingAction && (
+                <div className="rounded-2xl border border-amber-300/25 bg-amber-400/10 p-4 text-sm font-semibold leading-6 text-amber-100">
+                  <div className="font-black uppercase tracking-[0.18em] text-amber-200">Bestätigung ausstehend</div>
+                  <p className="mt-2 text-amber-100/90">Klicke den hervorgehobenen Aktionsbutton erneut, um die Aktion ohne Browser-Popup auszuführen.</p>
+                  <button
+                    type="button"
+                    onClick={() => { setAdminPendingAction(null); setInfoMessage(''); }}
+                    className="mt-3 rounded-xl border border-white/10 px-3 py-1.5 text-xs font-black text-zinc-200 transition hover:bg-white/10"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              )}
               {/* Match-Info */}
               <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs">
                 <div>
@@ -1474,7 +1501,7 @@ export default function MatchResult() {
                       disabled={adminForcing}
                       className="shrink-0 rounded-xl border border-amber-300/25 bg-amber-400/10 px-4 py-2.5 text-sm font-black text-amber-200 transition hover:bg-amber-400/20 disabled:opacity-40"
                     >
-                      {adminForcing ? 'Wird gesetzt...' : 'Ergebnis setzen & Elo vergeben'}
+                      {adminForcing ? 'Wird gesetzt...' : adminPendingAction === 'force_result' ? 'Jetzt endgültig bestätigen' : 'Ergebnis setzen & Elo vergeben'}
                     </button>
                   </div>
                 </div>
@@ -1490,7 +1517,7 @@ export default function MatchResult() {
                     disabled={adminCancelling}
                     className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-2.5 text-sm font-black text-red-200 transition hover:bg-red-500/15 disabled:opacity-40"
                   >
-                    {adminCancelling ? 'Wird abgebrochen...' : 'Match ohne Wertung abbrechen'}
+                    {adminCancelling ? 'Wird abgebrochen...' : adminPendingAction === 'cancel' ? 'Abbruch endgültig bestätigen' : 'Match ohne Wertung abbrechen'}
                   </button>
                 </div>
               )}

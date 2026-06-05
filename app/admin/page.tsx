@@ -227,6 +227,10 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [loadingDisputes, setLoadingDisputes] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [pendingLiveCancelMatchId, setPendingLiveCancelMatchId] = useState<string | null>(null);
+  const [pendingDisputeCancelMatchId, setPendingDisputeCancelMatchId] = useState<string | null>(null);
+  const [banReasonUserId, setBanReasonUserId] = useState<string | null>(null);
+  const [banReasonInput, setBanReasonInput] = useState('');
 
   // Ticket-System State
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
@@ -265,9 +269,14 @@ export default function AdminPanel() {
   }, [supabase]);
 
   const adminCancelMatch = async (matchId: string) => {
-    if (!confirm('Dieses Match wirklich ohne Elo-Wertung abbrechen?')) return;
+    if (pendingLiveCancelMatchId !== matchId) {
+      setPendingLiveCancelMatchId(matchId);
+      setActionMessage('Bitte bestätige den Match-Abbruch direkt in der Live-Match-Karte.');
+      return;
+    }
     const { error } = await supabase.rpc('admin_force_cancel_match', { p_match_id: matchId });
     if (error) { setActionMessage(`Fehler: ${error.message}`); return; }
+    setPendingLiveCancelMatchId(null);
     setActionMessage('Match wurde durch Admin abgebrochen.');
     await loadLiveMatches();
   };
@@ -310,11 +319,11 @@ export default function AdminPanel() {
     if (openTicketId === ticketId) await openTicketDetail(ticketId);
   }, [supabase, ticketFilter, ticketAssignmentFilter, currentAdminId, loadTickets, openTicketId]);
 
-  const openTicketDetail = async (ticketId: string) => {
+  async function openTicketDetail(ticketId: string) {
     if (openTicketId === ticketId) { setOpenTicketId(null); setTicketDetail(null); return; }
     const { data } = await supabase.rpc('admin_get_ticket_detail', { p_ticket_id: ticketId });
     if (data) { setTicketDetail(data as AdminTicketDetail); setOpenTicketId(ticketId); }
-  };
+  }
 
   const sendTicketReply = async (ticketId: string) => {
     if (!ticketReply.trim()) return;
@@ -398,8 +407,8 @@ export default function AdminPanel() {
 
       if (!isMounted) return;
       if (error || !me?.is_admin) {
-        alert('Du hast keinen Admin-Zugriff!');
-        router.push('/');
+        setActionMessage('Du hast keinen Admin-Zugriff. Du wirst zur Startseite weitergeleitet.');
+        setTimeout(() => router.push('/'), 1200);
         return;
       }
       await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadTickets(null, null)]);
@@ -427,7 +436,15 @@ export default function AdminPanel() {
 
   const toggleBan = async (user: Profile) => {
     const newStatus = !user.is_banned;
-    const reason = newStatus ? prompt('Ban-Grund eingeben:') : null;
+
+    if (newStatus && banReasonUserId !== user.id) {
+      setBanReasonUserId(user.id);
+      setBanReasonInput(user.ban_reason || '');
+      setActionMessage(`Bitte gib den Ban-Grund für ${user.username || 'diesen Nutzer'} direkt in der Spielerliste ein.`);
+      return;
+    }
+
+    const reason = newStatus ? (banReasonInput.trim() || null) : null;
 
     const { error } = await supabase
       .from('profiles')
@@ -439,6 +456,9 @@ export default function AdminPanel() {
       return;
     }
 
+    setBanReasonUserId(null);
+    setBanReasonInput('');
+    setActionMessage(newStatus ? 'Nutzer wurde gesperrt.' : 'Nutzer wurde entsperrt.');
     await loadProfiles();
   };
 
@@ -448,7 +468,7 @@ export default function AdminPanel() {
       p_is_mod: !current,
     });
     if (error) {
-      alert('Fehler: ' + error.message);
+      setActionMessage('Fehler: ' + error.message);
       return;
     }
     setProfiles(prev =>
@@ -533,9 +553,12 @@ export default function AdminPanel() {
 
   const cancelDispute = async (match: DisputedMatch) => {
     const form = resolveForms[match.match_id] || emptyForm;
-    const confirmed = confirm('Dieses Match wirklich annullieren? Es wird keine Elo vergeben.');
 
-    if (!confirmed) return;
+    if (pendingDisputeCancelMatchId !== match.match_id) {
+      setPendingDisputeCancelMatchId(match.match_id);
+      setActionMessage('Bitte bestätige die Annullierung direkt in der Dispute-Karte.');
+      return;
+    }
 
     const { data, error } = await supabase.rpc('admin_cancel_disputed_match', {
       p_match_id: match.match_id,
@@ -548,6 +571,7 @@ export default function AdminPanel() {
     }
 
     const result = Array.isArray(data) ? data[0] : null;
+    setPendingDisputeCancelMatchId(null);
     setActionMessage(result?.result_message || 'Match wurde annulliert.');
     await refreshAdminData();
   };
@@ -818,7 +842,7 @@ export default function AdminPanel() {
                       className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-1.5 text-xs font-black text-rose-200 transition hover:bg-rose-400/15"
                     >
                       <XCircle className="h-3.5 w-3.5" />
-                      Abbrechen
+                      {pendingLiveCancelMatchId === m.id ? 'Endgültig abbrechen' : 'Abbrechen'}
                     </button>
                   </div>
                 </div>
@@ -1041,7 +1065,7 @@ export default function AdminPanel() {
                             onClick={() => cancelDispute(match)}
                             className="flex-1 rounded-2xl border border-rose-300/20 bg-rose-400/10 px-5 py-3.5 text-sm font-black uppercase tracking-[0.14em] text-rose-100 transition hover:border-rose-300/40 hover:bg-rose-400/15"
                           >
-                            Ohne Elo annullieren
+                            {pendingDisputeCancelMatchId === match.match_id ? 'Annullierung bestätigen' : 'Ohne Elo annullieren'}
                           </button>
                         </div>
                       </div>
@@ -1110,6 +1134,22 @@ export default function AdminPanel() {
                       </button>
                     </div>
                     {user.ban_reason && <div className="mt-1 text-xs text-rose-200/80">Ban-Grund: {user.ban_reason}</div>}
+                    {banReasonUserId === user.id && !user.is_banned && (
+                      <div className="mt-3 rounded-2xl border border-rose-300/20 bg-rose-400/10 p-3">
+                        <label className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-100">Ban-Grund</label>
+                        <textarea
+                          value={banReasonInput}
+                          onChange={(e) => setBanReasonInput(e.target.value)}
+                          rows={2}
+                          className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-rose-300/40"
+                          placeholder="Grund für die Sperre eintragen..."
+                        />
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button onClick={() => toggleBan(user)} className="rounded-xl bg-rose-400 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-black">Sperre bestätigen</button>
+                          <button onClick={() => { setBanReasonUserId(null); setBanReasonInput(''); }} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs font-bold text-zinc-300 hover:bg-white/10">Abbrechen</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Elo-Input */}
