@@ -90,6 +90,9 @@ export default function Matchmaking() {
   const [acceptDeclineLoading, setAcceptDeclineLoading] = useState(false);
   const acceptIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const acceptExpireCalledRef = useRef(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const lastMatchSoundIdRef = useRef<string | null>(null);
 
   // Cooldown-State
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -128,6 +131,69 @@ export default function Matchmaking() {
   const searchProgress = Math.min((elapsedSeconds / 60) * 100, 100);
   const currentRange = getMaxEloDiff(elapsedSeconds);
   const effectivePhoneVerified = !smsVerificationEnabled || phoneVerified === true;
+
+  const unlockMatchFoundSound = useCallback(() => {
+    if (typeof window === 'undefined' || audioUnlockedRef.current) return;
+
+    const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+
+    const audioContext = audioContextRef.current ?? new AudioContextConstructor();
+    audioContextRef.current = audioContext;
+
+    void audioContext.resume().then(() => {
+      audioUnlockedRef.current = true;
+    }).catch(() => {
+      audioUnlockedRef.current = false;
+    });
+  }, []);
+
+  const playMatchFoundSound = useCallback((matchId?: string | null) => {
+    if (typeof window === 'undefined') return;
+    if (matchId && lastMatchSoundIdRef.current === matchId) return;
+
+    const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+
+    const audioContext = audioContextRef.current ?? new AudioContextConstructor();
+    audioContextRef.current = audioContext;
+
+    const play = () => {
+      const now = audioContext.currentTime;
+      const masterGain = audioContext.createGain();
+      masterGain.gain.setValueAtTime(0.0001, now);
+      masterGain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+      masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.72);
+      masterGain.connect(audioContext.destination);
+
+      [523.25, 659.25, 783.99].forEach((frequency, index) => {
+        const oscillator = audioContext.createOscillator();
+        const noteGain = audioContext.createGain();
+        const start = now + index * 0.14;
+        const end = start + 0.18;
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, start);
+        noteGain.gain.setValueAtTime(0.0001, start);
+        noteGain.gain.exponentialRampToValueAtTime(1, start + 0.02);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+        oscillator.connect(noteGain);
+        noteGain.connect(masterGain);
+        oscillator.start(start);
+        oscillator.stop(end + 0.03);
+      });
+
+      if (matchId) lastMatchSoundIdRef.current = matchId;
+    };
+
+    if (audioContext.state === 'suspended') {
+      void audioContext.resume().then(play).catch(() => undefined);
+      return;
+    }
+
+    play();
+  }, []);
 
   const redirectToResult = useCallback((matchId: string) => {
     setTimeout(() => router.push(`/result?matchId=${matchId}`), 1500);
@@ -168,6 +234,7 @@ export default function Matchmaking() {
       setIHaveAccepted(true);
       if (result?.status === 'both_accepted' && result.match_id) {
         if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
+        playMatchFoundSound(result.match_id);
         setStatus('found');
         redirectToResult(result.match_id);
       }
@@ -305,6 +372,7 @@ export default function Matchmaking() {
 
       if (result?.match_status === 'pending_accept' && result.match_id) {
         // Match gefunden → Accept-Screen anzeigen (kein direkter Redirect!)
+        playMatchFoundSound(result.match_id);
         setAcceptMatchId(result.match_id);
         setIHaveAccepted(false);
         setOpponentAccepted(false);
@@ -329,7 +397,7 @@ export default function Matchmaking() {
     } finally {
       isPollingRef.current = false;
     }
-  }, [fetchQueueCounts, getCooldownMessage, startAcceptCountdown, supabase]);
+  }, [fetchQueueCounts, getCooldownMessage, playMatchFoundSound, startAcceptCountdown, supabase]);
 
   const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
@@ -358,6 +426,8 @@ export default function Matchmaking() {
       return;
     }
 
+    unlockMatchFoundSound();
+    lastMatchSoundIdRef.current = null;
     setSelectedApp(app);
     setElapsedSeconds(0);
     setStatus('searching');
@@ -493,6 +563,7 @@ export default function Matchmaking() {
         if (uid && (newMatch.player1_id === uid || newMatch.player2_id === uid)) {
           if (newMatch.status === 'pending_accept') {
             // Accept-Screen anzeigen
+            playMatchFoundSound(newMatch.id);
             setAcceptMatchId(newMatch.id);
             setIHaveAccepted(false);
             setOpponentAccepted(false);
@@ -504,6 +575,7 @@ export default function Matchmaking() {
               username: isPlayer1 ? newMatch.player2_username : newMatch.player1_username,
               elo: isPlayer1 ? newMatch.player2_elo : newMatch.player1_elo,
             });
+            playMatchFoundSound(newMatch.id);
             setStatus('found');
             redirectToResult(newMatch.id);
           }
@@ -522,6 +594,7 @@ export default function Matchmaking() {
         // Beide haben accepted → Match startet
         if (updatedMatch.status === 'pending_result') {
           if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
+          playMatchFoundSound(updatedMatch.id);
           setStatus('found');
           redirectToResult(updatedMatch.id);
         }
@@ -549,7 +622,7 @@ export default function Matchmaking() {
       clearInterval(pollingInterval);
       void supabase.rpc('cancel_matchmaking');
     };
-  }, [pollForMatch, status, supabase, redirectToResult, fetchCooldown, startAcceptCountdown]);
+  }, [pollForMatch, status, supabase, redirectToResult, fetchCooldown, playMatchFoundSound, startAcceptCountdown]);
 
   // Realtime: Accept-Phase — separater Kanal der auch bei status='accepting' aktiv ist
   useEffect(() => {
@@ -575,6 +648,7 @@ export default function Matchmaking() {
           // Beide haben akzeptiert → Match startet (auch für den ersten Accepter)
           if (updated.status === 'pending_result') {
             if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
+            playMatchFoundSound(updated.id);
             setStatus('found');
             redirectToResult(updated.id);
           }
@@ -592,7 +666,7 @@ export default function Matchmaking() {
       .subscribe();
 
     return () => { void supabase.removeChannel(channel); };
-  }, [acceptMatchId, redirectToResult, startAcceptCountdown, supabase]);
+  }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase]);
 
   // Heartbeat: solange gesucht wird, alle 20 Sekunden last_seen aktualisieren.
   // Die DB-Funktion cleanup_stale_queue_entries löscht Einträge die älter als
