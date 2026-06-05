@@ -114,12 +114,14 @@ export default function Matchmaking() {
   const statusRef = useRef<MatchmakingStatus>('idle');
   const selectedAppRef = useRef<AppChoice | null>(null);
   const userIdRef = useRef<string | null>(null);
+  const iHaveAcceptedRef = useRef(false);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   useEffect(() => { statusRef.current = status; }, [status]);
   useEffect(() => { selectedAppRef.current = selectedApp; }, [selectedApp]);
+  useEffect(() => { iHaveAcceptedRef.current = iHaveAccepted; }, [iHaveAccepted]);
 
   const getMaxEloDiff = (seconds: number) => {
     if (seconds < 20) return 100;
@@ -249,8 +251,10 @@ export default function Matchmaking() {
   const handleDecline = async () => {
     if (!acceptMatchId || acceptDeclineLoading) return;
     setAcceptDeclineLoading(true);
+    const banUntil = new Date(Date.now() + 60_000).toISOString();
     try {
-      await supabase.rpc('decline_match', { p_match_id: acceptMatchId });
+      const { error } = await supabase.rpc('decline_match', { p_match_id: acceptMatchId });
+      if (error) throw error;
     } catch (err) {
       console.error('decline_match fehlgeschlagen:', err);
     } finally {
@@ -258,8 +262,13 @@ export default function Matchmaking() {
       setAcceptMatchId(null);
       setIHaveAccepted(false);
       setOpponentAccepted(false);
+      setQueueBannedUntil(banUntil);
+      setQueueBanReason('Match abgelehnt – Queue-Sperre für 1 Minute.');
+      setCooldownSeconds(60);
+      setErrorMessage('Du hast das Match abgelehnt und bist deshalb für 1 Minute für die Queue gesperrt.');
+      showToast('Match abgelehnt. Du bist für 1 Minute für die Queue gesperrt.', 'warning');
       setAcceptDeclineLoading(false);
-      setStatus('idle');
+      setStatus('error');
     }
   };
 
@@ -303,6 +312,9 @@ export default function Matchmaking() {
         setCooldownSeconds(prev => {
           if (prev <= 1) {
             if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+            setQueueBanReason(null);
+            setQueueBannedUntil(null);
+            if (statusRef.current === 'error') setStatus('idle');
             return 0;
           }
           return prev - 1;
@@ -653,13 +665,21 @@ export default function Matchmaking() {
             redirectToResult(updated.id);
           }
 
-          // Match abgelehnt/abgebrochen → zurück zur Auswahl
+          // Match abgelehnt/abgebrochen:
+          // Wer bereits angenommen hatte, bleibt automatisch in der Suche.
+          // Wer noch nicht angenommen hatte, fällt zurück in die Auswahl.
           if (updated.status === 'cancelled') {
             if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
+            const acceptedBeforeCancel = iHaveAcceptedRef.current;
             setAcceptMatchId(null);
             setIHaveAccepted(false);
             setOpponentAccepted(false);
-            setStatus('idle');
+            if (acceptedBeforeCancel && selectedAppRef.current) {
+              showToast('Der Gegner hat abgelehnt. Du bleibst automatisch in der Queue.', 'info');
+              setStatus('searching');
+            } else {
+              setStatus('idle');
+            }
           }
         }
       )
@@ -1013,7 +1033,11 @@ export default function Matchmaking() {
                     <div className="text-5xl font-black tracking-[-0.05em] text-amber-300">{formatCooldown(cooldownSeconds)}</div>
                     <p className="mt-2 text-sm text-zinc-400">Du bist aktuell für die Queue gesperrt. Bitte kurz warten.</p>
                     {queueBanReason && <p className="mt-3 text-xs font-bold text-amber-200/80">Grund: {queueBanReason}</p>}
-                    <p className="mt-3 text-xs text-amber-400/70">{cancelCount24h}. Abbruch heute — ab dem 3. Abbruch gibt es 20 Sek. Cooldown.</p>
+                    <p className="mt-3 text-xs text-amber-400/70">
+                      {queueBanReason
+                        ? 'Du kannst nach Ablauf der Sperre automatisch wieder eine neue Suche starten.'
+                        : `${cancelCount24h}. Abbruch heute — ab dem 3. Abbruch gibt es 20 Sek. Cooldown.`}
+                    </p>
                   </div>
                 </>
               ) : (
