@@ -205,7 +205,7 @@ export default function Leaderboard() {
               const rank = getRank(player.elo);
               const winrate = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               const isTop3 = index < 3;
-              const prize = index === 0 ? '100€' : index === 1 ? '50€' : index === 2 ? '25€' : null;
+              const prize = index === 0 ? '3 Monate Premium' : index === 1 ? '2 Monate Premium' : index === 2 ? '1 Monat Premium' : null;
 
               return (
                 <Link
