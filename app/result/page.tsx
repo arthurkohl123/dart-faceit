@@ -96,26 +96,35 @@ function StatInput({
   value,
   onChange,
   placeholder,
+  step = '0.01',
+  min = '0',
+  required = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  step?: string;
+  min?: string;
+  required?: boolean;
 }) {
   return (
-    <div className="group flex flex-col gap-2">
-      <span className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500 transition group-focus-within:text-emerald-300">
-        {label}
+    <label className="group block rounded-2xl border border-white/10 bg-black/25 p-3 transition focus-within:border-emerald-300/50 focus-within:bg-white/[0.06]">
+      <span className="mb-2 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500 transition group-focus-within:text-emerald-300">
+        <span>{label}</span>
+        {required && <span className="text-emerald-300">Pflicht</span>}
       </span>
       <input
         type="number"
-        step="0.01"
+        step={step}
+        min={min}
+        required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-2xl font-black text-white outline-none transition placeholder:text-zinc-700 focus:border-emerald-300/50 focus:bg-white/[0.07]"
+        className="h-14 w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 text-center text-2xl font-black tracking-[-0.04em] text-white outline-none transition placeholder:text-zinc-600 focus:border-transparent focus:bg-black/20 sm:h-16"
       />
-    </div>
+    </label>
   );
 }
 
@@ -226,6 +235,11 @@ export default function MatchResult() {
     match.submitted_by !== currentUserId
   );
   const resultIsValid = (legsWon === LEGS_TO_WIN && legsLost >= 0 && legsLost < LEGS_TO_WIN) || (legsLost === LEGS_TO_WIN && legsWon >= 0 && legsWon < LEGS_TO_WIN);
+  const statsAreComplete = [myAverage, opponentAverageInput, myOneEighties, opponentOneEighties].every((value) => value.trim() !== '');
+  const statsAreValid = statsAreComplete &&
+    [myAverage, opponentAverageInput].every((value) => Number.isFinite(Number.parseFloat(value)) && Number.parseFloat(value) >= 0 && Number.parseFloat(value) <= 180) &&
+    [myOneEighties, opponentOneEighties].every((value) => /^\d+$/.test(value) && Number.parseInt(value, 10) >= 0);
+  const canSubmitResult = resultIsValid && statsAreValid;
   const countdownIsUrgent = countdown !== null && countdown <= 60;
 
   const submittedData = useMemo(() => {
@@ -390,7 +404,15 @@ export default function MatchResult() {
   // ── Actions ──────────────────────────────────────────────────────────────────
 
   const submitResult = async () => {
-    if (!match || !resultIsValid) return;
+    if (!match) return;
+    if (!resultIsValid) {
+      setErrorMessage('Bitte trage ein gültiges Best-of-7-Ergebnis ein. Ein Spieler muss genau 4 Legs haben.');
+      return;
+    }
+    if (!statsAreValid) {
+      setErrorMessage('Bitte fülle alle Statistikfelder aus: beide Averages und beide 180er-Werte.');
+      return;
+    }
     setLoading(true); setErrorMessage(''); setInfoMessage('');
     try {
       const { data, error } = await supabase.rpc('submit_match_result', {
@@ -1079,23 +1101,43 @@ export default function MatchResult() {
 
               {/* Stats */}
               <div>
-                <p className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Statistiken beider Spieler</p>
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <div className="rounded-3xl border border-emerald-300/15 bg-emerald-400/[0.04] p-5">
-                    <p className="mb-4 text-center text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Du</p>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <StatInput label="Dein Average" value={myAverage} onChange={setMyAverage} placeholder="84.70" />
-                      <StatInput label="Deine 180er" value={myOneEighties} onChange={setMyOneEighties} placeholder="0" />
-                    </div>
+                <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Statistiken beider Spieler</p>
+                    <p className="mt-1 text-sm font-semibold text-zinc-500">Average und 180er sind für beide Spieler Pflichtfelder.</p>
                   </div>
-                  <div className="rounded-3xl border border-cyan-300/15 bg-cyan-400/[0.04] p-5">
-                    <p className="mb-4 text-center text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Gegner</p>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <StatInput label="Gegner Average" value={opponentAverageInput} onChange={setOpponentAverageInput} placeholder="82.10" />
-                      <StatInput label="Gegner 180er" value={opponentOneEighties} onChange={setOpponentOneEighties} placeholder="0" />
-                    </div>
-                  </div>
+                  <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">
+                    Pflichtangaben
+                  </span>
                 </div>
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <section className="rounded-[1.75rem] border border-emerald-300/20 bg-gradient-to-br from-emerald-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-emerald-950/20 sm:p-5">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Du</p>
+                      <p className="text-xs font-bold text-zinc-500">deine Werte</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <StatInput label="Average" value={myAverage} onChange={setMyAverage} placeholder="84.70" required />
+                      <StatInput label="180er" value={myOneEighties} onChange={setMyOneEighties} placeholder="0" step="1" required />
+                    </div>
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-cyan-300/20 bg-gradient-to-br from-cyan-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <p className="text-sm font-black uppercase tracking-[0.22em] text-cyan-200">Gegner</p>
+                      <p className="text-xs font-bold text-zinc-500">gegnerische Werte</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <StatInput label="Average" value={opponentAverageInput} onChange={setOpponentAverageInput} placeholder="82.10" required />
+                      <StatInput label="180er" value={opponentOneEighties} onChange={setOpponentOneEighties} placeholder="0" step="1" required />
+                    </div>
+                  </section>
+                </div>
+                {!statsAreValid && (myAverage || opponentAverageInput || myOneEighties || opponentOneEighties) && (
+                  <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] p-3 text-center text-sm font-bold text-amber-100">
+                    Bitte alle vier Statistikfelder korrekt ausfüllen. Average muss zwischen 0 und 180 liegen, 180er müssen ganze Zahlen sein.
+                  </p>
+                )}
               </div>
 
               {/* Live-Preview */}
@@ -1129,7 +1171,7 @@ export default function MatchResult() {
               {/* Submit */}
               <button
                 onClick={submitResult}
-                disabled={loading || !resultIsValid}
+                disabled={loading || !canSubmitResult}
                 className="w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 py-5 text-lg font-black uppercase tracking-[0.16em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {loading ? 'Wird eingereicht…' : 'Zur Bestätigung einreichen'}
