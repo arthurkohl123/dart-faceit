@@ -33,6 +33,8 @@ type LiveMatch = {
   created_at: string;
 };
 
+type QueueVerificationResult = 'joined' | 'not_joined' | 'unknown';
+
 const ACCEPT_WINDOW_SECONDS = 30;
 const DECLINE_QUEUE_BAN_SECONDS = 60;
 const OPPONENT_DECLINED_REQUEUE_DELAY_MS = 1500;
@@ -147,6 +149,8 @@ export default function Matchmaking() {
   const currentRange = getMaxEloDiff(elapsedSeconds);
   // null = Profil noch nicht geladen → Box NICHT anzeigen (kein false-positive beim Status-Wechsel)
   const effectivePhoneVerified = phoneVerified === null ? null : (!smsVerificationEnabled || phoneVerified === true);
+
+  const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
   const unlockMatchFoundSound = useCallback(() => {
     if (typeof window === 'undefined' || audioUnlockedRef.current) return;
@@ -425,6 +429,105 @@ export default function Matchmaking() {
     if (data) setLiveMatches(data as LiveMatch[]);
   }, [supabase]);
 
+  const verifyOwnQueueEntry = useCallback(async (app: AppChoice): Promise<QueueVerificationResult> => {
+    const uid = userIdRef.current;
+    if (!uid) return 'unknown';
+
+    const { data, error } = await supabase
+      .from('matchmaking_queue')
+      .select('user_id, app')
+      .eq('user_id', uid)
+      .eq('app', app)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Queue-Verifikation nicht möglich:', error);
+      return 'unknown';
+    }
+
+    return data ? 'joined' : 'not_joined';
+  }, [supabase]);
+
+  const handlePendingAccept = useCallback((matchId: string, deadlineIso?: string | null) => {
+    playMatchFoundSound(matchId);
+    setAcceptMatchId(matchId);
+    setIHaveAccepted(false);
+    iHaveAcceptedRef.current = false;
+    setOpponentAccepted(false);
+    setOpponentDeclined(false);
+    setStatus('accepting');
+    startAcceptCountdown(matchId, deadlineIso ?? undefined);
+  }, [playMatchFoundSound, startAcceptCountdown]);
+
+  const forceRejoinQueueAfterOpponentDecline = useCallback(async (app: AppChoice) => {
+    setSelectedApp(app);
+    selectedAppRef.current = app;
+    setElapsedSeconds(0);
+    setErrorMessage('');
+    isPollingRef.current = false;
+    statusRef.current = 'searching';
+    setStatus('searching');
+
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      const { data, error } = await supabase.rpc('check_and_join_queue', {
+        p_max_elo_diff: getMaxEloDiff(0),
+        p_app: app,
+      });
+
+      if (statusRef.current !== 'searching') return;
+
+      if (error) {
+        const msg = error.message || 'Re-Queue nach Gegner-Ablehnung fehlgeschlagen.';
+        setErrorMessage(msg);
+        statusRef.current = 'error';
+        setStatus('error');
+        return;
+      }
+
+      const result = Array.isArray(data) ? data[0] as MatchmakingResponse | undefined : data as MatchmakingResponse | undefined;
+      await fetchQueueCounts();
+
+      if (result?.match_status === 'pending_accept' && result.match_id) {
+        handlePendingAccept(result.match_id);
+        return;
+      }
+
+      if (result?.match_status === 'already_in_match') {
+        const uid = userIdRef.current;
+        if (uid) {
+          const { data: activeMatch } = await supabase
+            .from('active_matches')
+            .select('id, status, accept_deadline')
+            .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
+            .in('status', ['pending_accept', 'pending_result', 'awaiting_confirmation'])
+            .maybeSingle();
+
+          if (activeMatch?.status === 'pending_accept') {
+            handlePendingAccept(activeMatch.id, activeMatch.accept_deadline as string | null);
+            return;
+          }
+
+          if (activeMatch?.id) {
+            router.replace(`/result?matchId=${activeMatch.id}`);
+            return;
+          }
+        }
+      }
+
+      const queueState = await verifyOwnQueueEntry(app);
+      if (queueState === 'joined' || (queueState === 'unknown' && result?.match_status === 'searching')) {
+        await fetchQueueCounts();
+        return;
+      }
+
+      await sleep(350 * attempt);
+    }
+
+    setErrorMessage('Du wurdest nach der Gegner-Ablehnung nicht wirklich in die Queue eingetragen. Bitte starte die Suche einmal neu. Wenn das erneut passiert, muss die Supabase-Funktion check_and_join_queue cancelled Matches serverseitig ignorieren.');
+    statusRef.current = 'error';
+    setStatus('error');
+  }, [fetchQueueCounts, handlePendingAccept, router, supabase, verifyOwnQueueEntry]);
+
   const pollForMatch = useCallback(async (seconds: number) => {
     if (isPollingRef.current || statusRef.current !== 'searching') return;
     const app = selectedAppRef.current;
@@ -448,13 +551,7 @@ export default function Matchmaking() {
 
       if (result?.match_status === 'pending_accept' && result.match_id) {
         // Match gefunden → Accept-Screen anzeigen (kein direkter Redirect!)
-        playMatchFoundSound(result.match_id);
-        setAcceptMatchId(result.match_id);
-        setIHaveAccepted(false);
-        setOpponentAccepted(false);
-        setOpponentDeclined(false);
-        setStatus('accepting');
-        startAcceptCountdown(result.match_id);
+        handlePendingAccept(result.match_id);
       }
       // Hinweis: 'matched' wird nicht mehr direkt weitergeleitet.
       // Die DB gibt jetzt immer 'pending_accept' zurück, der Accept-Screen
@@ -474,7 +571,7 @@ export default function Matchmaking() {
     } finally {
       isPollingRef.current = false;
     }
-  }, [fetchQueueCounts, getCooldownMessage, playMatchFoundSound, startAcceptCountdown, supabase]);
+  }, [fetchQueueCounts, getCooldownMessage, handlePendingAccept, supabase]);
 
   // Ref immer aktuell halten damit der searching-useEffect die neueste Version hat
   // ohne selbst als Dependency aufgeführt zu sein
@@ -770,16 +867,9 @@ export default function Matchmaking() {
               setOpponentDeclined(true);
               showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
 
-              window.setTimeout(async () => {
+              window.setTimeout(() => {
                 setOpponentDeclined(false);
-                setSelectedApp(appBeforeCancel);
-                selectedAppRef.current = appBeforeCancel;
-                setElapsedSeconds(0);
-                isPollingRef.current = false;
-                statusRef.current = 'searching';
-                setStatus('searching');
-                await pollForMatchRef.current?.(0);
-                await fetchQueueCounts();
+                void forceRejoinQueueAfterOpponentDecline(appBeforeCancel);
               }, OPPONENT_DECLINED_REQUEUE_DELAY_MS);
             } else {
               setOpponentDeclined(false);
@@ -833,16 +923,9 @@ export default function Matchmaking() {
         if (acceptedBeforeCancel && appBeforeCancel) {
           setOpponentDeclined(true);
           showToast('Der Gegner hat abgelehnt. Du wirst automatisch wieder in die Queue eingetragen.', 'info');
-          window.setTimeout(async () => {
+          window.setTimeout(() => {
             setOpponentDeclined(false);
-            setSelectedApp(appBeforeCancel);
-            selectedAppRef.current = appBeforeCancel;
-            setElapsedSeconds(0);
-            isPollingRef.current = false;
-            statusRef.current = 'searching';
-            setStatus('searching');
-            await pollForMatchRef.current?.(0);
-            await fetchQueueCounts();
+            void forceRejoinQueueAfterOpponentDecline(appBeforeCancel);
           }, OPPONENT_DECLINED_REQUEUE_DELAY_MS);
         } else {
           setOpponentDeclined(false);
@@ -862,8 +945,7 @@ export default function Matchmaking() {
       window.clearInterval(statusPollInterval);
       void supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase]);
+  }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase, forceRejoinQueueAfterOpponentDecline]);
 
   // Heartbeat: solange gesucht wird, alle 20 Sekunden last_seen aktualisieren.
   // Die DB-Funktion cleanup_stale_queue_entries löscht Einträge die älter als
