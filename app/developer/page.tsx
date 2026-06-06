@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, Clock, Database, RefreshCcw, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Activity, AlertTriangle, CheckCircle2, Clock, Database, Pencil, RefreshCcw, Save, Search, Shield, SlidersHorizontal, Swords, Trophy, Wrench, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 
@@ -36,9 +36,53 @@ type SmsVerificationSetting = {
   enabled?: boolean;
 };
 
+type DevMatch = {
+  id: string;
+  created_at: string;
+  user_id: string;
+  user_name: string | null;
+  opponent_name: string;
+  is_win: boolean;
+  result: string | null;
+  legs_won: number | null;
+  legs_lost: number | null;
+  my_average: number | null;
+  highest_checkout: number | null;
+  one_eighties: number | null;
+  elo_change: number | null;
+  app: string | null;
+};
+
+type MatchDraft = {
+  legs_won: string;
+  legs_lost: string;
+  my_average: string;
+  highest_checkout: string;
+  one_eighties: string;
+  is_win: boolean;
+};
+
 function getObjectSetting<T extends object>(settings: Record<string, unknown> | undefined, key: string): T {
   const value = settings?.[key];
   return value && typeof value === 'object' ? value as T : {} as T;
+}
+
+function toDraft(m: DevMatch): MatchDraft {
+  return {
+    legs_won: m.legs_won?.toString() ?? '',
+    legs_lost: m.legs_lost?.toString() ?? '',
+    my_average: m.my_average?.toString() ?? '',
+    highest_checkout: m.highest_checkout?.toString() ?? '',
+    one_eighties: m.one_eighties?.toString() ?? '',
+    is_win: m.is_win,
+  };
+}
+
+function formatMatchDate(iso: string) {
+  return new Date(iso).toLocaleString('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
 }
 
 export default function DeveloperDashboard() {
@@ -55,6 +99,15 @@ export default function DeveloperDashboard() {
   const [noShowBanMinutes, setNoShowBanMinutes] = useState(15);
   const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [developerNotice, setDeveloperNotice] = useState('');
+
+  // Match-Editor
+  const [matches, setMatches] = useState<DevMatch[]>([]);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchSearch, setMatchSearch] = useState('');
+  const [matchSearchInput, setMatchSearchInput] = useState('');
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<MatchDraft | null>(null);
+  const [savingMatch, setSavingMatch] = useState(false);
 
   const showSuccess = (message: string) => {
     setSuccess(message);
@@ -150,6 +203,81 @@ export default function DeveloperDashboard() {
     showSuccess(`${result?.cleared ?? 0} abgelaufene Queue-Sperren bereinigt.`);
     void loadDashboard();
   };
+
+  const loadMatches = useCallback(async (search: string = matchSearch) => {
+    setMatchesLoading(true);
+    const { data, error: rpcError } = await supabase.rpc('dev_list_matches', {
+      p_limit: 100,
+      p_offset: 0,
+      p_search: search.trim() || null,
+    });
+    setMatchesLoading(false);
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+    setMatches((data ?? []) as DevMatch[]);
+  }, [supabase, matchSearch]);
+
+  useEffect(() => {
+    if (!loading) void loadMatches('');
+    // initial nach dem Dashboard-Load einmal die Matches holen
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  const startEditMatch = (m: DevMatch) => {
+    setEditingMatchId(m.id);
+    setDraft(toDraft(m));
+  };
+
+  const cancelEditMatch = () => {
+    setEditingMatchId(null);
+    setDraft(null);
+  };
+
+  const saveMatch = async () => {
+    if (!editingMatchId || !draft) return;
+    setSavingMatch(true);
+    setError('');
+
+    const toIntOrNull = (s: string) => {
+      const n = parseInt(s, 10);
+      return Number.isFinite(n) ? n : null;
+    };
+    const toNumOrNull = (s: string) => {
+      const n = Number(s.replace(',', '.'));
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const { error: rpcError } = await supabase.rpc('dev_update_match', {
+      p_match_id: editingMatchId,
+      p_legs_won: toIntOrNull(draft.legs_won),
+      p_legs_lost: toIntOrNull(draft.legs_lost),
+      p_my_average: toNumOrNull(draft.my_average),
+      p_highest_checkout: toIntOrNull(draft.highest_checkout),
+      p_one_eighties: toIntOrNull(draft.one_eighties),
+      p_is_win: draft.is_win,
+    });
+
+    setSavingMatch(false);
+
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+
+    showSuccess('Match-Stats aktualisiert.');
+    cancelEditMatch();
+    void loadMatches();
+  };
+
+  const handleMatchSearch = (event: FormEvent) => {
+    event.preventDefault();
+    setMatchSearch(matchSearchInput);
+    void loadMatches(matchSearchInput);
+  };
+
+
 
   if (loading) {
     return (
@@ -361,6 +489,131 @@ export default function DeveloperDashboard() {
             </div>
           </section>
         </div>
+
+        {/* Fertig gespielte Matches */}
+        <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-sky-200">
+                <Trophy className="h-3.5 w-3.5" /> Match-Verwaltung
+              </div>
+              <h2 className="mt-4 text-3xl font-black tracking-[-0.05em]">Fertig gespielte Matches</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                Übersicht aller Matches mit Möglichkeit zur nachträglichen Korrektur von Stats.
+                Hinweis: Pro Match existieren zwei Einträge (je Spielerperspektive) — beide Zeilen werden direkt untereinander angezeigt, damit du sie synchron anpassen kannst.
+              </p>
+            </div>
+            <form onSubmit={handleMatchSearch} className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
+              <div className="relative flex-1 lg:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                <input
+                  type="text"
+                  value={matchSearchInput}
+                  onChange={(e) => setMatchSearchInput(e.target.value)}
+                  placeholder="Username oder Gegner suchen…"
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-sky-300/40"
+                />
+              </div>
+              <button type="submit" className="rounded-2xl border border-sky-300/25 bg-sky-400/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-sky-100 transition hover:bg-sky-400/15">
+                Suchen
+              </button>
+              <button type="button" onClick={() => void loadMatches(matchSearch)} className="rounded-2xl border border-white/10 bg-white/[0.04] p-2.5 text-zinc-200 transition hover:bg-white/[0.08]">
+                <RefreshCcw className={`h-4 w-4 ${matchesLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </form>
+          </div>
+
+          <div className="mt-6 overflow-x-auto">
+            {matchesLoading && matches.length === 0 ? (
+              <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-black/20 py-10 text-sm font-bold text-zinc-400">
+                <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> Matches werden geladen…
+              </div>
+            ) : matches.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-black/20 py-10 text-center text-sm font-bold text-zinc-400">
+                Keine Matches gefunden.
+              </div>
+            ) : (
+              <div className="min-w-[960px] space-y-2">
+                <div className="grid grid-cols-[1fr_1.2fr_1.2fr_0.6fr_0.6fr_0.7fr_0.6fr_0.6fr_0.8fr] gap-2 px-3 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                  <div>Datum / App</div>
+                  <div>Spieler</div>
+                  <div>Gegner</div>
+                  <div>Legs</div>
+                  <div>Win</div>
+                  <div>Avg</div>
+                  <div>180s</div>
+                  <div>HC</div>
+                  <div>Aktionen</div>
+                </div>
+
+                {matches.map((m) => {
+                  const isEditing = editingMatchId === m.id;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`rounded-2xl border ${isEditing ? 'border-sky-300/40 bg-sky-400/[0.05]' : 'border-white/10 bg-black/20'} px-3 py-3`}
+                    >
+                      <div className="grid grid-cols-[1fr_1.2fr_1.2fr_0.6fr_0.6fr_0.7fr_0.6fr_0.6fr_0.8fr] items-center gap-2 text-sm">
+                        <div>
+                          <div className="font-bold text-zinc-100">{formatMatchDate(m.created_at)}</div>
+                          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">{m.app ?? '—'}</div>
+                        </div>
+                        <div className="truncate font-bold text-zinc-100">{m.user_name ?? '—'}</div>
+                        <div className="truncate font-bold text-zinc-300">{m.opponent_name}</div>
+
+                        {isEditing && draft ? (
+                          <>
+                            <div className="flex items-center gap-1">
+                              <input value={draft.legs_won} onChange={(e) => setDraft({ ...draft, legs_won: e.target.value })} className="w-10 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs" />
+                              <span className="text-zinc-500">:</span>
+                              <input value={draft.legs_lost} onChange={(e) => setDraft({ ...draft, legs_lost: e.target.value })} className="w-10 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs" />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setDraft({ ...draft, is_win: !draft.is_win })}
+                              className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${draft.is_win ? 'border border-emerald-300/30 bg-emerald-400/15 text-emerald-100' : 'border border-red-300/30 bg-red-500/10 text-red-100'}`}
+                            >
+                              {draft.is_win ? 'Sieg' : 'Niedrl.'}
+                            </button>
+                            <input value={draft.my_average} onChange={(e) => setDraft({ ...draft, my_average: e.target.value })} className="w-16 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs" />
+                            <input value={draft.one_eighties} onChange={(e) => setDraft({ ...draft, one_eighties: e.target.value })} className="w-12 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs" />
+                            <input value={draft.highest_checkout} onChange={(e) => setDraft({ ...draft, highest_checkout: e.target.value })} className="w-14 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs" />
+                            <div className="flex items-center gap-1.5">
+                              <button type="button" disabled={savingMatch} onClick={() => void saveMatch()} className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/30 bg-emerald-400/15 px-2 py-1 text-[10px] font-black text-emerald-100 transition hover:bg-emerald-400/25 disabled:opacity-50">
+                                <Save className="h-3 w-3" /> {savingMatch ? '…' : 'Speichern'}
+                              </button>
+                              <button type="button" onClick={cancelEditMatch} className="inline-flex items-center rounded-lg border border-white/10 bg-white/[0.04] p-1.5 text-zinc-300 transition hover:bg-white/[0.08]">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="font-bold text-zinc-100">
+                              {m.legs_won ?? '—'} <span className="text-zinc-500">:</span> {m.legs_lost ?? '—'}
+                            </div>
+                            <div className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${m.is_win ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-200' : 'border border-red-300/25 bg-red-500/10 text-red-200'}`}>
+                              <Swords className="h-3 w-3" /> {m.is_win ? 'Sieg' : 'Niedrl.'}
+                            </div>
+                            <div className="text-zinc-300">{m.my_average ?? '—'}</div>
+                            <div className="text-zinc-300">{m.one_eighties ?? 0}</div>
+                            <div className="text-zinc-300">{m.highest_checkout ?? '—'}</div>
+                            <div>
+                              <button type="button" onClick={() => startEditMatch(m)} className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-black text-zinc-100 transition hover:bg-white/[0.08]">
+                                <Pencil className="h-3 w-3" /> Bearbeiten
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+
       </section>
     </main>
   );
