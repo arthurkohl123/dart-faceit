@@ -112,7 +112,7 @@ function StatInput({
     <label className="group block rounded-2xl border border-white/10 bg-black/25 p-3 transition focus-within:border-emerald-300/50 focus-within:bg-white/[0.06]">
       <span className="mb-2 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500 transition group-focus-within:text-emerald-300">
         <span>{label}</span>
-        {required && <span className="text-emerald-300">Pflicht</span>}
+        {required && <span className="text-emerald-300"></span>}
       </span>
       <input
         type="number"
