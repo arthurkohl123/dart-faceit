@@ -565,6 +565,27 @@ export default function Matchmaking() {
     return () => { void supabase.removeChannel(channel); };
   }, [supabase, fetchLiveMatches]);
 
+  // Realtime: Queue-Counts live aktualisieren wenn jemand bei- oder austritt.
+  // Zusätzlich Polling alle 5s als Fallback, falls Realtime für die Tabelle
+  // matchmaking_queue nicht aktiviert ist.
+  useEffect(() => {
+    const channel = supabase
+      .channel('queue-counts-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matchmaking_queue' }, () => {
+        void fetchQueueCounts();
+      })
+      .subscribe();
+
+    const interval = setInterval(() => {
+      void fetchQueueCounts();
+    }, 5000);
+
+    return () => {
+      void supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [supabase, fetchQueueCounts]);
+
   // Realtime + Polling während der Suche
   // WICHTIG: pollForMatch ist NICHT in den Dependencies! Stattdessen nutzen wir
   // pollForMatchRef.current – so wird der Effect nicht bei jeder getCooldownMessage-
