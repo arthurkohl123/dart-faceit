@@ -261,28 +261,14 @@ export default function Matchmaking() {
     }
   };
 
-  // FIX BUG 2 + 3: Sperre wird jetzt auch in die DB geschrieben, damit sie nach F5 erhalten bleibt.
+  // Queue-Sperre deaktiviert – Decline beendet nur das aktuelle Match,
+  // ohne den Spieler aus der Queue zu sperren.
   const handleDecline = async () => {
     if (!acceptMatchId || acceptDeclineLoading) return;
     setAcceptDeclineLoading(true);
-    const banUntil = new Date(Date.now() + 60_000).toISOString();
-    const banReason = 'Match abgelehnt – Queue-Sperre für 1 Minute.';
     try {
       const { error } = await supabase.rpc('decline_match', { p_match_id: acceptMatchId });
       if (error) throw error;
-
-      // FIX BUG 2 + 3: Queue-Sperre in der Datenbank persistieren,
-      // damit sie nach einem Seiten-Reload (F5) noch aktiv ist.
-      const uid = userIdRef.current;
-      if (uid) {
-        await supabase
-          .from('profiles')
-          .update({
-            queue_banned_until: banUntil,
-            queue_ban_reason: banReason,
-          })
-          .eq('supabaseId', uid);
-      }
     } catch (err) {
       console.error('decline_match fehlgeschlagen:', err);
     } finally {
@@ -291,48 +277,23 @@ export default function Matchmaking() {
       setIHaveAccepted(false);
       setOpponentAccepted(false);
       setOpponentDeclined(false);
-      setQueueBannedUntil(banUntil);
-      setQueueBanReason(banReason);
-      setCooldownSeconds(60);
-      setErrorMessage('Du hast das Match abgelehnt und bist deshalb für 1 Minute für die Queue gesperrt.');
-      showToast('Match abgelehnt. Du bist für 1 Minute für die Queue gesperrt.', 'warning');
+      // Keine Queue-Sperre mehr
+      setQueueBannedUntil(null);
+      setQueueBanReason(null);
+      setCooldownSeconds(0);
+      setErrorMessage('');
       setAcceptDeclineLoading(false);
-      setStatus('error');
+      setStatus('idle');
     }
   };
 
   const fetchCooldown = useCallback(async () => {
-    const { data } = await supabase.rpc('get_my_cooldown');
-    let nextCooldown = data?.on_cooldown ? Number(data.seconds_remaining ?? 0) : 0;
-    if (data) setCancelCount24h(data.cancel_count_24h ?? 0);
-
-    const uid = userIdRef.current;
-    if (uid) {
-      const { data: profileCooldown } = await supabase
-        .from('profiles')
-        .select('queue_banned_until, queue_ban_reason')
-        .eq('supabaseId', uid)
-        .single();
-
-      const queueBannedUntil = profileCooldown?.queue_banned_until as string | null | undefined;
-      if (queueBannedUntil) {
-        const queueBanSeconds = Math.max(0, Math.ceil((new Date(queueBannedUntil).getTime() - Date.now()) / 1000));
-        if (queueBanSeconds > nextCooldown) {
-          nextCooldown = queueBanSeconds;
-          setQueueBanReason(profileCooldown?.queue_ban_reason ?? 'Queue-Sperre aktiv.');
-          setQueueBannedUntil(queueBannedUntil);
-        } else if (queueBanSeconds <= 0) {
-          setQueueBanReason(null);
-          setQueueBannedUntil(null);
-        }
-      } else {
-        setQueueBanReason(null);
-        setQueueBannedUntil(null);
-      }
-    }
-
-    setCooldownSeconds(nextCooldown);
-  }, [supabase]);
+    // Cooldown/Queue-Sperre deaktiviert – immer auf 0 halten
+    setCancelCount24h(0);
+    setQueueBanReason(null);
+    setQueueBannedUntil(null);
+    setCooldownSeconds(0);
+  }, []);
 
   // Cooldown-Countdown
   // Der Interval startet nur wenn cooldownSeconds von 0 auf einen positiven Wert
@@ -444,9 +405,9 @@ export default function Matchmaking() {
       if (statusRef.current === 'searching') {
         const msg = error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.';
         if (msg.includes('COOLDOWN:')) {
-          const secs = parseInt(msg.split('COOLDOWN:')[1] ?? '30', 10);
-          setCooldownSeconds(secs);
-          setErrorMessage(getCooldownMessage(secs));
+          // Cooldown serverseitig ignorieren – Queue ist nicht mehr gesperrt
+          setCooldownSeconds(0);
+          setErrorMessage('');
         } else {
           setErrorMessage(msg);
         }
@@ -580,26 +541,14 @@ export default function Matchmaking() {
       setPhoneVerified(!smsEnabled || Boolean(profileData?.phone_verified));
       setScoliaUsername(profileData?.scolia_username ?? null);
       setDartcounterUsername(profileData?.dartcounter_username ?? null);
-      const queueBannedUntilRaw = profileData?.queue_banned_until as string | null | undefined;
-      let hasActiveQueueBan = false;
-      if (queueBannedUntilRaw) {
-        const queueBanSeconds = Math.max(0, Math.ceil((new Date(queueBannedUntilRaw).getTime() - Date.now()) / 1000));
-        if (queueBanSeconds > 0) {
-          hasActiveQueueBan = true;
-          setCooldownSeconds(queueBanSeconds);
-          setQueueBanReason(profileData?.queue_ban_reason ?? 'Queue-Sperre aktiv.');
-          setQueueBannedUntil(queueBannedUntilRaw);
-          // Nach F5: Status auf 'error' setzen damit der Cooldown-Screen angezeigt wird
-          setStatus('error');
-          setErrorMessage('');
-        }
-      }
+      // Queue-Sperre deaktiviert – kein Wiederherstellen nach Reload
+      setCooldownSeconds(0);
+      setQueueBanReason(null);
+      setQueueBannedUntil(null);
       setPageLoading(false);
       void fetchQueueCounts();
       void fetchLiveMatches();
-      // fetchCooldown NICHT aufrufen wenn bereits eine aktive Queue-Sperre gefunden
-      // wurde – verhindert Race Condition die setCooldownSeconds(0) setzen könnte
-      if (!hasActiveQueueBan) void fetchCooldown();
+      void fetchCooldown();
     }
     void init();
     return () => { isMounted = false; };
