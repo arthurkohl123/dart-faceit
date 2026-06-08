@@ -14,7 +14,7 @@ export default function MaintenancePage() {
           Wir verbessern gerade die Plattform.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">
-          RankedDarts ist vorübergehend im Wartungsmodus. Bitte versuche es in wenigen Minuten erneut. Laufende Arbeiten werden so schnell wie möglich abgeschlossen.
+          RankedDarts befindet sich aktuell in Wartungsarbeiten, welche bis ca. 6 Uhr gehen werden. Schaut gerne später erneut vorbei.
         </p>
 
         <div className="mt-10 grid w-full max-w-3xl gap-4 md:grid-cols-2">
