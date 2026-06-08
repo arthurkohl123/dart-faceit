@@ -29,15 +29,6 @@ export default function MaintenancePage() {
             <p className="mt-2 text-sm leading-6 text-zinc-400">Sobald die Wartung beendet ist, kannst du dich wieder normal einloggen und die Queue nutzen.</p>
           </div>
         </div>
-
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/auth/login" className="rounded-2xl border border-white/10 bg-white px-5 py-3 text-sm font-black text-black transition hover:bg-zinc-200">
-            Developer Login
-          </Link>
-          <Link href="/" className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.08]">
-            Erneut prüfen
-          </Link>
-        </div>
       </section>
     </main>
   );
