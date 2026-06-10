@@ -33,7 +33,7 @@ const premiumBenefits = [
 ];
 
 const comparisonRows = [
-  { label: 'Ranked Matches pro Tag', free: 'Begrenzt', premium: 'Unbegrenzt' },
+  { label: 'Ranked Matches pro Tag', free: '4', premium: 'Unbegrenzt' },
   { label: 'Premium-Turniere', free: 'Nicht enthalten', premium: 'Enthalten' },
   { label: 'Support', free: 'Standard', premium: 'Priority' },
 ];
