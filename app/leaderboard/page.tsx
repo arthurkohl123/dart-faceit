@@ -12,7 +12,10 @@ type Player = {
   gamesPlayed: number;
   wins: number;
   isPremium?: boolean;
+  supabaseId?: string;
 };
+
+type PlayerAvgMap = Record<string, number>;
 
 const rankTiers = [
   { name: 'Eisen',   min: 0,    color: 'text-zinc-400' },
@@ -33,6 +36,7 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [avgMap, setAvgMap] = useState<PlayerAvgMap>({});
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -43,12 +47,44 @@ export default function Leaderboard() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('username, elo, gamesPlayed, wins, isPremium')
+          .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
           .order('elo', { ascending: false })
           .limit(100);
 
-        if (error) console.error(error);
-        else if (isMounted) setPlayers((data || []) as Player[]);
+        if (error) { console.error(error); }
+        else if (isMounted) {
+          const players = (data || []) as Player[];
+          setPlayers(players);
+
+          // Average für jeden Spieler aus active_matches berechnen
+          const ids = players.map((p) => p.supabaseId).filter(Boolean) as string[];
+          if (ids.length > 0) {
+            const { data: matchData } = await supabase
+              .from('active_matches')
+              .select('player1_id, player2_id, submitted_player1_average, submitted_player2_average')
+              .eq('status', 'completed')
+              .or(ids.map((id) => `player1_id.eq.${id},player2_id.eq.${id}`).join(','));
+
+            if (matchData) {
+              const sums: Record<string, { total: number; count: number }> = {};
+              for (const m of matchData) {
+                const addAvg = (id: string, avg: number | null) => {
+                  if (!avg) return;
+                  if (!sums[id]) sums[id] = { total: 0, count: 0 };
+                  sums[id].total += avg;
+                  sums[id].count += 1;
+                };
+                addAvg(m.player1_id, m.submitted_player1_average);
+                addAvg(m.player2_id, m.submitted_player2_average);
+              }
+              const map: PlayerAvgMap = {};
+              for (const [id, { total, count }] of Object.entries(sums)) {
+                map[id] = total / count;
+              }
+              if (isMounted) setAvgMap(map);
+            }
+          }
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -239,6 +275,14 @@ export default function Leaderboard() {
                     <div className="hidden text-center sm:block">
                       <div className="text-[11px] text-zinc-500">Winrate</div>
                       <div className="text-sm font-black text-cyan-300">{winrate}%</div>
+                    </div>
+                    <div className="hidden text-center sm:block">
+                      <div className="text-[11px] text-zinc-500">Ø Average</div>
+                      <div className="text-sm font-black text-violet-300">
+                        {player.supabaseId && avgMap[player.supabaseId] != null
+                          ? avgMap[player.supabaseId].toFixed(1)
+                          : '—'}
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-[11px] text-zinc-500">Elo</div>
