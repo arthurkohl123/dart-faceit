@@ -11,6 +11,13 @@ const updates = [
     content: 'Offizieller Beta Start der Plattform. Willkommen in der Dart-Community!',
     highlight: true,
   },
+    {
+    date: '10. Juni 2026',
+    title: 'Test',
+    category: 'Announcement',
+    content: 'Offizieller Beta Start der Plattform. Willkommen in der Dart-Community!',
+    highlight: true,
+  },
 ];
 
 export default function Updates() {
