@@ -9,7 +9,7 @@ const updates = [
   title: 'Neue Statistiken & Match-Informationen',
   category: 'Update',
   content: 'Wir haben die Spielerstatistiken erweitert! Das Leaderboard zeigt jetzt zusätzlich den Average aller Spieler an. Auf der Match-Seite findest du den Average deines Gegners direkt unter seiner Elo. In den Profilen werden ab sofort der aktuelle Average, der beste Match-Average, die Anzahl der geworfenen 180er sowie eine erweiterte Match-History angezeigt. Außerdem siehst du in der Matchsuche bei aktiven Matches jetzt direkt, ob das Spiel über Scolia oder DartCounter gespielt wird.',
-  highlight: true,
+  highlight: false,
 },
     {
     date: '05. Juni 2026',
