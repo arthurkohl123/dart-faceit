@@ -334,8 +334,8 @@ export default function MatchResult() {
       }
       // Plattform-Usernamen immer aus Profilen laden (active_matches hat diese Felder ggf. nicht)
       const [{ data: p1Profile }, { data: p2Profile }, { data: p1Stats }, { data: p2Stats }] = await Promise.all([
-        supabase.from('profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player1_id).single(),
-        supabase.from('profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player2_id).single(),
+        supabase.from('public_profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player1_id).single(),
+        supabase.from('public_profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player2_id).single(),
         supabase.from('active_matches')
           .select('submitted_player1_average, submitted_player2_average, player1_id')
           .eq('status', 'completed')

@@ -46,7 +46,7 @@ export default function Leaderboard() {
     async function fetchLeaderboard() {
       try {
         const { data, error } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
           .gte('gamesPlayed', 1)
           .order('elo', { ascending: false })

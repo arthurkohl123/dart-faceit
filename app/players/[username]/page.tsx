@@ -62,7 +62,7 @@ export default function PlayerProfile() {
     let isMounted = true;
     async function load() {
       const { data: profileData } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
         .eq('username', username)
         .maybeSingle();
