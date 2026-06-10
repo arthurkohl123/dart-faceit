@@ -26,11 +26,6 @@ const premiumBenefits = [
     icon: Trophy,
   },
   {
-    title: 'Erweiterter Matchmaking-Bereich',
-    description: '±30 Elo statt nur ±25 Elo. Dadurch findest du schneller passende Gegner auf deinem Niveau.',
-    icon: Gauge,
-  },
-  {
     title: 'Priority Support',
     description: 'Schnellere Hilfe bei Problemen über ein priorisiertes Ticket-System.',
     icon: LifeBuoy,
