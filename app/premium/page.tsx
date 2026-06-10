@@ -34,7 +34,6 @@ const premiumBenefits = [
 
 const comparisonRows = [
   { label: 'Ranked Matches pro Tag', free: 'Begrenzt', premium: 'Unbegrenzt' },
-  { label: 'Matchmaking Range', free: '±25 Elo', premium: '±30 Elo' },
   { label: 'Premium-Turniere', free: 'Nicht enthalten', premium: 'Enthalten' },
   { label: 'Support', free: 'Standard', premium: 'Priority' },
 ];
