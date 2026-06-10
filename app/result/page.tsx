@@ -212,6 +212,10 @@ export default function MatchResult() {
 
   // Admin state
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Average-Stats beider Spieler (aus bisherigen Matches berechnet)
+  const [player1AvgAverage, setPlayer1AvgAverage] = useState<number | null>(null);
+  const [player2AvgAverage, setPlayer2AvgAverage] = useState<number | null>(null);
   const [adminWinnerId, setAdminWinnerId] = useState('');
   const [adminCancelling, setAdminCancelling] = useState(false);
   const [adminForcing, setAdminForcing] = useState(false);
@@ -329,9 +333,19 @@ export default function MatchResult() {
         return;
       }
       // Plattform-Usernamen immer aus Profilen laden (active_matches hat diese Felder ggf. nicht)
-      const [{ data: p1Profile }, { data: p2Profile }] = await Promise.all([
+      const [{ data: p1Profile }, { data: p2Profile }, { data: p1Stats }, { data: p2Stats }] = await Promise.all([
         supabase.from('profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player1_id).single(),
         supabase.from('profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player2_id).single(),
+        supabase.from('active_matches')
+          .select('submitted_player1_average, submitted_player2_average, player1_id')
+          .eq('status', 'completed')
+          .or(`player1_id.eq.${m.player1_id},player2_id.eq.${m.player1_id}`)
+          .not('submitted_player1_average', 'is', null),
+        supabase.from('active_matches')
+          .select('submitted_player1_average, submitted_player2_average, player1_id')
+          .eq('status', 'completed')
+          .or(`player1_id.eq.${m.player2_id},player2_id.eq.${m.player2_id}`)
+          .not('submitted_player1_average', 'is', null),
       ]);
       if (p1Profile) {
         m.player1_scolia_username = p1Profile.scolia_username ?? null;
@@ -340,6 +354,19 @@ export default function MatchResult() {
       if (p2Profile) {
         m.player2_scolia_username = p2Profile.scolia_username ?? null;
         m.player2_dartcounter_username = p2Profile.dartcounter_username ?? null;
+      }
+      // Durchschnitts-Average beider Spieler berechnen
+      if (p1Stats && p1Stats.length > 0) {
+        const avgs = p1Stats.map((r: { submitted_player1_average: number | null; submitted_player2_average: number | null; player1_id: string }) =>
+          r.player1_id === m.player1_id ? r.submitted_player1_average : r.submitted_player2_average
+        ).filter((v): v is number => v !== null);
+        if (avgs.length > 0) setPlayer1AvgAverage(avgs.reduce((a, b) => a + b, 0) / avgs.length);
+      }
+      if (p2Stats && p2Stats.length > 0) {
+        const avgs = p2Stats.map((r: { submitted_player1_average: number | null; submitted_player2_average: number | null; player1_id: string }) =>
+          r.player1_id === m.player2_id ? r.submitted_player1_average : r.submitted_player2_average
+        ).filter((v): v is number => v !== null);
+        if (avgs.length > 0) setPlayer2AvgAverage(avgs.reduce((a, b) => a + b, 0) / avgs.length);
       }
 
       setMatch(m);
@@ -992,6 +1019,14 @@ export default function MatchResult() {
                   <span className="text-sm font-bold text-zinc-500">
                     {iAmPlayer1 ? match.player1_elo : match.player2_elo} Elo
                   </span>
+                  {(() => {
+                    const myAvg = iAmPlayer1 ? player1AvgAverage : player2AvgAverage;
+                    return myAvg !== null ? (
+                      <span className="mt-0.5 text-xs font-bold text-zinc-500">
+                        Ø <span className="text-emerald-300">{myAvg.toFixed(1)}</span>
+                      </span>
+                    ) : null;
+                  })()}
                   {myPlatformUsername && (
                     <span className={`mt-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${platformBorder} ${platformColor}`}>
                       {platformLabel}: {myPlatformUsername}
@@ -1006,6 +1041,14 @@ export default function MatchResult() {
                   <span className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-300/70">Gegner</span>
                   <span className="text-2xl font-black tracking-[-0.04em]">{opponentUsername}</span>
                   <span className="text-sm font-bold text-zinc-500">{opponentElo} Elo</span>
+                  {(() => {
+                    const oppAvg = iAmPlayer1 ? player2AvgAverage : player1AvgAverage;
+                    return oppAvg !== null ? (
+                      <span className="mt-0.5 text-xs font-bold text-zinc-500">
+                        Ø <span className="text-cyan-300">{oppAvg.toFixed(1)}</span>
+                      </span>
+                    ) : null;
+                  })()}
                   {oppPlatformUsername ? (
                     <span className={`mt-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${platformBorder} ${platformColor}`}>
                       {platformLabel}: {oppPlatformUsername}
