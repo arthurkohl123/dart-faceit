@@ -627,6 +627,7 @@ export default function AdminPanel() {
             </button>
             <button
               onClick={() => router.push('/profile')}
+
               className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -674,184 +675,99 @@ export default function AdminPanel() {
           </div>
         </header>
 
-        {actionMessage && (
-          <div className="mt-8 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
-            {actionMessage}
-          </div>
-        )}
 
-        {/* Verdächtige Accounts / Anti-Smurf-Flagging */}
-        {flaggedPlayers.length > 0 && (
-          <section className="mt-10 rounded-[2.4rem] border border-orange-400/20 bg-orange-400/[0.03] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
-            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-orange-400/25 bg-orange-400/10 text-orange-200">
-                  <TriangleAlert className="h-6 w-6" />
+
+
+        {/* ── Tab-Navigation ── */}
+        <div className="mt-8 flex flex-wrap gap-2 rounded-[1.5rem] border border-white/10 bg-zinc-950/60 p-2 backdrop-blur-xl">
+          {([
+            { id: 'overview',  label: 'Übersicht',   icon: <Trophy className="h-4 w-4" />,         badge: null },
+            { id: 'disputes',  label: 'Disputes',    icon: <Gavel className="h-4 w-4" />,           badge: disputedMatches.length > 0 ? disputedMatches.length : null },
+            { id: 'live',      label: 'Live',        icon: <Swords className="h-4 w-4" />,          badge: liveMatches.length > 0 ? liveMatches.length : null },
+            { id: 'players',   label: 'Spieler',     icon: <Users className="h-4 w-4" />,           badge: null },
+            { id: 'tickets',   label: 'Tickets',     icon: <Headphones className="h-4 w-4" />,      badge: tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length > 0 ? tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length : null },
+            { id: 'flagged',   label: 'Verdächtig',  icon: <TriangleAlert className="h-4 w-4" />,   badge: flaggedPlayers.length > 0 ? flaggedPlayers.length : null },
+            { id: 'logs',      label: 'Logs',        icon: <ClipboardList className="h-4 w-4" />,   badge: null },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+                activeTab === tab.id
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200'
+              }`}
+            >
+              {tab.icon}
+              <span className="hidden sm:inline">{tab.label}</span>
+              {tab.badge !== null && (
+                <span className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
+                  activeTab === tab.id ? 'bg-emerald-400/30 text-emerald-200' : 'bg-white/10 text-zinc-300'
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Tab-Inhalte ── */}
+        <div className="mt-6">
+          {activeTab === 'overview' && (
+            <div>
+              {actionMessage && (
+                <div className="mb-6 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                  {actionMessage}
                 </div>
-                <div>
-                  <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Verdächtige Accounts</h2>
-                  <p className="mt-1 text-sm text-zinc-400">Automatisch geflaggte Spieler basierend auf Winrate, Elo-Anstieg und Account-Alter. Kein automatischer Ban – nur ein Hinweis zur manuellen Prüfung.</p>
+              )}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className={statCardClassName}>
+                  <Users className="h-7 w-7 text-emerald-300" />
+                  <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{profiles.length}</div>
+                  <div className="mt-1 text-sm font-semibold text-zinc-400">Spieler gesamt</div>
+                  <button onClick={() => setActiveTab('players')} className="mt-4 text-xs font-bold text-emerald-300 hover:underline">→ Spieler verwalten</button>
+                </div>
+                <div className={statCardClassName}>
+                  <ShieldAlert className="h-7 w-7 text-amber-300" />
+                  <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{disputedMatches.length}</div>
+                  <div className="mt-1 text-sm font-semibold text-zinc-400">Offene Disputes</div>
+                  <button onClick={() => setActiveTab('disputes')} className="mt-4 text-xs font-bold text-amber-300 hover:underline">→ Disputes prüfen</button>
+                </div>
+                <div className={statCardClassName}>
+                  <Headphones className="h-7 w-7 text-violet-300" />
+                  <div className="mt-5 text-4xl font-black tracking-[-0.05em] text-violet-300">{tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length}</div>
+                  <div className="mt-1 text-sm font-semibold text-zinc-400">Offene Tickets</div>
+                  <button onClick={() => setActiveTab('tickets')} className="mt-4 text-xs font-bold text-violet-300 hover:underline">→ Tickets öffnen</button>
+                </div>
+                <div className={statCardClassName}>
+                  <CheckCircle2 className="h-7 w-7 text-lime-300" />
+                  <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{activeCount}</div>
+                  <div className="mt-1 text-sm font-semibold text-zinc-400">Aktive Accounts</div>
+                </div>
+                <div className={statCardClassName}>
+                  <Swords className="h-7 w-7 text-emerald-300" />
+                  <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{liveMatches.length}</div>
+                  <div className="mt-1 text-sm font-semibold text-zinc-400">Laufende Matches</div>
+                  <button onClick={() => setActiveTab('live')} className="mt-4 text-xs font-bold text-emerald-300 hover:underline">→ Live ansehen</button>
+                </div>
+                <div className={`${statCardClassName} ${flaggedPlayers.length > 0 ? 'border-orange-400/30 bg-orange-400/[0.06]' : ''}`}>
+                  <TriangleAlert className={`h-7 w-7 ${flaggedPlayers.length > 0 ? 'text-orange-300' : 'text-zinc-500'}`} />
+                  <div className={`mt-5 text-4xl font-black tracking-[-0.05em] ${flaggedPlayers.length > 0 ? 'text-orange-300' : ''}`}>{flaggedPlayers.length}</div>
+                  <div className="mt-1 text-sm font-semibold text-zinc-400">Verdächtige Accounts</div>
+                  {flaggedPlayers.length > 0 && <button onClick={() => setActiveTab('flagged')} className="mt-4 text-xs font-bold text-orange-300 hover:underline">→ Prüfen</button>}
                 </div>
               </div>
-              <span className="inline-flex w-fit items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-5 py-2.5 text-sm font-black text-orange-100">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-orange-300" />
-                {flaggedPlayers.length} zur Prüfung
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {flaggedPlayers.map((player) => {
-                const winrate = Math.round(player.winrate);
-                return (
-                  <div key={player.id} className="overflow-hidden rounded-[1.5rem] border border-orange-400/15 bg-zinc-950/60 p-4 sm:p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <a
-                            href={`/players/${encodeURIComponent(player.username)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-black text-zinc-100 underline-offset-2 hover:text-emerald-300 hover:underline transition"
-                          >
-                            {player.username}
-                          </a>
-                          <span className="text-sm font-bold text-emerald-300">{player.elo} Elo</span>
-                          {player.account_age_days < 14 && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-blue-300/20 bg-blue-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-blue-200">
-                              <Zap className="h-2.5 w-2.5" /> Neuer Account ({player.account_age_days}d)
-                            </span>
-                          )}
-                        </div>
-                        {/* Flag-Badges */}
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {player.flags.map((flag) => (
-                            <span key={flag} className="inline-flex items-center gap-1 rounded-full border border-orange-400/20 bg-orange-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-orange-200">
-                              <AlertTriangle className="h-2.5 w-2.5" />
-                              {flag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Stats */}
-                      <div className="flex shrink-0 gap-4 text-center text-xs">
-                        <div>
-                          <div className="text-zinc-500">Spiele</div>
-                          <div className="font-black text-zinc-200">{player.gamesPlayed}</div>
-                        </div>
-                        <div>
-                          <div className="text-zinc-500">Winrate</div>
-                          <div className={`font-black ${winrate >= 85 ? 'text-orange-300' : 'text-zinc-200'}`}>{winrate}%</div>
-                        </div>
-                        <div>
-                          <div className="text-zinc-500">Elo +7d</div>
-                          <div className={`font-black ${player.elo_gain_7d >= 200 ? 'text-orange-300' : 'text-zinc-200'}`}>+{player.elo_gain_7d}</div>
-                        </div>
-                      </div>
-                    </div>
-                    {/* Aktionen */}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        onClick={() => {
-                          const user = profiles.find((p) => p.id === player.id);
-                          if (user) void toggleBan(user);
-                        }}
-                        className="rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-rose-100 transition hover:bg-rose-400/15"
-                      >
-                        Bannen
-                      </button>
-                      <button
-                        onClick={() => refreshAdminData()}
-                        className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-zinc-300 transition hover:bg-white/10"
-                      >
-                        Ignorieren
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Live-Matches-Übersicht */}
-        <section className="mt-10 rounded-[2.4rem] border border-emerald-300/15 bg-emerald-300/[0.025] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-200">
-                <Swords className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Laufende Matches</h2>
-                <p className="mt-1 text-sm text-zinc-400">Alle aktiven Matches in Echtzeit. Direkt in den Matchroom springen oder Match abbrechen.</p>
-              </div>
-            </div>
-            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-5 py-2.5 text-sm font-black text-emerald-100">
-              <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.8)]" />
-              {liveMatches.length} aktiv
-            </span>
-          </div>
-
-          {liveMatches.length === 0 ? (
-            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.035] p-7 text-zinc-300">
-              <div className="flex items-center gap-3 font-bold text-zinc-400">
-                <Swords className="h-5 w-5" />
-                Keine laufenden Matches
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {liveMatches.map((m) => (
-                <div key={m.id} className="flex flex-wrap items-center gap-4 rounded-[1.5rem] border border-white/10 bg-zinc-950/60 px-5 py-4">
-                  {/* Spieler */}
-                  <div className="flex flex-1 min-w-0 items-center gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-black text-white">{m.player1_username}</span>
-                        <span className="text-xs text-zinc-600">vs</span>
-                        <span className="truncate font-black text-white">{m.player2_username}</span>
-                      </div>
-                      <div className="mt-0.5 text-xs text-zinc-500">
-                        {m.player1_elo} vs {m.player2_elo} Elo · {formatDate(m.created_at)}
-                      </div>
-                    </div>
-                  </div>
-                  {/* Status */}
-                  <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
-                    m.status === 'awaiting_confirmation'
-                      ? 'border border-amber-300/20 bg-amber-400/10 text-amber-200'
-                      : 'border border-emerald-300/20 bg-emerald-400/10 text-emerald-200'
-                  }`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${
-                      m.status === 'awaiting_confirmation' ? 'bg-amber-300' : 'bg-emerald-300'
-                    }`} />
-                    {m.status === 'awaiting_confirmation' ? 'Bestätigung' : 'Läuft'}
-                  </span>
-                  {/* Aktionen */}
-                  <div className="flex shrink-0 gap-2">
-                    <a
-                      href={`/result?matchId=${m.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-200 transition hover:bg-emerald-400/20"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Matchroom
-                    </a>
-                    <button
-                      onClick={() => adminCancelMatch(m.id)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-1.5 text-xs font-black text-rose-200 transition hover:bg-rose-400/15"
-                    >
-                      <XCircle className="h-3.5 w-3.5" />
-                      {pendingLiveCancelMatchId === m.id ? 'Endgültig abbrechen' : 'Abbrechen'}
-                    </button>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
-        </section>
 
-        <section className="mt-10 rounded-[2.4rem] border border-amber-300/15 bg-amber-300/[0.035] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+          {activeTab === 'disputes' && (
+            <div>
+              {actionMessage && (
+                <div className="mb-6 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                  {actionMessage}
+                </div>
+              )}
+        <section className="rounded-[2.4rem] border border-amber-300/15 bg-amber-300/[0.035] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
           <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="grid h-13 w-13 place-items-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-amber-200">
@@ -1077,7 +993,104 @@ export default function AdminPanel() {
           )}
         </section>
 
-        <section className="mt-10 rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+            </div>
+          )}
+
+          {activeTab === 'live' && (
+            <div>
+              {actionMessage && (
+                <div className="mb-6 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                  {actionMessage}
+                </div>
+              )}
+        <section className="rounded-[2.4rem] border border-emerald-300/15 bg-emerald-300/[0.025] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-200">
+                <Swords className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Laufende Matches</h2>
+                <p className="mt-1 text-sm text-zinc-400">Alle aktiven Matches in Echtzeit. Direkt in den Matchroom springen oder Match abbrechen.</p>
+              </div>
+            </div>
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-5 py-2.5 text-sm font-black text-emerald-100">
+              <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.8)]" />
+              {liveMatches.length} aktiv
+            </span>
+          </div>
+
+          {liveMatches.length === 0 ? (
+            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.035] p-7 text-zinc-300">
+              <div className="flex items-center gap-3 font-bold text-zinc-400">
+                <Swords className="h-5 w-5" />
+                Keine laufenden Matches
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {liveMatches.map((m) => (
+                <div key={m.id} className="flex flex-wrap items-center gap-4 rounded-[1.5rem] border border-white/10 bg-zinc-950/60 px-5 py-4">
+                  {/* Spieler */}
+                  <div className="flex flex-1 min-w-0 items-center gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-black text-white">{m.player1_username}</span>
+                        <span className="text-xs text-zinc-600">vs</span>
+                        <span className="truncate font-black text-white">{m.player2_username}</span>
+                      </div>
+                      <div className="mt-0.5 text-xs text-zinc-500">
+                        {m.player1_elo} vs {m.player2_elo} Elo · {formatDate(m.created_at)}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Status */}
+                  <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
+                    m.status === 'awaiting_confirmation'
+                      ? 'border border-amber-300/20 bg-amber-400/10 text-amber-200'
+                      : 'border border-emerald-300/20 bg-emerald-400/10 text-emerald-200'
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${
+                      m.status === 'awaiting_confirmation' ? 'bg-amber-300' : 'bg-emerald-300'
+                    }`} />
+                    {m.status === 'awaiting_confirmation' ? 'Bestätigung' : 'Läuft'}
+                  </span>
+                  {/* Aktionen */}
+                  <div className="flex shrink-0 gap-2">
+                    <a
+                      href={`/result?matchId=${m.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-200 transition hover:bg-emerald-400/20"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Matchroom
+                    </a>
+                    <button
+                      onClick={() => adminCancelMatch(m.id)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-1.5 text-xs font-black text-rose-200 transition hover:bg-rose-400/15"
+                    >
+                      <XCircle className="h-3.5 w-3.5" />
+                      {pendingLiveCancelMatchId === m.id ? 'Endgültig abbrechen' : 'Abbrechen'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+            </div>
+          )}
+
+          {activeTab === 'players' && (
+            <div>
+              {actionMessage && (
+                <div className="mb-6 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                  {actionMessage}
+                </div>
+              )}
+        <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="flex items-center gap-3 text-3xl font-black tracking-[-0.045em]">
@@ -1200,8 +1213,18 @@ export default function AdminPanel() {
           </p>
         </section>
 
+            </div>
+          )}
+
+          {activeTab === 'tickets' && (
+            <div>
+              {actionMessage && (
+                <div className="mb-6 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                  {actionMessage}
+                </div>
+              )}
         {/* ── Support-Tickets ── */}
-        <section className="mt-10 rounded-[2.4rem] border border-violet-400/20 bg-violet-400/[0.03] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+        <section className="rounded-[2.4rem] border border-violet-400/20 bg-violet-400/[0.03] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="grid h-12 w-12 place-items-center rounded-2xl border border-violet-400/25 bg-violet-400/10 text-violet-200">
@@ -1415,8 +1438,117 @@ export default function AdminPanel() {
           )}
         </section>
 
+            </div>
+          )}
+
+          {activeTab === 'flagged' && (
+            <div>
+              {actionMessage && (
+                <div className="mb-6 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                  {actionMessage}
+                </div>
+              )}
+        {/* Verdächtige Accounts / Anti-Smurf-Flagging */}
+        {flaggedPlayers.length > 0 && (
+          <section className="rounded-[2.4rem] border border-orange-400/20 bg-orange-400/[0.03] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-orange-400/25 bg-orange-400/10 text-orange-200">
+                  <TriangleAlert className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Verdächtige Accounts</h2>
+                  <p className="mt-1 text-sm text-zinc-400">Automatisch geflaggte Spieler basierend auf Winrate, Elo-Anstieg und Account-Alter. Kein automatischer Ban – nur ein Hinweis zur manuellen Prüfung.</p>
+                </div>
+              </div>
+              <span className="inline-flex w-fit items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-5 py-2.5 text-sm font-black text-orange-100">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-orange-300" />
+                {flaggedPlayers.length} zur Prüfung
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {flaggedPlayers.map((player) => {
+                const winrate = Math.round(player.winrate);
+                return (
+                  <div key={player.id} className="overflow-hidden rounded-[1.5rem] border border-orange-400/15 bg-zinc-950/60 p-4 sm:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <a
+                            href={`/players/${encodeURIComponent(player.username)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-black text-zinc-100 underline-offset-2 hover:text-emerald-300 hover:underline transition"
+                          >
+                            {player.username}
+                          </a>
+                          <span className="text-sm font-bold text-emerald-300">{player.elo} Elo</span>
+                          {player.account_age_days < 14 && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-blue-300/20 bg-blue-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-blue-200">
+                              <Zap className="h-2.5 w-2.5" /> Neuer Account ({player.account_age_days}d)
+                            </span>
+                          )}
+                        </div>
+                        {/* Flag-Badges */}
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {player.flags.map((flag) => (
+                            <span key={flag} className="inline-flex items-center gap-1 rounded-full border border-orange-400/20 bg-orange-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-orange-200">
+                              <AlertTriangle className="h-2.5 w-2.5" />
+                              {flag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Stats */}
+                      <div className="flex shrink-0 gap-4 text-center text-xs">
+                        <div>
+                          <div className="text-zinc-500">Spiele</div>
+                          <div className="font-black text-zinc-200">{player.gamesPlayed}</div>
+                        </div>
+                        <div>
+                          <div className="text-zinc-500">Winrate</div>
+                          <div className={`font-black ${winrate >= 85 ? 'text-orange-300' : 'text-zinc-200'}`}>{winrate}%</div>
+                        </div>
+                        <div>
+                          <div className="text-zinc-500">Elo +7d</div>
+                          <div className={`font-black ${player.elo_gain_7d >= 200 ? 'text-orange-300' : 'text-zinc-200'}`}>+{player.elo_gain_7d}</div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Aktionen */}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => {
+                          const user = profiles.find((p) => p.id === player.id);
+                          if (user) void toggleBan(user);
+                        }}
+                        className="rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-rose-100 transition hover:bg-rose-400/15"
+                      >
+                        Bannen
+                      </button>
+                      <button
+                        onClick={() => refreshAdminData()}
+                        className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-zinc-300 transition hover:bg-white/10"
+                      >
+                        Ignorieren
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+
+            </div>
+          )}
+
+          {activeTab === 'logs' && (
+            <div>
         {/* Admin-Aktions-Log */}
-        <section className="mt-10 rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+        <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="grid h-12 w-12 place-items-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-cyan-200">
@@ -1498,6 +1630,10 @@ export default function AdminPanel() {
             </div>
           )}
         </section>
+
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );
