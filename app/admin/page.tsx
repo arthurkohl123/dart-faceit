@@ -241,6 +241,7 @@ export default function AdminPanel() {
   const [ticketReply, setTicketReply] = useState('');
   const [ticketSending, setTicketSending] = useState(false);
   const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'disputes' | 'live' | 'tickets' | 'logs' | 'flagged'>('overview');
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();

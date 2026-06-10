@@ -48,6 +48,7 @@ export default function Leaderboard() {
         const { data, error } = await supabase
           .from('profiles')
           .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
+          .gte('gamesPlayed', 1)
           .order('elo', { ascending: false })
           .limit(100);
 
