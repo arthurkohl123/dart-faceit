@@ -4,16 +4,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 const updates = [
+{
+  date: '10. Juni 2026',
+  title: 'Erweiterte Spielerstatistiken',
+  category: 'Update',
+  content: 'Dieses Update bringt umfangreiche Verbesserungen bei den Spielerstatistiken. Das Leaderboard zeigt nun zusätzlich den Average aller Spieler an. Auf der Match-Seite wird der Average des jeweiligen Spielers direkt unter seiner Elo angezeigt. Zudem wurden die Profile erweitert: Neben dem aktuellen Average findest du jetzt auch den höchsten jemals erzielten Match-Average, die Anzahl der geworfenen 180er sowie eine detailliertere Match-History mit erweiterten Informationen zu vergangenen Begegnungen.',
+  highlight: true,
+},
     {
     date: '05. Juni 2026',
     title: 'Launch von RankedDarts Beta',
-    category: 'Announcement',
-    content: 'Offizieller Beta Start der Plattform. Willkommen in der Dart-Community!',
-    highlight: true,
-  },
-    {
-    date: '10. Juni 2026',
-    title: 'Test',
     category: 'Announcement',
     content: 'Offizieller Beta Start der Plattform. Willkommen in der Dart-Community!',
     highlight: true,
@@ -110,11 +110,6 @@ export default function Updates() {
               </article>
             ))}
           </div>
-        </div>
-
-        <div className="mt-12 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center backdrop-blur-xl">
-          <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">Roadmap</div>
-          <p className="mx-auto mt-3 max-w-2xl text-lg leading-8 text-zinc-300">Weitere Updates folgen regelmäßig. Als nächstes können Design, Profilstatistiken, Match-History und Admin-Flows Schritt für Schritt im gleichen Stil erweitert werden.</p>
         </div>
       </section>
     </main>
