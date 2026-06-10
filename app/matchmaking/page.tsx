@@ -30,6 +30,7 @@ type LiveMatch = {
   player1_elo: number;
   player2_elo: number;
   status: string;
+  app: string | null;
   created_at: string;
 };
 
@@ -360,7 +361,7 @@ export default function Matchmaking() {
   const fetchLiveMatches = useCallback(async () => {
     const { data } = await supabase
       .from('active_matches')
-      .select('id, player1_username, player2_username, player1_elo, player2_elo, status, created_at')
+      .select('id, player1_username, player2_username, player1_elo, player2_elo, status, app, created_at')
       .in('status', ['pending_result', 'awaiting_confirmation'])
       .order('created_at', { ascending: false })
       .limit(10);
@@ -1257,14 +1258,24 @@ export default function Matchmaking() {
                       <span className="shrink-0 text-xs font-black text-zinc-600">vs</span>
                       <span className="truncate text-sm font-black text-white">{m.player2_username}</span>
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className="shrink-0 flex items-center gap-2">
+                      {m.app && (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${
+                          m.app === 'scolia'
+                            ? 'border border-emerald-300/20 bg-emerald-400/10 text-emerald-300'
+                            : 'border border-cyan-300/20 bg-cyan-400/10 text-cyan-300'
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${m.app === 'scolia' ? 'bg-emerald-300' : 'bg-cyan-300'}`} />
+                          {m.app === 'scolia' ? 'Scolia' : 'DartCounter'}
+                        </span>
+                      )}
                       <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${
                         m.status === 'awaiting_confirmation'
                           ? 'border border-amber-300/20 bg-amber-400/10 text-amber-200'
-                          : 'border border-emerald-300/20 bg-emerald-400/10 text-emerald-200'
+                          : 'border border-white/10 bg-white/[0.04] text-zinc-400'
                       }`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${
-                          m.status === 'awaiting_confirmation' ? 'bg-amber-300' : 'bg-emerald-300'
+                          m.status === 'awaiting_confirmation' ? 'bg-amber-300' : 'bg-zinc-500'
                         }`} />
                         {m.status === 'awaiting_confirmation' ? 'Bestätigung' : 'Läuft'}
                       </span>
