@@ -2,22 +2,29 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-01-27' as any,
-});
+// Das verhindert, dass Next.js versucht, den Endpunkt während des Builds statisch zu generieren
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    
+    if (!stripeSecretKey) {
+      throw new Error('STRIPE_SECRET_KEY ist nicht in der .env konfiguriert');
+    }
+
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: '2025-01-27' as any,
+    });
+
     const supabase = await createServerSupabaseClient();
     
-    // 1. Prüfen, ob der Nutzer eingeloggt ist
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
     }
 
-    // 2. Stripe Checkout Session erstellen
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card', 'paypal', 'sofort'],
       line_items: [
@@ -28,7 +35,7 @@ export async function POST(request: Request) {
               name: 'RankedDarts Premium',
               description: 'Unbegrenzte Matches, exklusive Turniere und VIP-Status.',
             },
-            unit_amount: 499, // 4,99€
+            unit_amount: 499,
             recurring: {
               interval: 'month',
             },
