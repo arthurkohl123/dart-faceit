@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Crown, Gauge, LifeBuoy, ShieldCheck, Sparkles, Swords, Trophy, Zap, Star } from 'lucide-react';
+import { Check, Crown, Gauge, LifeBuoy, ShieldCheck, Sparkles, Swords, Trophy, Zap, Star, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -51,6 +51,7 @@ const comparisonRows = [
 export default function Premium() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -82,6 +83,29 @@ export default function Premium() {
       isMounted = false;
     };
   }, [router, supabase]);
+
+  const handleCheckout = async () => {
+    setCheckoutLoading(true);
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        // Weiterleitung zu Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        alert('Fehler beim Starten des Checkouts: ' + (data.error || 'Unbekannter Fehler'));
+      }
+    } catch (error) {
+      console.error('Checkout Error:', error);
+      alert('Es gab ein Problem bei der Verbindung zum Zahlungsserver.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -179,9 +203,11 @@ export default function Premium() {
                   </div>
                   <h3 className="text-xl font-black tracking-tight pt-4">Premium Pass</h3>
                 </div>
-                <div className="rounded-full bg-zinc-800/50 border border-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                  Coming Soon
-                </div>
+                {profile?.isPremium && (
+                  <div className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                    Aktiv
+                  </div>
+                )}
               </div>
 
               <div className="mt-8 space-y-2">
@@ -206,10 +232,17 @@ export default function Premium() {
               </div>
 
               <button
-                disabled
-                className="mt-10 w-full group relative overflow-hidden rounded-2xl bg-zinc-800 px-6 py-4 font-black uppercase tracking-widest text-zinc-500 transition disabled:cursor-not-allowed"
+                onClick={handleCheckout}
+                disabled={profile?.isPremium || checkoutLoading}
+                className="mt-10 w-full group relative overflow-hidden rounded-2xl bg-emerald-500 px-6 py-4 font-black uppercase tracking-widest text-black transition hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed disabled:scale-100"
               >
-                <span className="relative z-10">Zahlung bald verfügbar</span>
+                {checkoutLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                ) : profile?.isPremium ? (
+                  'Bereits Premium'
+                ) : (
+                  'Jetzt upgraden'
+                )}
               </button>
               
               <p className="mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-zinc-600">
@@ -251,7 +284,7 @@ export default function Premium() {
               <p className="text-zinc-400 leading-relaxed">
                 {profile?.isPremium 
                   ? 'Du genießt bereits alle Vorteile von RankedDarts Premium. Danke für deine Unterstützung!' 
-                  : 'Du nutzt aktuell die Basis-Version. Ein Upgrade wird verfügbar sein, sobald unser Zahlungssystem live geht.'}
+                  : 'Du nutzt aktuell die Basis-Version. Ein Upgrade wird sofort freigeschaltet, sobald die Zahlung abgeschlossen ist.'}
               </p>
             </div>
             <Link 
