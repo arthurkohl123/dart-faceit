@@ -1,18 +1,21 @@
-'use client';
-
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase-server';
 import { 
   Menu, X, Swords, Trophy, Users, Target, 
   ShieldCheck, Zap, ChevronRight, Star, 
   ArrowRight, Activity, Play, Globe, Shield, Crown
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
+import { Metadata } from 'next';
 
-// --- PROFESSIONELLE RANK ICONS ---
+export const metadata: Metadata = {
+  title: 'RankedDarts – Competitive Darts Matchmaking',
+  description: 'Vergiss Gelegenheitsspiele. Tritt der weltweit ersten professionellen Wettbewerbs-Plattform für Darts bei.',
+};
+
+export const revalidate = 60; // ISR: Cache für 60 Sekunden
+
 const RankIcon = ({ type, size = "w-12 h-12" }: { type: string, size?: string }) => {
-  const baseClass = `${size} flex items-center justify-center rounded-2xl border shadow-lg transition-transform group-hover:scale-110 duration-500`;
+  const baseClass = `${size} flex items-center justify-center rounded-2xl border shadow-lg transition-transform duration-500`;
   
   switch (type) {
     case 'Eisen':
@@ -63,54 +66,26 @@ const RankIcon = ({ type, size = "w-12 h-12" }: { type: string, size?: string })
   }
 };
 
-export default function Home() {
-  const router = useRouter();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+export default async function Home() {
+  const supabase = createClient();
   
-  const [dbStats, setDbStats] = useState({
-    playerCount: 0,
-    matchCount: 0,
-    activeQueues: 0
-  });
+  // Daten parallel auf dem Server abrufen
+  const [
+    { count: playerCount },
+    { count: matchCount },
+    { data: sessionData }
+  ] = await Promise.all([
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    supabase.from('Match').select('*', { count: 'exact', head: true }),
+    supabase.auth.getSession()
+  ]);
 
-  const supabase = useMemo(() => createClient(), []);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setIsLoggedIn(true);
-    });
-    
-    const fetchStats = async () => {
-      try {
-        const { count: pCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
-        const { count: mCount } = await supabase.from('Match').select('*', { count: 'exact', head: true });
-        
-        setDbStats({
-          playerCount: pCount || 0,
-          matchCount: mCount || 0,
-          activeQueues: Math.max(1, Math.floor((mCount || 0) / 10))
-        });
-      } catch (err) {
-        console.error("Stats Error:", err);
-      }
-    };
-
-    fetchStats();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session);
-    });
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
+  const isLoggedIn = !!sessionData.session;
+  const dbStats = {
+    playerCount: playerCount || 0,
+    matchCount: matchCount || 0,
+    activeQueues: Math.max(1, Math.floor((matchCount || 0) / 10))
+  };
 
   return (
     <main className="min-h-screen bg-[#020304] text-zinc-100 selection:bg-emerald-500/30 font-sans overflow-x-hidden">
@@ -118,12 +93,12 @@ export default function Home() {
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-5%] left-[-5%] w-[50%] h-[50%] bg-emerald-500/10 blur-[150px] rounded-full opacity-50" />
         <div className="absolute bottom-[-5%] right-[-5%] w-[50%] h-[50%] bg-cyan-500/10 blur-[150px] rounded-full opacity-50" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png' )] opacity-[0.02]" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.02]" />
         <div className="absolute inset-0 opacity-[0.04] [background-image:linear-gradient(to_right,#888_1px,transparent_1px),linear-gradient(to_bottom,#888_1px,transparent_1px)] [background-size:100px_100px]" />
       </div>
 
       {/* --- NAVIGATION --- */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-black/90 backdrop-blur-2xl border-b border-white/5 py-3' : 'bg-transparent py-8'}`}>
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-transparent py-8">
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-4 group">
             <div className="relative">
@@ -145,12 +120,9 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-6">
-            {isLoggedIn ? (
-              <button onClick={() => router.push('/profile')} className="px-8 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black uppercase tracking-widest transition-all">Dashboard</button>
-            ) : (
-              <button onClick={() => router.push('/auth/register')} className="px-8 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-widest shadow-[0_0_40px_rgba(16,185,129,0.3)] transition-all">Join Elite</button>
-            )}
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 text-zinc-400"><Menu /></button>
+            <Link href={isLoggedIn ? '/profile' : '/auth/register'} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${isLoggedIn ? 'bg-white/5 hover:bg-white/10 border border-white/10' : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_40px_rgba(16,185,129,0.3)]'}`}>
+              {isLoggedIn ? 'Dashboard' : 'Join Elite'}
+            </Link>
           </div>
         </div>
       </nav>
@@ -166,7 +138,6 @@ export default function Home() {
             
             <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-[9rem] font-black tracking-tighter leading-[0.8] mb-12 italic uppercase">
               Play Like   
-
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-cyan-300 to-blue-500 drop-shadow-[0_0_50px_rgba(16,185,129,0.2)]">A Legend.</span>
             </h1>
             
@@ -176,20 +147,20 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-8">
-              <button 
-                onClick={() => router.push(isLoggedIn ? '/matchmaking' : '/auth/register')}
+              <Link 
+                href={isLoggedIn ? '/matchmaking' : '/auth/register'}
                 className="group w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-black px-14 py-7 rounded-[2rem] font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all hover:scale-105 shadow-[0_30px_60px_rgba(16,185,129,0.25)]"
               >
                 <Play className="w-6 h-6 fill-current" />
                 Play Now
                 <ChevronRight className="w-7 h-7 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button 
-                onClick={() => router.push('/leaderboard')}
-                className="w-full sm:w-auto bg-white/5 hover:bg-white/10 border border-white/10 px-14 py-7 rounded-[2rem] font-black uppercase tracking-widest transition-all backdrop-blur-xl"
+              </Link>
+              <Link 
+                href="/leaderboard"
+                className="w-full sm:w-auto bg-white/5 hover:bg-white/10 border border-white/10 px-14 py-7 rounded-[2rem] font-black uppercase tracking-widest transition-all backdrop-blur-xl flex items-center justify-center"
               >
                 Leaderboard
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -240,7 +211,9 @@ export default function Home() {
                   </div>
                 </div>
 
-                <button className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">Match Details ansehen</button>
+                <Link href="/matchmaking" className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center">
+                  Match Details ansehen
+                </Link>
               </div>
             </div>
           </div>
@@ -283,92 +256,87 @@ export default function Home() {
               { icon: Trophy, title: 'Pro Tournaments', desc: 'Nimm an wöchentlichen Turnieren teil und gewinne exklusive Preise sowie Prestige in der Community.' },
               { icon: ShieldCheck, title: 'Anti-Cheat System', desc: 'Alle Ergebnisse müssen von beiden Spielern bestätigt werden. Unsere Moderatoren prüfen Unstimmigkeiten sofort.' }
             ].map((f, i) => (
-              <div key={i} className="space-y-8 p-10 rounded-[3rem] bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-all group">
-                <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
+              <div key={i} className="group p-12 rounded-[3rem] bg-zinc-900/30 border border-white/5 hover:border-emerald-500/30 transition-all duration-700 hover:-translate-y-2">
+                <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 mb-8 group-hover:scale-110 transition-transform duration-500">
                   <f.icon className="w-8 h-8" />
                 </div>
-                <div className="space-y-4">
-                  <h3 className="text-2xl font-black tracking-tight">{f.title}</h3>
-                  <p className="text-zinc-400 text-sm leading-relaxed">{f.desc}</p>
-                </div>
+                <h4 className="text-2xl font-black uppercase tracking-tight mb-6 italic">{f.title}</h4>
+                <p className="text-zinc-500 leading-relaxed font-medium">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* --- RANKS SECTION (7 RANKS) --- */}
-      <section className="relative z-10 py-48 px-6">
+      {/* --- PROGRESSION / RANKS --- */}
+      <section className="relative z-10 py-40 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center space-y-6 mb-32">
-            <h2 className="text-emerald-500 text-xs font-black uppercase tracking-[0.6em]">The Progression</h2>
-            <h3 className="text-5xl md:text-7xl font-black tracking-tight italic uppercase">Ascend the Ranks.</h3>
+          <div className="flex flex-col md:flex-row items-end justify-between mb-24 gap-8">
+            <div className="space-y-6">
+              <h2 className="text-cyan-400 text-xs font-black uppercase tracking-[0.6em]">The Progression</h2>
+              <h3 className="text-5xl md:text-7xl font-black tracking-tight uppercase italic">Ascend the Ranks.</h3>
+            </div>
+            <Link href="/faq" className="px-10 py-5 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">Rank System FAQ</Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { name: 'Eisen',   range: '0 - 999',    color: 'from-zinc-500/20',    desc: 'Der Anfang deiner Reise.' },
-              { name: 'Bronze',  range: '1000 - 1249', color: 'from-orange-500/20',  desc: 'Du beherrschst die Basics.' },
-              { name: 'Silber',  range: '1250 - 1499', color: 'from-slate-300/20',   desc: 'Ein solider Konkurrent.' },
-              { name: 'Gold',    range: '1500 - 1749', color: 'from-yellow-400/20',  desc: 'Willkommen in der Upper Class.' },
-              { name: 'Platin',  range: '1750 - 1999', color: 'from-cyan-400/20',    desc: 'Ein ernstzunehmender Gegner.' },
-              { name: 'Diamant', range: '2000 - 2499', color: 'from-blue-500/20',    desc: 'Du gehörst zur Elite.' },
-              { name: 'Legende', range: '2500+',       color: 'from-emerald-400/20', desc: 'Die absolute Weltspitze.' },
+              { name: 'Eisen', range: '0 - 999', color: 'from-zinc-500/20', desc: 'Der Anfang deiner Reise.' },
+              { name: 'Bronze', range: '1000 - 1249', color: 'from-orange-500/20', desc: 'Du beherrschst die Basics.' },
+              { name: 'Silber', range: '1250 - 1499', color: 'from-slate-300/20', desc: 'Ein solider Konkurrent.' },
+              { name: 'Gold', range: '1500 - 1749', color: 'from-yellow-400/20', desc: 'Willkommen in der Upper Class.' },
+              { name: 'Platin', range: '1750 - 1999', color: 'from-cyan-400/20', desc: 'Ein ernstzunehmender Gegner.' },
+              { name: 'Diamant', range: '2000 - 2499', color: 'from-blue-500/20', desc: 'Du gehörst zur Elite.' },
+              { name: 'Legende', range: '2500+', color: 'from-emerald-400/20', desc: 'Die absolute Weltspitze.' },
             ].map((rank, i) => (
-              <div key={i} className={`group relative p-10 rounded-[3rem] border border-white/5 bg-white/[0.02] overflow-hidden transition-all hover:-translate-y-4 hover:border-white/20 ${i === 6 ? 'lg:col-span-2' : ''}`}>
-                <div className={`absolute inset-0 bg-gradient-to-br ${rank.color} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
-                <div className="relative space-y-8 flex flex-col items-center text-center">
-                  <RankIcon type={rank.name} size="w-24 h-24" />
-                  <div>
-                    <h4 className="text-3xl font-black tracking-tighter mb-2">{rank.name}</h4>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500 mb-4">{rank.range} Elo</p>
-                    <p className="text-zinc-500 text-sm leading-relaxed max-w-[200px]">{rank.desc}</p>
+              <div key={i} className={`group relative p-8 rounded-[2.5rem] bg-gradient-to-br ${rank.color} to-transparent border border-white/5 hover:border-white/10 transition-all duration-500 overflow-hidden`}>
+                <div className="relative z-10 flex items-center justify-between mb-8">
+                  <RankIcon type={rank.name} size="w-16 h-16" />
+                  <div className="text-right">
+                    <h4 className="text-xl font-black uppercase tracking-tighter italic">{rank.name}</h4>
+                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{rank.range} Elo</div>
                   </div>
                 </div>
+                <p className="relative z-10 text-sm text-zinc-400 font-medium leading-relaxed">{rank.desc}</p>
+                <div className="absolute -bottom-10 -right-10 text-8xl font-black text-white/[0.02] italic group-hover:scale-110 transition-transform duration-700">{i + 1}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* --- FINAL CTA --- */}
-      <section className="relative z-10 py-40 px-6">
-        <div className="max-w-5xl mx-auto relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-[4rem] blur opacity-20 group-hover:opacity-40 transition duration-1000" />
-          <div className="relative bg-[#050607] rounded-[4rem] border border-white/10 px-10 py-24 md:py-32 text-center overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.05),transparent_70%)]" />
-            <div className="relative space-y-12">
-              <h2 className="text-5xl md:text-8xl font-black tracking-tighter italic leading-none text-white">
-                ARE YOU   
- <span className="text-emerald-500 uppercase">Next?</span>
-              </h2>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
-                <button onClick={() => router.push('/auth/register')} className="w-full sm:w-auto bg-white text-black px-14 py-7 rounded-[2rem] font-black uppercase tracking-widest transition-all hover:scale-105">Create Account</button>
-                <button onClick={() => router.push('/matchmaking')} className="w-full sm:w-auto bg-white/5 hover:bg-white/10 border border-white/10 px-14 py-7 rounded-[2rem] font-black uppercase tracking-widest transition-all">Quick Play</button>
-              </div>
-            </div>
+      {/* --- CTA SECTION --- */}
+      <section className="relative z-10 py-60 px-6 overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center opacity-[0.03]">
+          <h2 className="text-[30vw] font-black italic uppercase tracking-tighter select-none">Next?</h2>
+        </div>
+        <div className="max-w-4xl mx-auto text-center relative z-10 space-y-16">
+          <h3 className="text-6xl md:text-[8rem] font-black tracking-tighter leading-none uppercase italic">Are You<br /><span className="text-emerald-500">Next?</span></h3>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
+            <Link href="/auth/register" className="w-full sm:w-auto px-16 py-8 rounded-[2rem] bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest transition-all hover:scale-105 shadow-[0_20px_50px_rgba(16,185,129,0.3)]">Create Account</Link>
+            <Link href="/matchmaking" className="w-full sm:w-auto px-16 py-8 rounded-[2rem] bg-white/5 hover:bg-white/10 border border-white/10 font-black uppercase tracking-widest transition-all">Quick Play</Link>
           </div>
         </div>
       </section>
 
       {/* --- FOOTER --- */}
-      <footer className="relative z-10 py-24 px-10 border-t border-white/5 bg-black/50 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-white font-black text-2xl border border-white/5">R</div>
-            <div className="flex flex-col">
-              <span className="font-black uppercase tracking-widest text-xl">RankedDarts</span>
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.5em]">The Pro Standard</span>
+      <footer className="relative z-10 pt-20 pb-10 border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-12">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-12 mb-20">
+            <Link href="/" className="flex items-center gap-4 group">
+              <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white font-black text-xl">R</div>
+              <div className="flex flex-col">
+                <span className="text-lg font-black tracking-tighter uppercase leading-none">RankedDarts</span>
+                <span className="text-[8px] font-black text-emerald-500 tracking-[0.4em] uppercase mt-1">The Pro Standard</span>
+              </div>
+            </Link>
+            <div className="flex items-center gap-12 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
+              <Link href="/privacy" className="hover:text-white transition-all">Privacy</Link>
+              <Link href="/terms" className="hover:text-white transition-all">Terms</Link>
+              <Link href="/support" className="hover:text-white transition-all">Support</Link>
             </div>
           </div>
-          <div className="flex gap-12 text-[11px] font-black uppercase tracking-[0.3em] text-zinc-500">
-            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-            <Link href="/support" className="hover:text-white transition-colors">Support</Link>
-          </div>
-          <div className="text-[10px] font-bold text-zinc-700 uppercase tracking-[0.6em]">
-            © 2026 RankedDarts.
-          </div>
+          <div className="text-center text-[10px] font-bold text-zinc-700 uppercase tracking-[0.5em]">© 2026 RankedDarts. Built for the elite.</div>
         </div>
       </footer>
     </main>
