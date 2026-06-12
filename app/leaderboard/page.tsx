@@ -1,10 +1,67 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Trophy, Flame, Search, Star, Menu, X } from 'lucide-react';
+import { 
+  Menu, X, Swords, Trophy, Users, Target, 
+  ShieldCheck, Zap, Star, Search, ArrowRight, 
+  Shield, Crown, Medal, Activity, TrendingUp
+} from 'lucide-react';
+import { createClient } from '@/lib/supabase';
+import Link from 'next/link';
+
+// --- PROFESSIONELLE RANK ICONS ---
+const RankIcon = ({ type, size = "w-10 h-10" }: { type: string, size?: string }) => {
+  const baseClass = `${size} flex items-center justify-center rounded-xl border shadow-lg transition-transform group-hover:scale-110 duration-500`;
+  
+  switch (type) {
+    case 'Eisen':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-zinc-600 to-zinc-800 border-zinc-500/30 shadow-zinc-900/40`}>
+          <Shield className="w-1/2 h-1/2 text-zinc-400" />
+        </div>
+      );
+    case 'Bronze':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-orange-700 to-orange-900 border-orange-500/30 shadow-orange-900/40`}>
+          <Shield className="w-1/2 h-1/2 text-orange-200" />
+        </div>
+      );
+    case 'Silber':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-slate-400 to-slate-600 border-slate-300/30 shadow-slate-500/40`}>
+          <Shield className="w-1/2 h-1/2 text-slate-100" />
+        </div>
+      );
+    case 'Gold':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-yellow-500 to-yellow-700 border-yellow-400/30 shadow-yellow-600/40`}>
+          <Shield className="w-1/2 h-1/2 text-yellow-100" />
+        </div>
+      );
+    case 'Platin':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-cyan-400 to-cyan-700 border-cyan-300/30 shadow-cyan-500/40`}>
+          <Shield className="w-1/2 h-1/2 text-cyan-100" />
+        </div>
+      );
+    case 'Diamant':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-blue-500 to-blue-800 border-blue-400/30 shadow-blue-600/40`}>
+          <Shield className="w-1/2 h-1/2 text-blue-100" />
+        </div>
+      );
+    case 'Legende':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-emerald-400 to-emerald-700 border-emerald-300/30 shadow-emerald-500/40 relative overflow-hidden`}>
+          <div className="absolute inset-0 bg-[conic-gradient(from_0deg,transparent,rgba(255,255,255,0.2),transparent)] animate-[spin_4s_linear_infinite]" />
+          <Crown className="w-1/2 h-1/2 text-white relative z-10" />
+        </div>
+      );
+    default:
+      return null;
+  }
+};
 
 type Player = {
   username: string;
@@ -15,16 +72,14 @@ type Player = {
   supabaseId?: string;
 };
 
-type PlayerAvgMap = Record<string, number>;
-
 const rankTiers = [
   { name: 'Eisen',   min: 0,    color: 'text-zinc-400' },
-  { name: 'Bronze',  min: 1000, color: 'text-amber-400' },
+  { name: 'Bronze',  min: 1000, color: 'text-orange-400' },
   { name: 'Silber',  min: 1250, color: 'text-slate-300' },
-  { name: 'Gold',    min: 1500, color: 'text-yellow-300' },
-  { name: 'Platin',  min: 1750, color: 'text-cyan-300' },
-  { name: 'Diamant', min: 2000, color: 'text-blue-300' },
-  { name: 'Legende', min: 2500, color: 'text-emerald-300' },
+  { name: 'Gold',    min: 1500, color: 'text-yellow-400' },
+  { name: 'Platin',  min: 1750, color: 'text-cyan-400' },
+  { name: 'Diamant', min: 2000, color: 'text-blue-400' },
+  { name: 'Legende', min: 2500, color: 'text-emerald-400' },
 ];
 
 function getRank(elo: number) {
@@ -36,12 +91,14 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [avgMap, setAvgMap] = useState<PlayerAvgMap>({});
+  const [scrolled, setScrolled] = useState(false);
+  
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   useEffect(() => {
-    let isMounted = true;
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
 
     async function fetchLeaderboard() {
       try {
@@ -52,267 +109,226 @@ export default function Leaderboard() {
           .order('elo', { ascending: false })
           .limit(100);
 
-        if (error) { console.error(error); }
-        else if (isMounted) {
-          const players = (data || []) as Player[];
-          setPlayers(players);
-
-          // Average für jeden Spieler aus active_matches berechnen
-          const ids = players.map((p) => p.supabaseId).filter(Boolean) as string[];
-          if (ids.length > 0) {
-            const { data: matchData } = await supabase
-              .from('active_matches')
-              .select('player1_id, player2_id, submitted_player1_average, submitted_player2_average')
-              .eq('status', 'completed')
-              .or(ids.map((id) => `player1_id.eq.${id},player2_id.eq.${id}`).join(','));
-
-            if (matchData) {
-              const sums: Record<string, { total: number; count: number }> = {};
-              for (const m of matchData) {
-                const addAvg = (id: string, avg: number | null) => {
-                  if (!avg) return;
-                  if (!sums[id]) sums[id] = { total: 0, count: 0 };
-                  sums[id].total += avg;
-                  sums[id].count += 1;
-                };
-                addAvg(m.player1_id, m.submitted_player1_average);
-                addAvg(m.player2_id, m.submitted_player2_average);
-              }
-              const map: PlayerAvgMap = {};
-              for (const [id, { total, count }] of Object.entries(sums)) {
-                map[id] = total / count;
-              }
-              if (isMounted) setAvgMap(map);
-            }
-          }
-        }
+        if (!error && data) setPlayers(data as Player[]);
       } catch (err) {
         console.error(err);
       } finally {
-        if (isMounted) setLoading(false);
+        setLoading(false);
       }
     }
 
-    void fetchLeaderboard();
-    return () => { isMounted = false; };
+    fetchLeaderboard();
+    return () => window.removeEventListener('scroll', handleScroll);
   }, [supabase]);
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">
-          Rangliste wird geladen...
+      <main className="flex min-h-screen items-center justify-center bg-[#020304] text-white">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+          <div className="text-xs font-black uppercase tracking-[0.4em] text-emerald-500 animate-pulse">Loading Rankings</div>
         </div>
       </main>
     );
   }
 
   const topPlayers = players.slice(0, 3);
-  const medals = ['🥇', '🥈', '🥉'];
-  const podiumOrder = [1, 0, 2];
+  const filteredPlayers = players.filter(p => p.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.22),transparent_34%),radial-gradient(circle_at_82%_8%,rgba(6,182,212,0.14),transparent_28%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
-        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+    <main className="min-h-screen bg-[#020304] text-zinc-100 selection:bg-emerald-500/30 font-sans overflow-x-hidden">
+      {/* --- BACKGROUND LAYER --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-5%] left-[-5%] w-[50%] h-[50%] bg-emerald-500/5 blur-[150px] rounded-full" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png' )] opacity-[0.02]" />
+        <div className="absolute inset-0 opacity-[0.03] [background-image:linear-gradient(to_right,#888_1px,transparent_1px),linear-gradient(to_bottom,#888_1px,transparent_1px)] [background-size:100px_100px]" />
       </div>
 
-      {/* Navbar */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-lg font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
-            <div>
-              <div className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Leaderboard</div>
+      {/* --- NAVIGATION --- */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-black/90 backdrop-blur-2xl border-b border-white/5 py-3' : 'bg-transparent py-8'}`}>
+        <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-4 group">
+            <div className="w-11 h-11 bg-emerald-500 rounded-xl flex items-center justify-center text-black font-black text-2xl shadow-2xl transition-all group-hover:rotate-6">R</div>
+            <div className="flex flex-col">
+              <span className="text-xl font-black tracking-tighter uppercase leading-none">RankedDarts</span>
+              <span className="text-[9px] font-black text-emerald-500 tracking-[0.4em] uppercase mt-1">Leaderboard</span>
             </div>
           </Link>
 
-          <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
-            <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
-            <Link href="/profile" className="transition hover:text-white">Profil</Link>
-            <Link href="/history" className="transition hover:text-white">History</Link>
-            <Link href="/updates" className="transition hover:text-white">Updates</Link>
-            <Link href="/premium" className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-200 transition hover:bg-emerald-400/20">Premium</Link>
+          <div className="hidden lg:flex items-center gap-12 text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400">
+            <Link href="/" className="hover:text-white transition-all">Home</Link>
+            <Link href="/matchmaking" className="hover:text-white transition-all">Matchmaking</Link>
+            <Link href="/premium" className="text-emerald-500 hover:text-emerald-400 transition-all">Premium</Link>
           </div>
 
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
-          >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 text-zinc-400"><Menu /></button>
         </div>
-
-        {mobileMenuOpen && (
-          <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
-            <div className="flex flex-col gap-1">
-              <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
-              <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Profil</Link>
-              <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
-              <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
-              <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
-            </div>
-          </div>
-        )}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-5xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
-
-        {/* Suchfeld */}
-        <div className="mb-6 relative">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Spieler suchen..."
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] py-3.5 pl-11 pr-5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/40 focus:bg-white/[0.07]"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
-
-        <div className="mb-8 md:mb-10">
-          <div className="mb-4 inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
-            <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
-            Live Ranking
-          </div>
-          <h1 className="text-4xl font-black leading-[0.9] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Leaderboard</h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-zinc-300 sm:text-lg">Die stärksten RankedDarts-Spieler, sortiert nach Elo.</p>
-        </div>
-
-        {/* Top-3 Podium — nur auf sm+ sichtbar */}
-        {topPlayers.length >= 3 && (
-          <div className="mb-8 hidden grid-cols-3 gap-4 sm:grid">
-            {podiumOrder.map((idx) => {
-              const player = topPlayers[idx];
-              if (!player) return null;
-              const rank = getRank(player.elo);
-              const isGold = idx === 0;
-              return (
-                <Link
-                  key={player.username}
-                  href={`/players/${encodeURIComponent(player.username)}`}
-                  className={`rounded-[2rem] border p-5 text-center backdrop-blur-xl transition hover:-translate-y-1 ${
-                    isGold
-                      ? 'border-yellow-300/30 bg-yellow-400/[0.07] sm:scale-105'
-                      : 'border-white/10 bg-white/[0.04]'
-                  }`}
-                >
-                  <div className="text-3xl">{medals[idx]}</div>
-                  <div className="mt-3 truncate text-lg font-black">{player.username}</div>
-                  <div className={`text-sm font-bold ${rank.color}`}>{rank.name}</div>
-                  <div className="mt-2 text-3xl font-black tracking-[-0.05em] text-emerald-300">{player.elo}</div>
-                  <div className="mt-1 text-xs text-zinc-500">
-                    {player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0}% WR
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Spielerliste als Karten */}
-        <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/60 backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-5 py-4 sm:px-6 sm:py-5">
-            <div>
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Top 100</div>
-              <div className="mt-0.5 text-sm text-zinc-400">Monatliche Preisgelder für die Top 3</div>
+      {/* --- CONTENT --- */}
+      <section className="relative z-10 pt-48 pb-32 px-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row items-end justify-between mb-16 gap-8">
+            <div className="space-y-4 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black uppercase tracking-[0.4em] text-emerald-400">
+                <TrendingUp className="w-3 h-3" /> Live Standings
+              </div>
+              <h1 className="text-5xl md:text-7xl font-black tracking-tighter italic uppercase">Leaderboard</h1>
+              <p className="text-zinc-500 text-lg max-w-md font-medium">Die 100 besten Spieler der aktuellen Season.</p>
             </div>
-            <Link
-              href="/matchmaking"
-              className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 text-xs font-bold text-emerald-200 transition hover:bg-emerald-400/20 sm:px-5 sm:text-sm"
-            >
-              Match suchen
-            </Link>
+            
+            <div className="w-full md:w-80 relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition-opacity" />
+              <div className="relative bg-zinc-900/50 border border-white/10 rounded-2xl flex items-center px-5 py-4 backdrop-blur-xl">
+                <Search className="w-4 h-4 text-zinc-500 mr-4" />
+                <input 
+                  type="text" 
+                  placeholder="Spieler suchen..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm font-bold w-full placeholder:text-zinc-600"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="divide-y divide-white/[0.07]">
-            {players
-              .filter((p) => !searchQuery || p.username.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((player, index) => {
-              const rank = getRank(player.elo);
-              const winrate = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
-              const isTop3 = index < 3;
-              const prize = index === 0 ? '3 Monate Premium' : index === 1 ? '2 Monate Premium' : index === 2 ? '1 Monat Premium' : null;
-
-              return (
-                <Link
-                  key={`${player.username}-${index}`}
-                  href={`/players/${encodeURIComponent(player.username)}`}
-                  className={`flex items-center gap-3 px-5 py-4 transition hover:bg-emerald-400/[0.04] sm:gap-4 sm:px-6 sm:py-5 ${isTop3 ? 'bg-white/[0.02]' : ''}`}
-                >
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-black sm:h-12 sm:w-12 sm:text-base ${
-                    index === 0 ? 'bg-yellow-300 text-black' :
-                    index === 1 ? 'bg-slate-300 text-black' :
-                    index === 2 ? 'bg-amber-600 text-black' :
-                    'bg-white/[0.06] text-zinc-400'
-                  }`}>
-                    {isTop3 ? medals[index] : `#${index + 1}`}
+          {/* --- PODIUM (TOP 3) --- */}
+          {!searchQuery && topPlayers.length >= 3 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20 items-end">
+              {/* Rank 2 */}
+              <div className="order-2 md:order-1">
+                <Link href={`/players/${encodeURIComponent(topPlayers[1].username)}`} className="group relative bg-white/[0.02] border border-white/5 rounded-[3rem] p-8 text-center transition-all hover:-translate-y-2 hover:border-white/20 backdrop-blur-sm">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <RankIcon type={getRank(topPlayers[1].elo).name} size="w-16 h-16" />
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      {player.isPremium && <Star className="h-3.5 w-3.5 shrink-0 text-emerald-300" />}
-                      <span className="truncate text-sm font-black sm:text-base">{player.username}</span>
-                      {isTop3 && <Flame className="h-3.5 w-3.5 shrink-0 text-cyan-300" />}
-                    </div>
-                    <div className={`text-xs font-bold ${rank.color}`}>{rank.name}</div>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-3 sm:gap-5">
-                    <div className="hidden text-center sm:block">
-                      <div className="text-[11px] text-zinc-500">Spiele</div>
-                      <div className="text-sm font-black">{player.gamesPlayed}</div>
-                    </div>
-                    <div className="hidden text-center sm:block">
-                      <div className="text-[11px] text-zinc-500">Winrate</div>
-                      <div className="text-sm font-black text-cyan-300">{winrate}%</div>
-                    </div>
-                    <div className="hidden text-center sm:block">
-                      <div className="text-[11px] text-zinc-500">Ø Average</div>
-                      <div className="text-sm font-black text-violet-300">
-                        {player.supabaseId && avgMap[player.supabaseId] != null
-                          ? avgMap[player.supabaseId].toFixed(1)
-                          : '—'}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-[11px] text-zinc-500">Elo</div>
-                      <div className="text-lg font-black text-emerald-300 sm:text-xl">{player.elo}</div>
-                    </div>
-                    {prize && (
-                      <div className="hidden rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200 sm:block">
-                        {prize}
-                      </div>
-                    )}
+                  <div className="mt-6 space-y-2">
+                    <div className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Rank #2</div>
+                    <div className="text-2xl font-black tracking-tight group-hover:text-emerald-400 transition-colors">{topPlayers[1].username}</div>
+                    <div className="text-4xl font-black text-white italic">{topPlayers[1].elo}</div>
                   </div>
                 </Link>
-              );
-            })}
+              </div>
+
+              {/* Rank 1 */}
+              <div className="order-1 md:order-2">
+                <Link href={`/players/${encodeURIComponent(topPlayers[0].username)}`} className="group relative bg-emerald-500/5 border border-emerald-500/20 rounded-[3.5rem] p-12 text-center transition-all hover:-translate-y-3 hover:border-emerald-500/40 backdrop-blur-md shadow-[0_20px_50px_rgba(16,185,129,0.1)]">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <RankIcon type="Legende" size="w-24 h-24" />
+                  </div>
+                  <div className="mt-8 space-y-3">
+                    <div className="text-emerald-500 text-[11px] font-black uppercase tracking-[0.4em] flex items-center justify-center gap-2">
+                      <Star className="w-3 h-3 fill-current" /> Champion <Star className="w-3 h-3 fill-current" />
+                    </div>
+                    <div className="text-4xl font-black tracking-tighter group-hover:text-emerald-400 transition-colors">{topPlayers[0].username}</div>
+                    <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 italic">{topPlayers[0].elo}</div>
+                  </div>
+                </Link>
+              </div>
+
+              {/* Rank 3 */}
+              <div className="order-3">
+                <Link href={`/players/${encodeURIComponent(topPlayers[2].username)}`} className="group relative bg-white/[0.02] border border-white/5 rounded-[3rem] p-8 text-center transition-all hover:-translate-y-2 hover:border-white/20 backdrop-blur-sm">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <RankIcon type={getRank(topPlayers[2].elo).name} size="w-16 h-16" />
+                  </div>
+                  <div className="mt-6 space-y-2">
+                    <div className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Rank #3</div>
+                    <div className="text-2xl font-black tracking-tight group-hover:text-emerald-400 transition-colors">{topPlayers[2].username}</div>
+                    <div className="text-4xl font-black text-white italic">{topPlayers[2].elo}</div>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* --- TABLE --- */}
+          <div className="relative overflow-hidden rounded-[3rem] border border-white/10 bg-zinc-950/50 backdrop-blur-2xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-white/5 bg-white/[0.02]">
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Rank</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Player</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Tier</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Matches</th>
+                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 text-right">Elo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredPlayers.map((player, i) => {
+                    const rank = getRank(player.elo);
+                    return (
+                      <tr 
+                        key={player.username} 
+                        onClick={() => router.push(`/players/${encodeURIComponent(player.username)}`)}
+                        className="group hover:bg-white/[0.03] transition-colors cursor-pointer"
+                      >
+                        <td className="px-8 py-6">
+                          <span className="text-lg font-black italic text-zinc-600 group-hover:text-zinc-400 transition-colors">#{i + 1}</span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-xs uppercase">
+                              {player.username.slice(0, 2)}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-black tracking-tight text-lg group-hover:text-emerald-400 transition-colors">{player.username}</span>
+                              {player.isPremium && (
+                                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-1">
+                                  <Star className="w-2 h-2 fill-current" /> Premium
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-3">
+                            <RankIcon type={rank.name} size="w-8 h-8" />
+                            <span className={`text-[11px] font-black uppercase tracking-widest ${rank.color}`}>{rank.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-black tracking-tight">{player.gamesPlayed} Matches</span>
+                            <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                              {player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0}% Winrate
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <span className="text-2xl font-black tracking-tighter italic text-emerald-400 group-hover:scale-110 inline-block transition-transform">{player.elo}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-
-        {players.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-[2.5rem] border border-white/10 bg-white/[0.03] py-24 text-center backdrop-blur-xl">
-            <Trophy size={48} className="mb-5 text-zinc-600" />
-            <h3 className="text-2xl font-black">Noch keine Spieler</h3>
-            <p className="mt-3 text-zinc-400">Sei der Erste im Leaderboard!</p>
-          </div>
-        )}
-
-        <p className="mt-8 text-center text-sm text-zinc-500">
-          Aktualisiert beim Laden der Seite · Monatliche Preisgelder für die Top 3
-        </p>
       </section>
+
+      {/* Footer */}
+      <footer className="relative z-10 py-24 px-10 border-t border-white/5 bg-black/50 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-white font-black text-2xl border border-white/5">R</div>
+            <div className="flex flex-col">
+              <span className="font-black uppercase tracking-widest text-xl">RankedDarts</span>
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.5em]">The Pro Standard</span>
+            </div>
+          </div>
+          <div className="flex gap-12 text-[11px] font-black uppercase tracking-[0.3em] text-zinc-500">
+            <Link href="/" className="hover:text-white transition-colors">Home</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link href="/support" className="hover:text-white transition-colors">Support</Link>
+          </div>
+          <div className="text-[10px] font-bold text-zinc-700 uppercase tracking-[0.6em]">
+            © 2026 RankedDarts.
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }
