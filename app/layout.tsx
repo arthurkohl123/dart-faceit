@@ -3,7 +3,11 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap', // Verbessert Ladezeit (Text sofort sichtbar)
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: "RankedDarts – Competitive Darts Matchmaking",
@@ -29,11 +33,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="de">
-      <body className={inter.className}>
-        <Providers>
-          {children}
-        </Providers>
+    <html lang="de" className={`${inter.variable}`}>
+      <body className="bg-[#020304] text-zinc-100 font-sans antialiased">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
