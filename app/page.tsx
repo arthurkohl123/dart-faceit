@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { 
   Menu, X, Swords, Trophy, Users, Target, 
   ShieldCheck, Zap, ChevronRight, Star, 
@@ -67,7 +67,7 @@ const RankIcon = ({ type, size = "w-12 h-12" }: { type: string, size?: string })
 };
 
 export default async function Home() {
-  const supabase = createClient();
+  const supabase = await createServerSupabaseClient();
   
   // Daten parallel auf dem Server abrufen
   const [
