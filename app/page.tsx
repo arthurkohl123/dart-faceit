@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Menu, X, Swords, Trophy, Users, Target, 
   ShieldCheck, Zap, ChevronRight, Star, 
-  ArrowRight, Activity, Play, Globe, Shield, Flame, Crown, Diamond, Medal, Zap as Bolt
+  ArrowRight, Activity, Play, Globe, Shield, Crown
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
@@ -30,25 +30,25 @@ const RankIcon = ({ type, size = "w-12 h-12" }: { type: string, size?: string })
     case 'Silber':
       return (
         <div className={`${baseClass} bg-gradient-to-br from-slate-400 to-slate-600 border-slate-300/30 shadow-slate-500/40`}>
-          <Medal className="w-1/2 h-1/2 text-slate-100" />
+          <Shield className="w-1/2 h-1/2 text-slate-100" />
         </div>
       );
     case 'Gold':
       return (
         <div className={`${baseClass} bg-gradient-to-br from-yellow-500 to-yellow-700 border-yellow-400/30 shadow-yellow-600/40`}>
-          <Trophy className="w-1/2 h-1/2 text-yellow-100" />
+          <Shield className="w-1/2 h-1/2 text-yellow-100" />
         </div>
       );
     case 'Platin':
       return (
         <div className={`${baseClass} bg-gradient-to-br from-cyan-400 to-cyan-700 border-cyan-300/30 shadow-cyan-500/40`}>
-          <Bolt className="w-1/2 h-1/2 text-cyan-100" />
+          <Shield className="w-1/2 h-1/2 text-cyan-100" />
         </div>
       );
     case 'Diamant':
       return (
         <div className={`${baseClass} bg-gradient-to-br from-blue-500 to-blue-800 border-blue-400/30 shadow-blue-600/40`}>
-          <Diamond className="w-1/2 h-1/2 text-blue-100" />
+          <Shield className="w-1/2 h-1/2 text-blue-100" />
         </div>
       );
     case 'Legende':
@@ -274,7 +274,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center space-y-6 mb-24">
             <h2 className="text-emerald-500 text-xs font-black uppercase tracking-[0.6em]">The Ecosystem</h2>
-            <h3 className="text-5xl md:text-7xl font-black tracking-tight">Built for Professionals.</h3>
+            <h3 className="text-5xl md:text-7xl font-black tracking-tight uppercase italic">Built for Professionals.</h3>
           </div>
 
           <div className="grid md:grid-cols-3 gap-10">
@@ -318,7 +318,7 @@ export default function Home() {
               <div key={i} className={`group relative p-10 rounded-[3rem] border border-white/5 bg-white/[0.02] overflow-hidden transition-all hover:-translate-y-4 hover:border-white/20 ${i === 6 ? 'lg:col-span-2' : ''}`}>
                 <div className={`absolute inset-0 bg-gradient-to-br ${rank.color} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
                 <div className="relative space-y-8 flex flex-col items-center text-center">
-                  <RankIcon type={rank.name} size="w-20 h-20" />
+                  <RankIcon type={rank.name} size="w-24 h-24" />
                   <div>
                     <h4 className="text-3xl font-black tracking-tighter mb-2">{rank.name}</h4>
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500 mb-4">{rank.range} Elo</p>
@@ -338,9 +338,9 @@ export default function Home() {
           <div className="relative bg-[#050607] rounded-[4rem] border border-white/10 px-10 py-24 md:py-32 text-center overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.05),transparent_70%)]" />
             <div className="relative space-y-12">
-              <h2 className="text-5xl md:text-8xl font-black tracking-tighter italic leading-none">
+              <h2 className="text-5xl md:text-8xl font-black tracking-tighter italic leading-none text-white">
                 ARE YOU   
- <span className="text-emerald-500">NEXT?</span>
+ <span className="text-emerald-500 uppercase">Next?</span>
               </h2>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
                 <button onClick={() => router.push('/auth/register')} className="w-full sm:w-auto bg-white text-black px-14 py-7 rounded-[2rem] font-black uppercase tracking-widest transition-all hover:scale-105">Create Account</button>
