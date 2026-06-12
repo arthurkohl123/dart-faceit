@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Menu, X, Swords, Trophy, Users, Target, 
   ShieldCheck, Zap, ChevronRight, Star, 
-  ArrowRight, Activity, Play, Globe, Shield, Flame, Crown, MousePointer2
+  ArrowRight, Activity, Play, Globe, Shield, Flame, Crown, Diamond, Medal, Zap as Bolt
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
@@ -15,27 +15,45 @@ const RankIcon = ({ type, size = "w-12 h-12" }: { type: string, size?: string })
   const baseClass = `${size} flex items-center justify-center rounded-2xl border shadow-lg transition-transform group-hover:scale-110 duration-500`;
   
   switch (type) {
+    case 'Eisen':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-zinc-600 to-zinc-800 border-zinc-500/30 shadow-zinc-900/40`}>
+          <Shield className="w-1/2 h-1/2 text-zinc-400" />
+        </div>
+      );
     case 'Bronze':
       return (
         <div className={`${baseClass} bg-gradient-to-br from-orange-700 to-orange-900 border-orange-500/30 shadow-orange-900/40`}>
           <Shield className="w-1/2 h-1/2 text-orange-200" />
         </div>
       );
-    case 'Silver':
+    case 'Silber':
       return (
         <div className={`${baseClass} bg-gradient-to-br from-slate-400 to-slate-600 border-slate-300/30 shadow-slate-500/40`}>
-          <Shield className="w-1/2 h-1/2 text-slate-100" />
+          <Medal className="w-1/2 h-1/2 text-slate-100" />
         </div>
       );
-    case 'Elite':
+    case 'Gold':
       return (
-        <div className={`${baseClass} bg-gradient-to-br from-emerald-500 to-emerald-800 border-emerald-400/30 shadow-emerald-500/40`}>
-          <Flame className="w-1/2 h-1/2 text-emerald-100 animate-pulse" />
+        <div className={`${baseClass} bg-gradient-to-br from-yellow-500 to-yellow-700 border-yellow-400/30 shadow-yellow-600/40`}>
+          <Trophy className="w-1/2 h-1/2 text-yellow-100" />
         </div>
       );
-    case 'Legend':
+    case 'Platin':
       return (
-        <div className={`${baseClass} bg-gradient-to-br from-cyan-400 to-blue-600 border-cyan-300/30 shadow-cyan-400/40 relative overflow-hidden`}>
+        <div className={`${baseClass} bg-gradient-to-br from-cyan-400 to-cyan-700 border-cyan-300/30 shadow-cyan-500/40`}>
+          <Bolt className="w-1/2 h-1/2 text-cyan-100" />
+        </div>
+      );
+    case 'Diamant':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-blue-500 to-blue-800 border-blue-400/30 shadow-blue-600/40`}>
+          <Diamond className="w-1/2 h-1/2 text-blue-100" />
+        </div>
+      );
+    case 'Legende':
+      return (
+        <div className={`${baseClass} bg-gradient-to-br from-emerald-400 to-emerald-700 border-emerald-300/30 shadow-emerald-500/40 relative overflow-hidden`}>
           <div className="absolute inset-0 bg-[conic-gradient(from_0deg,transparent,rgba(255,255,255,0.2),transparent)] animate-[spin_4s_linear_infinite]" />
           <Crown className="w-1/2 h-1/2 text-white relative z-10" />
         </div>
@@ -279,29 +297,32 @@ export default function Home() {
         </div>
       </section>
 
-      {/* --- RANKS SECTION --- */}
+      {/* --- RANKS SECTION (7 RANKS) --- */}
       <section className="relative z-10 py-48 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center space-y-6 mb-32">
             <h2 className="text-emerald-500 text-xs font-black uppercase tracking-[0.6em]">The Progression</h2>
-            <h3 className="text-5xl md:text-7xl font-black tracking-tight italic">ASCEND THE RANKS.</h3>
+            <h3 className="text-5xl md:text-7xl font-black tracking-tight italic uppercase">Ascend the Ranks.</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { name: 'Bronze', range: '800 - 999', color: 'from-orange-500/20', desc: 'Der Anfang deiner Reise.' },
-              { name: 'Silver', range: '1000 - 1199', color: 'from-slate-300/20', desc: 'Du beherrschst die Basics.' },
-              { name: 'Elite', range: '1200 - 1499', color: 'from-emerald-500/20', desc: 'Willkommen bei den Profis.' },
-              { name: 'Legend', range: '1500+', color: 'from-cyan-400/20', desc: 'Die absolute Weltspitze.' },
+              { name: 'Eisen',   range: '0 - 999',    color: 'from-zinc-500/20',    desc: 'Der Anfang deiner Reise.' },
+              { name: 'Bronze',  range: '1000 - 1249', color: 'from-orange-500/20',  desc: 'Du beherrschst die Basics.' },
+              { name: 'Silber',  range: '1250 - 1499', color: 'from-slate-300/20',   desc: 'Ein solider Konkurrent.' },
+              { name: 'Gold',    range: '1500 - 1749', color: 'from-yellow-400/20',  desc: 'Willkommen in der Upper Class.' },
+              { name: 'Platin',  range: '1750 - 1999', color: 'from-cyan-400/20',    desc: 'Ein ernstzunehmender Gegner.' },
+              { name: 'Diamant', range: '2000 - 2499', color: 'from-blue-500/20',    desc: 'Du gehörst zur Elite.' },
+              { name: 'Legende', range: '2500+',       color: 'from-emerald-400/20', desc: 'Die absolute Weltspitze.' },
             ].map((rank, i) => (
-              <div key={i} className="group relative p-12 rounded-[3rem] border border-white/5 bg-white/[0.02] overflow-hidden transition-all hover:-translate-y-4 hover:border-white/20">
+              <div key={i} className={`group relative p-10 rounded-[3rem] border border-white/5 bg-white/[0.02] overflow-hidden transition-all hover:-translate-y-4 hover:border-white/20 ${i === 6 ? 'lg:col-span-2' : ''}`}>
                 <div className={`absolute inset-0 bg-gradient-to-br ${rank.color} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
                 <div className="relative space-y-8 flex flex-col items-center text-center">
-                  <RankIcon type={rank.name} size="w-24 h-24" />
+                  <RankIcon type={rank.name} size="w-20 h-20" />
                   <div>
                     <h4 className="text-3xl font-black tracking-tighter mb-2">{rank.name}</h4>
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500 mb-4">{rank.range} Elo</p>
-                    <p className="text-zinc-500 text-sm leading-relaxed">{rank.desc}</p>
+                    <p className="text-zinc-500 text-sm leading-relaxed max-w-[200px]">{rank.desc}</p>
                   </div>
                 </div>
               </div>
