@@ -3,15 +3,36 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Menu, X, Swords, Trophy, Users, Target, 
-  ShieldCheck, Zap, Star, Search, ArrowRight, 
-  Shield, Crown, Medal, Activity, TrendingUp, Sparkles, Timer,
-  ChevronUp, BarChart3, Coins, Award
+  Menu, 
+  X, 
+  Swords, 
+  Trophy, 
+  Users, 
+  Target, 
+  ShieldCheck, 
+  Zap, 
+  Star, 
+  Search, 
+  ArrowRight, 
+  Shield, 
+  Crown, 
+  Medal, 
+  Activity, 
+  TrendingUp, 
+  Sparkles, 
+  Timer,
+  ChevronUp, 
+  BarChart3, 
+  Coins, 
+  Award, 
+  User as UserIcon,
+  LayoutDashboard
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
 
 // --- PROFESSIONELLE RANK ICONS ---
+// Diese Komponente sorgt für das hochwertige visuelle Feedback der Ränge
 const RankIcon = ({ type, size = "w-10 h-10" }: { type: string, size?: string }) => {
   const baseClass = `${size} flex items-center justify-center rounded-2xl border shadow-lg transition-all duration-500 group-hover:scale-110 group-hover:rotate-3`;
   
@@ -93,14 +114,29 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [scrolled, setScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
+  // --- INITIALISIERUNG & DATEN-FETCH ---
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      if (window.scrollY > 20) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
     window.addEventListener('scroll', handleScroll);
+    
+    // Auth-Status prüfen
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setIsLoggedIn(true);
+      }
+    });
 
     async function fetchLeaderboard() {
       try {
@@ -115,7 +151,7 @@ export default function Leaderboard() {
           const playerList = data as Player[];
           setPlayers(playerList);
 
-          // Fetch Averages
+          // Averages für alle Spieler abrufen
           const ids = playerList.map(p => p.supabaseId).filter(Boolean) as string[];
           if (ids.length > 0) {
             const { data: matchData } = await supabase
@@ -127,25 +163,26 @@ export default function Leaderboard() {
             if (matchData) {
               const sums: Record<string, { total: number; count: number }> = {};
               matchData.forEach(m => {
-                const add = (id: string, avg: number | null) => {
+                const addValue = (id: string, avg: number | null) => {
                   if (!avg) return;
                   if (!sums[id]) sums[id] = { total: 0, count: 0 };
                   sums[id].total += avg;
                   sums[id].count += 1;
                 };
-                add(m.player1_id, m.submitted_player1_average);
-                add(m.player2_id, m.submitted_player2_average);
+                addValue(m.player1_id, m.submitted_player1_average);
+                addValue(m.player2_id, m.submitted_player2_average);
               });
-              const map: Record<string, number> = {};
+              
+              const finalMap: Record<string, number> = {};
               Object.entries(sums).forEach(([id, { total, count }]) => {
-                map[id] = total / count;
+                finalMap[id] = total / count;
               });
-              setAvgMap(map);
+              setAvgMap(finalMap);
             }
           }
         }
       } catch (err) {
-        console.error(err);
+        console.error("Fehler beim Laden des Leaderboards:", err);
       } finally {
         setLoading(false);
       }
@@ -155,12 +192,21 @@ export default function Leaderboard() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [supabase]);
 
+  // --- LOADING STATE ---
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#020304] text-white">
-        <div className="flex flex-col items-center gap-6">
-          <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-          <div className="text-xs font-black uppercase tracking-[0.4em] text-emerald-500 animate-pulse">Loading Rankings</div>
+        <div className="flex flex-col items-center gap-8">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-emerald-500/10 border-t-emerald-500 rounded-full animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Trophy className="w-8 h-8 text-emerald-500 animate-pulse" />
+            </div>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className="text-sm font-black uppercase tracking-[0.5em] text-emerald-500">Loading Rankings</div>
+            <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mt-2 italic">Fetching global data...</div>
+          </div>
         </div>
       </main>
     );
@@ -171,113 +217,185 @@ export default function Leaderboard() {
 
   // Podium Konfiguration (Platz 2, Platz 1, Platz 3)
   const podiumConfig = [
-    { index: 1, prize: '2 Monate Premium', height: 'h-[280px]', color: 'bg-slate-400/10 border-slate-400/30', label: '2nd Place', icon: '🥈' },
-    { index: 0, prize: '3 Monate Premium', height: 'h-[340px]', color: 'bg-yellow-400/15 border-yellow-400/40 shadow-[0_0_70px_rgba(250,204,21,0.1)]', label: 'CHAMPION', icon: '🏆', isWinner: true },
-    { index: 2, prize: '1 Monat Premium', height: 'h-[240px]', color: 'bg-orange-700/10 border-orange-700/30', label: '3rd Place', icon: '🥉' }
+    { 
+      index: 1, 
+      prize: '2 Monate Premium', 
+      height: 'h-[280px]', 
+      color: 'bg-slate-400/10 border-slate-400/30', 
+      label: '2nd Place',
+      glow: 'shadow-[0_0_40px_rgba(148,163,184,0.1)]'
+    },
+    { 
+      index: 0, 
+      prize: '3 Monate Premium', 
+      height: 'h-[360px]', 
+      color: 'bg-yellow-400/15 border-yellow-400/40', 
+      label: 'CHAMPION', 
+      isWinner: true,
+      glow: 'shadow-[0_0_80px_rgba(250,204,21,0.15)]'
+    },
+    { 
+      index: 2, 
+      prize: '1 Monat Premium', 
+      height: 'h-[240px]', 
+      color: 'bg-orange-700/10 border-orange-700/30', 
+      label: '3rd Place',
+      glow: 'shadow-[0_0_40px_rgba(194,65,12,0.1)]'
+    }
   ];
 
   return (
     <main className="min-h-screen bg-[#020304] text-zinc-100 selection:bg-emerald-500/30 font-sans overflow-x-hidden">
-      {/* --- BACKGROUND LAYER --- */}
+      
+      {/* --- VISUAL BACKGROUND LAYERS --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-5%] left-[-5%] w-[50%] h-[50%] bg-emerald-500/5 blur-[150px] rounded-full opacity-50" />
-        <div className="absolute bottom-[-5%] right-[-5%] w-[50%] h-[50%] bg-cyan-500/5 blur-[150px] rounded-full opacity-50" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png' )] opacity-[0.02]" />
-        <div className="absolute inset-0 opacity-[0.03] [background-image:linear-gradient(to_right,#888_1px,transparent_1px),linear-gradient(to_bottom,#888_1px,transparent_1px)] [background-size:100px_100px]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/5 blur-[180px] rounded-full opacity-60" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-cyan-500/5 blur-[180px] rounded-full opacity-60" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png' )] opacity-[0.03]" />
+        <div className="absolute inset-0 opacity-[0.04] [background-image:linear-gradient(to_right,#888_1px,transparent_1px),linear-gradient(to_bottom,#888_1px,transparent_1px)] [background-size:120px_120px]" />
       </div>
 
-      {/* --- NAVIGATION --- */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-black/90 backdrop-blur-2xl border-b border-white/5 py-3' : 'bg-transparent py-8'}`}>
-        <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-4 group">
+      {/* --- PREMIUM NAVIGATION BAR --- */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${scrolled ? 'bg-black/90 backdrop-blur-3xl border-b border-white/5 py-4' : 'bg-transparent py-10'}`}>
+        <div className="max-w-7xl mx-auto px-8 md:px-12 flex items-center justify-between">
+          
+          {/* Logo & Brand */}
+          <Link href="/" className="flex items-center gap-5 group">
             <div className="relative">
-              <div className="absolute -inset-2 bg-emerald-500/20 blur-xl rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative w-11 h-11 bg-emerald-500 rounded-xl flex items-center justify-center text-black font-black text-2xl shadow-2xl transition-all group-hover:rotate-6">R</div>
+              <div className="absolute -inset-3 bg-emerald-500/20 blur-2xl rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="relative w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-black font-black text-2xl shadow-2xl transition-all duration-500 group-hover:rotate-12 group-hover:scale-110">R</div>
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black tracking-tighter uppercase leading-none">RankedDarts</span>
-              <span className="text-[9px] font-black text-emerald-500 tracking-[0.4em] uppercase mt-1">Leaderboard</span>
+              <span className="text-2xl font-black tracking-tighter uppercase leading-none italic">RankedDarts</span>
+              <span className="text-[10px] font-black text-emerald-500 tracking-[0.5em] uppercase mt-1.5">Pro Leaderboard</span>
             </div>
           </Link>
 
-          <div className="hidden lg:flex items-center gap-12 text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400">
-            <Link href="/" className="hover:text-white transition-all">Home</Link>
-            <Link href="/matchmaking" className="hover:text-white transition-all">Matchmaking</Link>
-            <Link href="/premium" className="text-emerald-500 hover:text-emerald-400 transition-all flex items-center gap-2">
-              <Star className="w-3 h-3 fill-current" /> Premium
+          {/* Desktop Links */}
+          <div className="hidden lg:flex items-center gap-14 text-[11px] font-black uppercase tracking-[0.4em] text-zinc-400">
+            <Link href="/" className="hover:text-white transition-all duration-300 relative group">
+              Home
+              <span className="absolute -bottom-2 left-0 w-0 h-px bg-emerald-500 transition-all duration-300 group-hover:w-full" />
+            </Link>
+            <Link href="/matchmaking" className="hover:text-white transition-all duration-300 relative group">
+              Matchmaking
+              <span className="absolute -bottom-2 left-0 w-0 h-px bg-emerald-500 transition-all duration-300 group-hover:w-full" />
+            </Link>
+            <Link href="/profile" className="hover:text-white transition-all duration-300 flex items-center gap-2.5 relative group">
+              <UserIcon className="w-3.5 h-3.5" /> Profile
+              <span className="absolute -bottom-2 left-0 w-0 h-px bg-emerald-500 transition-all duration-300 group-hover:w-full" />
+            </Link>
+            <Link href="/premium" className="text-emerald-500 hover:text-emerald-400 transition-all duration-300 flex items-center gap-2.5 relative group">
+              <Star className="w-3.5 h-3.5 fill-current" /> Premium
+              <span className="absolute -bottom-2 left-0 w-0 h-px bg-emerald-500 transition-all duration-300 group-hover:w-full" />
             </Link>
           </div>
 
-          <div className="flex items-center gap-6">
-            <button onClick={() => router.push('/profile')} className="hidden sm:block px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all">Dashboard</button>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 text-zinc-400"><Menu /></button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-8">
+            <button 
+              onClick={() => router.push(isLoggedIn ? '/profile' : '/auth/login')} 
+              className="hidden sm:flex items-center gap-3 px-8 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-black uppercase tracking-widest transition-all duration-500 hover:scale-105 active:scale-95"
+            >
+              {isLoggedIn ? (
+                <>
+                  <LayoutDashboard className="w-4 h-4 text-emerald-500" />
+                  Dashboard
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 text-zinc-400 hover:text-white transition-colors">
+              <Menu className="w-7 h-7" />
+            </button>
           </div>
         </div>
       </nav>
 
-      {/* --- CONTENT --- */}
-      <section className="relative z-10 pt-48 pb-32 px-6">
+      {/* --- HERO SECTION --- */}
+      <section className="relative z-10 pt-56 pb-32 px-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row items-end justify-between mb-32 gap-8">
-            <div className="space-y-6 text-center md:text-left">
-              <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black uppercase tracking-[0.5em] text-emerald-400 backdrop-blur-md">
-                <Trophy className="w-3 h-3" /> Monthly Season Rewards
+          
+          {/* Header & Search */}
+          <div className="flex flex-col md:flex-row items-end justify-between mb-40 gap-12">
+            <div className="space-y-8 text-center md:text-left">
+              <div className="inline-flex items-center gap-4 px-6 py-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-black uppercase tracking-[0.6em] text-emerald-400 backdrop-blur-xl shadow-lg">
+                <Trophy className="w-4 h-4" /> Monthly Season Rewards
               </div>
-              <h1 className="text-6xl md:text-9xl font-black tracking-tighter italic uppercase leading-[0.8]">Leaderboard</h1>
-              <p className="text-zinc-500 text-xl max-w-xl font-medium leading-relaxed">
-                Dominiere das Feld und sichere dir <span className="text-emerald-400 font-black italic">Gratis Premium-Mitgliedschaften</span> als Belohnung für deine Leistung.
+              <h1 className="text-7xl md:text-[10rem] font-black tracking-tighter italic uppercase leading-[0.75] drop-shadow-2xl">
+                Leader  
+board
+              </h1>
+              <p className="text-zinc-500 text-2xl max-w-2xl font-medium leading-relaxed">
+                Dominiere das Feld und sichere dir <span className="text-emerald-400 font-black italic">Gratis Premium-Mitgliedschaften</span> als Belohnung für deine Spitzenleistung.
               </p>
             </div>
             
-            <div className="w-full md:w-96 relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition-opacity duration-500" />
-              <div className="relative bg-zinc-900/50 border border-white/10 rounded-2xl flex items-center px-6 py-5 backdrop-blur-2xl">
-                <Search className="w-5 h-5 text-zinc-500 mr-4" />
+            <div className="w-full md:w-[450px] relative group">
+              <div className="absolute -inset-1.5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-[2rem] blur-lg opacity-20 group-focus-within:opacity-50 transition-opacity duration-700" />
+              <div className="relative bg-zinc-900/60 border border-white/10 rounded-[2rem] flex items-center px-8 py-6 backdrop-blur-3xl">
+                <Search className="w-6 h-6 text-zinc-500 mr-5" />
                 <input 
                   type="text" 
                   placeholder="Spieler suchen..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none outline-none text-sm font-bold w-full placeholder:text-zinc-700 text-white"
+                  className="bg-transparent border-none outline-none text-base font-bold w-full placeholder:text-zinc-700 text-white"
                 />
               </div>
             </div>
           </div>
 
-          {/* --- 3D PODIUM (2-1-3 Layout) --- */}
+          {/* --- 3D PODIUM (Visual Highlight) --- */}
           {!searchQuery && topPlayers.length >= 3 && (
-            <div className="flex flex-col md:flex-row items-end justify-center gap-6 mb-56 max-w-5xl mx-auto">
+            <div className="flex flex-col md:flex-row items-end justify-center gap-8 mb-64 max-w-6xl mx-auto">
               {podiumConfig.map((item) => {
                 const player = topPlayers[item.index];
                 const rank = getRank(player.elo);
                 return (
-                  <div key={item.index} className={`relative flex flex-col items-center w-full md:w-1/3 ${item.index === 0 ? 'order-1 md:order-2' : item.index === 1 ? 'order-2 md:order-1' : 'order-3'}`}>
-                    {/* Player Info Above Pillar */}
-                    <Link href={`/players/${encodeURIComponent(player.username)}`} className="mb-10 text-center group cursor-pointer transition-all hover:scale-105">
-                      <div className="relative mb-8 flex justify-center">
-                        <div className={`absolute -inset-6 rounded-full blur-3xl opacity-30 ${item.isWinner ? 'bg-yellow-400 animate-pulse' : 'bg-white/20'}`} />
-                        <RankIcon type={item.isWinner ? 'Legende' : rank.name} size={item.isWinner ? "w-28 h-28" : "w-20 h-20"} />
+                  <div 
+                    key={item.index} 
+                    className={`relative flex flex-col items-center w-full md:w-1/3 ${item.index === 0 ? 'order-1 md:order-2' : item.index === 1 ? 'order-2 md:order-1' : 'order-3'}`}
+                  >
+                    {/* Player Profile Info */}
+                    <Link 
+                      href={`/players/${encodeURIComponent(player.username)}`} 
+                      className="mb-12 text-center group cursor-pointer transition-all duration-500 hover:scale-110"
+                    >
+                      <div className="relative mb-10 flex justify-center">
+                        <div className={`absolute -inset-8 rounded-full blur-[40px] opacity-30 ${item.isWinner ? 'bg-yellow-400 animate-pulse' : 'bg-white/20'}`} />
+                        <RankIcon type={item.isWinner ? 'Legende' : rank.name} size={item.isWinner ? "w-32 h-32" : "w-24 h-24"} />
                         {item.isWinner && (
-                          <div className="absolute -top-4 -right-4 bg-yellow-400 text-black w-10 h-10 rounded-full flex items-center justify-center shadow-2xl rotate-12">
-                            <Crown className="w-6 h-6" />
+                          <div className="absolute -top-6 -right-6 bg-yellow-400 text-black w-12 h-12 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(250,204,21,0.5)] rotate-12">
+                            <Crown className="w-7 h-7" />
                           </div>
                         )}
                       </div>
-                      <div className={`text-[11px] font-black uppercase tracking-[0.5em] mb-3 ${item.isWinner ? 'text-yellow-400' : 'text-zinc-500'}`}>{item.label}</div>
-                      <div className={`${item.isWinner ? 'text-4xl' : 'text-2xl'} font-black tracking-tighter group-hover:text-emerald-400 transition-colors mb-1`}>{player.username}</div>
-                      <div className={`${item.isWinner ? 'text-6xl' : 'text-4xl'} font-black italic text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]`}>{player.elo}</div>
+                      <div className={`text-[12px] font-black uppercase tracking-[0.6em] mb-4 ${item.isWinner ? 'text-yellow-400' : 'text-zinc-500'}`}>
+                        {item.label}
+                      </div>
+                      <div className={`${item.isWinner ? 'text-5xl' : 'text-3xl'} font-black tracking-tighter group-hover:text-emerald-400 transition-colors duration-500 mb-2`}>
+                        {player.username}
+                      </div>
+                      <div className={`${item.isWinner ? 'text-7xl' : 'text-5xl'} font-black italic text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.15)]`}>
+                        {player.elo}
+                      </div>
                     </Link>
 
-                    {/* The Pillar */}
-                    <div className={`relative w-full ${item.height} ${item.color} border-t-2 rounded-t-[3rem] flex flex-col items-center justify-start pt-12 overflow-hidden group/pillar transition-all duration-700 hover:bg-white/[0.08]`}>
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] to-transparent" />
-                      <div className="text-[12rem] font-black text-white/[0.03] italic absolute -bottom-12 -right-8 select-none group-hover/pillar:text-white/[0.05] transition-all">{item.index + 1}</div>
+                    {/* The Pillar (Stufe) */}
+                    <div className={`relative w-full ${item.height} ${item.color} ${item.glow} border-t-4 rounded-t-[4rem] flex flex-col items-center justify-start pt-16 overflow-hidden group/pillar transition-all duration-1000 hover:bg-white/[0.1]`}>
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/[0.12] to-transparent" />
+                      <div className="text-[15rem] font-black text-white/[0.03] italic absolute -bottom-16 -right-12 select-none group-hover/pillar:text-white/[0.06] transition-all duration-700">
+                        {item.index + 1}
+                      </div>
                       
                       {/* Reward Badge */}
-                      <div className="relative px-8 py-4 rounded-[2rem] bg-black/40 border border-white/10 flex items-center gap-4 group-hover/pillar:border-emerald-500/50 group-hover/pillar:bg-emerald-500 group-hover/pillar:text-black transition-all shadow-2xl">
-                        <Sparkles className={`w-5 h-5 ${item.isWinner ? 'text-yellow-400' : 'text-emerald-400'} group-hover/pillar:text-black`} />
-                        <span className="text-[12px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{item.prize}</span>
+                      <div className="relative px-10 py-5 rounded-[2.5rem] bg-black/50 border border-white/10 flex items-center gap-5 group-hover/pillar:border-emerald-500/60 group-hover/pillar:bg-emerald-500 group-hover/pillar:text-black transition-all duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                        <Sparkles className={`w-6 h-6 ${item.isWinner ? 'text-yellow-400' : 'text-emerald-400'} group-hover/pillar:text-black animate-pulse`} />
+                        <span className="text-[13px] font-black uppercase tracking-[0.3em] whitespace-nowrap">
+                          {item.prize}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -286,37 +404,51 @@ export default function Leaderboard() {
             </div>
           )}
 
-          {/* --- TABLE --- */}
-          <div className="relative overflow-hidden rounded-[4rem] border border-white/10 bg-zinc-950/40 backdrop-blur-3xl shadow-[0_50px_100px_rgba(0,0,0,0.5)]">
-            <div className="px-12 py-10 border-b border-white/5 bg-white/[0.02] flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-5">
-                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+          {/* --- MAIN TABLE (Full Ranking) --- */}
+          <div className="relative overflow-hidden rounded-[5rem] border border-white/10 bg-zinc-950/50 backdrop-blur-3xl shadow-[0_60px_120px_rgba(0,0,0,0.6)]">
+            
+            {/* Table Toolbar */}
+            <div className="px-16 py-12 border-b border-white/5 bg-white/[0.02] flex flex-col lg:flex-row items-center justify-between gap-10">
+              <div className="flex items-center gap-6">
+                <div className="w-4 h-4 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_25px_rgba(16,185,129,0.6)]" />
                 <div className="flex flex-col">
-                  <div className="text-[12px] font-black uppercase tracking-[0.5em] text-emerald-500 leading-none mb-1">Live Standings</div>
-                  <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Season 1: June 2026</div>
+                  <div className="text-[14px] font-black uppercase tracking-[0.6em] text-emerald-500 leading-none mb-2">Global Standings</div>
+                  <div className="text-[11px] font-bold text-zinc-600 uppercase tracking-widest">Active Season: June 2026 · Week 2</div>
                 </div>
               </div>
-              <div className="flex items-center gap-8">
-                <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                  <Users className="w-4 h-4" /> {filteredPlayers.length} Active Players
+              
+              <div className="flex flex-wrap justify-center items-center gap-12">
+                <div className="flex items-center gap-4 text-[11px] font-bold text-zinc-500 uppercase tracking-[0.2em]">
+                  <Users className="w-5 h-5 text-emerald-500/50" />
+                  <span className="text-white font-black">{filteredPlayers.length}</span> Registered Players
                 </div>
-                <div className="px-5 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black text-zinc-400 uppercase tracking-widest italic flex items-center gap-3">
-                  <Timer className="w-4 h-4 text-emerald-500" /> Reset in 18d 04h
+                <div className="px-8 py-3 rounded-full bg-white/5 border border-white/10 text-[11px] font-black text-zinc-400 uppercase tracking-[0.2em] italic flex items-center gap-4 shadow-inner">
+                  <Timer className="w-5 h-5 text-emerald-500" />
+                  Next Rank Reset in <span className="text-white">18 Days</span>
                 </div>
               </div>
             </div>
 
+            {/* Table Content */}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.01]">
-                    <th className="px-12 py-8 text-[11px] font-black uppercase tracking-[0.4em] text-zinc-600">Rank</th>
-                    <th className="px-12 py-8 text-[11px] font-black uppercase tracking-[0.4em] text-zinc-600">Player</th>
-                    <th className="px-12 py-8 text-[11px] font-black uppercase tracking-[0.4em] text-zinc-600">Tier</th>
-                    <th className="px-12 py-8 text-[11px] font-black uppercase tracking-[0.4em] text-zinc-600"><div className="flex items-center gap-2"><BarChart3 className="w-4 h-4" /> AVG</div></th>
-                    <th className="px-12 py-8 text-[11px] font-black uppercase tracking-[0.4em] text-zinc-600">Matches</th>
-                    <th className="px-12 py-8 text-[11px] font-black uppercase tracking-[0.4em] text-zinc-600"><div className="flex items-center gap-2"><Coins className="w-4 h-4" /> Reward</div></th>
-                    <th className="px-12 py-8 text-[11px] font-black uppercase tracking-[0.4em] text-zinc-600 text-right">Elo</th>
+                    <th className="px-16 py-10 text-[12px] font-black uppercase tracking-[0.5em] text-zinc-600">Rank</th>
+                    <th className="px-16 py-10 text-[12px] font-black uppercase tracking-[0.5em] text-zinc-600">Player</th>
+                    <th className="px-16 py-10 text-[12px] font-black uppercase tracking-[0.5em] text-zinc-600">Tier</th>
+                    <th className="px-16 py-10 text-[12px] font-black uppercase tracking-[0.5em] text-zinc-600">
+                      <div className="flex items-center gap-3">
+                        <BarChart3 className="w-5 h-5 text-emerald-500/50" /> AVG
+                      </div>
+                    </th>
+                    <th className="px-16 py-10 text-[12px] font-black uppercase tracking-[0.5em] text-zinc-600">Matches</th>
+                    <th className="px-16 py-10 text-[12px] font-black uppercase tracking-[0.5em] text-zinc-600">
+                      <div className="flex items-center gap-3">
+                        <Coins className="w-5 h-5 text-emerald-500/50" /> Reward
+                      </div>
+                    </th>
+                    <th className="px-16 py-10 text-[12px] font-black uppercase tracking-[0.5em] text-zinc-600 text-right">Elo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -329,49 +461,53 @@ export default function Leaderboard() {
                       <tr 
                         key={player.username} 
                         onClick={() => router.push(`/players/${encodeURIComponent(player.username)}`)} 
-                        className="group hover:bg-white/[0.04] transition-all duration-300 cursor-pointer"
+                        className="group hover:bg-white/[0.05] transition-all duration-500 cursor-pointer"
                       >
-                        <td className="px-12 py-9">
-                          <span className={`text-2xl font-black italic transition-all ${i < 3 ? 'text-emerald-500 scale-110 inline-block' : 'text-zinc-800 group-hover:text-zinc-600'}`}>
+                        <td className="px-16 py-12">
+                          <span className={`text-3xl font-black italic transition-all duration-500 ${i < 3 ? 'text-emerald-500 scale-125 inline-block drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'text-zinc-800 group-hover:text-zinc-600'}`}>
                             #{i + 1}
                           </span>
                         </td>
-                        <td className="px-12 py-9">
+                        <td className="px-16 py-12">
                           <div className="flex flex-col">
-                            <span className="font-black tracking-tighter text-xl group-hover:text-emerald-400 transition-colors duration-300">{player.username}</span>
+                            <span className="font-black tracking-tighter text-2xl group-hover:text-emerald-400 transition-colors duration-500">
+                              {player.username}
+                            </span>
                             {player.isPremium && (
-                              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 flex items-center gap-2 mt-1">
-                                <Award className="w-3 h-3 fill-current" /> Premium Member
+                              <span className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-500 flex items-center gap-2.5 mt-2">
+                                <Award className="w-4 h-4 fill-current" /> Premium Pro
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="px-12 py-9">
-                          <div className="flex items-center gap-4">
-                            <RankIcon type={rank.name} size="w-10 h-10" />
-                            <span className={`text-[12px] font-black uppercase tracking-[0.2em] ${rank.color}`}>{rank.name}</span>
+                        <td className="px-16 py-12">
+                          <div className="flex items-center gap-5">
+                            <RankIcon type={rank.name} size="w-12 h-12" />
+                            <span className={`text-[13px] font-black uppercase tracking-[0.3em] ${rank.color}`}>
+                              {rank.name}
+                            </span>
                           </div>
                         </td>
-                        <td className="px-12 py-9">
-                          <span className={`text-lg font-black tracking-tight ${avg > 0 ? 'text-zinc-200' : 'text-zinc-700'}`}>
+                        <td className="px-16 py-12">
+                          <span className={`text-xl font-black tracking-tight ${avg > 0 ? 'text-zinc-200' : 'text-zinc-700'}`}>
                             {avg > 0 ? avg.toFixed(2) : '--'}
                           </span>
                         </td>
-                        <td className="px-12 py-9">
+                        <td className="px-16 py-12">
                           <div className="flex flex-col">
-                            <span className="text-lg font-black tracking-tight text-zinc-200">{player.gamesPlayed}</span>
-                            <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                            <span className="text-xl font-black tracking-tight text-zinc-200">{player.gamesPlayed}</span>
+                            <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-widest mt-1">
                               {Math.round((player.wins / player.gamesPlayed) * 100)}% Winrate
                             </span>
                           </div>
                         </td>
-                        <td className="px-12 py-9">
-                          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${i < 3 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-zinc-700'}`}>
-                            {i < 3 && <Sparkles className="w-3 h-3" />} {prize}
+                        <td className="px-16 py-12">
+                          <div className={`inline-flex items-center gap-3 px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-500 ${i < 3 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black' : 'text-zinc-700'}`}>
+                            {i < 3 && <Sparkles className="w-4 h-4" />} {prize}
                           </div>
                         </td>
-                        <td className="px-12 py-9 text-right">
-                          <span className="text-4xl font-black tracking-tighter italic text-emerald-400 group-hover:scale-110 inline-block transition-transform duration-500 drop-shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                        <td className="px-16 py-12 text-right">
+                          <span className="text-5xl font-black tracking-tighter italic text-emerald-400 group-hover:scale-110 inline-block transition-transform duration-700 drop-shadow-[0_0_30px_rgba(16,185,129,0.25)]">
                             {player.elo}
                           </span>
                         </td>
@@ -385,23 +521,26 @@ export default function Leaderboard() {
         </div>
       </section>
 
-      {/* --- FOOTER --- */}
-      <footer className="relative z-10 py-24 px-12 border-t border-white/5 bg-black/60 backdrop-blur-2xl">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-16">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 bg-zinc-900 rounded-2xl flex items-center justify-center text-white font-black text-3xl border border-white/5 shadow-2xl">R</div>
+      {/* --- FOOTER SECTION --- */}
+      <footer className="relative z-10 py-32 px-16 border-t border-white/5 bg-black/70 backdrop-blur-3xl">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-20">
+          
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-zinc-900 rounded-3xl flex items-center justify-center text-white font-black text-4xl border border-white/10 shadow-2xl transition-transform hover:rotate-6">R</div>
             <div className="flex flex-col">
-              <span className="font-black uppercase tracking-widest text-2xl">RankedDarts</span>
-              <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-[0.6em]">The Pro Standard</span>
+              <span className="font-black uppercase tracking-widest text-3xl italic">RankedDarts</span>
+              <span className="text-[12px] font-bold text-zinc-600 uppercase tracking-[0.8em] mt-1">The Pro Standard</span>
             </div>
           </div>
-          <div className="flex gap-16 text-[12px] font-black uppercase tracking-[0.4em] text-zinc-500">
-            <Link href="/" className="hover:text-white transition-all">Home</Link>
-            <Link href="/terms" className="hover:text-white transition-all">Terms</Link>
-            <Link href="/support" className="hover:text-white transition-all">Support</Link>
+
+          <div className="flex gap-20 text-[13px] font-black uppercase tracking-[0.5em] text-zinc-500">
+            <Link href="/" className="hover:text-white transition-all duration-300">Home</Link>
+            <Link href="/terms" className="hover:text-white transition-all duration-300">Terms</Link>
+            <Link href="/support" className="hover:text-white transition-all duration-300">Support</Link>
           </div>
-          <div className="text-[11px] font-bold text-zinc-800 uppercase tracking-[0.8em]">
-            © 2026 RankedDarts. All Rights Reserved.
+
+          <div className="text-[12px] font-bold text-zinc-800 uppercase tracking-[1em]">
+            © 2026 RankedDarts.
           </div>
         </div>
       </footer>
