@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Swords, Trophy, Users, Target, ShieldCheck, Zap, 
@@ -66,11 +66,13 @@ export default function MatchmakingPage() {
   const [iHaveAccepted, setIHaveAccepted] = useState(false);
   const [opponentAccepted, setOpponentAccepted] = useState(false);
   const [acceptCountdown, setAcceptCountdown] = useState(30);
+  const [isLoading, setIsLoading] = useState(false);
   
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+  const searchIntervalRef = useRef<any>(null);
 
-  // --- REALTIME DATA ---
+  // --- DATA FETCHING ---
   const fetchArenaData = useCallback(async () => {
     const { data: qScolia } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'scolia');
     const { data: qDC } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'dartcounter');
@@ -99,22 +101,69 @@ export default function MatchmakingPage() {
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('scroll', handleScroll);
+      if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
     };
   }, [supabase, router, fetchArenaData]);
 
+  // --- QUEUE LOGIC ---
+  const joinQueue = async () => {
+    if (!selectedApp || !profile) return;
+    setIsLoading(true);
+    try {
+      // 1. In die DB eintragen
+      const { error } = await supabase.from('queue').insert([{
+        profile_id: profile.id,
+        app: selectedApp,
+        elo: profile.elo
+      }]);
+
+      if (error) throw error;
+
+      // 2. UI Status ändern
+      setStatus('searching');
+      setElapsedSeconds(0);
+      setCurrentRange(50);
+
+      // 3. Timer starten
+      searchIntervalRef.current = setInterval(() => {
+        setElapsedSeconds(prev => {
+          const next = prev + 1;
+          if (next === 30) setCurrentRange(150);
+          if (next === 60) setCurrentRange(300);
+          if (next === 90) setCurrentRange(500);
+          return next;
+        });
+      }, 1000);
+
+    } catch (err: any) {
+      console.error('Queue Error:', err);
+      alert('Fehler beim Beitreten der Queue: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const leaveQueue = async () => {
+    if (!profile) return;
+    setIsLoading(true);
+    try {
+      await supabase.from('queue').delete().eq('profile_id', profile.id);
+      setStatus('idle');
+      if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
+    } catch (err) {
+      console.error('Leave Error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     let interval: any;
-    if (status === 'searching') {
-      interval = setInterval(() => {
-        setElapsedSeconds(s => s + 1);
-        if (elapsedSeconds > 30) setCurrentRange(150);
-        if (elapsedSeconds > 60) setCurrentRange(300);
-      }, 1000);
-    } else if (status === 'found' && acceptCountdown > 0) {
+    if (status === 'found' && acceptCountdown > 0) {
       interval = setInterval(() => setAcceptCountdown(c => c - 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [status, elapsedSeconds, acceptCountdown]);
+  }, [status, acceptCountdown]);
 
   const elo = profile?.elo || 1000;
   const currentRank = getRank(elo);
@@ -207,12 +256,11 @@ export default function MatchmakingPage() {
                </div>
             </div>
 
-            {/* CENTER: THE ARENA (6 cols) - COMPACT & HIGH-END */}
+            {/* CENTER: THE ARENA */}
             <div className="lg:col-span-6">
                <div className="relative p-[1px] rounded-[3.5rem] bg-gradient-to-br from-emerald-500/40 via-transparent to-white/10 shadow-[0_0_100px_rgba(16,185,129,0.1)]">
                   <div className="relative p-10 md:p-16 rounded-[3.45rem] bg-[#050607] min-h-[580px] flex flex-col items-center justify-center text-center overflow-hidden">
                      
-                     {/* Cyber Grid & Glow */}
                      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:30px_30px] opacity-20" />
                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none" />
 
@@ -247,11 +295,11 @@ export default function MatchmakingPage() {
                            </div>
 
                            <button 
-                              disabled={!selectedApp}
-                              onClick={() => setStatus('searching')}
+                              disabled={!selectedApp || isLoading}
+                              onClick={joinQueue}
                               className={`group relative w-full py-7 rounded-2xl font-black uppercase tracking-[0.3em] text-lg transition-all duration-500 flex items-center justify-center gap-6 ${selectedApp ? 'bg-white text-black hover:scale-[1.02] shadow-[0_20px_40px_rgba(255,255,255,0.1)]' : 'bg-zinc-900 text-zinc-700 cursor-not-allowed border border-white/5'}`}
                            >
-                              Enter Queue <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
+                              {isLoading ? <Loader2 className="animate-spin" /> : 'Enter Queue'} <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
                            </button>
                         </div>
                      )}
@@ -275,12 +323,15 @@ export default function MatchmakingPage() {
                                  </div>
                               </div>
                            </div>
-                           <button onClick={() => setStatus('idle')} className="px-10 py-5 bg-red-500/5 border border-red-500/20 text-red-500 rounded-2xl font-black uppercase tracking-[0.3em] hover:bg-red-500 hover:text-white transition-all shadow-2xl">Abort</button>
+                           <button onClick={leaveQueue} disabled={isLoading} className="px-10 py-5 bg-red-500/5 border border-red-500/20 text-red-500 rounded-2xl font-black uppercase tracking-[0.3em] hover:bg-red-500 hover:text-white transition-all shadow-2xl">
+                              {isLoading ? <Loader2 className="animate-spin" /> : 'Abort'}
+                           </button>
                         </div>
                      )}
 
                      {status === 'found' && (
                         <div className="relative w-full space-y-12 animate-in fade-in zoom-in duration-500">
+                           {/* VS View - Bleibt gleich */}
                            <div className="flex items-center justify-center gap-8 md:gap-16">
                               <div className="flex flex-col items-center gap-6 group/player">
                                  <div className="relative">
@@ -295,9 +346,7 @@ export default function MatchmakingPage() {
                                     <div className={`text-[9px] font-black uppercase tracking-[0.4em] ${iHaveAccepted ? 'text-emerald-500' : 'text-zinc-600'}`}>{iHaveAccepted ? 'READY' : 'WAITING'}</div>
                                  </div>
                               </div>
-                              
                               <div className="text-6xl md:text-8xl font-black italic text-zinc-900 select-none drop-shadow-[0_0_30px_rgba(255,255,255,0.02)]">VS</div>
-                              
                               <div className="flex flex-col items-center gap-6 group/player">
                                  <div className="relative">
                                     <div className={`absolute -inset-6 blur-[30px] opacity-20 rounded-full bg-cyan-500 ${opponentAccepted ? 'animate-pulse' : ''}`} />
@@ -312,20 +361,10 @@ export default function MatchmakingPage() {
                                  </div>
                               </div>
                            </div>
-
                            <div className="max-w-xs mx-auto space-y-8">
-                              <div className="flex items-center justify-center gap-4 text-emerald-500">
-                                 <Sparkles size={24} className="animate-bounce" />
-                                 <span className="text-2xl font-black italic uppercase tracking-tighter">Duel Found</span>
-                              </div>
+                              <div className="flex items-center justify-center gap-4 text-emerald-500"><Sparkles size={24} className="animate-bounce" /><span className="text-2xl font-black italic uppercase tracking-tighter">Duel Found</span></div>
                               <div className="text-[10px] font-black italic text-zinc-500 tracking-widest uppercase">{acceptCountdown}s left</div>
-                              <button 
-                                 onClick={() => setIHaveAccepted(true)}
-                                 disabled={iHaveAccepted}
-                                 className={`group relative w-full py-6 rounded-2xl font-black uppercase tracking-[0.3em] text-lg shadow-2xl transition-all duration-500 overflow-hidden ${iHaveAccepted ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30' : 'bg-emerald-500 text-black hover:scale-[1.02] shadow-[0_0_50px_rgba(16,185,129,0.3)]'}`}
-                              >
-                                 <span className="relative z-10">{iHaveAccepted ? 'Confirmed' : 'Accept Duel'}</span>
-                              </button>
+                              <button onClick={() => setIHaveAccepted(true)} disabled={iHaveAccepted} className={`group relative w-full py-6 rounded-2xl font-black uppercase tracking-[0.3em] text-lg shadow-2xl transition-all duration-500 overflow-hidden ${iHaveAccepted ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30' : 'bg-emerald-500 text-black hover:scale-[1.02] shadow-[0_0_50px_rgba(16,185,129,0.3)]'}`}><span className="relative z-10">{iHaveAccepted ? 'Confirmed' : 'Accept Duel'}</span></button>
                            </div>
                         </div>
                      )}
@@ -333,7 +372,7 @@ export default function MatchmakingPage() {
                </div>
             </div>
 
-            {/* RIGHT: Live Activity (3 cols) */}
+            {/* RIGHT: Live Activity */}
             <div className="lg:col-span-3 space-y-8">
                <div className="p-8 rounded-[2.5rem] bg-zinc-900/40 border border-white/5 backdrop-blur-3xl relative overflow-hidden group h-full flex flex-col shadow-2xl">
                   <div className="flex items-center justify-between mb-10 relative z-10">
@@ -356,16 +395,6 @@ export default function MatchmakingPage() {
                      )) : (
                        <div className="text-center py-16 text-[10px] font-black uppercase tracking-[0.5em] text-zinc-800 italic">No matches...</div>
                      )}
-                  </div>
-
-                  <div className="mt-8 pt-8 border-t border-white/5 relative z-10">
-                     <div className="flex items-center gap-4 mb-4">
-                        <ShieldCheck size={18} className="text-emerald-500" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500">Arena Protocol</span>
-                     </div>
-                     <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest leading-relaxed">
-                        Cam mandatory. Fair play enforced.
-                     </p>
                   </div>
                </div>
             </div>
