@@ -7,7 +7,8 @@ import {
   Settings, CheckCircle2, AlertCircle, Phone, 
   Swords, TrendingUp, Sparkles, Zap, Clock, 
   User as UserIcon, Camera, LayoutDashboard,
-  Save, X, ExternalLink, ShieldCheck, History, ArrowUpRight
+  Save, X, ExternalLink, ShieldCheck, History, ArrowUpRight,
+  Globe, Medal
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
