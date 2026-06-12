@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Menu, X, Swords, Trophy, Users, Target, 
   ShieldCheck, Zap, Star, Search, ArrowRight, 
-  Shield, Crown, Medal, Activity, TrendingUp
+  Shield, Crown, Medal, Activity, TrendingUp, Coins
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
@@ -135,6 +135,13 @@ export default function Leaderboard() {
   const topPlayers = players.slice(0, 3);
   const filteredPlayers = players.filter(p => p.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  // Podium Konfiguration (Platz 2, Platz 1, Platz 3)
+  const podiumConfig = [
+    { index: 1, prize: '150€', color: 'border-slate-400/30 bg-slate-400/5', label: '2nd Place', icon: '🥈' },
+    { index: 0, prize: '250€', color: 'border-yellow-400/40 bg-yellow-400/10 shadow-[0_0_50px_rgba(250,204,21,0.15)]', label: 'CHAMPION', icon: '🏆', isWinner: true },
+    { index: 2, prize: '100€', color: 'border-orange-600/30 bg-orange-600/5', label: '3rd Place', icon: '🥉' }
+  ];
+
   return (
     <main className="min-h-screen bg-[#020304] text-zinc-100 selection:bg-emerald-500/30 font-sans overflow-x-hidden">
       {/* --- BACKGROUND LAYER --- */}
@@ -169,13 +176,13 @@ export default function Leaderboard() {
       <section className="relative z-10 pt-48 pb-32 px-6">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="flex flex-col md:flex-row items-end justify-between mb-16 gap-8">
+          <div className="flex flex-col md:flex-row items-end justify-between mb-24 gap-8">
             <div className="space-y-4 text-center md:text-left">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black uppercase tracking-[0.4em] text-emerald-400">
-                <TrendingUp className="w-3 h-3" /> Live Standings
+                <TrendingUp className="w-3 h-3" /> Monthly Season
               </div>
               <h1 className="text-5xl md:text-7xl font-black tracking-tighter italic uppercase">Leaderboard</h1>
-              <p className="text-zinc-500 text-lg max-w-md font-medium">Die 100 besten Spieler der aktuellen Season.</p>
+              <p className="text-zinc-500 text-lg max-w-md font-medium">Gewinne monatliche Preisgelder in Höhe von <span className="text-white font-black italic">500€</span>.</p>
             </div>
             
             <div className="w-full md:w-80 relative group">
@@ -193,61 +200,59 @@ export default function Leaderboard() {
             </div>
           </div>
 
-          {/* --- PODIUM (TOP 3) --- */}
+          {/* --- PODIUM (2-1-3 Layout) --- */}
           {!searchQuery && topPlayers.length >= 3 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20 items-end">
-              {/* Rank 2 */}
-              <div className="order-2 md:order-1">
-                <Link href={`/players/${encodeURIComponent(topPlayers[1].username)}`} className="group relative bg-white/[0.02] border border-white/5 rounded-[3rem] p-8 text-center transition-all hover:-translate-y-2 hover:border-white/20 backdrop-blur-sm">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                    <RankIcon type={getRank(topPlayers[1].elo).name} size="w-16 h-16" />
-                  </div>
-                  <div className="mt-6 space-y-2">
-                    <div className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Rank #2</div>
-                    <div className="text-2xl font-black tracking-tight group-hover:text-emerald-400 transition-colors">{topPlayers[1].username}</div>
-                    <div className="text-4xl font-black text-white italic">{topPlayers[1].elo}</div>
-                  </div>
-                </Link>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24 items-end max-w-5xl mx-auto">
+              {podiumConfig.map((item) => {
+                const player = topPlayers[item.index];
+                const rank = getRank(player.elo);
+                return (
+                  <div key={item.index} className={`order-${item.index === 0 ? '1 md:order-2' : item.index === 1 ? '2 md:order-1' : '3'}`}>
+                    <Link 
+                      href={`/players/${encodeURIComponent(player.username)}`} 
+                      className={`group relative block rounded-[3rem] border p-8 text-center transition-all hover:-translate-y-2 backdrop-blur-md ${item.color} ${item.isWinner ? 'pb-16 pt-20 md:scale-110 z-10' : 'pb-12 pt-14'}`}
+                    >
+                      {/* Rank Icon */}
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                        <RankIcon type={item.isWinner ? 'Legende' : rank.name} size={item.isWinner ? "w-24 h-24" : "w-16 h-16"} />
+                      </div>
 
-              {/* Rank 1 */}
-              <div className="order-1 md:order-2">
-                <Link href={`/players/${encodeURIComponent(topPlayers[0].username)}`} className="group relative bg-emerald-500/5 border border-emerald-500/20 rounded-[3.5rem] p-12 text-center transition-all hover:-translate-y-3 hover:border-emerald-500/40 backdrop-blur-md shadow-[0_20px_50px_rgba(16,185,129,0.1)]">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                    <RankIcon type="Legende" size="w-24 h-24" />
-                  </div>
-                  <div className="mt-8 space-y-3">
-                    <div className="text-emerald-500 text-[11px] font-black uppercase tracking-[0.4em] flex items-center justify-center gap-2">
-                      <Star className="w-3 h-3 fill-current" /> Champion <Star className="w-3 h-3 fill-current" />
-                    </div>
-                    <div className="text-4xl font-black tracking-tighter group-hover:text-emerald-400 transition-colors">{topPlayers[0].username}</div>
-                    <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 italic">{topPlayers[0].elo}</div>
-                  </div>
-                </Link>
-              </div>
+                      {/* Prize Badge */}
+                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs font-black tracking-widest text-white group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                        <Coins className="w-3 h-3" /> {item.prize}
+                      </div>
 
-              {/* Rank 3 */}
-              <div className="order-3">
-                <Link href={`/players/${encodeURIComponent(topPlayers[2].username)}`} className="group relative bg-white/[0.02] border border-white/5 rounded-[3rem] p-8 text-center transition-all hover:-translate-y-2 hover:border-white/20 backdrop-blur-sm">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                    <RankIcon type={getRank(topPlayers[2].elo).name} size="w-16 h-16" />
+                      <div className="space-y-3">
+                        <div className={`text-[10px] font-black uppercase tracking-[0.4em] ${item.isWinner ? 'text-yellow-400' : 'text-zinc-500'}`}>
+                          {item.label}
+                        </div>
+                        <div className={`${item.isWinner ? 'text-3xl' : 'text-xl'} font-black tracking-tighter truncate group-hover:text-emerald-400 transition-colors`}>
+                          {player.username}
+                        </div>
+                        <div className={`${item.isWinner ? 'text-6xl' : 'text-4xl'} font-black italic text-white`}>
+                          {player.elo}
+                        </div>
+                        <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                          {player.gamesPlayed} Matches · {Math.round((player.wins / player.gamesPlayed) * 100)}% WR
+                        </div>
+                      </div>
+                    </Link>
                   </div>
-                  <div className="mt-6 space-y-2">
-                    <div className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Rank #3</div>
-                    <div className="text-2xl font-black tracking-tight group-hover:text-emerald-400 transition-colors">{topPlayers[2].username}</div>
-                    <div className="text-4xl font-black text-white italic">{topPlayers[2].elo}</div>
-                  </div>
-                </Link>
-              </div>
+                );
+              })}
             </div>
           )}
 
           {/* --- TABLE --- */}
           <div className="relative overflow-hidden rounded-[3rem] border border-white/10 bg-zinc-950/50 backdrop-blur-2xl">
+            <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+              <div className="text-[11px] font-black uppercase tracking-[0.4em] text-emerald-500">Full Ranking List</div>
+              <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest italic">Updated every 5 minutes</div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-white/5 bg-white/[0.02]">
+                  <tr className="border-b border-white/5">
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Rank</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Player</th>
                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Tier</th>
@@ -269,7 +274,7 @@ export default function Leaderboard() {
                         </td>
                         <td className="px-8 py-6">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-xs uppercase">
+                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-xs uppercase text-zinc-400">
                               {player.username.slice(0, 2)}
                             </div>
                             <div className="flex flex-col">
