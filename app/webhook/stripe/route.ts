@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@/lib/supabase-server';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-01-27' as any,
@@ -16,22 +16,20 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
-    // Verifizieren, dass die Nachricht wirklich von Stripe kommt
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
-  // Wir reagieren auf erfolgreiche Zahlungen (Subscriptions)
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const supabaseUserId = session.metadata?.supabaseUserId;
 
     if (supabaseUserId) {
-      const supabase = await createClient();
+      const supabase = await createServerSupabaseClient();
       
-      // Den Nutzer in der Datenbank auf Premium setzen
+      // Update in der profiles Tabelle
       const { error } = await supabase
         .from('profiles')
         .update({ isPremium: true })
