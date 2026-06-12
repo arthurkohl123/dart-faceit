@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ArrowRight, Shield, Crown,
   Globe, Activity, Sparkles, User as UserIcon,
   Settings, Star, ChevronRight, Phone, MousePointer2,
-  Lock, RefreshCw, ArrowUpRight, Radar, Timer
+  Lock, RefreshCw, ArrowUpRight, Radar, Timer, Loader2
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
