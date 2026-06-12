@@ -14,6 +14,11 @@ import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
 
 // --- DESIGN SYSTEM ---
+const appConfig = {
+  scolia: { label: 'Scolia', icon: Camera, color: 'emerald' },
+  dartcounter: { label: 'DartCounter', icon: LayoutDashboard, color: 'cyan' }
+};
+
 const RankIcon = ({ type, size = "w-16 h-16" }: { type: string, size?: string }) => {
   const colors: Record<string, string> = {
     'Eisen': 'from-zinc-500 to-zinc-800 border-zinc-600',
