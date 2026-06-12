@@ -135,7 +135,6 @@ export default function Leaderboard() {
   const topPlayers = players.slice(0, 3);
   const filteredPlayers = players.filter(p => p.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  // Podium Konfiguration (Platz 2, Platz 1, Platz 3)
   const podiumConfig = [
     { index: 1, prize: '150€', color: 'border-slate-400/30 bg-slate-400/5', label: '2nd Place', icon: '🥈' },
     { index: 0, prize: '250€', color: 'border-yellow-400/40 bg-yellow-400/10 shadow-[0_0_50px_rgba(250,204,21,0.15)]', label: 'CHAMPION', icon: '🏆', isWinner: true },
@@ -144,14 +143,12 @@ export default function Leaderboard() {
 
   return (
     <main className="min-h-screen bg-[#020304] text-zinc-100 selection:bg-emerald-500/30 font-sans overflow-x-hidden">
-      {/* --- BACKGROUND LAYER --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-5%] left-[-5%] w-[50%] h-[50%] bg-emerald-500/5 blur-[150px] rounded-full" />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png' )] opacity-[0.02]" />
         <div className="absolute inset-0 opacity-[0.03] [background-image:linear-gradient(to_right,#888_1px,transparent_1px),linear-gradient(to_bottom,#888_1px,transparent_1px)] [background-size:100px_100px]" />
       </div>
 
-      {/* --- NAVIGATION --- */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-black/90 backdrop-blur-2xl border-b border-white/5 py-3' : 'bg-transparent py-8'}`}>
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-4 group">
@@ -172,10 +169,8 @@ export default function Leaderboard() {
         </div>
       </nav>
 
-      {/* --- CONTENT --- */}
       <section className="relative z-10 pt-48 pb-32 px-6">
         <div className="max-w-6xl mx-auto">
-          {/* Header */}
           <div className="flex flex-col md:flex-row items-end justify-between mb-24 gap-8">
             <div className="space-y-4 text-center md:text-left">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black uppercase tracking-[0.4em] text-emerald-400">
@@ -200,7 +195,6 @@ export default function Leaderboard() {
             </div>
           </div>
 
-          {/* --- PODIUM (2-1-3 Layout) --- */}
           {!searchQuery && topPlayers.length >= 3 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24 items-end max-w-5xl mx-auto">
               {podiumConfig.map((item) => {
@@ -212,12 +206,10 @@ export default function Leaderboard() {
                       href={`/players/${encodeURIComponent(player.username)}`} 
                       className={`group relative block rounded-[3rem] border p-8 text-center transition-all hover:-translate-y-2 backdrop-blur-md ${item.color} ${item.isWinner ? 'pb-16 pt-20 md:scale-110 z-10' : 'pb-12 pt-14'}`}
                     >
-                      {/* Rank Icon */}
                       <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
                         <RankIcon type={item.isWinner ? 'Legende' : rank.name} size={item.isWinner ? "w-24 h-24" : "w-16 h-16"} />
                       </div>
 
-                      {/* Prize Badge */}
                       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs font-black tracking-widest text-white group-hover:bg-emerald-500 group-hover:text-black transition-all">
                         <Coins className="w-3 h-3" /> {item.prize}
                       </div>
@@ -243,7 +235,6 @@ export default function Leaderboard() {
             </div>
           )}
 
-          {/* --- TABLE --- */}
           <div className="relative overflow-hidden rounded-[3rem] border border-white/10 bg-zinc-950/50 backdrop-blur-2xl">
             <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
               <div className="text-[11px] font-black uppercase tracking-[0.4em] text-emerald-500">Full Ranking List</div>
@@ -273,18 +264,13 @@ export default function Leaderboard() {
                           <span className="text-lg font-black italic text-zinc-600 group-hover:text-zinc-400 transition-colors">#{i + 1}</span>
                         </td>
                         <td className="px-8 py-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-xs uppercase text-zinc-400">
-                              {player.username.slice(0, 2)}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="font-black tracking-tight text-lg group-hover:text-emerald-400 transition-colors">{player.username}</span>
-                              {player.isPremium && (
-                                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-1">
-                                  <Star className="w-2 h-2 fill-current" /> Premium
-                                </span>
-                              )}
-                            </div>
+                          <div className="flex flex-col">
+                            <span className="font-black tracking-tight text-lg group-hover:text-emerald-400 transition-colors">{player.username}</span>
+                            {player.isPremium && (
+                              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-1">
+                                <Star className="w-2 h-2 fill-current" /> Premium
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-8 py-6">
@@ -314,7 +300,6 @@ export default function Leaderboard() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="relative z-10 py-24 px-10 border-t border-white/5 bg-black/50 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
           <div className="flex items-center gap-4">
