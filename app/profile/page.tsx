@@ -8,7 +8,7 @@ import {
   ChevronRight, Swords, TrendingUp, 
   Sparkles, Zap, Award, BarChart3, Clock, 
   User as UserIcon, Camera, LayoutDashboard,
-  Save, X, ExternalLink
+  Save, X, ExternalLink, ShieldCheck
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
