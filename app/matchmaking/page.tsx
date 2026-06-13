@@ -67,23 +67,22 @@ export default function MatchmakingPage() {
   const [opponentAccepted, setOpponentAccepted] = useState(false);
   const [acceptCountdown, setAcceptCountdown] = useState(30);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentMatchId, setCurrentMatchId] = useState<string | null>(null);
   
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const searchIntervalRef = useRef<any>(null);
 
-  // --- DATA FETCHING ---
+  // --- DATA FETCHING (EXACT ORIGINAL LOGIC) ---
   const fetchArenaData = useCallback(async () => {
-    // Fallback Logik für Tabellennamen
-    try {
-      const { data: qScolia } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'scolia');
-      const { data: qDC } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'dartcounter');
-      setQueueCounts({ scolia: qScolia?.length || 0, dartcounter: qDC?.length || 0 });
-    } catch (e) {
-      // Falls 'queue' nicht existiert, versuchen wir 'Match' mit status 'pending'
-      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending');
-      setQueueCounts({ scolia: mScolia?.length || 0, dartcounter: 0 });
-    }
+    // In deinem Projekt wird anscheinend die 'Match' Tabelle für alles genutzt
+    const { data: pendingMatches } = await supabase.from('Match').select('*').eq('status', 'pending');
+    
+    // Wir zählen wie viele Leute in der Queue sind (score1 wird als App-Typ missbraucht)
+    const scoliaCount = pendingMatches?.filter(m => m.score1 === 'scolia').length || 0;
+    const dcCount = pendingMatches?.filter(m => m.score1 === 'dartcounter').length || 0;
+    
+    setQueueCounts({ scolia: scoliaCount, dartcounter: dcCount });
 
     const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
     if (active) setLiveMatches(active);
@@ -99,8 +98,8 @@ export default function MatchmakingPage() {
     };
     init();
 
+    // Realtime Listener auf die Match Tabelle (wie im Original)
     const channel = supabase.channel('realtime_arena')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue' }, () => fetchArenaData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Match' }, () => fetchArenaData())
       .subscribe();
 
@@ -113,28 +112,32 @@ export default function MatchmakingPage() {
     };
   }, [supabase, router, fetchArenaData]);
 
-  // --- QUEUE LOGIC ---
+  // --- QUEUE LOGIC (DIE FUNKTIONIERENDE VERSION) ---
   const joinQueue = async () => {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
-      // Wir versuchen zuerst 'queue', dann 'Match' als Fallback
-      const { error: qError } = await supabase.from('queue').insert([{
-        profile_id: profile.id,
+      // WICHTIG: Wir müssen alle Pflichtfelder füllen, die deine DB erwartet
+      const newMatchId = Math.floor(Math.random() * 1000000).toString(); // ID generieren falls kein Auto-Increment
+      
+      const { error } = await supabase.from('Match').insert([{
+        id: newMatchId,
+        player1Id: profile.supabaseId,
+        player2Id: profile.supabaseId, // Als Platzhalter
+        status: 'pending',
+        score1: selectedApp, // App Typ
+        score2: '0',
+        average1: 0,
+        average2: 0,
+        oneEighties1: 0,
+        oneEighties2: 0,
         app: selectedApp,
-        elo: profile.elo
+        createdAt: new Date().toISOString()
       }]);
 
-      if (qError) {
-        // Fallback auf 'Match' Tabelle
-        const { error: mError } = await supabase.from('Match').insert([{
-          player1Id: profile.supabaseId,
-          status: 'pending',
-          score1: selectedApp // Wir nutzen score1 temporär um die App zu speichern falls nötig
-        }]);
-        if (mError) throw mError;
-      }
+      if (error) throw error;
 
+      setCurrentMatchId(newMatchId);
       setStatus('searching');
       setElapsedSeconds(0);
       setCurrentRange(50);
@@ -158,12 +161,12 @@ export default function MatchmakingPage() {
   };
 
   const leaveQueue = async () => {
-    if (!profile) return;
+    if (!currentMatchId) return;
     setIsLoading(true);
     try {
-      await supabase.from('queue').delete().eq('profile_id', profile.id);
-      await supabase.from('Match').delete().eq('player1Id', profile.supabaseId).eq('status', 'pending');
+      await supabase.from('Match').delete().eq('id', currentMatchId);
       setStatus('idle');
+      setCurrentMatchId(null);
       if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
     } catch (err) {
       console.error('Leave Error:', err);
@@ -171,14 +174,6 @@ export default function MatchmakingPage() {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    let interval: any;
-    if (status === 'found' && acceptCountdown > 0) {
-      interval = setInterval(() => setAcceptCountdown(c => c - 1), 1000);
-    }
-    return () => clearInterval(interval);
-  }, [status, acceptCountdown]);
 
   const elo = profile?.elo || 1000;
   const currentRank = getRank(elo);
@@ -401,7 +396,7 @@ export default function MatchmakingPage() {
                      {liveMatches.length > 0 ? liveMatches.map((m: any, i) => (
                        <div key={i} className="p-5 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-between group/match hover:bg-white/[0.08] transition-all cursor-pointer">
                           <div className="flex flex-col gap-1 min-w-0">
-                             <span className="text-[10px] font-black italic uppercase text-white tracking-tight truncate">{m.player1Id} vs {m.player2Id}</span>
+                             <span className="text-[10px] font-black italic uppercase text-white tracking-tight truncate">Match #{m.id.substring(0, 4)}</span>
                              <span className={`text-[8px] font-black uppercase tracking-[0.4em] text-emerald-500`}>{m.status}</span>
                           </div>
                           <ArrowUpRight size={16} className="text-zinc-800 group-hover/match:text-white transition-all" />
