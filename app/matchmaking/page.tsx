@@ -74,10 +74,18 @@ export default function MatchmakingPage() {
 
   // --- DATA FETCHING ---
   const fetchArenaData = useCallback(async () => {
-    const { data: qScolia } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'scolia');
-    const { data: qDC } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'dartcounter');
-    setQueueCounts({ scolia: qScolia?.length || 0, dartcounter: qDC?.length || 0 });
-    const { data: active } = await supabase.from('active_matches').select('*').neq('status', 'completed').order('created_at', { ascending: false }).limit(5);
+    // Fallback Logik für Tabellennamen
+    try {
+      const { data: qScolia } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'scolia');
+      const { data: qDC } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'dartcounter');
+      setQueueCounts({ scolia: qScolia?.length || 0, dartcounter: qDC?.length || 0 });
+    } catch (e) {
+      // Falls 'queue' nicht existiert, versuchen wir 'Match' mit status 'pending'
+      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending');
+      setQueueCounts({ scolia: mScolia?.length || 0, dartcounter: 0 });
+    }
+
+    const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
     if (active) setLiveMatches(active);
   }, [supabase]);
 
@@ -93,7 +101,7 @@ export default function MatchmakingPage() {
 
     const channel = supabase.channel('realtime_arena')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'queue' }, () => fetchArenaData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'active_matches' }, () => fetchArenaData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Match' }, () => fetchArenaData())
       .subscribe();
 
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -110,21 +118,27 @@ export default function MatchmakingPage() {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
-      // 1. In die DB eintragen
-      const { error } = await supabase.from('queue').insert([{
+      // Wir versuchen zuerst 'queue', dann 'Match' als Fallback
+      const { error: qError } = await supabase.from('queue').insert([{
         profile_id: profile.id,
         app: selectedApp,
         elo: profile.elo
       }]);
 
-      if (error) throw error;
+      if (qError) {
+        // Fallback auf 'Match' Tabelle
+        const { error: mError } = await supabase.from('Match').insert([{
+          player1Id: profile.supabaseId,
+          status: 'pending',
+          score1: selectedApp // Wir nutzen score1 temporär um die App zu speichern falls nötig
+        }]);
+        if (mError) throw mError;
+      }
 
-      // 2. UI Status ändern
       setStatus('searching');
       setElapsedSeconds(0);
       setCurrentRange(50);
 
-      // 3. Timer starten
       searchIntervalRef.current = setInterval(() => {
         setElapsedSeconds(prev => {
           const next = prev + 1;
@@ -148,6 +162,7 @@ export default function MatchmakingPage() {
     setIsLoading(true);
     try {
       await supabase.from('queue').delete().eq('profile_id', profile.id);
+      await supabase.from('Match').delete().eq('player1Id', profile.supabaseId).eq('status', 'pending');
       setStatus('idle');
       if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
     } catch (err) {
@@ -214,7 +229,7 @@ export default function MatchmakingPage() {
           
           <div className="grid lg:grid-cols-12 gap-8 items-start">
             
-            {/* LEFT: Mini Stats (3 cols) */}
+            {/* LEFT: Mini Stats */}
             <div className="lg:col-span-3 space-y-8">
                <div className="p-8 rounded-[2.5rem] bg-zinc-900/40 border border-white/5 backdrop-blur-3xl relative overflow-hidden group shadow-2xl">
                   <div className="absolute top-0 right-0 p-6 opacity-[0.02] group-hover:scale-110 transition-transform"><UserIcon size={150} /></div>
@@ -331,7 +346,6 @@ export default function MatchmakingPage() {
 
                      {status === 'found' && (
                         <div className="relative w-full space-y-12 animate-in fade-in zoom-in duration-500">
-                           {/* VS View - Bleibt gleich */}
                            <div className="flex items-center justify-center gap-8 md:gap-16">
                               <div className="flex flex-col items-center gap-6 group/player">
                                  <div className="relative">
@@ -384,11 +398,11 @@ export default function MatchmakingPage() {
                   </div>
                   
                   <div className="space-y-3 flex-1 overflow-y-auto max-h-[420px] pr-2 custom-scrollbar relative z-10">
-                     {liveMatches.length > 0 ? liveMatches.map((m, i) => (
+                     {liveMatches.length > 0 ? liveMatches.map((m: any, i) => (
                        <div key={i} className="p-5 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-between group/match hover:bg-white/[0.08] transition-all cursor-pointer">
                           <div className="flex flex-col gap-1 min-w-0">
-                             <span className="text-[10px] font-black italic uppercase text-white tracking-tight truncate">{m.player1_username} vs {m.player2_username}</span>
-                             <span className={`text-[8px] font-black uppercase tracking-[0.4em] ${m.app === 'scolia' ? 'text-emerald-500' : 'text-cyan-500'}`}>{m.app}</span>
+                             <span className="text-[10px] font-black italic uppercase text-white tracking-tight truncate">{m.player1Id} vs {m.player2Id}</span>
+                             <span className={`text-[8px] font-black uppercase tracking-[0.4em] text-emerald-500`}>{m.status}</span>
                           </div>
                           <ArrowUpRight size={16} className="text-zinc-800 group-hover/match:text-white transition-all" />
                        </div>
