@@ -117,20 +117,18 @@ export default function MatchmakingPage() {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
-      // WICHTIG: Wir müssen alle Pflichtfelder füllen, die deine DB erwartet
-      const newMatchId = Math.floor(Math.random() * 1000000).toString(); // ID generieren falls kein Auto-Increment
+      // WICHTIG: Wir nutzen nur Felder, die im Prisma-Schema existieren
+      const newMatchId = crypto.randomUUID(); 
       
       const { error } = await supabase.from('Match').insert([{
         id: newMatchId,
         player1Id: profile.supabaseId,
-        player2Id: profile.supabaseId, // Als Platzhalter
+        player2Id: profile.supabaseId, // Als Platzhalter für die Suche
         status: 'pending',
-        score1: selectedApp, // App Typ (Original Logik)
+        score1: selectedApp, // Speichert Scolia/DartCounter
         score2: '0',
         average1: 0,
         average2: 0,
-        oneEighties1: 0,
-        oneEighties2: 0,
         createdAt: new Date().toISOString()
       }]);
 
