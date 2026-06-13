@@ -125,13 +125,12 @@ export default function MatchmakingPage() {
         player1Id: profile.supabaseId,
         player2Id: profile.supabaseId, // Als Platzhalter
         status: 'pending',
-        score1: selectedApp, // App Typ
+        score1: selectedApp, // App Typ (Original Logik)
         score2: '0',
         average1: 0,
         average2: 0,
         oneEighties1: 0,
         oneEighties2: 0,
-        app: selectedApp,
         createdAt: new Date().toISOString()
       }]);
 
