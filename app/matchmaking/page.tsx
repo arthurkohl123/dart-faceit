@@ -64,30 +64,28 @@ export default function MatchmakingPage() {
   const [queueCounts, setQueueCounts] = useState({ scolia: 0, dartcounter: 0 });
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [currentRange, setCurrentRange] = useState(50);
+  const [iHaveAccepted, setIHaveAccepted] = useState(false);
+  const [opponentAccepted, setOpponentAccepted] = useState(false);
+  const [acceptCountdown, setAcceptCountdown] = useState(30);
   const [isLoading, setIsLoading] = useState(false);
   
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const searchIntervalRef = useRef<any>(null);
 
+  // --- DATA FETCHING (Original Logik) ---
   const fetchArenaData = useCallback(async () => {
     try {
-      const { data: qScolia } = await supabase.from('queue').select('id').eq('app', 'scolia');
-      const { data: qDC } = await supabase.from('queue').select('id').eq('app', 'dartcounter');
-      
-      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'scolia');
-      const { data: mDC } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'dartcounter');
-
-      setQueueCounts({ 
-        scolia: (qScolia?.length || 0) + (mScolia?.length || 0), 
-        dartcounter: (qDC?.length || 0) + (mDC?.length || 0) 
-      });
-
-      const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
-      if (active) setLiveMatches(active);
+      const { data: qScolia } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'scolia');
+      const { data: qDC } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'dartcounter');
+      setQueueCounts({ scolia: qScolia?.length || 0, dartcounter: qDC?.length || 0 });
     } catch (e) {
-      console.error(e);
+      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending');
+      setQueueCounts({ scolia: mScolia?.length || 0, dartcounter: 0 });
     }
+
+    const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
+    if (active) setLiveMatches(active);
   }, [supabase]);
 
   useEffect(() => {
@@ -114,12 +112,12 @@ export default function MatchmakingPage() {
     };
   }, [supabase, router, fetchArenaData]);
 
-  // --- DER ULTIMATIVE FIX (100% ORIGINAL LOGIK + ID FIX) ---
+  // --- QUEUE LOGIC (1:1 Original Logik) ---
   const joinQueue = async () => {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
-      // 1. Wir versuchen 'queue' (Original Logik)
+      // Wir versuchen zuerst 'queue', dann 'Match' als Fallback
       const { error: qError } = await supabase.from('queue').insert([{
         profile_id: profile.id,
         app: selectedApp,
@@ -127,8 +125,7 @@ export default function MatchmakingPage() {
       }]);
 
       if (qError) {
-        // 2. Fallback auf 'Match' - WIR NUTZEN DIE EXAKTE RELATION AUS DEM SCHEMA
-        // WICHTIG: Wir generieren eine UUID, da die DB sie anscheinend nicht automatisch erstellt.
+        // Fallback auf 'Match' Tabelle
         const { error: mError } = await supabase.from('Match').insert([{
           id: crypto.randomUUID(), 
           player1Id: profile.supabaseId, 
@@ -145,6 +142,7 @@ export default function MatchmakingPage() {
       setStatus('searching');
       setElapsedSeconds(0);
       setCurrentRange(50);
+
       searchIntervalRef.current = setInterval(() => {
         setElapsedSeconds(prev => {
           const next = prev + 1;
@@ -154,8 +152,10 @@ export default function MatchmakingPage() {
           return next;
         });
       }, 1000);
+
     } catch (err: any) {
-      alert(`Matchmaking-Fehler: ${err.message}\nID: ${profile?.supabaseId}`);
+      console.error('Queue Error:', err);
+      alert('Fehler beim Beitreten der Queue: ' + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -170,22 +170,33 @@ export default function MatchmakingPage() {
       setStatus('idle');
       if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
     } catch (err) {
-      console.error(err);
+      console.error('Leave Error:', err);
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    let interval: any;
+    if (status === 'found' && acceptCountdown > 0) {
+      interval = setInterval(() => setAcceptCountdown(c => c - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [status, acceptCountdown]);
 
   const elo = profile?.elo || 1000;
   const currentRank = getRank(elo);
 
   return (
     <main className="min-h-screen bg-[#010203] text-zinc-100 selection:bg-emerald-500/30 font-sans overflow-x-hidden pb-40">
+      {/* Background Layers */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] opacity-20 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.15)_0%,transparent_70%)] animate-pulse" />
+        <div className={`absolute top-[-10%] left-[-10%] w-[120%] h-[120%] opacity-20 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.15)_0%,transparent_70%)] animate-pulse`} />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]" />
       </div>
 
+      {/* Navigation */}
       <div className="fixed top-8 left-0 right-0 z-50 px-6">
         <nav className={`max-w-5xl mx-auto transition-all duration-700 rounded-3xl border ${scrolled ? 'bg-black/90 backdrop-blur-2xl py-3 border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.2)]' : 'bg-white/5 backdrop-blur-md py-6 border-white/5'}`}>
           <div className="px-10 flex items-center justify-between">
@@ -326,6 +337,32 @@ export default function MatchmakingPage() {
                            </button>
                         </div>
                      )}
+
+                     {status === 'found' && (
+                        <div className="relative z-10 space-y-12 w-full">
+                           <div className="flex items-center justify-center gap-12 md:gap-24">
+                              <div className="flex flex-col items-center gap-6">
+                                 <RankIcon type={currentRank.name} size="w-24 h-24" />
+                                 <span className="text-xs font-black uppercase tracking-widest text-zinc-400">You</span>
+                              </div>
+                              <div className="text-6xl font-black italic text-emerald-500 animate-bounce">VS</div>
+                              <div className="flex flex-col items-center gap-6">
+                                 <div className="w-24 h-24 rounded-3xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center">
+                                    <Search className="w-10 h-10 text-zinc-700 animate-pulse" />
+                                 </div>
+                                 <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Opponent</span>
+                              </div>
+                           </div>
+                           <div className="space-y-6">
+                              <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white">Match Found!</h2>
+                              <div className="text-6xl font-black italic text-white">{acceptCountdown}s</div>
+                           </div>
+                           <div className="flex gap-4 max-w-md mx-auto w-full">
+                              <button className="flex-1 py-6 rounded-2xl bg-emerald-500 text-black font-black uppercase tracking-widest shadow-[0_0_30px_rgba(16,185,129,0.4)]">Accept</button>
+                              <button onClick={leaveQueue} className="flex-1 py-6 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest">Decline</button>
+                           </div>
+                        </div>
+                     )}
                   </div>
                </div>
             </div>
@@ -353,6 +390,10 @@ export default function MatchmakingPage() {
                               <span className="text-[8px] font-black text-zinc-700 italic">VS</span>
                               <span className="text-[10px] font-black uppercase tracking-tighter text-white truncate max-w-[80px]">Player 2</span>
                            </div>
+                           <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">{match.score1 || 'Scolia'}</span>
+                              <ArrowUpRight size={14} className="text-zinc-700 group-hover:text-emerald-500 transition-colors" />
+                           </div>
                         </div>
                      )) : (
                         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
@@ -363,6 +404,16 @@ export default function MatchmakingPage() {
                         </div>
                      )}
                   </div>
+               </div>
+
+               <div className="p-8 rounded-[2.5rem] bg-emerald-500/5 border border-emerald-500/20 backdrop-blur-3xl shadow-2xl">
+                  <div className="flex items-center gap-4 mb-4">
+                     <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                     <h3 className="text-[10px] font-black uppercase tracking-widest italic text-white">Arena Protocol</h3>
+                  </div>
+                  <p className="text-[9px] font-bold text-zinc-500 leading-relaxed uppercase tracking-widest">
+                     Cam mandatory. Fair play enforced. Automated anti-cheat active.
+                  </p>
                </div>
             </div>
 
