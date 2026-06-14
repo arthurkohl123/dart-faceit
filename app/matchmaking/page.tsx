@@ -149,7 +149,7 @@ export default function MatchmakingPage() {
           
           if (syncError) {
             console.error('Auto-sync failed:', syncError);
-            throw new Error('Dein Profil konnte nicht synchronisiert werden. Bitte versuche es erneut oder kontaktiere den Support.');
+            throw new Error(`Sync-Fehler: ${syncError.message} (${syncError.code})`);
           }
         }
 
