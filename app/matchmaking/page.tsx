@@ -127,11 +127,11 @@ export default function MatchmakingPage() {
       }]);
 
       if (qError) {
-        // 2. Fallback auf 'Match' - WIR NUTZEN DIE EXAKTE LOGIK DEINES ORIGINALS
+        // 2. Fallback auf 'Match' - WIR NUTZEN DIE EXAKTE LOGIK DEINES ORIGINALS + UUID FIX
         const { error: mError } = await supabase.from('Match').insert([{
-          id: Math.floor(Math.random() * 1000000).toString(), // ID Generierung
-          player1Id: profile.supabaseId, // Hier lag der Fehler (muss supabaseId sein)
-          player2Id: profile.supabaseId, // Platzhalter
+          id: crypto.randomUUID(), // UUID Generierung für die Datenbank
+          player1Id: profile.supabaseId, 
+          player2Id: profile.supabaseId, 
           status: 'pending',
           score1: selectedApp,
           score2: '0',
@@ -154,7 +154,7 @@ export default function MatchmakingPage() {
         });
       }, 1000);
     } catch (err: any) {
-      alert('Fehler: ' + err.message);
+      alert('Fehler beim Beitreten der Queue: ' + err.message);
     } finally {
       setIsLoading(false);
     }
