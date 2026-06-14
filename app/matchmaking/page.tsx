@@ -117,26 +117,45 @@ export default function MatchmakingPage() {
     };
   }, [supabase, router, fetchArenaData]);
 
-  // --- QUEUE LOGIC (EXACT ORIGINAL LOGIC RESTORED) ---
+  // --- QUEUE LOGIC (FIXED FOR USER/PROFILE DISCREPANCY) ---
   const joinQueue = async () => {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
-      const newMatchId = crypto.randomUUID(); 
-      const { error } = await supabase.from('Match').insert([{
-        id: newMatchId,
-        player1Id: profile.supabaseId,
-        player2Id: profile.supabaseId, // Als Platzhalter
-        status: 'pending',
-        score1: selectedApp,
-        score2: '0',
-        average1: 0,
-        average2: 0,
-        createdAt: new Date().toISOString()
+      // 1. Wir versuchen zuerst die dedizierte 'queue' Tabelle (empfohlen)
+      const { error: qError } = await supabase.from('queue').insert([{
+        profile_id: profile.id,
+        app: selectedApp,
+        elo: profile.elo
       }]);
-      if (error) throw error;
-      
-      setCurrentMatchId(newMatchId);
+
+      if (qError) {
+        console.warn('Queue table insert failed, falling back to Match table:', qError);
+        
+        // 2. Fallback: Wir prüfen, ob der User in der 'User' Tabelle existiert (wegen Foreign Key)
+        const { data: userData } = await supabase.from('User').select('supabaseId').eq('supabaseId', profile.supabaseId).single();
+        
+        if (!userData) {
+          throw new Error('Dein Profil ist noch nicht vollständig synchronisiert (User-Tabelle fehlt). Bitte kontaktiere den Support.');
+        }
+
+        const newMatchId = crypto.randomUUID(); 
+        const { error: mError } = await supabase.from('Match').insert([{
+          id: newMatchId,
+          player1Id: profile.supabaseId,
+          player2Id: profile.supabaseId, 
+          status: 'pending',
+          score1: selectedApp,
+          score2: '0',
+          average1: 0,
+          average2: 0,
+          createdAt: new Date().toISOString()
+        }]);
+        
+        if (mError) throw mError;
+        setCurrentMatchId(newMatchId);
+      }
+
       setStatus('searching');
       setElapsedSeconds(0);
       setCurrentRange(50);
