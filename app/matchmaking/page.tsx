@@ -114,15 +114,12 @@ export default function MatchmakingPage() {
     };
   }, [supabase, router, fetchArenaData]);
 
-  // --- DER ULTIMATIVE FIX ---
+  // --- DER ULTIMATIVE FIX (100% ORIGINAL LOGIK + ID FIX) ---
   const joinQueue = async () => {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
-      // 1. Wir nutzen die supabaseId aus dem Profil-Datensatz (SICHERHEITS-CHECK)
-      const targetId = profile.supabaseId;
-      
-      // 2. Wir versuchen 'queue'
+      // 1. Wir versuchen 'queue' (Original Logik)
       const { error: qError } = await supabase.from('queue').insert([{
         profile_id: profile.id,
         app: selectedApp,
@@ -130,11 +127,12 @@ export default function MatchmakingPage() {
       }]);
 
       if (qError) {
-        // 3. Fallback auf 'Match' - WIR NUTZEN DIE EXAKTE RELATION AUS DEM SCHEMA
+        // 2. Fallback auf 'Match' - WIR NUTZEN DIE EXAKTE RELATION AUS DEM SCHEMA
+        // WICHTIG: Wir generieren eine UUID, da die DB sie anscheinend nicht automatisch erstellt.
         const { error: mError } = await supabase.from('Match').insert([{
-          id: crypto.randomUUID(),
-          player1Id: targetId, // Muss exakt der Wert aus profiles.supabaseId sein
-          player2Id: targetId, // Platzhalter
+          id: crypto.randomUUID(), 
+          player1Id: profile.supabaseId, 
+          player2Id: profile.supabaseId, // Platzhalter
           status: 'pending',
           score1: selectedApp,
           score2: '0',
@@ -223,6 +221,7 @@ export default function MatchmakingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-12 gap-8 items-start">
             
+            {/* LEFT: Stats & Queues */}
             <div className="lg:col-span-3 space-y-8">
                <div className="p-8 rounded-[2.5rem] bg-zinc-900/40 border border-white/5 backdrop-blur-3xl relative overflow-hidden group shadow-2xl">
                   <div className="absolute top-0 right-0 p-6 opacity-[0.02] group-hover:scale-110 transition-transform"><UserIcon size={150} /></div>
@@ -264,6 +263,7 @@ export default function MatchmakingPage() {
                </div>
             </div>
 
+            {/* CENTER: ARENA */}
             <div className="lg:col-span-6">
                <div className="relative p-[1px] rounded-[3.5rem] bg-gradient-to-br from-emerald-500/40 via-transparent to-white/10 shadow-[0_0_100px_rgba(16,185,129,0.1)]">
                   <div className="relative p-10 md:p-16 rounded-[3.45rem] bg-[#050607] min-h-[580px] flex flex-col items-center justify-center text-center overflow-hidden">
@@ -330,6 +330,7 @@ export default function MatchmakingPage() {
                </div>
             </div>
 
+            {/* RIGHT: Live Arena */}
             <div className="lg:col-span-3 space-y-8">
                <div className="p-8 rounded-[2.5rem] bg-zinc-900/40 border border-white/5 backdrop-blur-3xl shadow-2xl min-h-[400px]">
                   <div className="flex items-center justify-between mb-8">
