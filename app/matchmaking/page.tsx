@@ -137,11 +137,17 @@ export default function MatchmakingPage() {
         
         if (!userData) {
           console.info('User missing in User table, attempting auto-sync from profiles...');
-          // Automatisch in User-Tabelle anlegen um Foreign Key Fehler zu vermeiden
+          
+          // E-Mail aus Session holen für maximale Korrektheit
+          const { data: { session: authSession } } = await supabase.auth.getSession();
+          const userEmail = authSession?.user?.email || `${profile.username}@rankeddarts.de`;
+
+          // Automatisch in User-Tabelle anlegen - JETZT MIT ID
           const { error: syncError } = await supabase.from('User').insert([{
+            id: crypto.randomUUID(),
             supabaseId: profile.supabaseId,
             username: profile.username,
-            email: profile.email || `${profile.username}@example.com`, // Fallback falls Email fehlt
+            email: userEmail,
             elo: profile.elo || 1000,
             gamesPlayed: profile.gamesPlayed || 0,
             wins: profile.wins || 0
@@ -166,7 +172,10 @@ export default function MatchmakingPage() {
           createdAt: new Date().toISOString()
         }]);
         
-        if (mError) throw mError;
+        if (mError) {
+          console.error('Match insert failed after sync:', mError);
+          throw new Error(`Match-Fehler: ${mError.message}`);
+        }
         setCurrentMatchId(newMatchId);
       }
 
