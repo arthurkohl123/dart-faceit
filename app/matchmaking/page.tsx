@@ -132,11 +132,25 @@ export default function MatchmakingPage() {
       if (qError) {
         console.warn('Queue table insert failed, falling back to Match table:', qError);
         
-        // 2. Fallback: Wir prüfen, ob der User in der 'User' Tabelle existiert (wegen Foreign Key)
-        const { data: userData } = await supabase.from('User').select('supabaseId').eq('supabaseId', profile.supabaseId).single();
+        // 2. SELF-HEALING: Prüfen ob User in 'User' Tabelle existiert
+        const { data: userData, error: userCheckError } = await supabase.from('User').select('supabaseId').eq('supabaseId', profile.supabaseId).maybeSingle();
         
         if (!userData) {
-          throw new Error('Dein Profil ist noch nicht vollständig synchronisiert (User-Tabelle fehlt). Bitte kontaktiere den Support.');
+          console.info('User missing in User table, attempting auto-sync from profiles...');
+          // Automatisch in User-Tabelle anlegen um Foreign Key Fehler zu vermeiden
+          const { error: syncError } = await supabase.from('User').insert([{
+            supabaseId: profile.supabaseId,
+            username: profile.username,
+            email: profile.email || `${profile.username}@example.com`, // Fallback falls Email fehlt
+            elo: profile.elo || 1000,
+            gamesPlayed: profile.gamesPlayed || 0,
+            wins: profile.wins || 0
+          }]);
+          
+          if (syncError) {
+            console.error('Auto-sync failed:', syncError);
+            throw new Error('Dein Profil konnte nicht synchronisiert werden. Bitte versuche es erneut oder kontaktiere den Support.');
+          }
         }
 
         const newMatchId = crypto.randomUUID(); 
