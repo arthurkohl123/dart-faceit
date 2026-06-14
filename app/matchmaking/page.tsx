@@ -76,16 +76,25 @@ export default function MatchmakingPage() {
   // --- DATA FETCHING (Original Logik) ---
   const fetchArenaData = useCallback(async () => {
     try {
+      // 1. Queue Counts
       const { data: qScolia } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'scolia');
       const { data: qDC } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'dartcounter');
-      setQueueCounts({ scolia: qScolia?.length || 0, dartcounter: qDC?.length || 0 });
-    } catch (e) {
-      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending');
-      setQueueCounts({ scolia: mScolia?.length || 0, dartcounter: 0 });
-    }
+      
+      // 2. Match Counts (Fallback/Live)
+      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'scolia');
+      const { data: mDC } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'dartcounter');
 
-    const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
-    if (active) setLiveMatches(active);
+      setQueueCounts({ 
+        scolia: (qScolia?.length || 0) + (mScolia?.length || 0), 
+        dartcounter: (qDC?.length || 0) + (mDC?.length || 0) 
+      });
+
+      // 3. Live Matches
+      const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
+      if (active) setLiveMatches(active);
+    } catch (e) {
+      console.error('Fetch Error:', e);
+    }
   }, [supabase]);
 
   useEffect(() => {
@@ -112,11 +121,14 @@ export default function MatchmakingPage() {
     };
   }, [supabase, router, fetchArenaData]);
 
-  // --- QUEUE LOGIC (1:1 Original Logik) ---
+  // --- QUEUE LOGIC (1:1 Original Logik mit ID Fix) ---
   const joinQueue = async () => {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
+      // FIX: Wir generieren eine ID, falls die DB sie nicht automatisch setzt
+      const generatedId = crypto.randomUUID();
+
       // Wir versuchen zuerst 'queue', dann 'Match' als Fallback
       const { error: qError } = await supabase.from('queue').insert([{
         profile_id: profile.id,
@@ -125,12 +137,16 @@ export default function MatchmakingPage() {
       }]);
 
       if (qError) {
-        // Fallback auf 'Match' Tabelle
+        // Fallback auf 'Match' Tabelle (HIER WAR DER FEHLER: ID FEHLTE)
         const { error: mError } = await supabase.from('Match').insert([{
+          id: generatedId, // ID manuell setzen
           player1Id: profile.supabaseId,
           player2Id: profile.supabaseId, // Als Platzhalter
           status: 'pending',
-          score1: selectedApp 
+          score1: selectedApp,
+          score2: '0',
+          average1: 0,
+          average2: 0
         }]);
         if (mError) throw mError;
       }
