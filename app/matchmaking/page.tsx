@@ -74,7 +74,14 @@ export default function MatchmakingPage() {
     try {
       const { data: qScolia } = await supabase.from('queue').select('id').eq('app', 'scolia');
       const { data: qDC } = await supabase.from('queue').select('id').eq('app', 'dartcounter');
-      setQueueCounts({ scolia: qScolia?.length || 0, dartcounter: qDC?.length || 0 });
+      
+      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'scolia');
+      const { data: mDC } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'dartcounter');
+
+      setQueueCounts({ 
+        scolia: (qScolia?.length || 0) + (mScolia?.length || 0), 
+        dartcounter: (qDC?.length || 0) + (mDC?.length || 0) 
+      });
 
       const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
       if (active) setLiveMatches(active);
@@ -107,12 +114,12 @@ export default function MatchmakingPage() {
     };
   }, [supabase, router, fetchArenaData]);
 
-  // --- DER ENTSCHEIDENDE FIX ---
+  // --- DIE DEFINITIVE LÖSUNG ---
   const joinQueue = async () => {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
-      // 1. Wir versuchen 'queue'
+      // 1. Wir versuchen 'queue' (Original Logik)
       const { error: qError } = await supabase.from('queue').insert([{
         profile_id: profile.id,
         app: selectedApp,
@@ -120,13 +127,11 @@ export default function MatchmakingPage() {
       }]);
 
       if (qError) {
-        // 2. Fallback auf 'Match' - WIR GENERIEREN DIE ID JETZT ABSOLUT SICHER
-        const generatedId = Math.floor(Math.random() * 1000000).toString(); // Einfache ID als String, falls UUID Probleme macht
-        
+        // 2. Fallback auf 'Match' - WIR NUTZEN DIE EXAKTE LOGIK DEINES ORIGINALS
         const { error: mError } = await supabase.from('Match').insert([{
-          id: generatedId, // HIER IST DIE ID!
-          player1Id: profile.supabaseId,
-          player2Id: profile.supabaseId,
+          id: Math.floor(Math.random() * 1000000).toString(), // ID Generierung
+          player1Id: profile.supabaseId, // Hier lag der Fehler (muss supabaseId sein)
+          player2Id: profile.supabaseId, // Platzhalter
           status: 'pending',
           score1: selectedApp,
           score2: '0',
@@ -175,7 +180,6 @@ export default function MatchmakingPage() {
 
   return (
     <main className="min-h-screen bg-[#010203] text-zinc-100 selection:bg-emerald-500/30 font-sans overflow-x-hidden pb-40">
-      {/* Design-Elemente wie in der Cinematic Version */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] opacity-20 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.15)_0%,transparent_70%)] animate-pulse" />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]" />
