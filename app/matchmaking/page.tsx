@@ -132,11 +132,11 @@ export default function MatchmakingPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Nicht authentifiziert');
         
-        // Fallback auf 'Match' Tabelle - WIR NUTZEN DIE PROFILE ID DIREKT
+        // Fallback auf 'Match' Tabelle - WIR NUTZEN DIE SUPABASE ID LAUT PRISMA SCHEMA
         const { error: mError } = await supabase.from('Match').insert([{
           id: crypto.randomUUID(), 
-          player1Id: profile.id, 
-          player2Id: profile.id, 
+          player1Id: profile.supabaseId, 
+          player2Id: profile.supabaseId, 
           status: 'pending',
           score1: selectedApp,
           score2: '0',
