@@ -105,7 +105,20 @@ export default function MatchmakingPage() {
 
     const channel = supabase.channel('realtime_arena')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'queue' }, () => fetchArenaData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Match' }, () => fetchArenaData())
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'Match' 
+      }, (payload) => {
+        fetchArenaData();
+        // Wenn unser Match aktualisiert wurde (Gegner gefunden)
+        if (currentMatchId && payload.new && payload.new.id === currentMatchId) {
+          if (payload.new.status !== 'pending' || (payload.new.player2Id && payload.new.player2Id !== payload.new.player1Id)) {
+            setStatus('found');
+            setTimeout(() => router.push(`/result?id=${currentMatchId}`), 2000);
+          }
+        }
+      })
       .subscribe();
 
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -183,7 +196,7 @@ export default function MatchmakingPage() {
       setElapsedSeconds(0);
       setCurrentRange(50);
 
-      searchIntervalRef.current = setInterval(() => {
+      searchIntervalRef.current = setInterval(async () => {
         setElapsedSeconds(prev => {
           const next = prev + 1;
           if (next === 30) setCurrentRange(150);
@@ -191,7 +204,17 @@ export default function MatchmakingPage() {
           if (next === 90) setCurrentRange(500);
           return next;
         });
-      }, 1000);
+
+        // Periodischer Check falls Realtime versagt
+        if (currentMatchId) {
+          const { data } = await supabase.from('Match').select('player2Id, status').eq('id', currentMatchId).single();
+          if (data && (data.status !== 'pending' || (data.player2Id && data.player2Id !== profile.supabaseId))) {
+            setStatus('found');
+            clearInterval(searchIntervalRef.current);
+            setTimeout(() => router.push(`/result?id=${currentMatchId}`), 1500);
+          }
+        }
+      }, 2000);
 
     } catch (err: any) {
       console.error('Queue Error:', err);
