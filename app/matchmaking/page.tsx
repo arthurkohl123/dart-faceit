@@ -84,7 +84,11 @@ export default function MatchmakingPage() {
       setQueueCounts({ scolia: mScolia?.length || 0, dartcounter: 0 });
     }
 
-    const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
+    let { data: active, error: aError } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
+    if (aError) {
+      const { data: activeAlt } = await supabase.from('Match').select('*').neq('status', 'pending').order('created_at', { ascending: false }).limit(5);
+      active = activeAlt;
+    }
     if (active) setLiveMatches(active);
   }, [supabase]);
 
@@ -125,11 +129,14 @@ export default function MatchmakingPage() {
       }]);
 
       if (qError) {
-        // Fallback auf 'Match' Tabelle
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('Nicht authentifiziert');
+        
+        // Fallback auf 'Match' Tabelle - WIR NUTZEN DIE PROFILE ID DIREKT
         const { error: mError } = await supabase.from('Match').insert([{
           id: crypto.randomUUID(), 
-          player1Id: profile.supabaseId, 
-          player2Id: profile.supabaseId, // Platzhalter
+          player1Id: profile.id, 
+          player2Id: profile.id, 
           status: 'pending',
           score1: selectedApp,
           score2: '0',
