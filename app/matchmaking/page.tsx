@@ -68,6 +68,7 @@ export default function MatchmakingPage() {
   const [opponentAccepted, setOpponentAccepted] = useState(false);
   const [acceptCountdown, setAcceptCountdown] = useState(30);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentMatchId, setCurrentMatchId] = useState<string | null>(null);
   
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -116,36 +117,26 @@ export default function MatchmakingPage() {
     };
   }, [supabase, router, fetchArenaData]);
 
-  // --- QUEUE LOGIC (1:1 Original Logik) ---
+  // --- QUEUE LOGIC (EXACT ORIGINAL LOGIC RESTORED) ---
   const joinQueue = async () => {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
-      // Wir versuchen zuerst 'queue', dann 'Match' als Fallback
-      const { error: qError } = await supabase.from('queue').insert([{
-        profile_id: profile.id,
-        app: selectedApp,
-        elo: profile.elo
+      const newMatchId = crypto.randomUUID(); 
+      const { error } = await supabase.from('Match').insert([{
+        id: newMatchId,
+        player1Id: profile.supabaseId,
+        player2Id: profile.supabaseId, // Als Platzhalter
+        status: 'pending',
+        score1: selectedApp,
+        score2: '0',
+        average1: 0,
+        average2: 0,
+        createdAt: new Date().toISOString()
       }]);
-
-      if (qError) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error('Nicht authentifiziert');
-        
-        // Fallback auf 'Match' Tabelle - ZURÜCK ZU CAMELCASE LAUT PRISMA SCHEMA
-        const { error: mError } = await supabase.from('Match').insert([{
-          id: crypto.randomUUID(), 
-          player1Id: session.user.id, 
-          player2Id: session.user.id, 
-          status: 'pending',
-          score1: selectedApp,
-          score2: '0',
-          average1: 0,
-          average2: 0
-        }]);
-        if (mError) throw mError;
-      }
-
+      if (error) throw error;
+      
+      setCurrentMatchId(newMatchId);
       setStatus('searching');
       setElapsedSeconds(0);
       setCurrentRange(50);
@@ -169,11 +160,11 @@ export default function MatchmakingPage() {
   };
 
   const leaveQueue = async () => {
-    if (!profile) return;
+    if (!currentMatchId) return;
     setIsLoading(true);
     try {
-      await supabase.from('queue').delete().eq('profile_id', profile.id);
-      await supabase.from('Match').delete().eq('player1Id', profile.supabaseId).eq('status', 'pending');
+      await supabase.from('Match').delete().eq('id', currentMatchId);
+      setCurrentMatchId(null);
       setStatus('idle');
       if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
     } catch (err) {
