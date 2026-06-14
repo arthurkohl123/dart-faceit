@@ -80,9 +80,8 @@ export default function MatchmakingPage() {
       const { data: qDC } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'dartcounter');
       setQueueCounts({ scolia: qScolia?.length || 0, dartcounter: qDC?.length || 0 });
     } catch (e) {
-      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'scolia');
-      const { data: mDC } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'dartcounter');
-      setQueueCounts({ scolia: mScolia?.length || 0, dartcounter: mDC?.length || 0 });
+      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending');
+      setQueueCounts({ scolia: mScolia?.length || 0, dartcounter: 0 });
     }
 
     const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
@@ -113,11 +112,12 @@ export default function MatchmakingPage() {
     };
   }, [supabase, router, fetchArenaData]);
 
-  // --- QUEUE LOGIC (Original Logik) ---
+  // --- QUEUE LOGIC (1:1 Original Logik) ---
   const joinQueue = async () => {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
+      // Wir versuchen zuerst 'queue', dann 'Match' als Fallback
       const { error: qError } = await supabase.from('queue').insert([{
         profile_id: profile.id,
         app: selectedApp,
@@ -125,8 +125,10 @@ export default function MatchmakingPage() {
       }]);
 
       if (qError) {
+        // Fallback auf 'Match' Tabelle
         const { error: mError } = await supabase.from('Match').insert([{
           player1Id: profile.supabaseId,
+          player2Id: profile.supabaseId, // Als Platzhalter
           status: 'pending',
           score1: selectedApp 
         }]);
