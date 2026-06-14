@@ -8,7 +8,8 @@ import {
   LayoutDashboard, ArrowRight, Shield, Crown,
   Globe, Activity, Sparkles, User as UserIcon,
   Settings, Star, ChevronRight, Phone, MousePointer2,
-  Lock, RefreshCw, ArrowUpRight, Radar, Timer, Loader2
+  Lock, RefreshCw, ArrowUpRight, Radar, Timer, Loader2,
+  Medal, Search
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
@@ -67,22 +68,22 @@ export default function MatchmakingPage() {
   const [opponentAccepted, setOpponentAccepted] = useState(false);
   const [acceptCountdown, setAcceptCountdown] = useState(30);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentMatchId, setCurrentMatchId] = useState<string | null>(null);
   
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const searchIntervalRef = useRef<any>(null);
 
-  // --- DATA FETCHING (EXACT ORIGINAL LOGIC) ---
+  // --- DATA FETCHING (Original Logik) ---
   const fetchArenaData = useCallback(async () => {
-    // In deinem Projekt wird anscheinend die 'Match' Tabelle für alles genutzt
-    const { data: pendingMatches } = await supabase.from('Match').select('*').eq('status', 'pending');
-    
-    // Wir zählen wie viele Leute in der Queue sind (score1 wird als App-Typ missbraucht)
-    const scoliaCount = pendingMatches?.filter(m => m.score1 === 'scolia').length || 0;
-    const dcCount = pendingMatches?.filter(m => m.score1 === 'dartcounter').length || 0;
-    
-    setQueueCounts({ scolia: scoliaCount, dartcounter: dcCount });
+    try {
+      const { data: qScolia } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'scolia');
+      const { data: qDC } = await supabase.from('queue').select('id', { count: 'exact' }).eq('app', 'dartcounter');
+      setQueueCounts({ scolia: qScolia?.length || 0, dartcounter: qDC?.length || 0 });
+    } catch (e) {
+      const { data: mScolia } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'scolia');
+      const { data: mDC } = await supabase.from('Match').select('id').eq('status', 'pending').eq('score1', 'dartcounter');
+      setQueueCounts({ scolia: mScolia?.length || 0, dartcounter: mDC?.length || 0 });
+    }
 
     const { data: active } = await supabase.from('Match').select('*').neq('status', 'pending').order('createdAt', { ascending: false }).limit(5);
     if (active) setLiveMatches(active);
@@ -98,8 +99,8 @@ export default function MatchmakingPage() {
     };
     init();
 
-    // Realtime Listener auf die Match Tabelle (wie im Original)
     const channel = supabase.channel('realtime_arena')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue' }, () => fetchArenaData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Match' }, () => fetchArenaData())
       .subscribe();
 
@@ -112,29 +113,26 @@ export default function MatchmakingPage() {
     };
   }, [supabase, router, fetchArenaData]);
 
-  // --- QUEUE LOGIC (DIE FUNKTIONIERENDE VERSION) ---
+  // --- QUEUE LOGIC (Original Logik) ---
   const joinQueue = async () => {
     if (!selectedApp || !profile) return;
     setIsLoading(true);
     try {
-      // WICHTIG: Wir nutzen nur Felder, die im Prisma-Schema existieren
-      const newMatchId = crypto.randomUUID(); 
-      
-      const { error } = await supabase.from('Match').insert([{
-        id: newMatchId,
-        player1Id: profile.supabaseId,
-        player2Id: profile.supabaseId, // Als Platzhalter für die Suche
-        status: 'pending',
-        score1: selectedApp, // Speichert Scolia/DartCounter
-        score2: '0',
-        average1: 0,
-        average2: 0,
-        createdAt: new Date().toISOString()
+      const { error: qError } = await supabase.from('queue').insert([{
+        profile_id: profile.id,
+        app: selectedApp,
+        elo: profile.elo
       }]);
 
-      if (error) throw error;
+      if (qError) {
+        const { error: mError } = await supabase.from('Match').insert([{
+          player1Id: profile.supabaseId,
+          status: 'pending',
+          score1: selectedApp 
+        }]);
+        if (mError) throw mError;
+      }
 
-      setCurrentMatchId(newMatchId);
       setStatus('searching');
       setElapsedSeconds(0);
       setCurrentRange(50);
@@ -158,12 +156,12 @@ export default function MatchmakingPage() {
   };
 
   const leaveQueue = async () => {
-    if (!currentMatchId) return;
+    if (!profile) return;
     setIsLoading(true);
     try {
-      await supabase.from('Match').delete().eq('id', currentMatchId);
+      await supabase.from('queue').delete().eq('profile_id', profile.id);
+      await supabase.from('Match').delete().eq('player1Id', profile.supabaseId).eq('status', 'pending');
       setStatus('idle');
-      setCurrentMatchId(null);
       if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
     } catch (err) {
       console.error('Leave Error:', err);
@@ -172,19 +170,27 @@ export default function MatchmakingPage() {
     }
   };
 
+  useEffect(() => {
+    let interval: any;
+    if (status === 'found' && acceptCountdown > 0) {
+      interval = setInterval(() => setAcceptCountdown(c => c - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [status, acceptCountdown]);
+
   const elo = profile?.elo || 1000;
   const currentRank = getRank(elo);
 
   return (
     <main className="min-h-screen bg-[#010203] text-zinc-100 selection:bg-emerald-500/30 font-sans overflow-x-hidden pb-40">
-      {/* Cyber Background Layer */}
+      {/* Background Layers */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className={`absolute top-[-10%] left-[-10%] w-[120%] h-[120%] opacity-20 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.15)_0%,transparent_70%)] animate-pulse`} />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]" />
       </div>
 
-      {/* Floating Cyber Nav */}
+      {/* Navigation */}
       <div className="fixed top-8 left-0 right-0 z-50 px-6">
         <nav className={`max-w-5xl mx-auto transition-all duration-700 rounded-3xl border ${scrolled ? 'bg-black/90 backdrop-blur-2xl py-3 border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.2)]' : 'bg-white/5 backdrop-blur-md py-6 border-white/5'}`}>
           <div className="px-10 flex items-center justify-between">
@@ -192,14 +198,14 @@ export default function MatchmakingPage() {
               <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-black font-black text-xl shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all group-hover:rotate-12">R</div>
               <div className="hidden sm:flex flex-col leading-none">
                 <span className="text-xl font-black tracking-tighter uppercase text-white">RankedDarts</span>
-                <span className="text-[9px] font-black text-emerald-500 tracking-[0.5em] uppercase mt-1">Cyber Arena v3</span>
+                <span className="text-[9px] font-black text-emerald-500 tracking-[0.5em] uppercase mt-1">Cyber Arena</span>
               </div>
             </Link>
             <div className="flex items-center gap-8">
                <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                   <Link href="/leaderboard" className="hover:text-emerald-400 transition-colors">Ranks</Link>
                   <Link href="/profile" className="hover:text-emerald-400 transition-colors">Profile</Link>
-                  <Link href="/premium" className="text-emerald-500 animate-pulse">Elite</Link>
+                  <Link href="/faq" className="hover:text-emerald-400 transition-colors">FAQ</Link>
                </div>
                <div className="w-px h-8 bg-white/10 hidden md:block" />
                <Link href="/profile" className="flex items-center gap-4 group">
@@ -218,10 +224,9 @@ export default function MatchmakingPage() {
 
       <section className="relative z-10 pt-48 md:pt-60 px-6">
         <div className="max-w-7xl mx-auto">
-          
           <div className="grid lg:grid-cols-12 gap-8 items-start">
             
-            {/* LEFT: Mini Stats */}
+            {/* LEFT: Stats & Queues */}
             <div className="lg:col-span-3 space-y-8">
                <div className="p-8 rounded-[2.5rem] bg-zinc-900/40 border border-white/5 backdrop-blur-3xl relative overflow-hidden group shadow-2xl">
                   <div className="absolute top-0 right-0 p-6 opacity-[0.02] group-hover:scale-110 transition-transform"><UserIcon size={150} /></div>
@@ -251,7 +256,7 @@ export default function MatchmakingPage() {
                   </div>
                   <div className="space-y-4">
                      {(['scolia', 'dartcounter'] as const).map((app) => (
-                       <div key={app} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:border-emerald-500/30 transition-all">
+                       <div key={app} className={`p-5 rounded-2xl bg-white/[0.02] border transition-all flex items-center justify-between ${selectedApp === app ? 'border-emerald-500 bg-emerald-500/5' : 'border-white/5'}`}>
                           <div className="flex items-center gap-4">
                              {app === 'scolia' ? <Camera size={20} className="text-emerald-500" /> : <LayoutDashboard size={20} className="text-cyan-500" />}
                              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">{appConfig[app].label}</span>
@@ -263,114 +268,92 @@ export default function MatchmakingPage() {
                </div>
             </div>
 
-            {/* CENTER: THE ARENA */}
+            {/* CENTER: ARENA */}
             <div className="lg:col-span-6">
                <div className="relative p-[1px] rounded-[3.5rem] bg-gradient-to-br from-emerald-500/40 via-transparent to-white/10 shadow-[0_0_100px_rgba(16,185,129,0.1)]">
                   <div className="relative p-10 md:p-16 rounded-[3.45rem] bg-[#050607] min-h-[580px] flex flex-col items-center justify-center text-center overflow-hidden">
                      
                      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:30px_30px] opacity-20" />
-                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none" />
-
+                     
                      {status === 'idle' && (
-                        <div className="relative w-full max-w-md space-y-12 animate-in fade-in zoom-in duration-500">
-                           <div className="space-y-6">
-                              <div className="relative inline-block">
-                                 <div className="absolute -inset-6 blur-2xl opacity-20 rounded-full bg-emerald-500 animate-pulse" />
-                                 <div className="relative w-20 h-20 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 border border-emerald-500/20 shadow-inner">
-                                    <Play size={36} fill="currentColor" className="ml-1" />
-                                 </div>
-                              </div>
-                              <div className="space-y-2">
-                                 <h2 className="text-5xl font-black italic uppercase tracking-tighter text-white leading-none">Arena Entry</h2>
-                                 <p className="text-zinc-500 text-lg font-medium">Wähle deine Waffe.</p>
-                              </div>
+                        <div className="relative z-10 space-y-12 w-full max-w-md">
+                           <div className="space-y-4">
+                              <h1 className="text-5xl md:text-6xl font-black italic uppercase tracking-tighter text-white">The Arena</h1>
+                              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em]">Select your platform to start</p>
                            </div>
 
-                           <div className="grid grid-cols-2 gap-6 w-full">
+                           <div className="grid grid-cols-2 gap-4">
                               {(['scolia', 'dartcounter'] as const).map((app) => (
-                                <button 
-                                   key={app}
-                                   onClick={() => setSelectedApp(app)}
-                                   className={`relative p-8 rounded-3xl border-2 transition-all duration-500 group/btn ${selectedApp === app ? `bg-emerald-500 border-emerald-500 text-black shadow-[0_0_40px_rgba(16,185,129,0.4)] scale-105` : 'bg-white/[0.03] border-white/5 text-zinc-500 hover:border-white/10 hover:bg-white/5'}`}
-                                >
-                                   <div className="relative z-10">
-                                      {app === 'scolia' ? <Camera size={40} className="mx-auto mb-4" /> : <LayoutDashboard size={40} className="mx-auto mb-4" />}
-                                      <span className="text-[10px] font-black uppercase tracking-[0.3em]">{appConfig[app].label}</span>
-                                   </div>
-                                </button>
+                                 <button
+                                    key={app}
+                                    onClick={() => setSelectedApp(app)}
+                                    className={`group relative p-8 rounded-[2rem] border-2 transition-all duration-500 flex flex-col items-center gap-4 ${selectedApp === app ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_40px_rgba(16,185,129,0.2)]' : 'border-white/5 bg-white/[0.02] hover:border-white/20'}`}
+                                 >
+                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-transform duration-500 group-hover:scale-110 ${selectedApp === app ? 'bg-emerald-500 text-black' : 'bg-white/5 text-zinc-400'}`}>
+                                       {app === 'scolia' ? <Camera size={32} /> : <LayoutDashboard size={32} />}
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest">{appConfig[app].label}</span>
+                                 </button>
                               ))}
                            </div>
 
-                           <button 
-                              disabled={!selectedApp || isLoading}
+                           <button
                               onClick={joinQueue}
-                              className={`group relative w-full py-7 rounded-2xl font-black uppercase tracking-[0.3em] text-lg transition-all duration-500 flex items-center justify-center gap-6 ${selectedApp ? 'bg-white text-black hover:scale-[1.02] shadow-[0_20px_40px_rgba(255,255,255,0.1)]' : 'bg-zinc-900 text-zinc-700 cursor-not-allowed border border-white/5'}`}
+                              disabled={!selectedApp || isLoading}
+                              className={`w-full py-7 rounded-[2rem] font-black italic uppercase tracking-[0.2em] transition-all duration-500 flex items-center justify-center gap-4 ${selectedApp ? 'bg-emerald-500 text-black shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:scale-[1.02]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                            >
-                              {isLoading ? <Loader2 className="animate-spin" /> : 'Enter Queue'} <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
+                              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Play size={20} fill="currentColor" /> Enter Queue</>}
                            </button>
                         </div>
                      )}
 
                      {status === 'searching' && (
-                        <div className="relative w-full space-y-12 animate-in fade-in zoom-in duration-500">
-                           <div className="relative w-48 h-48 rounded-full border-[6px] border-emerald-500/5 border-t-emerald-500 animate-spin mx-auto flex items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.15)]">
-                              <div className="text-6xl font-black italic text-white animate-none tracking-tighter">{elapsedSeconds}s</div>
-                           </div>
-                           <div className="space-y-6">
-                              <h2 className="text-5xl font-black italic uppercase tracking-tighter animate-pulse text-white">Scanning...</h2>
-                              <div className="flex flex-col items-center gap-6">
-                                 <div className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-full flex items-center gap-4 shadow-2xl">
-                                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-300">Radius: ±{currentRange} Elo</span>
-                                 </div>
-                                 <div className="flex gap-3 w-full max-w-[180px]">
-                                    {[50, 150, 300].map((r, i) => (
-                                      <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-1000 ${currentRange >= r ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-white/5'}`} />
-                                    ))}
-                                 </div>
+                        <div className="relative z-10 space-y-12 w-full">
+                           <div className="relative w-48 h-48 mx-auto">
+                              <div className="absolute inset-0 border-4 border-emerald-500/20 rounded-full" />
+                              <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin" />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                 <div className="text-4xl font-black italic text-white">{elapsedSeconds}s</div>
                               </div>
                            </div>
-                           <button onClick={leaveQueue} disabled={isLoading} className="px-10 py-5 bg-red-500/5 border border-red-500/20 text-red-500 rounded-2xl font-black uppercase tracking-[0.3em] hover:bg-red-500 hover:text-white transition-all shadow-2xl">
-                              {isLoading ? <Loader2 className="animate-spin" /> : 'Abort'}
+                           <div className="space-y-4">
+                              <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white animate-pulse">Scanning...</h2>
+                              <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Radius: ±{currentRange} Elo</span>
+                              </div>
+                           </div>
+                           <button
+                              onClick={leaveQueue}
+                              className="px-12 py-5 rounded-full bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest hover:bg-red-500/20 hover:border-red-500/50 transition-all"
+                           >
+                              Abort Search
                            </button>
                         </div>
                      )}
 
                      {status === 'found' && (
-                        <div className="relative w-full space-y-12 animate-in fade-in zoom-in duration-500">
-                           <div className="flex items-center justify-center gap-8 md:gap-16">
-                              <div className="flex flex-col items-center gap-6 group/player">
-                                 <div className="relative">
-                                    <div className="absolute -inset-6 blur-[30px] opacity-30 rounded-full bg-emerald-500 animate-pulse" />
-                                    <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-[2.5rem] bg-zinc-800 border-2 border-white/10 flex items-center justify-center overflow-hidden shadow-2xl">
-                                       <span className="text-5xl font-black italic text-white/20">{(profile?.username || 'S').charAt(0)}</span>
-                                       {iHaveAccepted && <div className="absolute inset-0 bg-emerald-500/30 flex items-center justify-center backdrop-blur-md animate-in fade-in duration-500"><CheckCircle2 className="text-white" size={48} /></div>}
-                                    </div>
-                                 </div>
-                                 <div className="text-center space-y-1">
-                                    <div className="text-lg font-black italic uppercase text-white">{profile?.username}</div>
-                                    <div className={`text-[9px] font-black uppercase tracking-[0.4em] ${iHaveAccepted ? 'text-emerald-500' : 'text-zinc-600'}`}>{iHaveAccepted ? 'READY' : 'WAITING'}</div>
-                                 </div>
+                        <div className="relative z-10 space-y-12 w-full">
+                           <div className="flex items-center justify-center gap-12 md:gap-24">
+                              <div className="flex flex-col items-center gap-6">
+                                 <RankIcon type={currentRank.name} size="w-24 h-24" />
+                                 <span className="text-xs font-black uppercase tracking-widest text-zinc-400">You</span>
                               </div>
-                              <div className="text-6xl md:text-8xl font-black italic text-zinc-900 select-none drop-shadow-[0_0_30px_rgba(255,255,255,0.02)]">VS</div>
-                              <div className="flex flex-col items-center gap-6 group/player">
-                                 <div className="relative">
-                                    <div className={`absolute -inset-6 blur-[30px] opacity-20 rounded-full bg-cyan-500 ${opponentAccepted ? 'animate-pulse' : ''}`} />
-                                    <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-[2.5rem] bg-zinc-800 border-2 border-white/10 flex items-center justify-center overflow-hidden shadow-2xl">
-                                       <UserIcon size={50} className="text-zinc-800" />
-                                       {opponentAccepted && <div className="absolute inset-0 bg-emerald-500/30 flex items-center justify-center backdrop-blur-md animate-in fade-in duration-500"><CheckCircle2 className="text-white" size={48} /></div>}
-                                    </div>
+                              <div className="text-6xl font-black italic text-emerald-500 animate-bounce">VS</div>
+                              <div className="flex flex-col items-center gap-6">
+                                 <div className="w-24 h-24 rounded-3xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center">
+                                    <Search className="w-10 h-10 text-zinc-700 animate-pulse" />
                                  </div>
-                                 <div className="text-center space-y-1">
-                                    <div className="text-lg font-black italic uppercase text-white animate-pulse">Gegner</div>
-                                    <div className={`text-[9px] font-black uppercase tracking-[0.4em] ${opponentAccepted ? 'text-emerald-500' : 'text-zinc-600'}`}>{opponentAccepted ? 'READY' : 'SCANNING'}</div>
-                                 </div>
+                                 <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Opponent</span>
                               </div>
                            </div>
-                           <div className="max-w-xs mx-auto space-y-8">
-                              <div className="flex items-center justify-center gap-4 text-emerald-500"><Sparkles size={24} className="animate-bounce" /><span className="text-2xl font-black italic uppercase tracking-tighter">Duel Found</span></div>
-                              <div className="text-[10px] font-black italic text-zinc-500 tracking-widest uppercase">{acceptCountdown}s left</div>
-                              <button onClick={() => setIHaveAccepted(true)} disabled={iHaveAccepted} className={`group relative w-full py-6 rounded-2xl font-black uppercase tracking-[0.3em] text-lg shadow-2xl transition-all duration-500 overflow-hidden ${iHaveAccepted ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30' : 'bg-emerald-500 text-black hover:scale-[1.02] shadow-[0_0_50px_rgba(16,185,129,0.3)]'}`}><span className="relative z-10">{iHaveAccepted ? 'Confirmed' : 'Accept Duel'}</span></button>
+                           <div className="space-y-6">
+                              <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white">Match Found!</h2>
+                              <div className="text-6xl font-black italic text-white">{acceptCountdown}s</div>
+                           </div>
+                           <div className="flex gap-4 max-w-md mx-auto w-full">
+                              <button className="flex-1 py-6 rounded-2xl bg-emerald-500 text-black font-black uppercase tracking-widest shadow-[0_0_30px_rgba(16,185,129,0.4)]">Accept</button>
+                              <button onClick={leaveQueue} className="flex-1 py-6 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest">Decline</button>
                            </div>
                         </div>
                      )}
@@ -378,30 +361,53 @@ export default function MatchmakingPage() {
                </div>
             </div>
 
-            {/* RIGHT: Live Activity */}
+            {/* RIGHT: Live Arena */}
             <div className="lg:col-span-3 space-y-8">
-               <div className="p-8 rounded-[2.5rem] bg-zinc-900/40 border border-white/5 backdrop-blur-3xl relative overflow-hidden group h-full flex flex-col shadow-2xl">
-                  <div className="flex items-center justify-between mb-10 relative z-10">
+               <div className="p-8 rounded-[2.5rem] bg-zinc-900/40 border border-white/5 backdrop-blur-3xl shadow-2xl min-h-[400px]">
+                  <div className="flex items-center justify-between mb-8">
                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500 shadow-inner"><Activity size={24} /></div>
-                        <h3 className="text-xl font-black uppercase tracking-tighter italic text-white">Live Arena</h3>
+                        <Activity className="w-5 h-5 text-emerald-500" />
+                        <h3 className="text-[10px] font-black uppercase tracking-widest italic text-white">Live Arena</h3>
                      </div>
-                     <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                   </div>
                   
-                  <div className="space-y-3 flex-1 overflow-y-auto max-h-[420px] pr-2 custom-scrollbar relative z-10">
-                     {liveMatches.length > 0 ? liveMatches.map((m: any, i) => (
-                       <div key={i} className="p-5 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-between group/match hover:bg-white/[0.08] transition-all cursor-pointer">
-                          <div className="flex flex-col gap-1 min-w-0">
-                             <span className="text-[10px] font-black italic uppercase text-white tracking-tight truncate">Match #{m.id.substring(0, 4)}</span>
-                             <span className={`text-[8px] font-black uppercase tracking-[0.4em] text-emerald-500`}>{m.status}</span>
-                          </div>
-                          <ArrowUpRight size={16} className="text-zinc-800 group-hover/match:text-white transition-all" />
-                       </div>
+                  <div className="space-y-4">
+                     {liveMatches.length > 0 ? liveMatches.map((match, i) => (
+                        <div key={i} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 group hover:border-emerald-500/30 transition-all">
+                           <div className="flex items-center justify-between mb-3">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Match #{match.id.slice(0, 4)}</span>
+                              <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">Live</span>
+                           </div>
+                           <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-tighter text-white truncate max-w-[80px]">Player 1</span>
+                              <span className="text-[8px] font-black text-zinc-700 italic">VS</span>
+                              <span className="text-[10px] font-black uppercase tracking-tighter text-white truncate max-w-[80px]">Player 2</span>
+                           </div>
+                           <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">{match.score1 || 'Scolia'}</span>
+                              <ArrowUpRight size={14} className="text-zinc-700 group-hover:text-emerald-500 transition-colors" />
+                           </div>
+                        </div>
                      )) : (
-                       <div className="text-center py-16 text-[10px] font-black uppercase tracking-[0.5em] text-zinc-800 italic">No matches...</div>
+                        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                           <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
+                              <Radar className="w-6 h-6 text-zinc-700" />
+                           </div>
+                           <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600">No active matches</p>
+                        </div>
                      )}
                   </div>
+               </div>
+
+               <div className="p-8 rounded-[2.5rem] bg-emerald-500/5 border border-emerald-500/20 backdrop-blur-3xl shadow-2xl">
+                  <div className="flex items-center gap-4 mb-4">
+                     <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                     <h3 className="text-[10px] font-black uppercase tracking-widest italic text-white">Arena Protocol</h3>
+                  </div>
+                  <p className="text-[9px] font-bold text-zinc-500 leading-relaxed uppercase tracking-widest">
+                     Cam mandatory. Fair play enforced. Automated anti-cheat active.
+                  </p>
                </div>
             </div>
 
