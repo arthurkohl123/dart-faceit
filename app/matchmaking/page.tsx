@@ -132,11 +132,11 @@ export default function MatchmakingPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Nicht authentifiziert');
         
-        // Fallback auf 'Match' Tabelle - WIR NUTZEN DIE SUPABASE ID LAUT PRISMA SCHEMA
+        // Fallback auf 'Match' Tabelle - WIR NUTZEN SNAKE_CASE FELDNAMEN WIE IN ANDEREN PAGES
         const { error: mError } = await supabase.from('Match').insert([{
           id: crypto.randomUUID(), 
-          player1Id: profile.supabaseId, 
-          player2Id: profile.supabaseId, 
+          player1_id: session.user.id, 
+          player2_id: session.user.id, 
           status: 'pending',
           score1: selectedApp,
           score2: '0',
@@ -173,7 +173,7 @@ export default function MatchmakingPage() {
     setIsLoading(true);
     try {
       await supabase.from('queue').delete().eq('profile_id', profile.id);
-      await supabase.from('Match').delete().eq('player1Id', profile.supabaseId).eq('status', 'pending');
+      await supabase.from('Match').delete().eq('player1_id', profile.supabaseId).eq('status', 'pending');
       setStatus('idle');
       if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
     } catch (err) {
