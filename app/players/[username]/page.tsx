@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { Menu, Star, Target, Trophy, X, Zap } from 'lucide-react';
+import { ArrowUpRight, Crosshair, Medal, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
 const rankTiers = [
   { name: 'Eisen',   min: 0,    color: 'text-zinc-300',   accent: 'from-zinc-400/20 to-zinc-950',    badge: 'EI', glowColor: 'rgba(161,161,170,0.18)' },
@@ -196,29 +196,40 @@ export default function PlayerProfile() {
         )}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-3xl px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32">
+      <section className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32">
 
         {/* Profil-Header */}
-        <div className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} backdrop-blur-xl`}>
+        <div className={`relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} p-7 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-10 md:p-12`}>
           <div
             className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full blur-3xl opacity-25"
             style={{ background: `radial-gradient(circle, ${currentRank.glowColor}, transparent 70%)` }}
           />
-          <div className="relative flex flex-col items-center gap-4 px-8 py-10 text-center sm:flex-row sm:text-left">
-            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-[1.5rem] border border-white/15 bg-white/[0.06] text-2xl font-black">
+          <div className="pointer-events-none absolute -right-8 top-1/2 hidden h-80 w-80 -translate-y-1/2 items-center justify-center lg:flex">
+            <div className="absolute inset-0 rounded-full border border-white/10" />
+            <div className="absolute inset-10 rounded-full border border-white/15" />
+            <div className="absolute inset-20 rounded-full border border-emerald-300/20" />
+            <div className="ranked-orbit absolute left-1/2 top-1/2 h-3 w-3 rounded-full bg-lime-200 shadow-[0_0_22px_rgba(190,242,100,0.95)]" />
+            <Crosshair className={`h-14 w-14 ${currentRank.color} opacity-70`} />
+          </div>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent ranked-shine" />
+          <div className="relative flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-7 sm:text-left">
+            <div className="relative grid h-24 w-24 shrink-0 place-items-center rounded-[1.75rem] border border-white/20 bg-black/35 text-2xl font-black shadow-xl sm:h-28 sm:w-28 sm:text-3xl">
               {currentRank.badge}
+              <span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border border-emerald-200/40 bg-emerald-400 text-black shadow-[0_0_20px_rgba(74,222,128,0.7)]"><Zap className="h-4 w-4 fill-current" /></span>
             </div>
             <div className="flex-1 min-w-0">
+              <div className="mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80 sm:justify-start"><Sparkles className="h-3.5 w-3.5" /> Verified player card · Season 01</div>
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                {profile!.isPremium && <Star className="h-4 w-4 text-emerald-300" />}
-                <h1 className="text-3xl font-black tracking-[-0.05em] sm:text-4xl">{profile!.username}</h1>
+                {profile!.isPremium && <Star className="h-5 w-5 fill-current text-emerald-300" />}
+                <h1 className="text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl">{profile!.username}</h1>
               </div>
-              <div className={`mt-1 text-sm font-bold ${currentRank.color}`}>{currentRank.name}</div>
-              <div className="mt-2 text-xs text-zinc-500">{gamesPlayed} Matches gespielt</div>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>{currentRank.name}</span>{profile!.isPremium && <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">PREMIUM</span>}</div>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-zinc-400 sm:justify-start"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Bestätigte Ranked-Stats</span><span className="hidden h-3 w-px bg-white/15 sm:block" /><span>{gamesPlayed} Matches gespielt</span></div>
             </div>
-            <div className="text-center">
-              <div className="text-4xl font-black text-emerald-300 sm:text-5xl">{elo}</div>
-              <div className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Elo</div>
+            <div className="shrink-0 rounded-[1.75rem] border border-emerald-300/20 bg-emerald-400/[0.08] px-7 py-5 text-center shadow-[0_0_35px_rgba(34,197,94,0.12)]">
+              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200">Current rating</div>
+              <div className="mt-1 text-5xl font-black tracking-[-0.07em] text-emerald-300 sm:text-6xl">{elo}</div>
+              <div className="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">Elo</div>
             </div>
           </div>
         </div>
@@ -243,8 +254,10 @@ export default function PlayerProfile() {
           </div>
         </div>
 
+        <div className="mt-5 grid gap-5 lg:grid-cols-[0.82fr_1.18fr]">
+          <div className="space-y-5">
         {/* Performance-Stats */}
-        <div className="mt-3 grid grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
           <div className="rounded-[1.5rem] border border-violet-300/15 bg-violet-400/[0.04] p-5 text-center backdrop-blur-xl">
             <Target className="mx-auto h-5 w-5 text-violet-300 mb-2" />
             <div className="text-2xl font-black text-violet-300 sm:text-3xl">
@@ -267,7 +280,7 @@ export default function PlayerProfile() {
         </div>
 
         {/* Rang-Fortschritt */}
-        <div className="mt-3 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-7">
+        <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-7">
           <div className="flex items-end justify-between gap-4">
             <div>
               <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Nächster Rang</div>
@@ -279,16 +292,18 @@ export default function PlayerProfile() {
           <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" style={{ width: `${progress}%` }} />
           </div>
+          <div className="mt-5 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-zinc-400"><span className="inline-flex items-center gap-2"><Medal className="h-4 w-4 text-emerald-300" /> Division {currentRank.name}</span><span className="font-black text-white">{elo} Elo</span></div>
         </div>
+          </div>
 
         {/* Match-Verlauf */}
-        <div className="mt-3 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-7">
-          <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Verlauf</div>
-          <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em]">Letzte Matches</h2>
+        <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-7">
+          <div className="pointer-events-none absolute right-0 top-0 h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="relative flex items-end justify-between gap-4"><div><div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Match history</div><h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em]">Letzte Matches</h2></div><span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black text-zinc-300">{matches.length} gespielt</span></div>
           {matches.length === 0 ? (
             <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">Noch keine Matches gespielt.</div>
           ) : (
-            <div className="mt-5 space-y-2">
+            <div className="relative mt-5 space-y-2">
               {matches.map((m) => {
                 const isPlayer1 = m.player1_id === profile!.supabaseId;
                 const isWin = m.submitted_winner_id === profile!.supabaseId;
@@ -298,7 +313,7 @@ export default function PlayerProfile() {
                 const oppLegs = isPlayer1 ? m.submitted_player2_legs : m.submitted_player1_legs;
                 const my180s = isPlayer1 ? m.submitted_player1_180s : m.submitted_player2_180s;
                 return (
-                  <div key={m.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5">
+                  <div key={m.id} className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.04]">
                     <div className={`shrink-0 rounded-xl px-2.5 py-1 text-xs font-black uppercase tracking-[0.1em] ${isWin ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
                       {isWin ? 'SIEG' : 'NL'}
                     </div>
@@ -316,14 +331,17 @@ export default function PlayerProfile() {
                         <div className="text-xs font-bold text-amber-300">{my180s}× 180</div>
                       )}
                     </div>
+                    <ArrowUpRight className="hidden h-4 w-4 text-emerald-300/0 transition group-hover:text-emerald-300 sm:block" />
                   </div>
                 );
               })}
             </div>
           )}
         </div>
+        </div>
 
       </section>
     </main>
   );
 }
+
