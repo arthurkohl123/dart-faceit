@@ -183,6 +183,7 @@ function Navbar({ onLogout }: { onLogout: () => void }) {
 
 export default function SupportPage() {
   const [view, setView] = useState<'list' | 'new' | 'detail'>('list');
+  const [ticketListFilter, setTicketListFilter] = useState<'all' | 'attention' | 'active' | 'completed'>('all');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [detail, setDetail] = useState<TicketDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -378,6 +379,12 @@ export default function SupportPage() {
   const waitCount  = tickets.filter(t => t.status === 'waiting_for_user').length;
   const doneCount  = tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;
   const latestTicket = tickets[0];
+  const visibleTickets = tickets.filter((ticket) => {
+    if (ticketListFilter === 'attention') return ticket.status === 'waiting_for_user';
+    if (ticketListFilter === 'active') return ticket.status === 'open' || ticket.status === 'in_progress';
+    if (ticketListFilter === 'completed') return ticketIsClosed(ticket.status);
+    return true;
+  });
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
@@ -435,6 +442,20 @@ export default function SupportPage() {
               ))}
             </div>
 
+            {waitCount > 0 && (
+              <button
+                onClick={() => setTicketListFilter('attention')}
+                className="mb-8 flex w-full items-center gap-4 rounded-[1.75rem] border border-amber-300/25 bg-gradient-to-r from-amber-400/12 via-amber-400/[0.055] to-transparent p-4 text-left transition hover:border-amber-300/45 hover:bg-amber-400/10 sm:p-5"
+              >
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-amber-300/30 bg-amber-400/15 text-amber-200"><AlertCircle size={19} /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-black text-amber-100">Deine Antwort wird benötigt</p>
+                  <p className="mt-1 text-sm text-amber-100/65">{waitCount} Ticket{waitCount !== 1 ? 's warten' : ' wartet'} auf weitere Informationen von dir.</p>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-amber-200" />
+              </button>
+            )}
+
             <div className="grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
               <div className="space-y-4">
                 <button
@@ -489,14 +510,37 @@ export default function SupportPage() {
                   </div>
                 ) : (
                   <div>
-                    <div className="mb-4 flex items-center justify-between px-1">
+                    <div className="mb-4 flex flex-col gap-4 px-1 sm:flex-row sm:items-end sm:justify-between">
                       <div>
                         <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-600">Deine Tickets</p>
-                        <p className="mt-1 text-sm text-zinc-500">{tickets.length} Anfrage{tickets.length !== 1 ? 'n' : ''} im Verlauf</p>
+                        <p className="mt-1 text-sm text-zinc-500">{visibleTickets.length} von {tickets.length} Anfrage{tickets.length !== 1 ? 'n' : ''}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          ['all', 'Alle'],
+                          ['attention', 'Deine Aktion'],
+                          ['active', 'Aktiv'],
+                          ['completed', 'Erledigt'],
+                        ].map(([value, label]) => (
+                          <button
+                            key={value}
+                            onClick={() => setTicketListFilter(value as typeof ticketListFilter)}
+                            className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.13em] transition ${ticketListFilter === value ? 'border-violet-300/40 bg-violet-400/15 text-violet-100' : 'border-white/10 bg-white/[0.025] text-zinc-500 hover:border-white/20 hover:text-zinc-200'}`}
+                          >
+                            {label}{value === 'attention' && waitCount > 0 ? ` · ${waitCount}` : ''}
+                          </button>
+                        ))}
                       </div>
                     </div>
+                    {visibleTickets.length === 0 ? (
+                      <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.02] px-6 py-10 text-center">
+                        <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-300/70" />
+                        <p className="mt-3 text-sm font-black text-zinc-300">Alles im Blick</p>
+                        <p className="mt-1 text-sm text-zinc-600">Für diesen Filter gibt es gerade keine Tickets.</p>
+                      </div>
+                    ) : (
                     <div className="space-y-3">
-                      {tickets.map((t) => {
+                      {visibleTickets.map((t) => {
                         const sc = statusConfig[t.status];
                         const cc = categoryConfig[t.category];
                         return (
@@ -531,6 +575,7 @@ export default function SupportPage() {
                         );
                       })}
                     </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -889,3 +934,4 @@ export default function SupportPage() {
     </main>
   );
 }
+
