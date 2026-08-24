@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Crown, Gauge, LifeBuoy, ShieldCheck, Sparkles, Swords, Trophy, Zap, Star, Loader2 } from 'lucide-react';
+import { Check, Crown, Gauge, LifeBuoy, ShieldCheck, Sparkles, Swords, Trophy } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -16,28 +16,19 @@ type ProfileData = {
 
 const premiumBenefits = [
   {
-    title: 'Unbegrenzt Matches',
-    description: 'Keine tägliche Match-Begrenzung. Spiele so viele Ranked Matches, wie du möchtest.',
+    title: 'Unbegrenzt Matches spielen',
+    description: 'Keine tägliche Match-Begrenzung. Du kannst so viele Ranked Matches spielen, wie deine Session hergibt.',
     icon: Swords,
-    color: 'from-emerald-400 to-emerald-600',
   },
   {
-    title: 'Exklusive Turniere',
-    description: 'Zugang zu Premium-Events mit höheren Preisgeldern und stärkerem Wettbewerb.',
+    title: 'Turniere spielen',
+    description: 'Zugang zu exklusiven Premium-Turnieren mit höheren Preisgeldern und stärkerem Wettbewerb.',
     icon: Trophy,
-    color: 'from-amber-400 to-orange-500',
   },
   {
     title: 'Priority Support',
-    description: 'Erhalte schnellere Hilfe bei Problemen über unser priorisiertes Ticket-System.',
+    description: 'Schnellere Hilfe bei Problemen über ein priorisiertes Ticket-System.',
     icon: LifeBuoy,
-    color: 'from-blue-400 to-indigo-600',
-  },
-  {
-    title: 'Premium Abzeichen',
-    description: 'Ein exklusives Icon neben deinem Namen, das deinen Status auf der Plattform zeigt.',
-    icon: Star,
-    color: 'from-purple-400 to-pink-600',
   },
 ];
 
@@ -45,13 +36,11 @@ const comparisonRows = [
   { label: 'Ranked Matches pro Tag', free: '4', premium: 'Unbegrenzt' },
   { label: 'Premium-Turniere', free: 'Nicht enthalten', premium: 'Enthalten' },
   { label: 'Support', free: 'Standard', premium: 'Priority' },
-  { label: 'Profil-Customization', free: 'Basis', premium: 'Erweitert' },
 ];
 
 export default function Premium() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -84,38 +73,10 @@ export default function Premium() {
     };
   }, [router, supabase]);
 
-  const handleCheckout = async () => {
-    setCheckoutLoading(true);
-    try {
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-      });
-      
-      const data = await response.json();
-      
-      if (data.url) {
-        // Weiterleitung zu Stripe Checkout
-        window.location.href = data.url;
-      } else {
-        alert('Fehler beim Starten des Checkouts: ' + (data.error || 'Unbekannter Fehler'));
-      }
-    } catch (error) {
-      console.error('Checkout Error:', error);
-      alert('Es gab ein Problem bei der Verbindung zum Zahlungsserver.');
-    } finally {
-      setCheckoutLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
-        <div className="relative">
-          <div className="h-24 w-24 rounded-full border-t-2 border-emerald-500 animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center text-xs font-black uppercase tracking-widest text-emerald-500">
-            Darts
-          </div>
-        </div>
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">Premium wird geladen...</div>
       </main>
     );
   }
@@ -123,199 +84,145 @@ export default function Premium() {
   const winrate = profile?.gamesPlayed ? Math.round(((profile.wins || 0) / profile.gamesPlayed) * 100) : 0;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white selection:bg-emerald-500/30">
-      {/* Background Decorations */}
+    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.15),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(6,182,212,0.1),transparent_40%)]" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png' )] opacity-[0.03]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#050607]/80 to-[#050607]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.24),transparent_34%),radial-gradient(circle_at_82%_8%,rgba(6,182,212,0.14),transparent_28%),radial-gradient(circle_at_48%_46%,rgba(163,230,53,0.08),transparent_32%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
+        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
       </div>
 
-      <nav className="relative z-50 border-b border-white/5 bg-black/20 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 md:px-8">
-          <Link href="/" className="flex items-center gap-4 group">
-            <div className="relative">
-              <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-emerald-500 to-lime-400 opacity-40 blur transition group-hover:opacity-70"></div>
-              <div className="relative grid h-10 w-10 place-items-center rounded-xl bg-black text-lg font-black text-emerald-400 border border-emerald-500/20">
-                R
-              </div>
-            </div>
+      <nav className="relative z-10 border-b border-white/10 bg-black/45 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-xl font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
             <div>
-              <div className="text-xl font-black tracking-tighter md:text-2xl">RANKEDDARTS</div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-500/80 leading-none">Premium Experience</div>
+              <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Premium</div>
             </div>
           </Link>
 
           <button
             onClick={() => router.push('/profile')}
-            className="group relative overflow-hidden rounded-full bg-white/5 px-6 py-2 text-sm font-bold text-zinc-300 transition hover:text-white"
+            className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent opacity-0 transition group-hover:opacity-100"></div>
             Zurück zum Profil
           </button>
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6 py-12 md:px-8">
-        {/* Hero Section */}
-        <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-4 py-1.5 text-xs font-bold text-emerald-400 uppercase tracking-widest">
-              <Zap className="h-3.5 w-3.5 fill-current" />
-              Level Up Your Game
+      <section className="relative z-10 mx-auto max-w-7xl px-5 py-14 md:px-8">
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div>
+            <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
+              Premium Zugang
             </div>
-            
-            <h1 className="text-5xl font-black leading-[0.9] tracking-tight md:text-7xl lg:text-8xl bg-gradient-to-br from-white via-white to-zinc-500 bg-clip-text text-transparent">
-              Dominieren   
+            <h1 className="mt-6 text-6xl font-black leading-[0.88] tracking-[-0.07em] md:text-8xl">Mehr Matches. Mehr Chancen. Mehr Darts.</h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">RankedDarts Premium ist für Spieler gedacht, die regelmäßiger antreten, schneller Gegner finden und zukünftig exklusive Wettbewerbe spielen möchten.</p>
 
-              <span className="text-emerald-500">ohne Limits.</span>
-            </h1>
-            
-            <p className="max-w-xl text-lg leading-relaxed text-zinc-400">
-              RankedDarts Premium bietet dir die Werkzeuge, die du brauchst, um an die Spitze zu gelangen. Mehr Matches, bessere Turniere und exklusiver Support.
-            </p>
-
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { label: 'Dein Elo', value: profile?.elo || 1000 },
-                { label: 'Matches', value: profile?.gamesPlayed || 0 },
-                { label: 'Winrate', value: `${winrate}%` }
-              ].map((stat) => (
-                <div key={stat.label} className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition hover:border-emerald-500/30">
-                  <div className="absolute -right-4 -top-4 h-12 w-12 rounded-full bg-emerald-500/5 blur-xl transition group-hover:bg-emerald-500/10"></div>
-                  <div className="text-2xl font-black tracking-tighter md:text-3xl">{stat.value}</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-500/60">{stat.label}</div>
-                </div>
-              ))}
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+                <div className="text-4xl font-black tracking-[-0.05em]">{profile?.elo || 1000}</div>
+                <div className="mt-2 text-sm font-bold text-emerald-300">Dein Elo</div>
+              </div>
+              <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+                <div className="text-4xl font-black tracking-[-0.05em]">{profile?.gamesPlayed || 0}</div>
+                <div className="mt-2 text-sm font-bold text-emerald-300">Spiele</div>
+              </div>
+              <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+                <div className="text-4xl font-black tracking-[-0.05em]">{winrate}%</div>
+                <div className="mt-2 text-sm font-bold text-emerald-300">Winrate</div>
+              </div>
             </div>
           </div>
 
-          {/* Pricing Card */}
-          <div className="relative">
-            <div className="absolute -inset-4 rounded-[3rem] bg-emerald-500/5 blur-3xl"></div>
-            <aside className="relative overflow-hidden rounded-[2.5rem] border border-emerald-500/20 bg-zinc-900/40 p-8 shadow-2xl backdrop-blur-xl">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent"></div>
-              
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                    <Crown className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-xl font-black tracking-tight pt-4">Premium Pass</h3>
+          <aside className="relative overflow-hidden rounded-[2.5rem] border border-emerald-300/25 bg-zinc-950/88 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
+            <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-emerald-400/20 blur-3xl" />
+
+            <div className="relative">
+              <div className="flex items-center justify-between gap-4">
+                <div className="grid h-16 w-16 place-items-center rounded-[1.4rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_35px_rgba(34,197,94,0.18)]">
+                  <Crown className="h-8 w-8" />
                 </div>
-                {profile?.isPremium && (
-                  <div className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                    Aktiv
-                  </div>
-                )}
+                <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-cyan-200">Bald verfügbar</span>
               </div>
 
-              <div className="mt-8 space-y-2">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-6xl font-black tracking-tighter">4,99€</span>
-                  <span className="text-zinc-500 font-medium">/Monat</span>
+              <div className="mt-8">
+                <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">RankedDarts Premium</div>
+                <div className="mt-3 flex items-end gap-3">
+                  <span className="text-7xl font-black tracking-[-0.08em]">4,99€</span>
+                  <span className="pb-3 text-zinc-400">/ Monat</span>
                 </div>
-                <p className="text-sm text-zinc-400 leading-relaxed">
-                  Schalte das volle Potenzial deines Accounts frei und unterstütze die Entwicklung von RankedDarts.
-                </p>
-              </div>
-
-              <div className="mt-8 space-y-4">
-                {['Unbegrenzt Ranked Matches', 'Premium Tournament Access', 'VIP Badge im Profil', 'Keine Werbung'].map((item) => (
-                  <div key={item} className="flex items-center gap-3 text-sm font-medium text-zinc-300">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
-                      <Check className="h-3 w-3" />
-                    </div>
-                    {item}
-                  </div>
-                ))}
+                <p className="mt-5 text-zinc-400">Ein Upgrade für aktive Spieler, die mehr aus jeder Season herausholen möchten.</p>
               </div>
 
               <button
-                onClick={handleCheckout}
-                disabled={profile?.isPremium || checkoutLoading}
-                className="mt-10 w-full group relative overflow-hidden rounded-2xl bg-emerald-500 px-6 py-4 font-black uppercase tracking-widest text-black transition hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed disabled:scale-100"
+                disabled
+                className="mt-8 w-full rounded-3xl border border-white/10 bg-white/[0.06] px-8 py-5 font-black uppercase tracking-[0.18em] text-zinc-500 shadow-inner shadow-white/5 disabled:cursor-not-allowed"
               >
-                {checkoutLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                ) : profile?.isPremium ? (
-                  'Bereits Premium'
-                ) : (
-                  'Jetzt upgraden'
-                )}
+                Zahlung bald verfügbar
               </button>
-              
-              <p className="mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-zinc-600">
-                Sichere Verschlüsselung & 100% Datenschutz
-              </p>
-            </aside>
-          </div>
+
+              <p className="mt-5 text-center text-sm text-zinc-500">Premium wird in Kürze freigeschaltet. Bis dahin bleibt dein aktueller Account unverändert.</p>
+            </div>
+          </aside>
         </div>
 
-        {/* Benefits Grid */}
-        <div className="mt-24 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {premiumBenefits.map((benefit) => {
             const Icon = benefit.icon;
             return (
-              <div key={benefit.title} className="group relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.02] p-6 transition hover:border-emerald-500/20 hover:bg-white/[0.04]">
-                <div className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${benefit.color} text-black mb-6 transition group-hover:scale-110`}>
+              <article key={benefit.title} className="group rounded-[2rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl transition hover:-translate-y-1 hover:border-emerald-300/30 hover:bg-emerald-400/[0.05]">
+                <div className="grid h-13 w-13 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-200 transition group-hover:scale-105">
                   <Icon className="h-6 w-6" />
                 </div>
-                <h4 className="text-lg font-black tracking-tight mb-2">{benefit.title}</h4>
-                <p className="text-sm text-zinc-400 leading-relaxed">{benefit.description}</p>
-              </div>
+                <h2 className="mt-5 text-xl font-black tracking-[-0.03em]">{benefit.title}</h2>
+                <p className="mt-3 text-sm leading-6 text-zinc-400">{benefit.description}</p>
+              </article>
             );
           })}
-        </div>
+        </section>
 
-        {/* Status & Comparison */}
-        <div className="mt-24 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
-          <div className="flex flex-col justify-between rounded-3xl border border-white/5 bg-zinc-900/20 p-8 backdrop-blur-sm">
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Mitgliedschaft</div>
-                  <h3 className="text-2xl font-black tracking-tight">{profile?.isPremium ? 'Premium Aktiv' : 'Kostenloser Account'}</h3>
-                </div>
+        <section className="mt-10 grid gap-8 lg:grid-cols-[0.82fr_1.18fr]">
+          <div className="rounded-[2rem] border border-white/10 bg-zinc-950/80 p-7 backdrop-blur-xl md:p-8">
+            <div className="flex items-center gap-4">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-200">
+                <ShieldCheck className="h-7 w-7" />
               </div>
-              <p className="text-zinc-400 leading-relaxed">
-                {profile?.isPremium 
-                  ? 'Du genießt bereits alle Vorteile von RankedDarts Premium. Danke für deine Unterstützung!' 
-                  : 'Du nutzt aktuell die Basis-Version. Ein Upgrade wird sofort freigeschaltet, sobald die Zahlung abgeschlossen ist.'}
-              </p>
+              <div>
+                <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Status</div>
+                <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{profile?.isPremium ? 'Premium aktiv' : 'Free Account'}</h2>
+              </div>
             </div>
-            <Link 
-              href="/updates" 
-              className="mt-8 inline-flex items-center justify-center rounded-xl bg-white/5 border border-white/10 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/10"
-            >
-              System Updates
+            <p className="mt-6 text-lg leading-8 text-zinc-300">{profile?.isPremium ? 'Dein Profil ist bereits als Premium markiert.' : 'Du nutzt aktuell den kostenlosen Zugang. Sobald Premium freigeschaltet ist, kann der Upgrade-Flow hier aktiviert werden.'}</p>
+            <Link href="/updates" className="mt-7 inline-flex rounded-full border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20">
+              Updates ansehen
             </Link>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-white/5 bg-zinc-900/20 backdrop-blur-sm">
-            <div className="border-b border-white/5 bg-white/[0.02] px-8 py-6">
-              <h3 className="text-xl font-black tracking-tight">Vorteile im Überblick</h3>
+          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/80 backdrop-blur-xl">
+            <div className="border-b border-white/10 bg-white/[0.03] p-6 md:p-8">
+              <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Vergleich</div>
+              <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">Free vs. Premium</h2>
             </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[640px]">
                 <thead>
-                  <tr className="text-[10px] font-black uppercase tracking-widest text-zinc-500 border-b border-white/5">
-                    <th className="px-8 py-4 text-left">Feature</th>
-                    <th className="px-8 py-4 text-center">Free</th>
-                    <th className="px-8 py-4 text-center text-emerald-400">Premium</th>
+                  <tr className="border-b border-white/10 text-xs uppercase tracking-[0.22em] text-zinc-500">
+                    <th className="px-6 py-5 text-left md:px-8">Feature</th>
+                    <th className="px-6 py-5 text-center md:px-8">Free</th>
+                    <th className="px-6 py-5 text-center md:px-8">Premium</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-white/10">
                   {comparisonRows.map((row) => (
-                    <tr key={row.label} className="group transition hover:bg-white/[0.02]">
-                      <td className="px-8 py-4 text-sm font-bold text-zinc-300">{row.label}</td>
-                      <td className="px-8 py-4 text-center text-sm text-zinc-500">{row.free}</td>
-                      <td className="px-8 py-4 text-center">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-black text-emerald-400 border border-emerald-500/20">
-                          <Check className="h-3 w-3" />
+                    <tr key={row.label} className="transition hover:bg-emerald-400/[0.05]">
+                      <td className="px-6 py-5 font-bold md:px-8">{row.label}</td>
+                      <td className="px-6 py-5 text-center text-zinc-400 md:px-8">{row.free}</td>
+                      <td className="px-6 py-5 text-center font-black text-emerald-300 md:px-8">
+                        <span className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-4 py-2">
+                          <Check className="h-4 w-4" />
                           {row.premium}
                         </span>
                       </td>
@@ -325,28 +232,16 @@ export default function Premium() {
               </table>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Final CTA */}
-        <div className="mt-24 relative overflow-hidden rounded-[3rem] border border-emerald-500/20 bg-emerald-500/5 p-12 text-center">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-1/2 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent"></div>
-          <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-2xl bg-black border border-emerald-500/20 text-emerald-400">
+        <section className="mt-10 overflow-hidden rounded-[2.5rem] border border-emerald-300/20 bg-gradient-to-br from-emerald-400/[0.10] via-white/[0.04] to-cyan-400/[0.08] p-8 text-center backdrop-blur-xl md:p-10">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-emerald-300/25 bg-black/25 text-emerald-200">
             <Sparkles className="h-8 w-8" />
           </div>
-          <h2 className="text-4xl font-black tracking-tighter md:text-5xl mb-4">Werde Teil der Elite.</h2>
-          <p className="mx-auto max-w-2xl text-zinc-400 text-lg mb-8">
-            Wir arbeiten hart daran, das beste Darts-Erlebnis der Welt zu schaffen. Bleib gespannt auf die kommenden Features.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
-              <ShieldCheck className="h-4 w-4" /> Secure Payment
-            </div>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
-              <Zap className="h-4 w-4" /> Instant Activation
-            </div>
-          </div>
-        </div>
-      </div>
+          <h2 className="mt-6 text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für die nächste Stufe?</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-zinc-300">Die Premium-Seite ist jetzt optisch vorbereitet. Sobald Zahlungsanbieter und Aktivierungslogik eingebunden sind, kann der deaktivierte Button direkt zum Upgrade-Flow erweitert werden.</p>
+        </section>
+      </section>
     </main>
   );
 }

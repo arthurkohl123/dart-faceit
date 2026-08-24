@@ -1,230 +1,506 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-  Trophy, Star, Shield, Crown, Activity, Target, 
-  Settings, CheckCircle2, AlertCircle, Phone, 
-  Swords, TrendingUp, Sparkles, Zap, Clock, 
-  User as UserIcon, Camera, LayoutDashboard,
-  Save, X, ExternalLink, ShieldCheck, History, ArrowUpRight,
-  Globe, Medal
-} from 'lucide-react';
-import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-
-// --- PERFORMANCE OPTIMIZED RANK ICONS ---
-const RankIcon = ({ type, size = "w-20 h-20" }: { type: string, size?: string }) => {
-  const styles: Record<string, string> = {
-    'Eisen': 'bg-zinc-900 border-zinc-700 text-zinc-500',
-    'Bronze': 'bg-orange-950 border-orange-900 text-orange-400',
-    'Silber': 'bg-slate-800 border-slate-700 text-slate-200',
-    'Gold': 'bg-yellow-900/40 border-yellow-700 text-yellow-300',
-    'Platin': 'bg-cyan-900/40 border-cyan-700 text-cyan-300',
-    'Diamant': 'bg-blue-900/40 border-blue-700 text-blue-300',
-    'Legende': 'bg-emerald-900/40 border-emerald-700 text-white',
-  };
-  return (
-    <div className={`${size} flex items-center justify-center rounded-[2rem] border-2 shadow-xl transition-transform duration-500 group-hover:scale-110 ${styles[type] || styles['Eisen']}`}>
-      {type === 'Legende' ? <Crown className="w-1/2 h-1/2" /> : <Shield className="w-1/2 h-1/2" />}
-    </div>
-  );
-};
+import { useEffect, useMemo, useState } from 'react';
+import { createClient } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+import { CheckCircle2, Headphones, Menu, Pencil, Save, X, XCircle } from 'lucide-react';
 
 const rankTiers = [
-  { name: 'Eisen',   min: 0,    color: 'text-zinc-400', glow: 'from-zinc-500/10' },
-  { name: 'Bronze',  min: 1000, color: 'text-orange-400', glow: 'from-orange-500/10' },
-  { name: 'Silber',  min: 1250, color: 'text-slate-300', glow: 'from-slate-300/10' },
-  { name: 'Gold',    min: 1500, color: 'text-yellow-400', glow: 'from-yellow-400/10' },
-  { name: 'Platin',  min: 1750, color: 'text-cyan-400', glow: 'from-cyan-400/10' },
-  { name: 'Diamant', min: 2000, color: 'text-blue-400', glow: 'from-blue-500/10' },
-  { name: 'Legende', min: 2500, color: 'text-emerald-400', glow: 'from-emerald-400/10' },
+  { name: 'Eisen',   min: 0,    color: 'text-zinc-300',    accent: 'from-zinc-400/20 to-zinc-950',    ringColor: 'border-zinc-400/40',   glowColor: 'rgba(161,161,170,0.18)' },
+  { name: 'Bronze',  min: 1000, color: 'text-amber-300',   accent: 'from-amber-500/20 to-zinc-950',   ringColor: 'border-amber-400/40',  glowColor: 'rgba(251,191,36,0.18)' },
+  { name: 'Silber',  min: 1250, color: 'text-slate-200',   accent: 'from-slate-300/20 to-zinc-950',   ringColor: 'border-slate-300/40',  glowColor: 'rgba(203,213,225,0.18)' },
+  { name: 'Gold',    min: 1500, color: 'text-yellow-200',  accent: 'from-yellow-300/20 to-zinc-950',  ringColor: 'border-yellow-300/40', glowColor: 'rgba(253,224,71,0.18)' },
+  { name: 'Platin',  min: 1750, color: 'text-cyan-200',    accent: 'from-cyan-300/20 to-zinc-950',    ringColor: 'border-cyan-300/40',   glowColor: 'rgba(103,232,249,0.18)' },
+  { name: 'Diamant', min: 2000, color: 'text-blue-200',    accent: 'from-blue-300/20 to-zinc-950',    ringColor: 'border-blue-300/40',   glowColor: 'rgba(147,197,253,0.18)' },
+  { name: 'Legende', min: 2500, color: 'text-emerald-200', accent: 'from-emerald-300/25 to-zinc-950', ringColor: 'border-emerald-300/40',glowColor: 'rgba(110,231,183,0.22)' },
 ];
 
-function getRank(elo: number) {
-  return rankTiers.reduce((cur, r) => (elo >= r.min ? r : cur), rankTiers[0]);
-}
+type MatchData = {
+  id: string | number;
+  created_at: string;
+  opponent_name?: string;
+  is_win?: boolean;
+  result?: string;
+};
 
-export default function ProfilePage() {
-  const [profile, setProfile] = useState<any>(null);
-  const [matches, setMatches] = useState<any[]>([]);
+type ProfileData = {
+  username: string | null;
+  elo: number;
+  gamesPlayed: number;
+  wins: number;
+  phone_verified: boolean;
+  phone_number: string | null;
+  is_admin: boolean;
+  scolia_username: string | null;
+  dartcounter_username: string | null;
+};
+
+export default function Profile() {
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [matches, setMatches] = useState<MatchData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Performance-Stats
+  const [avgAverage, setAvgAverage] = useState<number>(0);
+  const [total180s, setTotal180s] = useState<number>(0);
+
+  // Plattform-Usernamen Bearbeitungsstatus
   const [editingPlatforms, setEditingPlatforms] = useState(false);
   const [scoliaInput, setScoliaInput] = useState('');
   const [dartcounterInput, setDartcounterInput] = useState('');
-  
+  const [savingPlatforms, setSavingPlatforms] = useState(false);
+  const [platformSaveMsg, setPlatformSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  // --- PARALLEL DATA FETCHING (SPEED BOOST) ---
-  const fetchData = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { router.push('/auth/login'); return; }
+  useEffect(() => {
+    let isMounted = true;
 
-    const [profileRes, matchRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('supabaseId', session.user.id).single(),
-      supabase.from('active_matches').select('*').or(`player1_id.eq.${session.user.id},player2_id.eq.${session.user.id}`).eq('status', 'completed').order('created_at', { ascending: false }).limit(5)
-    ]);
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/auth/login'); return; }
 
-    if (profileRes.data) {
-      setProfile(profileRes.data);
-      setScoliaInput(profileRes.data.scolia_username || '');
-      setDartcounterInput(profileRes.data.dartcounter_username || '');
+      const uid = session.user.id;
+      if (isMounted) setUserId(uid);
+
+      const [{ data: profileData }, { data: matchData }, { data: statsData }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('supabaseId', uid).single(),
+        supabase.from('matches').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(5),
+        supabase.rpc('get_my_stats'),
+      ]);
+
+      if (!isMounted) return;
+      setProfile(profileData ?? null);
+      setScoliaInput(profileData?.scolia_username ?? '');
+      setDartcounterInput(profileData?.dartcounter_username ?? '');
+      setMatches((matchData || []) as MatchData[]);
+      if (statsData) {
+        const s = statsData as { avg_average: number; total_180s: number };
+        setAvgAverage(s.avg_average ?? 0);
+        setTotal180s(s.total_180s ?? 0);
+      }
+      setLoading(false);
     }
-    if (matchRes.data) setMatches(matchRes.data);
-    setLoading(false);
+
+    void load();
+    return () => { isMounted = false; };
   }, [supabase, router]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const logout = async () => {
+    await supabase.auth.signOut();
+    router.push('/auth/login');
+  };
+
+  const savePlatformUsernames = async () => {
+    setSavingPlatforms(true);
+    setPlatformSaveMsg(null);
+    try {
+      const { error } = await supabase.rpc('update_platform_usernames', {
+        p_scolia_username:      scoliaInput.trim() || null,
+        p_dartcounter_username: dartcounterInput.trim() || null,
+      });
+      if (error) throw error;
+      setProfile((prev) => prev ? {
+        ...prev,
+        scolia_username:      scoliaInput.trim() || null,
+        dartcounter_username: dartcounterInput.trim() || null,
+      } : prev);
+      setPlatformSaveMsg({ type: 'success', text: 'Gespeichert!' });
+      setEditingPlatforms(false);
+    } catch (err) {
+      setPlatformSaveMsg({ type: 'error', text: err instanceof Error ? err.message : 'Fehler beim Speichern.' });
+    } finally {
+      setSavingPlatforms(false);
+    }
+  };
+
+  const elo = profile?.elo ?? 1000;
+  const gamesPlayed = profile?.gamesPlayed ?? 0;
+  const wins = profile?.wins ?? 0;
+  const losses = Math.max(gamesPlayed - wins, 0);
+  const winrate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
+  const currentRankIndex = rankTiers.reduce((current, rank, index) => (elo >= rank.min ? index : current), 0);
+  const currentRank = rankTiers[currentRankIndex];
+  const nextRank = rankTiers[currentRankIndex + 1] || currentRank;
+  const eloToNext = Math.max(nextRank.min - elo, 0);
+  const rankRange = nextRank.min - currentRank.min;
+  const progress = nextRank === currentRank ? 100 : Math.min(Math.max(((elo - currentRank.min) / rankRange) * 100, 0), 100);
+  const phoneVerified = Boolean(profile?.phone_verified);
+  const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#020304] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+      <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">Profil wird geladen...</div>
       </main>
     );
   }
 
-  const elo = profile?.elo || 1000;
-  const currentRank = getRank(elo);
-  const nextRank = rankTiers[rankTiers.indexOf(currentRank) + 1] || currentRank;
-  const progress = nextRank !== currentRank ? ((elo - currentRank.min) / (nextRank.min - currentRank.min)) * 100 : 100;
-
   return (
-    <main className="min-h-screen bg-[#020304] text-zinc-100 selection:bg-emerald-500/30 font-sans pb-20 overflow-x-hidden">
-      {/* Optimized Background (Lightweight) */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className={`absolute top-[-10%] left-[-10%] w-[60%] h-[60%] blur-[120px] rounded-full opacity-10 bg-gradient-to-br ${currentRank.glow} to-transparent`} />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.02]" />
+    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(6,182,212,0.14),transparent_28%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
+        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
       </div>
 
-      {/* Floating Navbar */}
-      <div className="fixed top-6 left-0 right-0 z-50 px-4 md:px-6">
-        <nav className="max-w-4xl mx-auto bg-black/60 backdrop-blur-xl rounded-2xl border border-white/5 py-4 px-6 flex items-center justify-between shadow-2xl">
+      {/* Navbar */}
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-black font-black text-lg">R</div>
-            <span className="text-sm font-black tracking-tighter uppercase hidden sm:block">RankedDarts</span>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-lg font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
+            <div>
+              <div className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Profil Hub</div>
+            </div>
           </Link>
-          <div className="flex items-center gap-6">
-             <Link href="/matchmaking" className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-colors">Play</Link>
-             <Link href="/leaderboard" className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-colors">Ranks</Link>
-             <div className="w-px h-4 bg-white/10" />
-             <Link href="/profile" className="flex items-center gap-3 group">
-                <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">{profile?.username}</span>
-                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-black italic text-xs group-hover:border-emerald-500 transition-all">
-                   {profile?.username?.charAt(0)}
-                </div>
-             </Link>
-          </div>
-        </nav>
-      </div>
 
-      <section className="relative z-10 pt-32 md:pt-40 px-4 md:px-6">
-        <div className="max-w-5xl mx-auto space-y-6">
-          
-          {/* Header Bento */}
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 p-8 md:p-12 rounded-[2.5rem] bg-zinc-900/30 border border-white/5 backdrop-blur-md flex flex-col md:flex-row items-center gap-8 md:gap-12 relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none"><UserIcon size={200} /></div>
-               <div className="relative">
-                  <div className={`absolute -inset-4 blur-2xl opacity-20 rounded-full bg-gradient-to-br ${currentRank.glow} to-transparent`} />
-                  <RankIcon type={currentRank.name} size="w-28 h-28 md:w-36 md:h-36" />
-                  {profile?.isPremium && <div className="absolute top-2 right-2 bg-yellow-400 p-1.5 rounded-lg shadow-xl"><Sparkles size={16} className="text-black fill-current" /></div>}
-               </div>
-               <div className="text-center md:text-left space-y-6 flex-1">
-                  <div className="space-y-1">
-                    <h1 className="text-4xl md:text-6xl font-black tracking-tighter italic uppercase leading-none">{profile?.username}</h1>
-                    <p className={`text-[10px] font-black uppercase tracking-[0.4em] ${currentRank.color}`}>{currentRank.name} Division</p>
-                  </div>
-                  <div className="flex flex-wrap justify-center md:justify-start gap-8">
-                    <div><div className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-1">Elo</div><div className="text-2xl font-black italic">{elo}</div></div>
-                    <div><div className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-1">Matches</div><div className="text-2xl font-black italic">{profile?.gamesPlayed || 0}</div></div>
-                    <div><div className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-1">Winrate</div><div className="text-2xl font-black italic text-emerald-500">{profile?.gamesPlayed > 0 ? Math.round((profile.wins / profile.gamesPlayed) * 100) : 0}%</div></div>
-                  </div>
-               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-               {[
-                  { label: 'Wins', val: profile?.wins || 0, icon: Trophy, color: 'text-emerald-500' },
-                  { label: 'Streak', val: '--', icon: Zap, color: 'text-yellow-500' },
-                  { label: 'Global', val: '#--', icon: Globe, color: 'text-cyan-500' },
-                  { label: 'Awards', val: '0', icon: Medal, color: 'text-purple-500' }
-               ].map((s, i) => (
-                  <div key={i} className="p-6 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col items-center justify-center text-center gap-3">
-                     <div className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center ${s.color}`}><s.icon size={20} /></div>
-                     <div className="space-y-0.5"><div className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">{s.label}</div><div className="text-xl font-black italic">{s.val}</div></div>
-                  </div>
-               ))}
-            </div>
+          <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
+            <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
+            <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
+            <Link href="/updates" className="transition hover:text-white">Updates</Link>
+            <Link href="/support" className="inline-flex items-center gap-1.5 transition hover:text-white"><Headphones size={14} />Support</Link>
+            <Link href="/premium" className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-200 transition hover:bg-emerald-400/20">Premium</Link>
           </div>
 
-          {/* Progress & Connections */}
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-               <div className="p-8 rounded-[2.5rem] bg-zinc-900/30 border border-white/5 backdrop-blur-md">
-                  <div className="flex items-center justify-between mb-8">
-                     <div className="flex items-center gap-3"><TrendingUp size={18} className="text-emerald-500" /><h2 className="text-xs font-black uppercase tracking-widest">Progression</h2></div>
-                     <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Season 1</span>
-                  </div>
-                  <div className="space-y-6">
-                     <div className="flex justify-between items-end">
-                        <div className="text-2xl font-black italic">{elo} <span className="text-[10px] text-zinc-700 not-italic uppercase tracking-widest">Elo</span></div>
-                        <div className="text-right text-xs font-black italic text-zinc-800">Next: {nextRank.min}</div>
-                     </div>
-                     <div className="h-4 bg-white/5 rounded-full p-1 border border-white/5 overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]" style={{ width: `${progress}%` }} />
-                     </div>
-                  </div>
-               </div>
-
-               <div className="p-8 rounded-[2.5rem] bg-zinc-900/30 border border-white/5 backdrop-blur-md">
-                  <div className="flex items-center justify-between mb-8">
-                     <div className="flex items-center gap-3"><Zap size={18} className="text-cyan-500" /><h2 className="text-xs font-black uppercase tracking-widest">Platforms</h2></div>
-                     <button onClick={() => setEditingPlatforms(!editingPlatforms)} className="text-[9px] font-black uppercase tracking-widest text-emerald-500 hover:underline">{editingPlatforms ? 'Save' : 'Edit'}</button>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-4">
-                     {[
-                        { label: 'Scolia', icon: Camera, val: scoliaInput, set: setScoliaInput, color: 'text-emerald-500' },
-                        { label: 'DartCounter', icon: LayoutDashboard, val: dartcounterInput, set: setDartcounterInput, color: 'text-cyan-500' }
-                     ].map((p, i) => (
-                        <div key={i} className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center gap-4">
-                           <div className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center ${p.color}`}><p.icon size={20} /></div>
-                           <div className="flex-1 min-w-0">
-                              <div className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">{p.label}</div>
-                              {editingPlatforms ? (
-                                 <input type="text" value={p.val} onChange={(e) => p.set(e.target.value)} className="w-full bg-transparent border-b border-white/10 outline-none text-sm font-bold py-1 focus:border-emerald-500" />
-                              ) : (
-                                 <div className="text-sm font-black italic truncate">{p.val || 'Unlinked'}</div>
-                              )}
-                           </div>
-                        </div>
-                     ))}
-                  </div>
-               </div>
-            </div>
-
-            <div className="space-y-6">
-               <div className="p-8 rounded-[2.5rem] bg-zinc-900/30 border border-white/5 backdrop-blur-md">
-                  <div className="flex items-center gap-3 mb-8"><History size={18} className="text-purple-500" /><h2 className="text-xs font-black uppercase tracking-widest">Activity</h2></div>
-                  <div className="space-y-3">
-                     {matches.map((m, i) => {
-                        const isWin = (m.winner_id === profile.supabaseId);
-                        return (
-                           <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                              <div className="flex items-center gap-3">
-                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] ${isWin ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{isWin ? 'W' : 'L'}</div>
-                                 <div className="text-[10px] font-black italic">#{m.id.toString().slice(-4)}</div>
-                              </div>
-                              <div className="text-[8px] font-black text-zinc-700 uppercase">{new Date(m.created_at).toLocaleDateString()}</div>
-                           </div>
-                        );
-                     })}
-                  </div>
-               </div>
-            </div>
+          <div className="flex items-center gap-3">
+            <button onClick={logout} className="hidden rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10 sm:block">
+              Logout
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
+            <div className="flex flex-col gap-1">
+              <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
+              <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
+              <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
+              <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
+              <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Headphones size={15} />Support</Link>
+              <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
+              <div className="mt-2 border-t border-white/10 pt-2">
+                <button onClick={logout} className="w-full rounded-2xl px-4 py-3 text-left text-sm font-bold text-zinc-400 transition hover:bg-white/10 hover:text-white">Logout</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      <section className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
+
+        {/* ── Hero-Profil-Banner ──────────────────────────────────────────── */}
+        <div className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} p-7 shadow-2xl shadow-black/60 sm:p-10 md:p-12`}>
+          {/* Hintergrund-Glow */}
+          <div
+            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full blur-3xl opacity-30"
+            style={{ background: `radial-gradient(circle, ${currentRank.glowColor}, transparent 70%)` }}
+          />
+
+          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
+            {/* Avatar-Ring */}
+            <div
+              className={`relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.6rem] border-2 bg-black/40 shadow-lg sm:h-24 sm:w-24 ${currentRank.ringColor}`}
+              style={{ boxShadow: `0 0 32px ${currentRank.glowColor}` }}
+            >
+              <span className="text-3xl font-black text-white sm:text-4xl">
+                {(profile?.username ?? 'S').charAt(0).toUpperCase()}
+              </span>
+            </div>
+
+            {/* Name + Rang */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-3xl font-black tracking-[-0.06em] sm:text-4xl md:text-5xl lg:text-6xl truncate">
+                  {profile?.username || 'Spieler'}
+                </h1>
+                <span className={`rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.2em] ${currentRank.ringColor} bg-black/30 ${currentRank.color}`}>
+                  {currentRank.name}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-zinc-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-base font-black text-white">{elo}</span>
+                  <span>Elo</span>
+                </span>
+                <span className="h-3.5 w-px bg-white/15" />
+                <span className="flex items-center gap-1.5">
+                  <span className="text-base font-black text-white">{gamesPlayed}</span>
+                  <span>Spiele</span>
+                </span>
+                <span className="h-3.5 w-px bg-white/15" />
+                <span className="flex items-center gap-1.5">
+                  <span className={`text-base font-black ${winrate >= 50 ? 'text-emerald-300' : 'text-zinc-300'}`}>{winrate}%</span>
+                  <span>Winrate</span>
+                </span>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <button
+              onClick={() => router.push(phoneVerified ? '/matchmaking' : '/auth/verify-phone')}
+              className="shrink-0 rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_12px_40px_rgba(34,197,94,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_50px_rgba(34,197,94,0.38)] sm:px-8 sm:py-4"
+            >
+              {phoneVerified ? 'Match suchen →' : 'Verifizieren →'}
+            </button>
+          </div>
+        </div>
+
+        {/* ── Stats-Grid ──────────────────────────────────────────────────── */}
+        <div className="mt-5 grid gap-4 grid-cols-2 sm:grid-cols-4">
+          <div className="rounded-[1.5rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-emerald-300">Rating</div>
+            <div className="mt-2 text-4xl font-black tracking-[-0.07em] sm:text-5xl">{elo}</div>
+            <div className="mt-1 text-xs text-zinc-500">Elo Punkte</div>
+          </div>
+          <div className="rounded-[1.5rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl sm:p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-cyan-300">Winrate</div>
+            <div className="mt-2 text-4xl font-black tracking-[-0.07em] sm:text-5xl">{winrate}%</div>
+            <div className="mt-1 text-xs text-zinc-500">{wins}W / {losses}L</div>
+          </div>
+          <div className="rounded-[1.5rem] border border-yellow-300/15 bg-yellow-400/[0.05] p-5 backdrop-blur-xl sm:p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-yellow-300">Ø Average</div>
+            <div className="mt-2 text-4xl font-black tracking-[-0.07em] text-yellow-200 sm:text-5xl">
+              {avgAverage > 0 ? avgAverage.toFixed(1) : '—'}
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">Alle Matches</div>
+          </div>
+          <div className="rounded-[1.5rem] border border-red-300/15 bg-red-400/[0.05] p-5 backdrop-blur-xl sm:p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-red-300">180er</div>
+            <div className="mt-2 text-4xl font-black tracking-[-0.07em] text-red-200 sm:text-5xl">{total180s}</div>
+            <div className="mt-1 text-xs text-zinc-500">Gesamt</div>
+          </div>
+        </div>
+
+        {/* ── Fortschritt + Verifizierung ─────────────────────────────────── */}
+        <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
+          {/* Rang-Fortschritt */}
+          <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-8">
+            <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Nächster Rang</div>
+            <div className="mt-2 flex items-baseline justify-between gap-4">
+              <h2 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">Fortschritt zu <span className={nextRank.color}>{nextRank.name}</span></h2>
+              <span className="text-2xl font-black text-emerald-300">{Math.round(progress)}%</span>
+            </div>
+
+            <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/10 sm:h-3">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-all duration-700"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm">
+                <span className="block text-lg font-black text-white sm:text-xl">{currentRank.min}</span>
+                <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${currentRank.color}`}>{currentRank.name}</span>
+              </div>
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-center text-xs text-zinc-400 sm:p-4 sm:text-sm">
+                <span className="block text-lg font-black text-emerald-300 sm:text-xl">{elo}</span>
+                <span>Aktuell</span>
+              </div>
+              <div className="rounded-2xl bg-white/[0.04] p-3 text-right text-xs text-zinc-400 sm:p-4 sm:text-sm">
+                <span className="block text-lg font-black text-white sm:text-xl">{nextRank.min}</span>
+                <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${nextRank.color}`}>{nextRank.name}</span>
+              </div>
+            </div>
+
+            {eloToNext > 0 && (
+              <p className="mt-4 text-sm text-zinc-500">
+                Noch <span className="font-black text-white">{eloToNext} Elo</span> bis {nextRank.name}.
+              </p>
+            )}
+          </section>
+
+          {/* Verifizierung */}
+          <section className={`rounded-[1.75rem] border p-6 backdrop-blur-xl sm:p-8 ${phoneVerified ? 'border-emerald-300/20 bg-emerald-400/[0.06]' : 'border-amber-300/20 bg-amber-400/[0.06]'}`}>
+            <div className={`text-xs font-black uppercase tracking-[0.28em] ${phoneVerified ? 'text-emerald-300' : 'text-amber-300'}`}>Verifizierung</div>
+            <div className="mt-3 flex items-center gap-3">
+              {phoneVerified
+                ? <CheckCircle2 size={22} className="shrink-0 text-emerald-400" />
+                : <XCircle size={22} className="shrink-0 text-amber-400" />
+              }
+              <span className="text-lg font-black tracking-[-0.03em] sm:text-xl">{phoneStatusText}</span>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">
+              {phoneVerified
+                ? 'Dein Account ist für Fair-Play und Ranked vorbereitet.'
+                : 'Bestätige deine Nummer, bevor du vollständig in Ranked startest.'}
+            </p>
+            {!phoneVerified && (
+              <Link
+                href={`/auth/verify-phone${profile?.phone_number ? `?phone=${encodeURIComponent(profile.phone_number)}` : ''}`}
+                className="mt-5 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 text-sm font-black text-amber-100 transition hover:bg-amber-300/18"
+              >
+                Jetzt verifizieren →
+              </Link>
+            )}
+          </section>
+        </div>
+
+        {/* ── Plattform-Verbindungen ─────────────────────────────────────── */}
+        <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-8">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Plattformen</div>
+              <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Verbundene Accounts</h2>
+              <p className="mt-1 text-sm text-zinc-400">Hinterlege deine Nutzernamen, um die jeweilige Queue zu betreten.</p>
+            </div>
+            {!editingPlatforms && (
+              <button
+                onClick={() => { setEditingPlatforms(true); setPlatformSaveMsg(null); }}
+                className="flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:border-white/30 hover:bg-white/10"
+              >
+                <Pencil size={14} />
+                Bearbeiten
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Scolia */}
+            <div className={`rounded-2xl border p-5 transition sm:p-6 ${profile?.scolia_username ? 'border-emerald-300/25 bg-emerald-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Scolia</div>
+                  <div className="mt-0.5 text-sm font-bold text-zinc-400">Kamera-Tracking</div>
+                </div>
+                {profile?.scolia_username
+                  ? <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
+                  : <XCircle size={16} className="shrink-0 text-zinc-600" />
+                }
+              </div>
+              {editingPlatforms ? (
+                <input
+                  type="text"
+                  value={scoliaInput}
+                  onChange={(e) => setScoliaInput(e.target.value)}
+                  placeholder="Dein Scolia-Username"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/50 focus:bg-white/[0.08]"
+                />
+              ) : (
+                <div className="text-sm font-bold">
+                  {profile?.scolia_username
+                    ? <span className="text-emerald-200">{profile.scolia_username}</span>
+                    : <span className="text-zinc-600">Nicht hinterlegt</span>
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* DartCounter */}
+            <div className={`rounded-2xl border p-5 transition sm:p-6 ${profile?.dartcounter_username ? 'border-cyan-300/25 bg-cyan-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">DartCounter</div>
+                  <div className="mt-0.5 text-sm font-bold text-zinc-400">App-Tracking</div>
+                </div>
+                {profile?.dartcounter_username
+                  ? <CheckCircle2 size={16} className="shrink-0 text-cyan-400" />
+                  : <XCircle size={16} className="shrink-0 text-zinc-600" />
+                }
+              </div>
+              {editingPlatforms ? (
+                <input
+                  type="text"
+                  value={dartcounterInput}
+                  onChange={(e) => setDartcounterInput(e.target.value)}
+                  placeholder="Dein DartCounter-Username"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-300/50 focus:bg-white/[0.08]"
+                />
+              ) : (
+                <div className="text-sm font-bold">
+                  {profile?.dartcounter_username
+                    ? <span className="text-cyan-200">{profile.dartcounter_username}</span>
+                    : <span className="text-zinc-600">Nicht hinterlegt</span>
+                  }
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Speichern / Abbrechen */}
+          {editingPlatforms && (
+            <div className="mt-5 flex items-center gap-3">
+              <button
+                onClick={savePlatformUsernames}
+                disabled={savingPlatforms}
+                className="flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-6 py-2.5 text-sm font-black text-black transition hover:opacity-90 disabled:opacity-50"
+              >
+                <Save size={14} />
+                {savingPlatforms ? 'Speichern...' : 'Speichern'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingPlatforms(false);
+                  setScoliaInput(profile?.scolia_username ?? '');
+                  setDartcounterInput(profile?.dartcounter_username ?? '');
+                  setPlatformSaveMsg(null);
+                }}
+                className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-300 transition hover:bg-white/10"
+              >
+                <X size={14} />
+                Abbrechen
+              </button>
+              {platformSaveMsg && (
+                <span className={`text-sm font-bold ${platformSaveMsg.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {platformSaveMsg.text}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Hinweis wenn keine Plattform hinterlegt */}
+          {!profile?.scolia_username && !profile?.dartcounter_username && !editingPlatforms && (
+            <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-400/[0.06] px-5 py-4 text-sm text-amber-200">
+              Hinterlege mindestens einen Plattform-Account, um am Matchmaking teilzunehmen.
+            </div>
+          )}
+        </section>
+
+        {/* ── Match History ──────────────────────────────────────────────── */}
+        <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-8">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Verlauf</div>
+              <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Letzte Matches</h2>
+            </div>
+            <Link href="/history" className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-zinc-300 transition hover:border-white/30 hover:bg-white/10 sm:text-sm">
+              Alle ansehen
+            </Link>
+          </div>
+
+          {matches.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">Noch keine Matches gespielt.</div>
+          ) : (
+            <div className="space-y-3">
+              {matches.map((match) => (
+                <div key={match.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
+                  <div className="text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div>
+                  <div className={`rounded-full px-3 py-1 text-xs font-black ${match.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
+                    {match.is_win ? 'SIEG' : 'NIEDERLAGE'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {profile?.is_admin && (
+          <div className="mt-6 text-center">
+            <Link href="/admin" className="inline-flex rounded-full border border-red-400/25 bg-red-500/10 px-6 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/20">
+              Admin-Panel öffnen
+            </Link>
+          </div>
+        )}
       </section>
     </main>
   );
