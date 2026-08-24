@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
-import { Trophy, Flame, Search, Star, Menu, X } from 'lucide-react';
+import { ArrowUpRight, Crown, Crosshair, Flame, Medal, Radar, Search, ShieldCheck, Star, Swords, Trophy, Users, Menu, X } from 'lucide-react';
 
 type Player = {
   username: string;
@@ -38,7 +37,6 @@ export default function Leaderboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [avgMap, setAvgMap] = useState<PlayerAvgMap>({});
   const supabase = useMemo(() => createClient(), []);
-  const router = useRouter();
 
   useEffect(() => {
     let isMounted = true;
@@ -110,6 +108,9 @@ export default function Leaderboard() {
   const topPlayers = players.slice(0, 3);
   const medals = ['🥇', '🥈', '🥉'];
   const podiumOrder = [1, 0, 2];
+  const filteredPlayers = players
+    .map((player, index) => ({ player, index }))
+    .filter(({ player }) => !searchQuery || player.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
@@ -158,62 +159,79 @@ export default function Leaderboard() {
         )}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-5xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
+      <section className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
 
-        {/* Suchfeld */}
-        <div className="mb-6 relative">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Spieler suchen..."
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] py-3.5 pl-11 pr-5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/40 focus:bg-white/[0.07]"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
-
-        <div className="mb-8 md:mb-10">
-          <div className="mb-4 inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
-            <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
-            Live Ranking
+        <div className="relative mb-8 overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-zinc-950 via-[#09100e] to-zinc-950 p-7 shadow-2xl shadow-black/50 sm:p-10 md:mb-10 md:p-12">
+          <div className="pointer-events-none absolute -left-20 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-emerald-400/15 blur-3xl" />
+          <div className="pointer-events-none absolute -right-16 -top-16 hidden h-72 w-72 items-center justify-center lg:flex">
+            <div className="absolute inset-0 rounded-full border border-emerald-300/15" />
+            <div className="absolute inset-10 rounded-full border border-cyan-300/15" />
+            <div className="absolute inset-20 rounded-full border border-emerald-300/20" />
+            <div className="ranked-orbit absolute left-1/2 top-1/2 h-3 w-3 rounded-full bg-lime-200 shadow-[0_0_22px_rgba(190,242,100,0.95)]" />
+            <Crosshair className="h-12 w-12 text-emerald-100/70" />
           </div>
-          <h1 className="text-4xl font-black leading-[0.9] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Leaderboard</h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-zinc-300 sm:text-lg">Die stärksten RankedDarts-Spieler, sortiert nach Elo.</p>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/80 to-transparent ranked-shine" />
+
+          <div className="relative grid gap-8 lg:grid-cols-[1fr_0.62fr] lg:items-end">
+            <div>
+              <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-100">
+                <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" /></span>
+                Global Ranking · Season 01
+              </div>
+              <h1 className="max-w-4xl text-5xl font-black leading-[0.86] tracking-[-0.08em] sm:text-6xl md:text-7xl lg:text-8xl">Werfen.<br /><span className="bg-gradient-to-r from-emerald-300 via-lime-200 to-cyan-300 bg-clip-text text-transparent">Gewinnen. Aufsteigen.</span></h1>
+              <p className="mt-6 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">Jeder Platz ist verdient: bestätigte Matches, sichtbares Elo und eine Rangliste, die zeigt, wer die Arena gerade beherrscht.</p>
+              <div className="mt-7 flex flex-wrap gap-3 text-xs font-bold text-zinc-300">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3.5 py-2"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Nur bestätigte Matches</span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3.5 py-2"><Users className="h-3.5 w-3.5 text-cyan-300" /> {players.length} Ranked Spieler</span>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-black/35 p-5 backdrop-blur-xl sm:p-6">
+              <div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">Spieler finden</span><Radar className="h-5 w-5 text-emerald-300" /></div>
+              <div className="relative mt-5">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Name eingeben..."
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 py-4 pl-11 pr-11 text-sm font-bold text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/40 focus:bg-white/[0.06]"
+                />
+                {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 transition hover:text-white"><X size={16} /></button>}
+              </div>
+              <Link href="/matchmaking" className="mt-4 flex items-center justify-between rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3.5 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/20"><span className="inline-flex items-center gap-2"><Swords className="h-4 w-4" /> Deinen Platz erspielen</span><ArrowUpRight className="h-4 w-4" /></Link>
+            </div>
+          </div>
         </div>
 
         {/* Top-3 Podium — nur auf sm+ sichtbar */}
         {topPlayers.length >= 3 && (
-          <div className="mb-8 hidden grid-cols-3 gap-4 sm:grid">
+          <div className="mb-8 hidden grid-cols-3 items-end gap-4 sm:grid md:mb-10">
             {podiumOrder.map((idx) => {
               const player = topPlayers[idx];
               if (!player) return null;
               const rank = getRank(player.elo);
               const isGold = idx === 0;
+              const winrate = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               return (
                 <Link
                   key={player.username}
                   href={`/players/${encodeURIComponent(player.username)}`}
-                  className={`rounded-[2rem] border p-5 text-center backdrop-blur-xl transition hover:-translate-y-1 ${
+                  className={`group relative overflow-hidden rounded-[2rem] border p-5 text-center backdrop-blur-xl transition hover:-translate-y-2 ${
                     isGold
-                      ? 'border-yellow-300/30 bg-yellow-400/[0.07] sm:scale-105'
-                      : 'border-white/10 bg-white/[0.04]'
+                      ? 'border-yellow-300/35 bg-gradient-to-b from-yellow-300/[0.14] via-yellow-400/[0.06] to-zinc-950 sm:scale-105 sm:pb-8'
+                      : idx === 1 ? 'border-slate-200/20 bg-gradient-to-b from-slate-200/[0.09] to-zinc-950' : 'border-amber-500/20 bg-gradient-to-b from-amber-500/[0.08] to-zinc-950'
                   }`}
                 >
-                  <div className="text-3xl">{medals[idx]}</div>
-                  <div className="mt-3 truncate text-lg font-black">{player.username}</div>
-                  <div className={`text-sm font-bold ${rank.color}`}>{rank.name}</div>
-                  <div className="mt-2 text-3xl font-black tracking-[-0.05em] text-emerald-300">{player.elo}</div>
-                  <div className="mt-1 text-xs text-zinc-500">
-                    {player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0}% WR
-                  </div>
+                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-60" />
+                  {isGold && <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-yellow-200/15 blur-2xl" />}
+                  <div className={`relative mx-auto grid h-14 w-14 place-items-center rounded-2xl border text-2xl shadow-xl ${isGold ? 'border-yellow-200/40 bg-yellow-300 text-black shadow-yellow-300/20' : 'border-white/15 bg-black/30'}`}>{isGold ? <Crown className="h-7 w-7" /> : medals[idx]}</div>
+                  <div className="relative mt-4 text-[10px] font-black uppercase tracking-[0.26em] text-zinc-500">Platz {idx + 1}</div>
+                  <div className="relative mt-1 truncate text-xl font-black tracking-[-0.05em]">{player.username}</div>
+                  <div className={`relative mt-1 text-xs font-black uppercase tracking-[0.18em] ${rank.color}`}>{rank.name}</div>
+                  <div className="relative mt-4 text-4xl font-black tracking-[-0.07em] text-emerald-300">{player.elo}</div>
+                  <div className="relative mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Elo Rating</div>
+                  <div className="relative mt-5 grid grid-cols-2 gap-2 border-t border-white/10 pt-4 text-xs"><div><span className="block font-black text-white">{player.gamesPlayed}</span><span className="text-zinc-500">Matches</span></div><div><span className="block font-black text-cyan-300">{winrate}%</span><span className="text-zinc-500">Winrate</span></div></div>
                 </Link>
               );
             })}
@@ -222,10 +240,11 @@ export default function Leaderboard() {
 
         {/* Spielerliste als Karten */}
         <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/60 backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-5 py-4 sm:px-6 sm:py-5">
+          <div className="relative flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-white/[0.06] via-white/[0.03] to-transparent px-5 py-5 sm:px-7 sm:py-6">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/60 to-transparent" />
             <div>
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Top 100</div>
-              <div className="mt-0.5 text-sm text-zinc-400">Monatliche Preisgelder für die Top 3</div>
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.28em] text-emerald-300"><Medal className="h-4 w-4" /> Globale Rangliste</div>
+              <div className="mt-1 text-sm text-zinc-400">{searchQuery ? `${filteredPlayers.length} Treffer für „${searchQuery}“` : 'Top 100 · Nur bestätigte Ranked-Matches'}</div>
             </div>
             <Link
               href="/matchmaking"
@@ -236,9 +255,7 @@ export default function Leaderboard() {
           </div>
 
           <div className="divide-y divide-white/[0.07]">
-            {players
-              .filter((p) => !searchQuery || p.username.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((player, index) => {
+            {filteredPlayers.map(({ player, index }) => {
               const rank = getRank(player.elo);
               const winrate = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               const isTop3 = index < 3;
@@ -248,20 +265,20 @@ export default function Leaderboard() {
                 <Link
                   key={`${player.username}-${index}`}
                   href={`/players/${encodeURIComponent(player.username)}`}
-                  className={`flex items-center gap-3 px-5 py-4 transition hover:bg-emerald-400/[0.04] sm:gap-4 sm:px-6 sm:py-5 ${isTop3 ? 'bg-white/[0.02]' : ''}`}
+                  className={`group flex items-center gap-3 px-5 py-4 transition hover:bg-emerald-400/[0.06] sm:gap-4 sm:px-6 sm:py-5 ${isTop3 ? 'bg-white/[0.02]' : ''}`}
                 >
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-black sm:h-12 sm:w-12 sm:text-base ${
                     index === 0 ? 'bg-yellow-300 text-black' :
                     index === 1 ? 'bg-slate-300 text-black' :
                     index === 2 ? 'bg-amber-600 text-black' :
-                    'bg-white/[0.06] text-zinc-400'
+                    'border border-white/10 bg-white/[0.04] text-zinc-400 transition group-hover:border-emerald-300/30 group-hover:text-emerald-200'
                   }`}>
                     {isTop3 ? medals[index] : `#${index + 1}`}
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      {player.isPremium && <Star className="h-3.5 w-3.5 shrink-0 text-emerald-300" />}
+                      {player.isPremium && <Star className="h-3.5 w-3.5 shrink-0 fill-current text-emerald-300" />}
                       <span className="truncate text-sm font-black sm:text-base">{player.username}</span>
                       {isTop3 && <Flame className="h-3.5 w-3.5 shrink-0 text-cyan-300" />}
                     </div>
@@ -289,6 +306,7 @@ export default function Leaderboard() {
                       <div className="text-[11px] text-zinc-500">Elo</div>
                       <div className="text-lg font-black text-emerald-300 sm:text-xl">{player.elo}</div>
                     </div>
+                    <ArrowUpRight className="hidden h-4 w-4 text-emerald-300/0 transition group-hover:text-emerald-300 md:block" />
                     {prize && (
                       <div className="hidden rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200 sm:block">
                         {prize}
@@ -299,6 +317,9 @@ export default function Leaderboard() {
               );
             })}
           </div>
+          {filteredPlayers.length === 0 && (
+            <div className="px-6 py-16 text-center"><Search className="mx-auto h-8 w-8 text-zinc-600" /><p className="mt-4 font-black text-zinc-200">Kein Spieler gefunden</p><p className="mt-1 text-sm text-zinc-500">Versuche es mit einem anderen Namen.</p></div>
+          )}
         </div>
 
         {players.length === 0 && (
@@ -310,9 +331,10 @@ export default function Leaderboard() {
         )}
 
         <p className="mt-8 text-center text-sm text-zinc-500">
-          Aktualisiert beim Laden der Seite · Monatliche Preisgelder für die Top 3
+          Rangliste aktualisiert sich beim Laden · Die Top 3 erhalten Premium-Belohnungen
         </p>
       </section>
     </main>
   );
 }
+
