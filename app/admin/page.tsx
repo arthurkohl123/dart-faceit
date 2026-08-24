@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
+  Clock,
   Crown,
   ExternalLink,
   Gavel,
@@ -584,6 +585,10 @@ export default function AdminPanel() {
   const adminCount = profiles.filter((profile) => profile.is_admin).length;
   const bannedCount = profiles.filter((profile) => profile.is_banned).length;
   const activeCount = profiles.length - bannedCount;
+  const ticketsInQueue = tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in_progress').length;
+  const ticketsWaitingForUser = tickets.filter((ticket) => ticket.status === 'waiting_for_user').length;
+  const unassignedTickets = tickets.filter((ticket) => !ticket.assigned_to_id && !['resolved', 'closed'].includes(ticket.status)).length;
+  const urgentTickets = tickets.filter((ticket) => ticket.priority === 'urgent' && !['resolved', 'closed'].includes(ticket.status)).length;
 
   if (loading) {
     return (
@@ -1225,18 +1230,21 @@ export default function AdminPanel() {
                 </div>
               )}
         {/* ── Support-Tickets ── */}
-        <section className="rounded-[2.4rem] border border-violet-400/20 bg-violet-400/[0.03] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <section className="overflow-hidden rounded-[2.4rem] border border-violet-400/20 bg-violet-400/[0.03] shadow-2xl shadow-black/30 backdrop-blur-2xl">
+          <div className="relative border-b border-white/10 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.18),transparent_46%),linear-gradient(135deg,rgba(255,255,255,0.055),rgba(255,255,255,0.015))] p-5 md:p-7">
+          <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-violet-400/25 bg-violet-400/10 text-violet-200">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl border border-violet-400/25 bg-gradient-to-br from-violet-400/25 to-cyan-400/10 text-violet-100 shadow-[0_0_30px_rgba(139,92,246,0.14)]">
                 <Headphones className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-3xl font-black tracking-[-0.045em] text-white">Support-Tickets</h2>
-                <p className="mt-1 text-sm text-zinc-400">Benutzer-Anfragen verwalten, beantworten und schließen.</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-violet-300">Support Operations</p>
+                <h2 className="mt-1 text-3xl font-black tracking-[-0.055em] text-white">Ticket-Inbox</h2>
+                <p className="mt-1 text-sm text-zinc-400">Priorisieren, übernehmen, antworten – alles in einer klaren Arbeitsansicht.</p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
+              <span className="self-center px-2 text-[10px] font-black uppercase tracking-[0.17em] text-zinc-600">Status</span>
               {[null, 'open', 'in_progress', 'waiting_for_user', 'resolved', 'closed'].map((s) => (
                 <button
                   key={s ?? 'all'}
@@ -1250,7 +1258,29 @@ export default function AdminPanel() {
                   {s === null ? 'Alle' : (ticketStatusConfig[s]?.label ?? s)}
                 </button>
               ))}
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500 self-center ml-4 mr-2">Zugewiesen:</span>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: 'In Bearbeitung', value: ticketsInQueue, icon: <MessageCircle className="h-4 w-4" />, tone: 'border-cyan-300/20 bg-cyan-400/[0.08] text-cyan-200' },
+              { label: 'Ohne Zuordnung', value: unassignedTickets, icon: <Users className="h-4 w-4" />, tone: 'border-violet-300/20 bg-violet-400/[0.08] text-violet-200' },
+              { label: 'Warten auf User', value: ticketsWaitingForUser, icon: <Clock className="h-4 w-4" />, tone: 'border-amber-300/20 bg-amber-400/[0.08] text-amber-200' },
+              { label: 'Dringend', value: urgentTickets, icon: <AlertTriangle className="h-4 w-4" />, tone: 'border-red-300/20 bg-red-400/[0.08] text-red-200' },
+            ].map((item) => (
+              <div key={item.label} className={`flex items-center gap-3 rounded-2xl border p-3 ${item.tone}`}>
+                <div className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-black/20">{item.icon}</div>
+                <div><p className="text-xl font-black tracking-[-0.04em]">{item.value}</p><p className="text-[10px] font-black uppercase tracking-[0.14em] opacity-70">{item.label}</p></div>
+              </div>
+            ))}
+          </div>
+          </div>
+
+          <div className="p-5 md:p-7">
+            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="px-2 text-xs font-bold text-zinc-500">{tickets.length} Ticket{tickets.length !== 1 ? 's' : ''} in der aktuellen Ansicht</p>
+              <div className="flex flex-wrap gap-2">
+              <span className="self-center px-2 text-[10px] font-black uppercase tracking-[0.17em] text-zinc-600">Zuständigkeit</span>
               <button
                 onClick={() => { setTicketAssignmentFilter(null); void loadTickets(ticketFilter, null); }}
                 className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${
@@ -1271,8 +1301,8 @@ export default function AdminPanel() {
               >
                 Meine
               </button>
+              </div>
             </div>
-          </div>
 
           {tickets.length === 0 ? (
             <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">
@@ -1286,12 +1316,13 @@ export default function AdminPanel() {
                 const pc = ticketPriorityConfig[ticket.priority] ?? ticketPriorityConfig.normal;
                 const isOpen = openTicketId === ticket.id;
                 return (
-                  <div key={ticket.id} className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/70">
+                  <div key={ticket.id} className={`group overflow-hidden rounded-[1.75rem] border bg-zinc-950/70 transition ${isOpen ? 'border-violet-300/30 shadow-[0_0_38px_rgba(139,92,246,0.10)]' : 'border-white/10 hover:border-white/20 hover:bg-zinc-950/90'}`}>
                     {/* Ticket-Header */}
                     <button
                       onClick={() => void openTicketDetail(ticket.id)}
-                      className="flex w-full items-start gap-3 p-5 text-left transition hover:bg-white/[0.03]"
+                      className="flex w-full items-start gap-4 p-5 text-left transition hover:bg-white/[0.03]"
                     >
+                      <div className={`mt-1 h-11 w-1 shrink-0 rounded-full ${sc.dot}`} />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${sc.color}`}>
@@ -1309,7 +1340,7 @@ export default function AdminPanel() {
                             </span>
                           )}
                         </div>
-                        <p className="truncate text-base font-black text-white">{ticket.subject}</p>
+                        <p className="truncate text-lg font-black tracking-[-0.025em] text-white">{ticket.subject}</p>
                         {ticket.last_message && (
                           <p className="mt-1 truncate text-xs text-zinc-500">{ticket.last_message}</p>
                         )}
@@ -1317,14 +1348,15 @@ export default function AdminPanel() {
                           {new Date(ticket.updated_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · {ticket.message_count} Nachricht{ticket.message_count !== 1 ? 'en' : ''}
                         </p>
                       </div>
-                      <div className="shrink-0 mt-1 text-zinc-600">
-                        {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      <div className="flex shrink-0 items-center gap-3 text-zinc-600">
+                        <span className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500 sm:inline">{isOpen ? 'Ansicht schließen' : 'Bearbeiten'}</span>
+                        {isOpen ? <ChevronUp size={18} /> : <ChevronDown className="transition group-hover:translate-y-0.5 group-hover:text-zinc-300" size={18} />}
                       </div>
                     </button>
 
                     {/* Ticket-Detail */}
                     {isOpen && ticketDetail && ticketDetail.ticket.id === ticket.id && (
-                      <div className="border-t border-white/10 px-5 pb-5">
+                      <div className="border-t border-white/10 bg-black/20 px-5 pb-5 pt-5">
                         {/* Zuweisung */}
                         <div className="mb-4 flex flex-wrap gap-2 items-center">
                           <span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">Zugewiesen an:</span>
@@ -1437,6 +1469,7 @@ export default function AdminPanel() {
               })}
             </div>
           )}
+          </div>
         </section>
 
             </div>
@@ -1639,3 +1672,4 @@ export default function AdminPanel() {
     </main>
   );
 }
+
