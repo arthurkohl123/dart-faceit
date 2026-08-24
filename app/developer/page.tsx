@@ -93,7 +93,10 @@ export default function DeveloperDashboard() {
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [matchError, setMatchError] = useState('');
   const [stats, setStats] = useState<DashboardStats>({});
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('RankedDarts wird gerade aktualisiert. Bitte versuche es gleich erneut.');
   const [noShowBanMinutes, setNoShowBanMinutes] = useState(15);
@@ -156,6 +159,7 @@ export default function DeveloperDashboard() {
     setNoShowBanMinutes(Number(banMinutes.minutes ?? 15));
     setSmsVerificationEnabled(smsVerification.enabled !== false);
     setDeveloperNotice(notice.message ?? '');
+    setLastUpdated(new Date());
     setLoading(false);
   }, [router, supabase]);
 
@@ -204,8 +208,9 @@ export default function DeveloperDashboard() {
     void loadDashboard();
   };
 
-  const loadMatches = useCallback(async (search: string = matchSearch) => {
+  const loadMatches = useCallback(async (search = '') => {
     setMatchesLoading(true);
+    setMatchError('');
     const { data, error: rpcError } = await supabase.rpc('dev_list_matches', {
       p_limit: 100,
       p_offset: 0,
@@ -213,17 +218,32 @@ export default function DeveloperDashboard() {
     });
     setMatchesLoading(false);
     if (rpcError) {
-      setError(rpcError.message);
+      setMatchError(`Match-Verwaltung konnte nicht geladen werden: ${rpcError.message}`);
       return;
     }
     setMatches((data ?? []) as DevMatch[]);
-  }, [supabase, matchSearch]);
+  }, [supabase]);
 
   useEffect(() => {
-    if (!loading) void loadMatches('');
-    // initial nach dem Dashboard-Load einmal die Matches holen
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
+    if (loading) return;
+
+    const timer = window.setTimeout(() => {
+      void loadMatches('');
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loading, loadMatches]);
+
+  useEffect(() => {
+    if (!autoRefresh || loading) return;
+
+    const timer = window.setInterval(() => {
+      void loadDashboard();
+      void loadMatches(matchSearch);
+    }, 30_000);
+
+    return () => window.clearInterval(timer);
+  }, [autoRefresh, loading, loadDashboard, loadMatches, matchSearch]);
 
   const startEditMatch = (m: DevMatch) => {
     setEditingMatchId(m.id);
@@ -268,7 +288,7 @@ export default function DeveloperDashboard() {
 
     showSuccess('Match-Stats aktualisiert.');
     cancelEditMatch();
-    void loadMatches();
+    void loadMatches(matchSearch);
   };
 
   const handleMatchSearch = (event: FormEvent) => {
@@ -276,6 +296,12 @@ export default function DeveloperDashboard() {
     setMatchSearch(matchSearchInput);
     void loadMatches(matchSearchInput);
   };
+
+  const operationalStatus = maintenanceEnabled
+    ? { label: 'Wartungsmodus aktiv', className: 'border-amber-300/25 bg-amber-400/10 text-amber-100' }
+    : (stats.queue_locked_profiles ?? 0) > 0
+      ? { label: 'Queue-Sperren prüfen', className: 'border-red-300/25 bg-red-500/10 text-red-100' }
+      : { label: 'System betriebsbereit', className: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' };
 
 
 
@@ -301,12 +327,19 @@ export default function DeveloperDashboard() {
             </div>
             <h1 className="mt-6 text-5xl font-black tracking-[-0.07em] md:text-7xl">RankedDarts Steuerung</h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-zinc-400">
-              Diese Oberfläche ist für technische Eingriffe gedacht. Du kannst hier den Wartungsmodus schalten, No-Show-Strafen einstellen, die SMS-Verifizierung aktivieren oder deaktivieren und operative Kennzahlen prüfen.
+              Zentrale Steuerung für Betriebsstatus, Match-Qualität und Queue-Regeln. Änderungen werden direkt dokumentiert und die Kennzahlen bleiben bei aktiver Live-Aktualisierung im Blick.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={() => void loadDashboard()} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:bg-white/[0.08]">
-              Aktualisieren
+            <button
+              type="button"
+              onClick={() => setAutoRefresh((value) => !value)}
+              className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${autoRefresh ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15' : 'border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08]'}`}
+            >
+              Live-Update: {autoRefresh ? 'an' : 'aus'}
+            </button>
+            <button type="button" onClick={() => void loadDashboard()} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:bg-white/[0.08]">
+              Jetzt aktualisieren
             </button>
             <Link href="/admin" className="rounded-2xl border border-white/10 bg-white px-4 py-3 text-sm font-black text-black transition hover:bg-zinc-200">
               Admin öffnen
@@ -321,7 +354,7 @@ export default function DeveloperDashboard() {
           </div>
         )}
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <Activity className="h-5 w-5 text-emerald-300" />
             <p className="mt-4 text-4xl font-black tracking-[-0.05em]">{stats.profiles ?? 0}</p>
@@ -342,7 +375,27 @@ export default function DeveloperDashboard() {
             <p className="mt-4 text-4xl font-black tracking-[-0.05em]">{stats.open_matches ?? 0}</p>
             <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Offene Matches</p>
           </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+            <Swords className="h-5 w-5 text-violet-300" />
+            <p className="mt-4 text-4xl font-black tracking-[-0.05em]">{stats.queue_entries ?? 0}</p>
+            <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-zinc-500">In der Queue</p>
+          </div>
         </div>
+
+        <section className="mt-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-black/20 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className={`h-3 w-3 rounded-full ${maintenanceEnabled ? 'bg-amber-300' : (stats.queue_locked_profiles ?? 0) > 0 ? 'bg-red-400' : 'bg-emerald-400'} ${autoRefresh ? 'animate-pulse' : ''}`} />
+            <div>
+              <p className="text-sm font-black text-zinc-100">Betriebsstatus</p>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                {lastUpdated ? `Zuletzt aktualisiert: ${lastUpdated.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Status wird geladen'}
+              </p>
+            </div>
+          </div>
+          <span className={`w-fit rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${operationalStatus.className}`}>
+            {operationalStatus.label}
+          </span>
+        </section>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30">
@@ -524,7 +577,11 @@ export default function DeveloperDashboard() {
           </div>
 
           <div className="mt-6 overflow-x-auto">
-            {matchesLoading && matches.length === 0 ? (
+            {matchError ? (
+              <div className="rounded-2xl border border-red-400/25 bg-red-500/10 px-5 py-4 text-sm font-bold text-red-100">
+                {matchError}
+              </div>
+            ) : matchesLoading && matches.length === 0 ? (
               <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-black/20 py-10 text-sm font-bold text-zinc-400">
                 <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> Matches werden geladen…
               </div>
@@ -618,3 +675,4 @@ export default function DeveloperDashboard() {
     </main>
   );
 }
+
