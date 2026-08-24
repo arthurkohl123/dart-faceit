@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { ArrowUpRight, Crosshair, Flame, Menu, Radar, Sparkles, Target, Trophy, X, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
 const stats = [
@@ -37,6 +37,12 @@ const ranks = [
   { name: 'Legend', range: '1500+', tone: 'from-cyan-400/20 to-zinc-950' },
 ];
 
+const liveFeed = [
+  { label: 'Queue geöffnet', detail: 'Neue Gegner werden gesucht', icon: Radar },
+  { label: 'Elo geschützt', detail: 'Jedes Resultat wird bestätigt', icon: Target },
+  { label: 'Season 01', detail: 'Dein Rang beginnt bei deinem ersten Wurf', icon: Trophy },
+];
+
 export default function Home() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -61,6 +67,8 @@ export default function Home() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(6,182,212,0.16),transparent_28%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
         <div className="absolute left-1/2 top-0 h-[760px] w-[760px] -translate-x-1/2 rounded-full border border-emerald-400/10 bg-emerald-400/[0.03] blur-3xl" />
         <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+        <div className="absolute left-[7%] top-44 h-40 w-40 rounded-full bg-cyan-400/15 blur-3xl ranked-float" />
+        <div className="absolute right-[7%] top-[30rem] h-52 w-52 rounded-full bg-lime-300/10 blur-3xl ranked-float-delayed" />
       </div>
 
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
@@ -81,6 +89,7 @@ export default function Home() {
             <a href="/matchmaking" className="transition hover:text-white">Matchmaking</a>
             <a href="/updates" className="transition hover:text-white">Updates</a>
             <a href="/premium" className="transition hover:text-white">Premium</a>
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-100"><Flame className="h-3.5 w-3.5" /> Season 01</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -145,15 +154,16 @@ export default function Home() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" />
             </span>
-            Live Matchmaking für ambitionierte Dartspieler
+            DIE ARENA IST LIVE · MATCHMAKING BEREIT
           </div>
 
           <h1 className="max-w-5xl text-5xl font-black leading-[0.9] tracking-[-0.08em] text-white sm:text-6xl md:text-8xl xl:text-[9.5rem]">
-            Darts wird jetzt ranked.
+            Dein Wurf.<br />
+            <span className="bg-gradient-to-r from-emerald-300 via-lime-200 to-cyan-300 bg-clip-text text-transparent">Dein Rang.</span>
           </h1>
 
           <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-300 md:text-2xl md:leading-10">
-            Finde faire Gegner, spiele bestätigte Matches und klettere mit einem transparenten Elo-System durch die RankedDarts-Leaderboards.
+            Nicht nur Darts spielen. Um jeden Punkt kämpfen. Finde Gegner auf deinem Level, sichere dein Ergebnis und mach jeden Sieg im Ranking sichtbar.
           </p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -179,8 +189,8 @@ export default function Home() {
                   onClick={() => router.push('/auth/register')}
                   className="group rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-5 text-base font-black uppercase tracking-[0.18em] text-black shadow-[0_24px_80px_rgba(34,197,94,0.28)] transition hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(34,197,94,0.42)]"
                 >
-                  Account erstellen
-                  <span className="ml-3 inline-block transition group-hover:translate-x-1">→</span>
+                  Jetzt einsteigen
+                  <ArrowUpRight className="ml-3 inline-block h-5 w-5 transition group-hover:translate-x-1 group-hover:-translate-y-1" />
                 </button>
                 <button
                   onClick={() => router.push('/leaderboard')}
@@ -192,7 +202,12 @@ export default function Home() {
             )}
           </div>
 
-          <div className="mt-12 grid max-w-2xl grid-cols-3 gap-3 text-sm text-zinc-400">
+          <div className="mt-8 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+            <span className="h-px w-10 bg-emerald-300/60" />
+            Kein Zufall. Kein Blind Match. Nur dein nächstes Level.
+          </div>
+
+          <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 text-sm text-zinc-400">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <div className="text-2xl font-black text-white">Elo</div>
               <div className="mt-1">Skillbasiertes Ranking</div>
@@ -210,21 +225,30 @@ export default function Home() {
 
         <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
           <div className="absolute -inset-8 rounded-[3rem] bg-emerald-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -right-5 -top-5 hidden h-48 w-48 items-center justify-center md:flex">
+            <div className="absolute inset-0 rounded-full border border-emerald-300/15" />
+            <div className="absolute inset-7 rounded-full border border-cyan-300/15" />
+            <div className="absolute inset-[3.6rem] rounded-full border border-emerald-300/25" />
+            <div className="ranked-orbit absolute left-1/2 top-1/2 h-3 w-3 rounded-full bg-lime-200 shadow-[0_0_22px_rgba(190,242,100,0.95)]" />
+            <Crosshair className="h-8 w-8 text-emerald-200/60" />
+          </div>
           <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/80 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl">
+            <div className="ranked-scan pointer-events-none absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-emerald-300/0 via-emerald-300/[0.07] to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent ranked-shine" />
             <div className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-zinc-900 via-black to-zinc-950 p-6 md:p-8">
               <div className="flex items-center justify-between border-b border-white/10 pb-5">
                 <div>
-                  <div className="text-sm font-bold uppercase tracking-[0.24em] text-emerald-300">Live Match</div>
-                  <div className="mt-1 text-2xl font-black tracking-tight">Best of 11 Legs</div>
+                  <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.24em] text-emerald-300"><Radar className="h-4 w-4" /> Match Radar</div>
+                  <div className="mt-1 text-2xl font-black tracking-tight">Dein nächstes Duell</div>
                 </div>
-                <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">Queue 0:14</div>
+                <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">LIVE · 0:14</div>
               </div>
 
               <div className="mt-7 grid gap-4">
                 <div className="rounded-3xl border border-emerald-400/25 bg-emerald-400/[0.06] p-5">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <div className="text-sm text-zinc-400">Spieler A</div>
+                      <div className="text-sm text-zinc-400">DU</div>
                       <div className="mt-1 text-3xl font-black tracking-tight">CheckoutKing</div>
                     </div>
                     <div className="text-right">
@@ -243,7 +267,7 @@ export default function Home() {
                 <div className="rounded-3xl border border-cyan-400/25 bg-cyan-400/[0.05] p-5">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <div className="text-sm text-zinc-400">Spieler B</div>
+                      <div className="text-sm text-zinc-400">GEGNER GEFUNDEN</div>
                       <div className="mt-1 text-3xl font-black tracking-tight">TripleTwenty</div>
                     </div>
                     <div className="text-right">
@@ -256,7 +280,7 @@ export default function Home() {
 
               <div className="mt-7 rounded-3xl border border-white/10 bg-black/45 p-5">
                 <div className="mb-4 flex items-center justify-between text-sm">
-                  <span className="font-bold text-zinc-300">Matchqualität</span>
+                  <span className="flex items-center gap-2 font-bold text-zinc-300"><Sparkles className="h-4 w-4 text-emerald-300" /> Matchqualität</span>
                   <span className="font-black text-emerald-300">98%</span>
                 </div>
                 <div className="h-3 overflow-hidden rounded-full bg-white/10">
@@ -273,10 +297,30 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="relative z-10 mx-auto -mt-8 max-w-7xl px-5 md:px-8">
+        <div className="grid overflow-hidden rounded-[2rem] border border-white/10 bg-black/50 shadow-2xl shadow-black/30 backdrop-blur-xl md:grid-cols-3">
+          {liveFeed.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.label} className={`group flex items-center gap-4 px-5 py-5 ${index < liveFeed.length - 1 ? 'border-b border-white/10 md:border-b-0 md:border-r' : ''}`}>
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-200 transition group-hover:scale-110 group-hover:bg-emerald-400/20">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-white">{item.label}</div>
+                  <div className="mt-0.5 text-xs text-zinc-500">{item.detail}</div>
+                </div>
+                <Zap className="ml-auto h-4 w-4 text-emerald-300/0 transition group-hover:text-emerald-300" />
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="relative z-10 border-y border-white/10 bg-white/[0.025] py-8">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-5 md:grid-cols-4 md:px-8">
           {stats.map((item) => (
-            <div key={item.label} className="rounded-3xl border border-white/10 bg-black/25 p-5 text-center backdrop-blur">
+            <div key={item.label} className="group rounded-3xl border border-white/10 bg-black/25 p-5 text-center backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-emerald-300/30 hover:bg-emerald-400/[0.04]">
               <div className="text-4xl font-black tracking-[-0.05em] text-white md:text-5xl">{item.value}</div>
               <div className="mt-2 font-bold text-emerald-300">{item.label}</div>
               <div className="mt-1 text-sm text-zinc-500">{item.detail}</div>
@@ -373,3 +417,4 @@ export default function Home() {
     </main>
   );
 }
+
