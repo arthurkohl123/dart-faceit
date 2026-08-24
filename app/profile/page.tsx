@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Headphones, Menu, Pencil, Save, X, XCircle } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Crosshair, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, X, XCircle, Zap } from 'lucide-react';
 
 const rankTiers = [
   { name: 'Eisen',   min: 0,    color: 'text-zinc-300',    accent: 'from-zinc-400/20 to-zinc-950',    ringColor: 'border-zinc-400/40',   glowColor: 'rgba(161,161,170,0.18)' },
@@ -38,7 +38,6 @@ type ProfileData = {
 
 export default function Profile() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchData[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -65,7 +64,6 @@ export default function Profile() {
       if (!session) { router.push('/auth/login'); return; }
 
       const uid = session.user.id;
-      if (isMounted) setUserId(uid);
 
       const [{ data: profileData }, { data: matchData }, { data: statsData }] = await Promise.all([
         supabase.from('profiles').select('*').eq('supabaseId', uid).single(),
@@ -131,6 +129,14 @@ export default function Profile() {
   const progress = nextRank === currentRank ? 100 : Math.min(Math.max(((elo - currentRank.min) / rankRange) * 100, 0), 100);
   const phoneVerified = Boolean(profile?.phone_verified);
   const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
+  const hasPlatform = Boolean(profile?.scolia_username || profile?.dartcounter_username);
+  const queueReady = phoneVerified && hasPlatform;
+  const nextStep = !phoneVerified
+    ? { label: 'Telefon verifizieren', detail: 'Noch ein Schritt bis zum Ranked-Zugang.', href: '/auth/verify-phone', icon: ShieldCheck }
+    : !hasPlatform
+      ? { label: 'Plattform verbinden', detail: 'Hinterlege Scolia oder DartCounter für die Queue.', href: '#platforms', icon: Target }
+      : { label: 'Nächstes Match starten', detail: 'Du bist bereit für die Ranked-Queue.', href: '/matchmaking', icon: Zap };
+  const NextStepIcon = nextStep.icon;
 
   if (loading) {
     return (
@@ -205,6 +211,14 @@ export default function Profile() {
             className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full blur-3xl opacity-30"
             style={{ background: `radial-gradient(circle, ${currentRank.glowColor}, transparent 70%)` }}
           />
+          <div className="pointer-events-none absolute -right-10 top-1/2 hidden h-72 w-72 -translate-y-1/2 items-center justify-center lg:flex">
+            <div className={`absolute inset-0 rounded-full border ${currentRank.ringColor} opacity-40`} />
+            <div className={`absolute inset-10 rounded-full border ${currentRank.ringColor} opacity-35`} />
+            <div className={`absolute inset-20 rounded-full border ${currentRank.ringColor} opacity-30`} />
+            <div className="ranked-orbit absolute left-1/2 top-1/2 h-3 w-3 rounded-full bg-emerald-200 shadow-[0_0_22px_rgba(167,243,208,0.95)]" />
+            <Crosshair className={`h-12 w-12 ${currentRank.color} opacity-70`} />
+          </div>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent ranked-shine" />
 
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
             {/* Avatar-Ring */}
@@ -215,10 +229,12 @@ export default function Profile() {
               <span className="text-3xl font-black text-white sm:text-4xl">
                 {(profile?.username ?? 'S').charAt(0).toUpperCase()}
               </span>
+              <span className="absolute -bottom-2 -right-2 grid h-7 w-7 place-items-center rounded-full border border-emerald-200/40 bg-emerald-400 text-black shadow-[0_0_20px_rgba(74,222,128,0.7)]"><Zap className="h-3.5 w-3.5 fill-current" /></span>
             </div>
 
             {/* Name + Rang */}
             <div className="flex-1 min-w-0">
+              <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80"><Sparkles className="h-3.5 w-3.5" /> Player card · Season 01</div>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-3xl font-black tracking-[-0.06em] sm:text-4xl md:text-5xl lg:text-6xl truncate">
                   {profile?.username || 'Spieler'}
@@ -243,6 +259,13 @@ export default function Profile() {
                   <span>Winrate</span>
                 </span>
               </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] ${queueReady ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-amber-300/25 bg-amber-400/10 text-amber-100'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${queueReady ? 'bg-emerald-300 animate-pulse' : 'bg-amber-300'}`} />
+                  {queueReady ? 'Queue bereit' : 'Profil vervollständigen'}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-bold text-zinc-300"><Trophy className="h-3.5 w-3.5 text-yellow-200" /> {currentRank.name} Division</span>
+              </div>
             </div>
 
             {/* CTA */}
@@ -250,7 +273,7 @@ export default function Profile() {
               onClick={() => router.push(phoneVerified ? '/matchmaking' : '/auth/verify-phone')}
               className="shrink-0 rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_12px_40px_rgba(34,197,94,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_50px_rgba(34,197,94,0.38)] sm:px-8 sm:py-4"
             >
-              {phoneVerified ? 'Match suchen →' : 'Verifizieren →'}
+              {phoneVerified ? 'Match suchen' : 'Verifizieren'} <ArrowUpRight className="ml-2 inline-block h-4 w-4" />
             </button>
           </div>
         </div>
@@ -280,6 +303,38 @@ export default function Profile() {
             <div className="mt-1 text-xs text-zinc-500">Gesamt</div>
           </div>
         </div>
+
+        <section className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <Link
+            href={nextStep.href}
+            className="group relative overflow-hidden rounded-[1.75rem] border border-emerald-300/20 bg-gradient-to-r from-emerald-400/[0.13] via-emerald-400/[0.06] to-cyan-400/[0.08] p-6 transition hover:-translate-y-1 hover:border-emerald-200/40 sm:p-7"
+          >
+            <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-emerald-300/15 blur-3xl transition group-hover:bg-emerald-300/25" />
+            <div className="relative flex items-center gap-5">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-emerald-200/25 bg-black/25 text-emerald-100 shadow-[0_0_30px_rgba(34,197,94,0.15)]">
+                <NextStepIcon className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200">Dein nächster Zug</div>
+                <div className="mt-1 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">{nextStep.label}</div>
+                <p className="mt-1 text-sm text-zinc-300">{nextStep.detail}</p>
+              </div>
+              <ArrowUpRight className="h-6 w-6 shrink-0 text-emerald-100 transition group-hover:-translate-y-1 group-hover:translate-x-1" />
+            </div>
+          </Link>
+
+          <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-7">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">Season Momentum</div>
+              <Flame className="h-5 w-5 text-amber-300" />
+            </div>
+            <div className="mt-3 flex items-end justify-between gap-4">
+              <div><span className="text-3xl font-black tracking-[-0.06em] text-white">{gamesPlayed}</span><span className="ml-2 text-sm font-bold text-zinc-500">Matches</span></div>
+              <div className="text-right text-sm font-bold text-emerald-200">{wins} Siege</div>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-300 to-cyan-300" style={{ width: `${Math.max(winrate, 8)}%` }} /></div>
+          </div>
+        </section>
 
         {/* ── Fortschritt + Verifizierung ─────────────────────────────────── */}
         <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
@@ -347,7 +402,7 @@ export default function Profile() {
         </div>
 
         {/* ── Plattform-Verbindungen ─────────────────────────────────────── */}
-        <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-8">
+        <section id="platforms" className="mt-5 scroll-mt-28 rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-8">
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Plattformen</div>
@@ -505,3 +560,4 @@ export default function Profile() {
     </main>
   );
 }
+
