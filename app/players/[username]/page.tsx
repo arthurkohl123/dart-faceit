@@ -204,7 +204,7 @@ export default function PlayerProfile() {
             className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full blur-3xl opacity-25"
             style={{ background: `radial-gradient(circle, ${currentRank.glowColor}, transparent 70%)` }}
           />
-          <div className="pointer-events-none absolute -right-8 top-1/2 hidden h-80 w-80 -translate-y-1/2 items-center justify-center lg:flex">
+          <div className="pointer-events-none absolute -right-20 top-1/2 hidden h-72 w-72 -translate-y-1/2 items-center justify-center opacity-55 lg:flex">
             <div className="absolute inset-0 rounded-full border border-white/10" />
             <div className="absolute inset-10 rounded-full border border-white/15" />
             <div className="absolute inset-20 rounded-full border border-emerald-300/20" />
@@ -212,7 +212,7 @@ export default function PlayerProfile() {
             <Crosshair className={`h-14 w-14 ${currentRank.color} opacity-70`} />
           </div>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent ranked-shine" />
-          <div className="relative flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-7 sm:text-left">
+          <div className="relative z-10 flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-7 sm:text-left">
             <div className="relative grid h-24 w-24 shrink-0 place-items-center rounded-[1.75rem] border border-white/20 bg-black/35 text-2xl font-black shadow-xl sm:h-28 sm:w-28 sm:text-3xl">
               {currentRank.badge}
               <span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border border-emerald-200/40 bg-emerald-400 text-black shadow-[0_0_20px_rgba(74,222,128,0.7)]"><Zap className="h-4 w-4 fill-current" /></span>
@@ -226,10 +226,11 @@ export default function PlayerProfile() {
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>{currentRank.name}</span>{profile!.isPremium && <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">PREMIUM</span>}</div>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-zinc-400 sm:justify-start"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Bestätigte Ranked-Stats</span><span className="hidden h-3 w-px bg-white/15 sm:block" /><span>{gamesPlayed} Matches gespielt</span></div>
             </div>
-            <div className="shrink-0 rounded-[1.75rem] border border-emerald-300/20 bg-emerald-400/[0.08] px-7 py-5 text-center shadow-[0_0_35px_rgba(34,197,94,0.12)]">
-              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200">Current rating</div>
+            <div className="relative shrink-0 overflow-hidden rounded-[1.75rem] border border-emerald-300/25 bg-[#07120e]/95 px-7 py-5 text-center shadow-[0_0_35px_rgba(34,197,94,0.15)]">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/80 to-transparent" />
+              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200">Elo Rating</div>
               <div className="mt-1 text-5xl font-black tracking-[-0.07em] text-emerald-300 sm:text-6xl">{elo}</div>
-              <div className="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">Elo</div>
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Season 01</div>
             </div>
           </div>
         </div>
@@ -344,4 +345,5 @@ export default function PlayerProfile() {
     </main>
   );
 }
+
 
