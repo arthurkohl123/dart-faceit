@@ -18,6 +18,7 @@ import {
   Menu,
   MessageCircle,
   Plus,
+  Search,
   Send,
   Shield,
   Sparkles,
@@ -91,6 +92,15 @@ const categoryConfig: Record<TicketCategory, { label: string; icon: React.ReactN
   ban_appeal:    { label: 'Ban-Einspruch', icon: <Shield size={20} />,     color: 'border-violet-300/20 bg-violet-400/10 text-violet-200', desc: 'Einspruch gegen eine Sperre',        glow: 'from-violet-400/15' },
   other:         { label: 'Sonstiges',     icon: <Sparkles size={20} />,   color: 'border-emerald-300/20 bg-emerald-400/10 text-emerald-200', desc: 'Alles andere',                    glow: 'from-emerald-400/15' },
 };
+
+const helpGuides: { title: string; description: string; category: TicketCategory; keywords: string; ticketSubject: string }[] = [
+  { title: 'Match-Ergebnis stimmt nicht', description: 'Was du bei falschem Ergebnis, Abbruch oder einer strittigen Wertung tun kannst.', category: 'match_dispute', keywords: 'match ergebnis wertung elo gegner abbruch', ticketSubject: 'Problem mit einem Match-Ergebnis' },
+  { title: 'Elo & Rangliste', description: 'Hilfe bei Elo-Änderungen, Ranglistenplatz oder nicht übernommenen Matches.', category: 'match_dispute', keywords: 'elo rating ranking rangliste punkte', ticketSubject: 'Frage zu Elo oder Rangliste' },
+  { title: 'Login & Account', description: 'Unterstützung bei Zugang, Profil, E-Mail oder deinen Account-Einstellungen.', category: 'account', keywords: 'login konto account profil email passwort', ticketSubject: 'Hilfe mit meinem Account' },
+  { title: 'Technisches Problem', description: 'Melde einen Fehler auf der Website oder beim Matchmaking mit Screenshots.', category: 'bug', keywords: 'bug fehler technisch website matchmaking ladefehler', ticketSubject: 'Technisches Problem melden' },
+  { title: 'Spieler oder Verhalten melden', description: 'Melde uns einen Vorfall nachvollziehbar mit Match-ID und Belegen.', category: 'match_dispute', keywords: 'spieler melden report verhalten beleidigung betrug', ticketSubject: 'Vorfall in einem Match melden' },
+  { title: 'Sperre anfechten', description: 'Informationen für einen begründeten Einspruch gegen eine Kontosperre.', category: 'ban_appeal', keywords: 'ban sperre einspruch gesperrt', ticketSubject: 'Einspruch gegen eine Sperre' },
+];
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -184,6 +194,7 @@ function Navbar({ onLogout }: { onLogout: () => void }) {
 export default function SupportPage() {
   const [view, setView] = useState<'list' | 'new' | 'detail'>('list');
   const [ticketListFilter, setTicketListFilter] = useState<'all' | 'attention' | 'active' | 'completed'>('all');
+  const [helpSearch, setHelpSearch] = useState('');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [detail, setDetail] = useState<TicketDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -385,6 +396,17 @@ export default function SupportPage() {
     if (ticketListFilter === 'completed') return ticketIsClosed(ticket.status);
     return true;
   });
+  const matchingGuides = helpGuides.filter((guide) => {
+    const query = helpSearch.trim().toLowerCase();
+    return !query || `${guide.title} ${guide.description} ${guide.keywords}`.toLowerCase().includes(query);
+  });
+  const openTicketForGuide = (guide: typeof helpGuides[number]) => {
+    setCategory(guide.category);
+    setSubject((current) => current || guide.ticketSubject);
+    setError('');
+    setSuccess('');
+    setView('new');
+  };
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
@@ -400,18 +422,23 @@ export default function SupportPage() {
       <section className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
         {view === 'list' && (
           <>
-            <div className="mb-10 grid gap-6 lg:grid-cols-[1.12fr_0.88fr] lg:items-end">
+            <div className="mb-8 grid gap-6 lg:grid-cols-[1.12fr_0.88fr] lg:items-end">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-violet-200">
-                  <Headphones size={13} /> Support Center
+                  <Headphones size={13} /> RankedDarts Help Center
                 </div>
                 <h1 className="mt-4 max-w-3xl text-5xl font-black tracking-[-0.07em] sm:text-6xl lg:text-7xl">
-                  Wir helfen dir,<br />
-                  <span className="bg-gradient-to-r from-violet-300 via-emerald-200 to-cyan-300 bg-clip-text text-transparent">schnell weiter.</span>
+                  Wie können wir<br />
+                  <span className="bg-gradient-to-r from-violet-300 via-emerald-200 to-cyan-300 bg-clip-text text-transparent">dir helfen?</span>
                 </h1>
                 <p className="mt-5 max-w-2xl text-base leading-8 text-zinc-400 sm:text-lg">
-                  Verfolge deine Support-Anfragen, antworte direkt im Ticket und behalte Status, Kategorie und Verlauf jederzeit im Blick.
+                  Suche zuerst nach einer passenden Lösung. Falls dein Anliegen offen bleibt, leitest du direkt daraus ein strukturiertes Ticket ab.
                 </p>
+                <label className="group mt-6 flex max-w-2xl items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3.5 shadow-2xl shadow-black/25 transition focus-within:border-violet-300/40 focus-within:bg-white/[0.045]">
+                  <Search size={19} className="shrink-0 text-zinc-500 transition group-focus-within:text-violet-200" />
+                  <input value={helpSearch} onChange={(event) => setHelpSearch(event.target.value)} placeholder="Suche nach Match, Elo, Login oder technischem Problem…" className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-zinc-600" />
+                  <kbd className="hidden rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-black text-zinc-600 sm:block">Suchen</kbd>
+                </label>
               </div>
 
               <div className="rounded-[2.25rem] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl sm:p-6">
@@ -420,13 +447,33 @@ export default function SupportPage() {
                     <Zap size={20} />
                   </div>
                   <div>
-                    <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">Antwortzeit</p>
-                    <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">unter 24 Stunden</p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-500">Bei Match-Streitigkeiten bitte Match-ID, Gegnername und Screenshots direkt mitschicken.</p>
+                    <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">Bevor du ein Ticket öffnest</p>
+                    <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">Schnell zur Lösung</p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-500">Wähle den passenden Kontaktgrund. Bei Match-Streitigkeiten bitte Match-ID, Gegnername und Screenshots direkt mitschicken.</p>
                   </div>
                 </div>
               </div>
             </div>
+
+            <section className="mb-8 rounded-[2.25rem] border border-white/10 bg-zinc-950/65 p-4 shadow-2xl shadow-black/25 backdrop-blur-xl sm:p-5">
+              <div className="mb-4 flex flex-col gap-2 px-1 sm:flex-row sm:items-end sm:justify-between">
+                <div><p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">Schnellhilfe</p><h2 className="mt-1 text-2xl font-black tracking-[-0.045em] text-white">Beliebte Themen</h2></div>
+                <p className="text-sm text-zinc-600">{matchingGuides.length} passende Hilfe{matchingGuides.length !== 1 ? '-Themen' : '-Thema'}</p>
+              </div>
+              {matchingGuides.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-5 py-8 text-center"><Search className="mx-auto h-6 w-6 text-zinc-600" /><p className="mt-3 text-sm font-bold text-zinc-400">Kein passender Artikel gefunden.</p><button onClick={() => { setHelpSearch(''); setView('new'); }} className="mt-3 text-sm font-black text-violet-200 transition hover:text-white">Ticket stattdessen erstellen →</button></div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {matchingGuides.map((guide) => {
+                    const cfg = categoryConfig[guide.category];
+                    return <button key={guide.title} onClick={() => openTicketForGuide(guide)} className="group rounded-[1.55rem] border border-white/10 bg-white/[0.025] p-5 text-left transition hover:-translate-y-0.5 hover:border-violet-300/30 hover:bg-white/[0.05]">
+                      <div className="flex items-start gap-3"><span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${cfg.color}`}>{cfg.icon}</span><div className="min-w-0"><p className="font-black tracking-[-0.02em] text-white">{guide.title}</p><p className="mt-2 text-sm leading-6 text-zinc-500">{guide.description}</p></div></div>
+                      <span className="mt-4 inline-flex items-center gap-2 text-xs font-black text-violet-200 transition group-hover:gap-3">Hilfe oder Ticket öffnen <ChevronRight size={14} /></span>
+                    </button>;
+                  })}
+                </div>
+              )}
+            </section>
 
             <div className="mb-8 grid gap-3 sm:grid-cols-3">
               {[
@@ -592,10 +639,10 @@ export default function SupportPage() {
             <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_0.75fr] lg:items-end">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-violet-200">
-                  <Plus size={12} /> Neues Ticket
+                  <Plus size={12} /> Support-Anfrage
                 </div>
-                <h2 className="mt-4 text-4xl font-black tracking-[-0.06em] sm:text-6xl">Ticket erstellen</h2>
-                <p className="mt-4 max-w-2xl text-zinc-500">Wähle eine Kategorie und beschreibe dein Anliegen so detailliert wie möglich. Der Verlauf erscheint anschließend als Chat.</p>
+                <h2 className="mt-4 text-4xl font-black tracking-[-0.06em] sm:text-6xl">Anfrage senden</h2>
+                <p className="mt-4 max-w-2xl text-zinc-500">Wähle zuerst den passenden Kontaktgrund und schildere anschließend dein Anliegen. Dein Ticket-Verlauf bleibt danach als Konversation verfügbar.</p>
               </div>
               <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 backdrop-blur-xl">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-600">Gute Beschreibung</p>
@@ -623,8 +670,8 @@ export default function SupportPage() {
                 <div className="flex items-center gap-3 border-b border-white/10 px-6 py-5">
                   <div className="grid h-8 w-8 place-items-center rounded-xl bg-violet-400/15 text-sm font-black text-violet-300">1</div>
                   <div>
-                    <div className="text-sm font-black text-white">Kategorie wählen</div>
-                    <div className="text-xs text-zinc-600">Worum geht es bei deinem Anliegen?</div>
+                    <div className="text-sm font-black text-white">Kontaktgrund wählen</div>
+                    <div className="text-xs text-zinc-600">Worum geht es bei deiner Anfrage?</div>
                   </div>
                 </div>
                 <div className="grid gap-3 p-5 sm:grid-cols-2">
