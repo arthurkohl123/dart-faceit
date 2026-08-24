@@ -41,8 +41,15 @@ const comparisonRows = [
 export default function Premium() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+
+  useEffect(() => {
+    setCheckoutStatus(new URLSearchParams(window.location.search).get('checkout'));
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -82,6 +89,24 @@ export default function Premium() {
   }
 
   const winrate = profile?.gamesPlayed ? Math.round(((profile.wins || 0) / profile.gamesPlayed) * 100) : 0;
+  const startCheckout = async () => {
+    setCheckoutLoading(true);
+    setCheckoutError(null);
+
+    try {
+      const response = await fetch('/api/checkout', { method: 'POST' });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || !payload.url) {
+        throw new Error(payload.error || 'Der Checkout konnte nicht gestartet werden.');
+      }
+
+      window.location.assign(payload.url);
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Der Checkout konnte nicht gestartet werden.');
+      setCheckoutLoading(false);
+    }
+  };
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
@@ -144,7 +169,7 @@ export default function Premium() {
                 <div className="grid h-16 w-16 place-items-center rounded-[1.4rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_35px_rgba(34,197,94,0.18)]">
                   <Crown className="h-8 w-8" />
                 </div>
-                <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-cyan-200">Bald verfügbar</span>
+                <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-cyan-200">Monatsabo</span>
               </div>
 
               <div className="mt-8">
@@ -157,13 +182,17 @@ export default function Premium() {
               </div>
 
               <button
-                disabled
-                className="mt-8 w-full rounded-3xl border border-white/10 bg-white/[0.06] px-8 py-5 font-black uppercase tracking-[0.18em] text-zinc-500 shadow-inner shadow-white/5 disabled:cursor-not-allowed"
+                onClick={startCheckout}
+                disabled={checkoutLoading || Boolean(profile?.isPremium)}
+                className="mt-8 w-full rounded-3xl border border-emerald-200/35 bg-emerald-300 px-8 py-5 font-black uppercase tracking-[0.18em] text-black shadow-[0_16px_45px_rgba(52,211,153,0.18)] transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.06] disabled:text-zinc-500 disabled:shadow-inner disabled:shadow-white/5"
               >
-                Zahlung bald verfügbar
+                {profile?.isPremium ? 'Premium ist aktiv' : checkoutLoading ? 'Checkout wird geöffnet...' : 'Premium auswählen'}
               </button>
 
-              <p className="mt-5 text-center text-sm text-zinc-500">Premium wird in Kürze freigeschaltet. Bis dahin bleibt dein aktueller Account unverändert.</p>
+              {checkoutError && <p className="mt-4 text-center text-sm font-semibold text-rose-300">{checkoutError}</p>}
+              {checkoutStatus === 'success' && <p className="mt-4 text-center text-sm font-semibold text-emerald-200">Danke! Deine Zahlung wird bestätigt. Aktualisiere die Seite in wenigen Sekunden, falls der Status noch nicht erscheint.</p>}
+              {checkoutStatus === 'cancelled' && <p className="mt-4 text-center text-sm text-zinc-400">Der Checkout wurde abgebrochen. Dein Account bleibt unverändert.</p>}
+              <p className="mt-5 text-center text-sm text-zinc-500">Sichere Zahlung über Stripe. Du kannst dein Abo jederzeit in Stripe verwalten.</p>
             </div>
           </aside>
         </div>
@@ -194,7 +223,7 @@ export default function Premium() {
                 <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{profile?.isPremium ? 'Premium aktiv' : 'Free Account'}</h2>
               </div>
             </div>
-            <p className="mt-6 text-lg leading-8 text-zinc-300">{profile?.isPremium ? 'Dein Profil ist bereits als Premium markiert.' : 'Du nutzt aktuell den kostenlosen Zugang. Sobald Premium freigeschaltet ist, kann der Upgrade-Flow hier aktiviert werden.'}</p>
+            <p className="mt-6 text-lg leading-8 text-zinc-300">{profile?.isPremium ? 'Dein Profil ist bereits als Premium markiert.' : 'Du nutzt aktuell den kostenlosen Zugang. Wähle Premium, um den sicheren Stripe-Checkout zu öffnen.'}</p>
             <Link href="/updates" className="mt-7 inline-flex rounded-full border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20">
               Updates ansehen
             </Link>
@@ -239,9 +268,10 @@ export default function Premium() {
             <Sparkles className="h-8 w-8" />
           </div>
           <h2 className="mt-6 text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für die nächste Stufe?</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-zinc-300">Die Premium-Seite ist jetzt optisch vorbereitet. Sobald Zahlungsanbieter und Aktivierungslogik eingebunden sind, kann der deaktivierte Button direkt zum Upgrade-Flow erweitert werden.</p>
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-zinc-300">Dein Premium-Status wird nach erfolgreicher Zahlung automatisch über Stripe und Supabase aktiviert.</p>
         </section>
       </section>
     </main>
   );
 }
+
