@@ -16,6 +16,15 @@ type MiddlewareProfile = {
 export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
+  // URLs sind in Next.js case-sensitive. Viele Nutzer tippen die Seite mit
+  // großem D ein; leite diese Schreibweise deshalb zuverlässig auf die echte
+  // Developer-Route weiter, statt eine 404-Seite auszuliefern.
+  if (pathname === '/Developer' || pathname.startsWith('/Developer/')) {
+    const developerUrl = request.nextUrl.clone();
+    developerUrl.pathname = pathname.replace(/^\/Developer/, '/developer');
+    return NextResponse.redirect(developerUrl);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -122,3 +131,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
+
