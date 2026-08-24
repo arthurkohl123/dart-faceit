@@ -167,6 +167,7 @@ export default function Profile() {
           <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
             <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
+            <Link href="/tournaments" className="inline-flex items-center gap-1.5 transition hover:text-white"><Trophy size={14} />Turniere</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
             <Link href="/support" className="inline-flex items-center gap-1.5 transition hover:text-white"><Headphones size={14} />Support</Link>
             <Link href="/premium" className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-200 transition hover:bg-emerald-400/20">Premium</Link>
@@ -190,6 +191,7 @@ export default function Profile() {
             <div className="flex flex-col gap-1">
               <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
               <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
+              <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Trophy size={15} />Turniere</Link>
               <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
               <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Headphones size={15} />Support</Link>
