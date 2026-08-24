@@ -789,12 +789,11 @@ export default function SupportPage() {
                 <ArrowLeft size={16} /> Zurück zu meinen Tickets
               </button>
 
-              <div className="mb-6 overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/70 shadow-2xl shadow-black/35 backdrop-blur-2xl">
-                <div className={`relative bg-gradient-to-br ${cc.glow} via-white/[0.03] to-transparent px-6 py-7 sm:px-8`}>
-                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-                  <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+              <div className="mb-5 rounded-2xl border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/25 backdrop-blur-xl">
+                <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
-                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Support-Anfrage · #{detail.ticket.id.slice(0, 8)}</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] ${sc.bg} ${sc.color}`}>
                           <span className={`h-2 w-2 rounded-full ${sc.dot} ${!closed ? 'animate-pulse' : ''}`} />
                           {sc.label}
@@ -804,39 +803,28 @@ export default function SupportPage() {
                           {cc.label}
                         </span>
                       </div>
-                      <h2 className="max-w-4xl text-3xl font-black tracking-[-0.06em] sm:text-5xl">{detail.ticket.subject}</h2>
-                      <p className="mt-3 text-sm leading-6 text-zinc-500">Ticket erstellt am {formatDate(detail.ticket.created_at)} · zuletzt aktualisiert {timeAgo(detail.ticket.updated_at)}</p>
+                      <h2 className="mt-4 max-w-4xl text-2xl font-black tracking-[-0.045em] text-white sm:text-3xl">{detail.ticket.subject}</h2>
+                      <p className="mt-2 text-sm leading-6 text-zinc-500">Erstellt am {formatDate(detail.ticket.created_at)} · zuletzt aktualisiert {timeAgo(detail.ticket.updated_at)}</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 lg:w-80">
-                      <div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-center">
-                        <p className="text-2xl font-black text-white">{detail.messages.length}</p>
-                        <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">Nachrichten</p>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-center">
-                        <p className="text-sm font-black text-white">{priorityLabel(detail.ticket.priority)}</p>
-                        <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">Priorität</p>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-center">
-                        <p className="text-sm font-black text-white">#{detail.ticket.id.slice(0, 6)}</p>
-                        <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">Ticket</p>
-                      </div>
+                    <div className="flex shrink-0 flex-wrap gap-2 lg:max-w-64 lg:justify-end">
+                      <span className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-zinc-400">{detail.messages.length} Nachricht{detail.messages.length !== 1 ? 'en' : ''}</span>
+                      <span className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-zinc-400">{priorityLabel(detail.ticket.priority)} Priorität</span>
                     </div>
-                  </div>
                 </div>
               </div>
 
-              <div className="grid gap-6 lg:grid-cols-[0.34fr_0.66fr]">
+              <div className="grid gap-5 lg:grid-cols-[0.27fr_0.73fr]">
                 <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
-                  <div className="rounded-[2rem] border border-white/10 bg-zinc-950/70 p-5 backdrop-blur-xl">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-600">Ticket-Status</p>
-                    <div className="mt-4 space-y-3">
+                  <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 backdrop-blur-xl">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Anfragedetails</p>
+                    <div className="mt-3 space-y-2">
                       {[
                         ['Kategorie', cc.label],
                         ['Status', sc.label],
                         ['Priorität', priorityLabel(detail.ticket.priority)],
                         ['Erstellt', formatDate(detail.ticket.created_at)],
                       ].map(([label, value]) => (
-                        <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+                        <div key={label} className="rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-2.5">
                           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-700">{label}</p>
                           <p className="mt-1 text-sm font-bold text-zinc-300">{value}</p>
                         </div>
@@ -844,59 +832,52 @@ export default function SupportPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-[2rem] border border-violet-300/15 bg-violet-400/[0.06] p-5 backdrop-blur-xl">
+                  <div className="rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] p-4 backdrop-blur-xl">
                     <div className="flex items-start gap-3">
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-violet-300/20 bg-violet-400/10 text-violet-200">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-violet-300/20 bg-violet-400/10 text-violet-200">
                         <Headphones size={18} />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-violet-100">Support-Verlauf</p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">Alle Antworten und Bildanhänge bleiben hier gesammelt. Du kannst jederzeit nachlesen, was bereits besprochen wurde.</p>
+                        <p className="text-sm font-black text-violet-100">So funktioniert es</p>
+                        <p className="mt-1 text-sm leading-6 text-zinc-500">Antworte direkt in diesem Verlauf. Das Team meldet sich hier bei dir.</p>
                       </div>
                     </div>
                   </div>
                 </aside>
 
-                <div className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/75 shadow-2xl shadow-black/35 backdrop-blur-2xl">
-                  <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/25 backdrop-blur-xl">
+                  <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.025] px-5 py-4 sm:px-6">
                     <div className="flex items-center gap-3">
                       <div className="grid h-10 w-10 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-200">
                         <MessageCircle size={18} />
                       </div>
                       <div>
                         <p className="text-sm font-black text-white">Konversation</p>
-                        <p className="text-xs text-zinc-600">Benutzer ↔ RankedDarts Support</p>
+                        <p className="text-xs text-zinc-600">Antworten werden direkt in deiner Anfrage gespeichert</p>
                       </div>
                     </div>
                     <span className={`hidden rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] sm:inline-flex ${sc.bg} ${sc.color}`}>{sc.label}</span>
                   </div>
 
-                  <div className="max-h-[640px] space-y-5 overflow-y-auto px-4 py-6 sm:px-6">
+                  <div className="max-h-[640px] divide-y divide-white/[0.07] overflow-y-auto">
                     {detail.messages.map((msg) => {
                       const initials = msg.is_staff ? 'RD' : msg.sender_name.charAt(0).toUpperCase();
                       const parsed = parseMessageContent(msg.content);
                       return (
-                        <div key={msg.id} className={`flex gap-3 sm:gap-4 ${msg.is_staff ? 'justify-start' : 'justify-end'}`}>
-                          {msg.is_staff && (
-                            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-400/15 text-xs font-black text-emerald-200 shadow-[0_0_25px_rgba(52,211,153,0.10)]">{initials}</div>
-                          )}
-
-                          <div className={`max-w-[86%] overflow-hidden rounded-[1.65rem] sm:max-w-[76%] ${
-                            msg.is_staff
-                              ? 'rounded-tl-md border border-emerald-300/20 bg-gradient-to-br from-emerald-400/12 to-emerald-400/[0.045]'
-                              : 'rounded-tr-md border border-violet-300/20 bg-gradient-to-br from-violet-500/18 to-white/[0.045]'
-                          }`}>
-                            <div className={`flex flex-wrap items-center gap-2 border-b px-5 py-3 ${msg.is_staff ? 'border-emerald-300/15' : 'border-violet-300/15'}`}>
-                              <span className={`text-xs font-black ${msg.is_staff ? 'text-emerald-300' : 'text-violet-200'}`}>{msg.is_staff ? 'RankedDarts Support' : msg.sender_name}</span>
-                              {msg.is_staff && <span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-300">Team</span>}
-                              <span className="ml-auto text-[10px] text-zinc-600">{timeAgo(msg.created_at)}</span>
+                        <article key={msg.id} className="flex gap-3 px-5 py-5 sm:px-6">
+                          <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border text-xs font-black ${msg.is_staff ? 'border-emerald-300/25 bg-emerald-400/15 text-emerald-200' : 'border-violet-300/20 bg-violet-400/12 text-violet-200'}`}>{initials}</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className={`text-sm font-black ${msg.is_staff ? 'text-emerald-200' : 'text-zinc-100'}`}>{msg.is_staff ? 'RankedDarts Support' : msg.sender_name}</span>
+                              {msg.is_staff && <span className="rounded-md border border-emerald-300/20 bg-emerald-400/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">Support</span>}
+                              <span className="text-[11px] text-zinc-600">{formatDate(msg.created_at)}</span>
                             </div>
-                            <div className="space-y-4 px-5 py-4">
+                            <div className="mt-3 space-y-4 rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-3.5">
                               {parsed.text && <p className="whitespace-pre-wrap text-sm leading-7 text-zinc-200">{parsed.text}</p>}
                               {parsed.images.length > 0 && (
                                 <div className="grid gap-3">
                                   {parsed.images.map((image) => (
-                                    <a key={image.url} href={image.url} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-2xl border border-white/10 bg-black/25 transition hover:border-white/25">
+                                    <a key={image.url} href={image.url} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-white/10 bg-black/25 transition hover:border-white/25">
                                       <img src={image.url} alt={imageAlt(image.label)} className="max-h-80 w-full object-cover transition duration-300 group-hover:scale-[1.015]" />
                                       <div className="flex items-center gap-2 px-4 py-3 text-xs font-bold text-zinc-400">
                                         <ImageIcon size={14} className="text-violet-200" />
@@ -908,37 +889,31 @@ export default function SupportPage() {
                               )}
                             </div>
                           </div>
-
-                          {!msg.is_staff && (
-                            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-violet-300/20 bg-violet-400/12 text-xs font-black text-violet-200">{initials}</div>
-                          )}
-                        </div>
+                        </article>
                       );
                     })}
                   </div>
 
                   {!closed ? (
-                    <div className="border-t border-white/10 bg-black/20 p-4 sm:p-5">
-                      <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-4">
+                    <div className="border-t border-white/10 bg-black/30 p-4 sm:p-5">
+                      <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
                         <div className="mb-3 flex items-center justify-between gap-3">
-                          <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">Antwort schreiben</p>
+                          <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">Zur Konversation hinzufügen</p>
                           <p className="text-xs text-zinc-700">{replyText.length} Zeichen</p>
                         </div>
                         <textarea
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
-                          placeholder="Schreibe deine Antwort an den Support…"
+                          placeholder="Schreibe eine Antwort…"
                           rows={4}
-                          className="w-full resize-none rounded-2xl border border-white/10 bg-black/25 px-5 py-4 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-700 focus:border-violet-300/40 focus:bg-white/[0.06]"
+                          className="w-full resize-none rounded-xl border border-white/10 bg-black/25 px-4 py-3.5 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-700 focus:border-violet-300/40 focus:bg-white/[0.06]"
                         />
-                        <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <span className="inline-flex items-center gap-2 text-xs font-bold text-zinc-500"><ImageIcon size={14} /> Bilder oder Screenshots anhängen</span>
-                            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-violet-300/30 hover:text-white">
-                              <Upload size={13} /> Auswählen
+                        <div className="mt-3 flex flex-col gap-3 border-t border-white/[0.07] pt-3 sm:flex-row sm:items-center sm:justify-between">
+                            <label className="inline-flex w-fit cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-violet-300/30 hover:text-white">
+                              <Upload size={13} /> Anhang hinzufügen
                               <input ref={replyFileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => addImages(e.target.files, 'reply')} />
                             </label>
-                          </div>
+                            <span className="text-xs text-zinc-600">PNG, JPG · max. {MAX_SUPPORT_IMAGES} Dateien</span>
                           {replyImages.length > 0 && (
                             <div className="mt-3 grid gap-2 sm:grid-cols-2">
                               {replyImages.map((image, index) => (
@@ -953,13 +928,13 @@ export default function SupportPage() {
                         </div>
                         {error && <p className="mt-3 text-xs font-semibold text-red-300">{error}</p>}
                         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <span className="text-xs leading-5 text-zinc-600">Deine Nachricht wird direkt im Ticket gespeichert.</span>
+                          <span className="text-xs leading-5 text-zinc-600">Deine Antwort ist für das Support-Team sichtbar.</span>
                           <button
                             onClick={() => void sendReply()}
                             disabled={sending || uploadingImages || (!replyText.trim() && replyImages.length === 0)}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-purple-400 px-6 py-3 text-sm font-black text-white shadow-[0_8px_25px_rgba(139,92,246,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3 text-sm font-black text-white shadow-[0_8px_25px_rgba(139,92,246,0.2)] transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            {sending ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{uploadingImages ? 'Bilder hochladen…' : 'Senden…'}</> : <><Send size={15} />Antwort senden</>}
+                            {sending ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{uploadingImages ? 'Anhang wird hochgeladen…' : 'Wird gesendet…'}</> : <><Send size={15} />Antwort senden</>}
                           </button>
                         </div>
                       </div>
