@@ -22,6 +22,19 @@ function LoginForm() {
     setLoading(true);
     setFormMessage(null);
 
+    const rateLimitResponse = await fetch('/api/rate-limit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', email }),
+    });
+
+    if (!rateLimitResponse.ok) {
+      const payload = await rateLimitResponse.json().catch(() => null) as { error?: string } | null;
+      setFormMessage({ type: 'error', text: payload?.error || 'Die Sicherheitsprüfung ist gerade nicht verfügbar.' });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
@@ -48,6 +61,19 @@ function LoginForm() {
 
     setResetLoading(true);
     setFormMessage(null);
+
+    const rateLimitResponse = await fetch('/api/rate-limit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', email: trimmedEmail }),
+    });
+
+    if (!rateLimitResponse.ok) {
+      const payload = await rateLimitResponse.json().catch(() => null) as { error?: string } | null;
+      setFormMessage({ type: 'error', text: payload?.error || 'Die Sicherheitsprüfung ist gerade nicht verfügbar.' });
+      setResetLoading(false);
+      return;
+    }
 
     const redirectTo = typeof window !== 'undefined'
       ? `${window.location.origin}/auth/reset-password`
