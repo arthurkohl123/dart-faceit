@@ -15,7 +15,7 @@ type Tournament = {
 
 type BracketMatch = {
   id: string; round_number: number; match_number: number; player1_id: string | null; player2_id: string | null;
-  player1_username: string | null; player2_username: string | null; winner_id: string | null; winner_username: string | null; status: string;
+  player1_username: string | null; player2_username: string | null; winner_id: string | null; winner_username: string | null; status: string; active_match_id: string | null;
 };
 
 const statusLabel: Record<Tournament['status'], string> = { registration: 'ANMELDUNG OFFEN', live: 'LIVE', completed: 'ABGESCHLOSSEN', cancelled: 'ABGESAGT' };
@@ -31,6 +31,7 @@ export default function TournamentsPage() {
   const [selected, setSelected] = useState<Tournament | null>(null);
   const [bracket, setBracket] = useState<BracketMatch[]>([]);
   const [isPremium, setIsPremium] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
@@ -54,6 +55,7 @@ export default function TournamentsPage() {
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/auth/login'); return; }
+      setCurrentUserId(session.user.id);
       const [{ data: profile }, result] = await Promise.all([
         supabase.from('profiles').select('"isPremium"').eq('"supabaseId"', session.user.id).maybeSingle(),
         supabase.rpc('list_tournaments'),
@@ -130,6 +132,13 @@ export default function TournamentsPage() {
       {selected && <section className="border-y border-white/[0.08] bg-black/25 py-14"><div className="mx-auto max-w-7xl px-5 md:px-8"><div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="text-[11px] font-black tracking-[0.2em] text-amber-300">LIVE BRACKET</p><h2 className="mt-1 text-3xl font-black">{selected.title}</h2></div>{selected.winner_username && <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-sm font-bold text-amber-100"><Trophy size={16} /> Champion: {selected.winner_username}</div>}</div>
         {!selectedHasBracket ? <div className="rounded-[1.75rem] border border-dashed border-white/15 bg-white/[0.025] px-6 py-12 text-center"><Swords className="mx-auto mb-4 text-zinc-600" size={30} /><p className="font-bold text-zinc-300">Der Turnierbaum wird erstellt, sobald alle {selected.max_players} Plätze besetzt sind.</p><p className="mt-2 text-sm text-zinc-500">Die Paarungen werden fair ausgelost und live hier angezeigt.</p></div> : <div className="overflow-x-auto pb-3"><div className="grid min-w-[760px] gap-5" style={{ gridTemplateColumns: `repeat(${Object.keys(rounds).length}, minmax(190px, 1fr))` }}>{Object.entries(rounds).map(([round, matches]) => <div key={round}><div className="mb-3 flex items-center gap-2 text-[10px] font-black tracking-[0.16em] text-zinc-500"><span className="h-1.5 w-1.5 rounded-full bg-amber-300" />{Number(round) === Math.max(...Object.keys(rounds).map(Number)) ? 'FINALE' : `RUNDE ${round}`}</div><div className="space-y-3">{matches.map(match => <div key={match.id} className="overflow-hidden rounded-xl border border-white/10 bg-[#101116]"><div className={`flex items-center justify-between px-3 py-2.5 text-sm ${match.winner_id === match.player1_id ? 'bg-emerald-400/10 text-emerald-100' : 'text-zinc-300'}`}><span>{match.player1_username || 'Wird ermittelt'}</span>{match.winner_id === match.player1_id && <span className="text-[9px] font-black text-emerald-300">WIN</span>}</div><div className="h-px bg-white/10" /><div className={`flex items-center justify-between px-3 py-2.5 text-sm ${match.winner_id === match.player2_id ? 'bg-emerald-400/10 text-emerald-100' : 'text-zinc-300'}`}><span>{match.player2_username || 'Wird ermittelt'}</span>{match.winner_id === match.player2_id && <span className="text-[9px] font-black text-emerald-300">WIN</span>}</div></div>)}</div></div>)}</div></div>}
       </div></section>}
+      {selected && currentUserId && bracket.some(match => match.active_match_id && (match.player1_id === currentUserId || match.player2_id === currentUserId) && match.status !== 'completed') && (
+        <div className="fixed bottom-5 right-5 z-30">
+          {bracket.filter(match => match.active_match_id && (match.player1_id === currentUserId || match.player2_id === currentUserId) && match.status !== 'completed').map(match => (
+            <Link key={match.id} href={`/result?matchId=${match.active_match_id}&bestOf=${selected.best_of}`} className="flex items-center gap-2 rounded-2xl border border-amber-200/40 bg-amber-300 px-5 py-3 text-sm font-black text-black shadow-[0_15px_45px_rgba(245,158,11,0.35)] transition hover:bg-amber-200"><Swords size={17} /> Dein Turnier-Matchroom</Link>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
