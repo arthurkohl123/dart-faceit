@@ -1,7 +1,25 @@
-import Link from 'next/link';
 import { Wrench, ShieldCheck, Clock } from 'lucide-react';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
 
-export default function MaintenancePage() {
+type MaintenanceSetting = {
+  message?: string;
+};
+
+export const dynamic = 'force-dynamic';
+
+const DEFAULT_MAINTENANCE_MESSAGE = 'RankedDarts wird gerade aktualisiert. Bitte versuche es gleich erneut.';
+
+export default async function MaintenancePage() {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'maintenance_mode')
+    .maybeSingle();
+
+  const savedMessage = (data?.value as MaintenanceSetting | null)?.message?.trim();
+  const maintenanceMessage = savedMessage || DEFAULT_MAINTENANCE_MESSAGE;
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#050507] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.12),transparent_30%)]" />
@@ -14,7 +32,7 @@ export default function MaintenancePage() {
           Wir verbessern gerade die Plattform.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">
-          RankedDarts befindet sich aktuell in Wartungsarbeiten, welche bis ca. 6 Uhr gehen werden. Schaut gerne später erneut vorbei.
+          {maintenanceMessage}
         </p>
 
         <div className="mt-10 grid w-full max-w-3xl gap-4 md:grid-cols-2">
