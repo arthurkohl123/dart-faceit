@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { consumeRateLimit } from '@/lib/rate-limit';
+import { consumeRateLimit } from '@/lib/rate-limit.ts/rate-limit';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 export const runtime = 'nodejs';
