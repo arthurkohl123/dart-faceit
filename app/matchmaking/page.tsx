@@ -6,8 +6,6 @@ import { Activity, AlertTriangle, CheckCircle2, Clock, Radar, ShieldCheck, Sword
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
-type DailyMatchQuota = { matches_used: number; daily_limit: number | null; is_premium: boolean };
-
 type MatchmakingStatus = 'idle' | 'selecting' | 'searching' | 'accepting' | 'found' | 'error';
 type AppChoice = 'scolia' | 'dartcounter';
 
@@ -34,6 +32,14 @@ type LiveMatch = {
   status: string;
   app: string | null;
   created_at: string;
+};
+
+type DailyMatchQuota = {
+  matches_used?: number;
+  matches_started?: number;
+  matches_played?: number;
+  daily_limit: number | null;
+  is_premium: boolean;
 };
 
 const searchSteps = [
@@ -145,6 +151,10 @@ export default function Matchmaking() {
 
   const searchProgress = Math.min((elapsedSeconds / 60) * 100, 100);
   const currentRange = getMaxEloDiff(elapsedSeconds);
+  const dailyMatchesUsed = dailyQuota
+    ? Number(dailyQuota.matches_used ?? dailyQuota.matches_started ?? dailyQuota.matches_played ?? 0)
+    : 0;
+  const totalQueuePlayers = queueCounts.scolia + queueCounts.dartcounter;
   // null = Profil noch nicht geladen → Box NICHT anzeigen (kein false-positive beim Status-Wechsel)
   const effectivePhoneVerified = phoneVerified === null ? null : (!smsVerificationEnabled || phoneVerified === true);
 
@@ -418,7 +428,8 @@ export default function Matchmaking() {
     } catch (error) {
       if (statusRef.current === 'searching') {
         const msg = error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.';
-        if (msg.includes('DAILY_MATCH_LIMIT')) { setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
+        if (msg.includes('DAILY_MATCH_LIMIT')) {
+          setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
         } else if (msg.includes('COOLDOWN:')) {
           // Cooldown serverseitig ignorieren – Queue ist nicht mehr gesperrt
           setCooldownSeconds(0);
@@ -441,10 +452,14 @@ export default function Matchmaking() {
     setErrorMessage('');
     setOpponent(null);
 
-    if (dailyQuota && !dailyQuota.is_premium && dailyQuota.matches_used >= 4) { setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.'); setStatus('error'); return; }
-
     if (cooldownSeconds > 0) {
       setErrorMessage(getCooldownMessage());
+      return;
+    }
+
+    if (dailyQuota && !dailyQuota.is_premium && dailyMatchesUsed >= (dailyQuota.daily_limit ?? 4)) {
+      setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
+      setStatus('error');
       return;
     }
 
@@ -553,14 +568,13 @@ export default function Matchmaking() {
         .select('phone_verified, scolia_username, dartcounter_username, queue_banned_until, queue_ban_reason')
         .eq('supabaseId', uid)
         .single();
-
       const { data: quotaData } = await supabase.rpc('get_ranked_match_daily_quota');
 
       if (!isMounted) return;
-      setDailyQuota((quotaData as DailyMatchQuota | null) ?? null);
       setPhoneVerified(!smsEnabled || Boolean(profileData?.phone_verified));
       setScoliaUsername(profileData?.scolia_username ?? null);
       setDartcounterUsername(profileData?.dartcounter_username ?? null);
+      if (quotaData) setDailyQuota(quotaData as DailyMatchQuota);
       // Queue-Sperre deaktiviert – kein Wiederherstellen nach Reload
       setCooldownSeconds(0);
       setQueueBanReason(null);
@@ -889,11 +903,13 @@ export default function Matchmaking() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
-      {/* Background */}
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.24),transparent_34%),radial-gradient(circle_at_82%_8%,rgba(6,182,212,0.14),transparent_28%),radial-gradient(circle_at_50%_50%,rgba(163,230,53,0.08),transparent_34%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
-        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+    <main className="relative min-h-screen isolate overflow-hidden bg-[#030506] text-white">
+      {/* Arena background */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_52%_at_50%_-10%,rgba(84,255,170,0.24),transparent_70%),radial-gradient(circle_at_6%_34%,rgba(34,211,238,0.16),transparent_22%),radial-gradient(circle_at_94%_48%,rgba(163,230,53,0.12),transparent_25%),linear-gradient(180deg,#07100d_0%,#030506_51%,#030506_100%)]" />
+        <div className="absolute left-1/2 top-[-34rem] h-[72rem] w-[72rem] -translate-x-1/2 rounded-full border border-emerald-300/[0.07] shadow-[0_0_0_8rem_rgba(110,231,183,0.015),0_0_0_16rem_rgba(110,231,183,0.012),0_0_180px_rgba(16,185,129,0.12)]" />
+        <div className="absolute left-1/2 top-[-23rem] h-[50rem] w-[50rem] -translate-x-1/2 rounded-full border border-cyan-200/[0.08]" />
+        <div className="absolute inset-0 opacity-[0.085] [background-image:linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_88%)]" />
       </div>
 
       {/* Nav */}
@@ -953,25 +969,30 @@ export default function Matchmaking() {
         </div>
       )}
 
-      <section className="relative z-10 mx-auto grid max-w-7xl items-start gap-8 px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32 lg:min-h-[calc(100vh-88px)] lg:items-center lg:gap-10 lg:grid-cols-[0.92fr_1.08fr]">
+      <section className="relative z-10 mx-auto grid max-w-7xl items-start gap-8 px-4 pb-14 pt-28 sm:px-5 md:px-8 md:pt-32 lg:min-h-[calc(100vh-88px)] lg:items-center lg:gap-12 lg:grid-cols-[0.86fr_1.14fr]">
 
         {/* Linke Spalte: Info */}
-        <div>
-          <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
-            Live Queue
+        <div className="relative">
+          <div className="absolute -left-7 top-16 h-36 w-1 rounded-full bg-gradient-to-b from-transparent via-emerald-300 to-transparent opacity-80" />
+          <div className="inline-flex items-center gap-3 rounded-full border border-emerald-300/25 bg-emerald-400/[0.09] px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100 shadow-[0_0_30px_rgba(52,211,153,0.12)]">
+            <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-200" /></span>
+            Arena online
           </div>
-          <h1 className="mt-6 text-4xl font-black leading-[0.88] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Finde dein nächstes Match.</h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Wähle deine Dart-App und tritt der passenden Queue bei. Du wirst nur mit Spielern gematcht, die dieselbe App nutzen.</p>
+          <div className="mt-7 flex items-end gap-4">
+            <div className="font-mono text-[11px] font-bold tracking-[0.28em] text-emerald-300/70">RANKED // 01</div>
+            <div className="mb-1 h-px flex-1 bg-gradient-to-r from-emerald-300/50 to-transparent" />
+          </div>
+          <h1 className="mt-4 max-w-3xl text-5xl font-black leading-[0.84] tracking-[-0.075em] sm:text-6xl md:text-7xl lg:text-[5.4rem]">Dein nächstes<br /><span className="bg-gradient-to-r from-emerald-200 via-lime-200 to-cyan-200 bg-clip-text text-transparent">Duell beginnt</span><br />am Oche.</h1>
+          <p className="mt-7 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">Wähle deine Plattform. Das System findet deinen Gegner nach Elo, Plattform und aktuellem Queue-Status.</p>
 
-          {dailyQuota && (
-            <div className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${dailyQuota.is_premium ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100'}`}>
-              <Zap className="h-4 w-4" />
-              {dailyQuota.is_premium
-                ? 'Premium · Unbegrenzte Ranked Matches'
-                : `Free · ${dailyQuota.matches_used}/4 Ranked Matches heute`}
+          <div className="mt-8 flex items-center gap-5 rounded-[1.75rem] border border-white/10 bg-black/25 px-5 py-4 backdrop-blur-xl">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-200 shadow-[0_0_24px_rgba(52,211,153,0.15)]"><Users className="h-5 w-5" /></div>
+            <div>
+              <div className="text-3xl font-black leading-none tracking-[-0.06em]">{totalQueuePlayers}</div>
+              <div className="mt-1 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Spieler suchen gerade</div>
             </div>
-          )}
+            <div className="ml-auto text-right text-xs font-bold text-zinc-500"><span className="text-emerald-300">Live</span><br />Queue-Status</div>
+          </div>
 
           {cooldownSeconds > 0 && (
             <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-4 text-sm leading-6 text-amber-100">
@@ -993,40 +1014,49 @@ export default function Matchmaking() {
           )}
 
           {/* Queue-Übersicht */}
-          <div className="mt-6 grid grid-cols-3 gap-3 sm:mt-8 sm:gap-4">
-            <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
-              <Timer className="h-6 w-6 text-emerald-300" />
-              <div className="mt-4 text-4xl font-black tracking-[-0.05em]">{status === 'searching' ? `${elapsedSeconds}s` : '—'}</div>
-              <div className="mt-1 text-sm text-zinc-500">Suchzeit</div>
+          <div className="mt-7 grid grid-cols-3 gap-2.5 sm:gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-xl">
+              <Timer className="h-5 w-5 text-zinc-300" />
+              <div className="mt-3 text-2xl font-black tracking-[-0.05em]">{status === 'searching' ? `${elapsedSeconds}s` : '—'}</div>
+              <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">Suchzeit</div>
             </div>
-            <div className="rounded-[1.7rem] border border-emerald-300/15 bg-emerald-400/[0.04] p-5 backdrop-blur-xl">
-              <Users className="h-6 w-6 text-emerald-300" />
-              <div className="mt-4 text-4xl font-black tracking-[-0.05em] text-emerald-300">{queueCounts.scolia}</div>
-              <div className="mt-1 text-sm text-zinc-500">Scolia Queue</div>
+            <div className="rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.05] p-4 backdrop-blur-xl">
+              <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-300" /><span className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">Scolia</span></div>
+              <div className="mt-3 text-2xl font-black tracking-[-0.05em] text-emerald-200">{queueCounts.scolia}</div>
+              <div className="mt-1 text-[10px] font-bold text-emerald-200/50">in der Queue</div>
             </div>
-            <div className="rounded-[1.7rem] border border-cyan-300/15 bg-cyan-400/[0.04] p-5 backdrop-blur-xl">
-              <Users className="h-6 w-6 text-cyan-300" />
-              <div className="mt-4 text-4xl font-black tracking-[-0.05em] text-cyan-300">{queueCounts.dartcounter}</div>
-              <div className="mt-1 text-sm text-zinc-500">DartCounter Queue</div>
+            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.05] p-4 backdrop-blur-xl">
+              <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-cyan-300" /><span className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200">DartCounter</span></div>
+              <div className="mt-3 text-2xl font-black tracking-[-0.05em] text-cyan-200">{queueCounts.dartcounter}</div>
+              <div className="mt-1 text-[10px] font-bold text-cyan-200/50">in der Queue</div>
             </div>
           </div>
         </div>
 
         {/* Rechte Spalte: Matchmaking-Box */}
-        <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/86 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
-          <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-emerald-400/20 blur-3xl" />
+        <div className="relative overflow-hidden rounded-[2.4rem] border border-white/[0.13] bg-[#07100e]/85 p-5 shadow-[0_30px_100px_rgba(0,0,0,0.52)] backdrop-blur-2xl sm:p-7 md:p-8">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200 to-transparent" />
+          <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-emerald-400/18 blur-3xl" />
+          <div className="absolute -bottom-28 -left-28 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="relative mb-7 flex items-center justify-between border-b border-white/[0.08] pb-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-9 w-9 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-400/10"><Radar className="h-4 w-4 text-emerald-200" /></div>
+              <div><div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Queue Control</div><div className="mt-0.5 text-sm font-bold text-zinc-300">Ranked Matchmaking</div></div>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/[0.07] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />bereit</div>
+          </div>
 
           {/* IDLE: App-Auswahl */}
           {status === 'idle' && (
             <div className="relative">
-              <div className="mx-auto mb-8 grid h-24 w-24 place-items-center rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_45px_rgba(34,197,94,0.18)]">
-                <Radar className="h-12 w-12" />
+              <div className="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-[1.7rem] border border-emerald-300/25 bg-[radial-gradient(circle_at_35%_30%,rgba(187,247,208,.25),rgba(16,185,129,.09)_45%,transparent_70%)] text-emerald-100 shadow-[0_0_50px_rgba(34,197,94,0.2)]">
+                <Swords className="h-9 w-9" />
               </div>
-              <h2 className="text-center text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für das Oche?</h2>
-              <p className="mx-auto mt-3 max-w-xl text-center text-zinc-400">Wähle zuerst deine Dart-App, um in die passende Queue einzutreten.</p>
+              <h2 className="text-center text-4xl font-black leading-none tracking-[-0.06em] md:text-5xl">Wähle deine<br /><span className="text-emerald-200">Arena.</span></h2>
+              <p className="mx-auto mt-4 max-w-md text-center text-sm leading-6 text-zinc-400">Du wirst nur mit Gegnern auf derselben Plattform und in deinem Elo-Bereich verbunden.</p>
+              {dailyQuota && <div className={`mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-[0.13em] ${dailyQuota.is_premium ? 'border-amber-300/25 bg-amber-400/10 text-amber-100' : 'border-white/10 bg-white/[0.04] text-zinc-300'}`}><Zap className="h-3.5 w-3.5" />{dailyQuota.is_premium ? 'Premium · Unbegrenzte Matches' : `Free · ${dailyMatchesUsed}/${dailyQuota.daily_limit ?? 4} Matches heute`}</div>}
 
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 {(Object.keys(appConfig) as AppChoice[]).map((app) => {
                   const c = appConfig[app];
                   return (
@@ -1035,10 +1065,12 @@ export default function Matchmaking() {
                       onClick={() => void startSearch(app)}
                       disabled={cooldownSeconds > 0}
                       title={cooldownSeconds > 0 ? getCooldownMessage() : undefined}
-                      className={`group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-6 text-left transition-all duration-300 ${cooldownSeconds > 0 ? 'cursor-not-allowed opacity-55' : `${c.borderHover} hover:scale-[1.02]`}`}
+                      className={`group relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-white/[0.035] p-5 text-left transition-all duration-300 ${cooldownSeconds > 0 ? 'cursor-not-allowed opacity-55' : `${c.borderHover} hover:-translate-y-1 hover:scale-[1.015] hover:shadow-[0_18px_35px_rgba(0,0,0,0.24)]`}`}
                     >
-                      <div className="text-xl font-black tracking-[-0.03em]">{c.label}</div>
-                      <div className={`mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${c.badge}`}>
+                      <div className="absolute right-4 top-3 text-3xl opacity-70 transition duration-300 group-hover:scale-110 group-hover:opacity-100">{c.icon}</div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Plattform</div>
+                      <div className="mt-2 text-2xl font-black tracking-[-0.05em]">{c.label}</div>
+                      <div className={`mt-5 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${c.badge}`}>
                         <span className={`h-2 w-2 rounded-full ${c.dot}`} />
                         {queueCounts[app]} in Queue
                       </div>
@@ -1053,6 +1085,7 @@ export default function Matchmaking() {
                           <span>⚠</span> DartCounter-Username fehlt
                         </div>
                       )}
+                      <div className="mt-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500 transition group-hover:text-white">Queue betreten <span className="text-lg leading-none text-emerald-300">→</span></div>
                     </button>
                   );
                 })}
