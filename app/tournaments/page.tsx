@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CalendarDays, ChevronRight, Crown, Gauge, Lock, ShieldCheck, Sparkles, Swords, Trophy, Users, Zap } from 'lucide-react';
+import { NotificationBell } from '@/components/notification-bell';
 
 type Tournament = {
   id: string; title: string; description: string; starts_at: string; registration_closes_at: string;
@@ -91,7 +92,7 @@ export default function TournamentsPage() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-6 md:px-8">
         <Link href="/profile" className="inline-flex items-center gap-2 text-sm font-bold text-zinc-400 transition hover:text-white"><ArrowLeft size={16} /> Zurück zur Zentrale</Link>
         <div className="hidden items-center gap-6 text-sm font-semibold text-zinc-400 md:flex"><Link href="/leaderboard" className="hover:text-white">Leaderboard</Link><Link href="/matchmaking" className="hover:text-white">Matchmaking</Link><Link href="/support" className="hover:text-white">Support</Link></div>
-        <Link href="/premium" className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs font-black tracking-wide text-amber-200 transition hover:bg-amber-300/20"><Crown size={14} /> PREMIUM</Link>
+        <div className="flex items-center gap-3"><NotificationBell /><Link href="/premium" className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs font-black tracking-wide text-amber-200 transition hover:bg-amber-300/20"><Crown size={14} /> PREMIUM</Link></div>
       </nav>
 
       <section className="mx-auto max-w-7xl px-5 pb-10 pt-8 md:px-8 md:pt-14">
