@@ -6,15 +6,18 @@ import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import {
   Activity,
+  CalendarDays,
   ChevronDown,
   ChevronUp,
   Crosshair,
+  Flame,
   Menu,
   Minus,
   Swords,
   TrendingDown,
   TrendingUp,
   Trophy,
+  Target,
   X,
   Zap,
 } from 'lucide-react';
@@ -137,7 +140,7 @@ function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
       <div className={`absolute left-0 top-4 bottom-4 w-1 rounded-full ${match.is_win ? 'bg-gradient-to-b from-emerald-300 to-emerald-500' : 'bg-gradient-to-b from-red-400 to-red-600'}`} />
 
       {/* Haupt-Inhalt */}
-      <div className="px-6 py-5 pl-8 sm:px-8 sm:pl-10">
+      <div className="px-5 py-5 pl-7 sm:px-8 sm:pl-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
 
           {/* Links: Gegner + Zeit */}
@@ -160,6 +163,9 @@ function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
             </div>
 
             <div className="flex items-center gap-3">
+              <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl border text-xs font-black ${match.is_win ? 'border-emerald-300/20 bg-emerald-400/10 text-emerald-200' : 'border-red-300/20 bg-red-400/10 text-red-200'}`}>
+                {match.opponent_name.slice(0, 2).toUpperCase()}
+              </div>
               <span className="text-xl font-black tracking-[-0.04em] sm:text-2xl">vs {match.opponent_name}</span>
               <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs font-bold text-zinc-400">
                 {match.opponent_elo} Elo
@@ -170,7 +176,7 @@ function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
           {/* Rechts: Ergebnis + Elo */}
           <div className="flex items-center gap-4 shrink-0">
             {/* Legs */}
-            <div className="text-right">
+            <div className="rounded-2xl border border-white/[0.07] bg-black/20 px-3 py-2.5 text-right sm:px-4">
               <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1">Legs</div>
               <div className={`text-3xl font-black tracking-[-0.06em] sm:text-4xl ${match.is_win ? 'text-emerald-300' : 'text-red-300'}`}>
                 {legsDisplay}
@@ -320,13 +326,14 @@ export default function MatchHistory() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+    <main className="relative min-h-screen isolate overflow-hidden bg-[#030506] text-white">
 
       {/* Background */}
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(34,197,94,0.16),transparent_38%),radial-gradient(ellipse_at_85%_5%,rgba(6,182,212,0.10),transparent_30%),radial-gradient(ellipse_at_30%_80%,rgba(239,68,68,0.06),transparent_35%)]" />
-        <div className="absolute inset-0 opacity-[0.055] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
-        <div className="absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-gradient-to-r from-transparent via-emerald-400/25 to-transparent" />
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_78%_48%_at_50%_-8%,rgba(16,185,129,0.22),transparent_70%),radial-gradient(circle_at_5%_42%,rgba(6,182,212,0.12),transparent_24%),radial-gradient(circle_at_92%_55%,rgba(239,68,68,0.08),transparent_23%),linear-gradient(180deg,#07100d_0%,#030506_56%,#030506_100%)]" />
+        <div className="absolute -right-40 top-32 h-[34rem] w-[34rem] rounded-full border border-emerald-300/[0.06] shadow-[0_0_0_5rem_rgba(110,231,183,0.012),0_0_0_10rem_rgba(110,231,183,0.01)]" />
+        <div className="absolute -left-52 top-80 h-[36rem] w-[36rem] rounded-full border border-cyan-200/[0.05]" />
+        <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.7)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.7)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_90%)]" />
       </div>
 
       {/* Navbar */}
@@ -362,27 +369,31 @@ export default function MatchHistory() {
         )}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-5xl px-4 pb-24 pt-28 sm:px-5 md:px-8 md:pt-32">
+      <section className="relative z-10 mx-auto max-w-6xl px-4 pb-24 pt-28 sm:px-5 md:px-8 md:pt-32">
 
         {/* ── Header ── */}
-        <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-emerald-200 mb-4">
-              <Swords size={12} /> Match History
+        <div className="mb-10 grid gap-5 lg:grid-cols-[1.2fr_.8fr] lg:items-end">
+          <div className="relative overflow-hidden rounded-[2.25rem] border border-white/[0.10] bg-black/20 p-6 backdrop-blur-xl sm:p-8">
+            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl" />
+            <div className="relative">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-100">
+                <CalendarDays size={12} /> Career Archive
+              </div>
+              <div className="mt-7 flex items-end gap-4"><div className="font-mono text-[10px] font-bold tracking-[0.28em] text-emerald-300/70">MATCH HISTORY // {String(matches.length).padStart(2, '0')}</div><div className="mb-1 h-px flex-1 bg-gradient-to-r from-emerald-300/40 to-transparent" /></div>
+              <h1 className="mt-3 text-5xl font-black leading-[0.86] tracking-[-0.075em] sm:text-6xl">Jede Leg.<br /><span className="bg-gradient-to-r from-emerald-200 via-lime-200 to-cyan-200 bg-clip-text text-transparent">Jeder Schritt.</span></h1>
+              <p className="mt-5 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">Dein persönliches Archiv für Ergebnisse, Form und Fortschritt in der Ranked Arena.</p>
             </div>
-            <h1 className="text-5xl font-black tracking-[-0.07em] sm:text-6xl">
-              Deine <span className="bg-gradient-to-r from-emerald-300 via-lime-200 to-cyan-300 bg-clip-text text-transparent">Matches</span>
-            </h1>
-            <p className="mt-3 text-zinc-500">{matches.length} gespielte Matches insgesamt</p>
           </div>
 
-          {/* Form-Streak */}
-          {matches.length > 0 && (
-            <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/60 p-5 backdrop-blur-xl">
-              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-600 mb-3">Letzte 10 Matches</div>
-              <FormStreak matches={matches} />
+          <div className="overflow-hidden rounded-[2.25rem] border border-emerald-300/15 bg-gradient-to-br from-emerald-400/[0.10] via-[#07100e]/80 to-cyan-400/[0.06] p-6 backdrop-blur-xl sm:p-7">
+            <div className="flex items-start justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Season Snapshot</div><div className="mt-2 text-sm font-bold text-zinc-400">Deine aktuelle Bilanz</div></div><div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10"><Target className="h-5 w-5 text-emerald-200" /></div></div>
+            <div className="mt-7 grid grid-cols-3 gap-3 border-y border-white/[0.08] py-5">
+              <div><div className="text-2xl font-black tracking-[-0.06em] text-emerald-200">{totalWins}</div><div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">Wins</div></div>
+              <div className="border-x border-white/[0.08] px-3"><div className="text-2xl font-black tracking-[-0.06em] text-red-200">{totalLosses}</div><div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">Losses</div></div>
+              <div className="text-right"><div className="text-2xl font-black tracking-[-0.06em] text-cyan-200">{winrate}%</div><div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">Winrate</div></div>
             </div>
-          )}
+            <div className="mt-4 flex items-center justify-between text-xs"><span className="flex items-center gap-2 font-bold text-zinc-500"><Flame className="h-4 w-4 text-amber-300" />{currentStreak > 0 ? `${currentStreak} Sieg${currentStreak === 1 ? '' : 'e'} in Folge` : 'Nächster Sieg startet deine Streak'}</span><span className="font-black text-emerald-300">LIVE CAREER</span></div>
+          </div>
         </div>
 
         {/* ── Stats-Grid ── */}
