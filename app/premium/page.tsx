@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Check, Crown, Gauge, LifeBuoy, Radar, ShieldCheck, Sparkles, Star, Swords, Trophy, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { BrandLogo } from '@/components/BrandLogo';
 import { useRouter } from 'next/navigation';
 
 type ProfileData = {
@@ -153,7 +154,7 @@ export default function Premium() {
       <nav className="relative z-10 border-b border-white/10 bg-black/45 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-xl font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
+            <BrandLogo className="h-11 w-11" />
             <div>
               <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Premium</div>
