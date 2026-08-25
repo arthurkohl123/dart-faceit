@@ -221,7 +221,8 @@ export default function Premium() {
               {checkoutError && <p className="mt-4 text-center text-sm font-semibold text-rose-300">{checkoutError}</p>}
               {checkoutStatus === 'success' && <p className="mt-4 text-center text-sm font-semibold text-emerald-200">Danke! Deine Zahlung wird bestätigt. Aktualisiere die Seite in wenigen Sekunden, falls der Status noch nicht erscheint.</p>}
               {checkoutStatus === 'cancelled' && <p className="mt-4 text-center text-sm text-zinc-400">Der Checkout wurde abgebrochen. Dein Account bleibt unverändert.</p>}
-              <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Sichere Zahlung über Stripe · jederzeit verwaltbar</p>
+              <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Sichere Zahlung über Stripe · monatlich abrechenbar</p>
+              <Link href="/premium/kuendigung" className="mt-3 block text-center text-xs font-bold text-emerald-200 underline decoration-emerald-300/40 underline-offset-4 transition hover:text-emerald-100">Informationen zu Laufzeit &amp; Kündigung</Link>
             </div>
           </aside>
         </div>
