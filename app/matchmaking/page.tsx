@@ -259,7 +259,17 @@ export default function Matchmaking() {
       }
       // 'waiting' → warte auf Gegner (Realtime-Update kommt)
     } catch (err) {
-      console.error('accept_match fehlgeschlagen:', err);
+      const message = typeof err === 'object' && err !== null && 'message' in err
+        ? String(err.message)
+        : String(err);
+      if (message.includes('DAILY_MATCH_LIMIT')) {
+        setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
+        setStatus('error');
+      } else {
+        console.error('accept_match fehlgeschlagen:', err);
+        setErrorMessage('Das Match konnte nicht gestartet werden. Bitte versuche es erneut.');
+        setStatus('error');
+      }
     } finally {
       setAcceptDeclineLoading(false);
     }
@@ -544,7 +554,10 @@ export default function Matchmaking() {
         .eq('supabaseId', uid)
         .single();
 
+      const { data: quotaData } = await supabase.rpc('get_ranked_match_daily_quota');
+
       if (!isMounted) return;
+      setDailyQuota((quotaData as DailyMatchQuota | null) ?? null);
       setPhoneVerified(!smsEnabled || Boolean(profileData?.phone_verified));
       setScoliaUsername(profileData?.scolia_username ?? null);
       setDartcounterUsername(profileData?.dartcounter_username ?? null);
@@ -950,6 +963,15 @@ export default function Matchmaking() {
           </div>
           <h1 className="mt-6 text-4xl font-black leading-[0.88] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Finde dein nächstes Match.</h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Wähle deine Dart-App und tritt der passenden Queue bei. Du wirst nur mit Spielern gematcht, die dieselbe App nutzen.</p>
+
+          {dailyQuota && (
+            <div className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${dailyQuota.is_premium ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100'}`}>
+              <Zap className="h-4 w-4" />
+              {dailyQuota.is_premium
+                ? 'Premium · Unbegrenzte Ranked Matches'
+                : `Free · ${dailyQuota.matches_used}/4 Ranked Matches heute`}
+            </div>
+          )}
 
           {cooldownSeconds > 0 && (
             <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-4 text-sm leading-6 text-amber-100">
