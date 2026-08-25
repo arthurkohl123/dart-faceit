@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { consumeRateLimit } from '@/lib/rate-limit';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 export const runtime = 'nodejs';
@@ -20,13 +21,21 @@ function getRequiredEnvironment(name: string) {
   return value;
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Bitte melde dich an, bevor du Premium kaufst.' }, { status: 401 });
+    }
+
+    const rateLimit = await consumeRateLimit('checkout', request, user.id);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Zu viele Checkout-Versuche. Bitte versuche es in einigen Minuten erneut.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      );
     }
 
     const stripeSecretKey = getRequiredEnvironment('STRIPE_SECRET_KEY');
