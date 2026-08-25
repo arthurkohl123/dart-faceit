@@ -46,11 +46,23 @@ body {
   to { transform: translateX(280%) skewX(-18deg); }
 }
 
+@keyframes ranked-dartboard {
+  0%, 100% { transform: rotate(-10deg) scale(1); opacity: 0.48; }
+  50% { transform: rotate(-3deg) scale(1.045); opacity: 0.76; }
+}
+
 .ranked-float { animation: ranked-float 6s ease-in-out infinite; }
 .ranked-float-delayed { animation: ranked-float 7.5s ease-in-out -2.4s infinite; }
 .ranked-orbit { animation: ranked-orbit 11s linear infinite; }
 .ranked-scan { animation: ranked-scan 4.8s ease-in-out infinite; }
 .ranked-shine { animation: ranked-shine 5.5s ease-in-out infinite; }
+.ranked-dartboard {
+  animation: ranked-dartboard 8s ease-in-out infinite;
+  background:
+    repeating-conic-gradient(from -8deg, rgba(110,231,183,0.15) 0deg 2deg, transparent 2deg 18deg),
+    radial-gradient(circle, rgba(190,242,100,0.22) 0 3%, transparent 3.5% 100%);
+  box-shadow: inset 0 0 60px rgba(34,197,94,0.12), 0 0 80px rgba(34,197,94,0.08);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .ranked-float,
@@ -60,5 +72,7 @@ body {
   .ranked-shine {
     animation: none;
   }
+
+  .ranked-dartboard { animation: none; }
 }
 
