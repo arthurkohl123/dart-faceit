@@ -2,21 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowUpRight, Crosshair, Flame, Menu, Radar, Sparkles, Target, Trophy, X, Zap } from 'lucide-react';
+import { ArrowUpRight, CalendarDays, Crosshair, Flame, Menu, Radar, ShieldCheck, Sparkles, Target, Trophy, X, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
-
-const stats = [
-  { value: '0', label: 'Aktive Spieler', detail: 'Online & bereit für Matches' },
-  { value: '0', label: 'Matches gespielt', detail: 'Ranked Legs in der Community' },
-  { value: '0', label: 'Preisgelder', detail: 'Monatlich für Top-Platzierungen' },
-  { value: '4.9', label: 'Bewertung', detail: 'Von ambitionierten Dartspielern' },
-];
 
 const features = [
   {
     eyebrow: 'Ranked System',
     title: 'Elo, das sich verdient anfühlt.',
-    text: 'Jedes bestätigte Match beeinflusst dein Rating nachvollziehbar. Gewinne gegen starke Gegner bringen dich schneller nach oben.',
+    text: 'Jedes bestätigte Match beeinflusst dein Rating nachvollziehbar. Je stärker dein Gegner, desto mehr zählt dein Sieg.',
   },
   {
     eyebrow: 'Live Queue',
@@ -47,6 +40,7 @@ export default function Home() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [communityStats, setCommunityStats] = useState({ players: 0, matches: 0, cups: 0, liveCups: 0 });
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
@@ -60,6 +54,26 @@ export default function Home() {
     });
     return () => subscription.unsubscribe();
   }, [supabase]);
+
+  useEffect(() => {
+    async function loadCommunityStats() {
+      const [{ count: players }, { count: matches }, { count: cups }, { count: liveCups }] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('active_matches').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+        supabase.from('tournaments').select('*', { count: 'exact', head: true }),
+        supabase.from('tournaments').select('*', { count: 'exact', head: true }).eq('status', 'live'),
+      ]);
+      setCommunityStats({ players: players ?? 0, matches: matches ?? 0, cups: cups ?? 0, liveCups: liveCups ?? 0 });
+    }
+    void loadCommunityStats();
+  }, [supabase]);
+
+  const stats = [
+    { value: String(communityStats.players), label: 'Ranked Spieler', detail: 'Bereit für das nächste Leg' },
+    { value: String(communityStats.matches), label: 'Bestätigte Matches', detail: 'Ergebnisse mit Gewicht' },
+    { value: String(communityStats.cups), label: 'Turniere', detail: 'Cups für jede Spielstärke' },
+    { value: communityStats.liveCups > 0 ? String(communityStats.liveCups) : 'LIVE', label: 'Cup Arena', detail: communityStats.liveCups > 0 ? 'Turniere laufen gerade' : 'Nächster Cup in Planung' },
+  ];
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#050607] text-white">
@@ -87,6 +101,7 @@ export default function Home() {
           <div className="hidden items-center gap-8 text-sm font-medium text-zinc-300 lg:flex">
             <a href="/leaderboard" className="transition hover:text-white">Leaderboard</a>
             <a href="/matchmaking" className="transition hover:text-white">Matchmaking</a>
+            <a href="/tournaments" className="transition hover:text-white">Turniere</a>
             <a href="/updates" className="transition hover:text-white">Updates</a>
             <a href="/premium" className="transition hover:text-white">Premium</a>
             <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-100"><Flame className="h-3.5 w-3.5" /> Season 01</span>
@@ -130,6 +145,7 @@ export default function Home() {
             <div className="flex flex-col gap-1">
               <a href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</a>
               <a href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</a>
+              <a href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Turniere</a>
               <a href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</a>
               <a href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Premium</a>
               <div className="mt-2 border-t border-white/10 pt-2 flex flex-col gap-1">
@@ -224,6 +240,12 @@ export default function Home() {
         </div>
 
         <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
+          <div className="pointer-events-none absolute -bottom-20 -right-24 hidden h-80 w-80 rounded-full border border-emerald-300/10 opacity-70 lg:block ranked-dartboard">
+            <div className="absolute inset-[12%] rounded-full border border-emerald-300/10" />
+            <div className="absolute inset-[26%] rounded-full border border-cyan-300/15" />
+            <div className="absolute inset-[42%] rounded-full border border-emerald-200/20" />
+            <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-200 shadow-[0_0_25px_rgba(190,242,100,0.95)]" />
+          </div>
           <div className="absolute -inset-8 rounded-[3rem] bg-emerald-400/10 blur-3xl" />
           <div className="pointer-events-none absolute -right-5 -top-5 hidden h-48 w-48 items-center justify-center md:flex">
             <div className="absolute inset-0 rounded-full border border-emerald-300/15" />
@@ -292,6 +314,19 @@ export default function Home() {
                   <div className="rounded-2xl bg-white/[0.04] p-3"><span className="block text-lg font-black text-white">Live</span>Bereit</div>
                 </div>
               </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button onClick={() => router.push('/tournaments')} className="group rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-left transition hover:border-amber-300/45 hover:bg-amber-300/[0.12]">
+                  <div className="flex items-center justify-between text-amber-200"><CalendarDays className="h-4 w-4" /><ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></div>
+                  <div className="mt-4 text-sm font-black text-white">Cup Arena</div>
+                  <div className="mt-1 text-xs text-zinc-500">Spiele um den Pokal</div>
+                </button>
+                <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4">
+                  <div className="flex items-center justify-between text-cyan-200"><ShieldCheck className="h-4 w-4" /><span className="text-[10px] font-black tracking-widest">FAIR PLAY</span></div>
+                  <div className="mt-4 text-sm font-black text-white">Result protected</div>
+                  <div className="mt-1 text-xs text-zinc-500">Bestätigung vor Elo</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -335,7 +370,7 @@ export default function Home() {
             <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">Warum RankedDarts</div>
             <h2 className="mt-4 max-w-3xl text-5xl font-black tracking-[-0.06em] md:text-7xl">Gebaut für echte Competitive-Matches.</h2>
           </div>
-          <p className="max-w-md text-lg leading-8 text-zinc-400">Die Startseite erklärt sofort, warum Spieler sich registrieren sollen: faire Gegner, saubere Ergebnisse und sichtbarer Fortschritt.</p>
+          <p className="max-w-md text-lg leading-8 text-zinc-400">Fairere Gegner. Sichere Resultate. Ein Ranking, das sich mit jedem starken Match wie dein eigener Fortschritt anfühlt.</p>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-3">
