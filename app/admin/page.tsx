@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
+  Activity,
   ArrowLeft,
   Ban,
   CheckCircle2,
@@ -12,7 +13,9 @@ import {
   ChevronUp,
   ClipboardList,
   Clock,
+  Command,
   Crown,
+  Download,
   ExternalLink,
   Gavel,
   Headphones,
@@ -20,6 +23,7 @@ import {
   Loader2,
   MessageCircle,
   RefreshCw,
+  Radar,
   Search,
   Send,
   ShieldAlert,
@@ -30,6 +34,7 @@ import {
   Trophy,
   TriangleAlert,
   Users,
+  X,
   XCircle,
   Zap,
 } from 'lucide-react';
@@ -264,6 +269,9 @@ export default function AdminPanel() {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [tournamentBracket, setTournamentBracket] = useState<TournamentMatch[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'logs' | 'flagged'>('overview');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [commandCenterOpen, setCommandCenterOpen] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -480,7 +488,10 @@ export default function AdminPanel() {
         return;
       }
       await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadTickets(null, null), loadTournaments()]);
-      if (isMounted) setLoading(false);
+      if (isMounted) {
+        setLastRefreshedAt(new Date());
+        setLoading(false);
+      }
     }
     void init();
     return () => { isMounted = false; };
@@ -489,7 +500,26 @@ export default function AdminPanel() {
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
     await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadTickets(ticketFilter), loadTournaments()]);
+    setLastRefreshedAt(new Date());
   }, [loadAdminLogs, loadDisputedMatches, loadFlaggedPlayers, loadLiveMatches, loadProfiles, loadTickets, loadTournaments, ticketFilter]);
+
+  useEffect(() => {
+    if (!autoRefresh || loading) return;
+    const timer = window.setInterval(() => { void refreshAdminData(); }, 30000);
+    return () => window.clearInterval(timer);
+  }, [autoRefresh, loading, refreshAdminData]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandCenterOpen(true);
+      }
+      if (event.key === 'Escape') setCommandCenterOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const updateElo = async (id: string, newElo: number) => {
     const { error } = await supabase.from('profiles').update({ elo: newElo }).eq('id', id);
@@ -656,6 +686,39 @@ export default function AdminPanel() {
   const unassignedTickets = tickets.filter((ticket) => !ticket.assigned_to_id && !['resolved', 'closed'].includes(ticket.status)).length;
   const urgentTickets = tickets.filter((ticket) => ticket.priority === 'urgent' && !['resolved', 'closed'].includes(ticket.status)).length;
   const attentionCount = disputedMatches.length + urgentTickets + flaggedPlayers.length + unassignedTickets;
+  const activeTournamentCount = tournaments.filter((tournament) => tournament.status === 'registration' || tournament.status === 'live').length;
+  const healthScore = Math.max(0, 100 - Math.min(100, (disputedMatches.length * 12) + (urgentTickets * 10) + (flaggedPlayers.length * 6) + (unassignedTickets * 5)));
+
+  const goToSection = (section: typeof activeTab) => {
+    setActiveTab(section);
+    setCommandCenterOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const exportOperationsSnapshot = () => {
+    const report = [
+      ['RankedDarts Operations Snapshot', new Date().toLocaleString('de-DE')],
+      ['System Health', `${healthScore}%`],
+      ['Spieler gesamt', String(profiles.length)],
+      ['Aktive Accounts', String(activeCount)],
+      ['Offene Disputes', String(disputedMatches.length)],
+      ['Live Matches', String(liveMatches.length)],
+      ['Support Queue', String(ticketsInQueue)],
+      ['Dringende Tickets', String(urgentTickets)],
+      ['Nicht zugewiesene Tickets', String(unassignedTickets)],
+      ['Verdächtige Accounts', String(flaggedPlayers.length)],
+      ['Aktive Turniere', String(activeTournamentCount)],
+    ].map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(';')).join('\n');
+    const blob = new Blob([report], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `rankeddarts-operations-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setActionMessage('Operations-Snapshot wurde als CSV exportiert.');
+    setCommandCenterOpen(false);
+  };
 
   if (loading) {
     return (
@@ -680,79 +743,36 @@ export default function AdminPanel() {
         <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-5 py-8 md:px-8 lg:py-10">
-        <nav className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-black/45 p-4 shadow-2xl shadow-black/25 backdrop-blur-2xl md:flex-row md:items-center md:justify-between">
-          <button onClick={() => router.push('/')} className="flex items-center gap-3 text-left">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
-            <div>
-              <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Admin Control Center</div>
-            </div>
-          </button>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              onClick={refreshAdminData}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-black text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-400/15"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Aktualisieren
-            </button>
-            <button
-              onClick={() => router.push('/profile')}
-
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Zum Profil
-            </button>
+      <div className="relative z-10 mx-auto max-w-[1600px] px-4 py-5 sm:px-7 sm:py-8 lg:px-10">
+        {commandCenterOpen && (
+          <div className="fixed inset-0 z-50 grid place-items-start bg-[#020304]/85 px-4 py-16 backdrop-blur-xl sm:place-items-center">
+            <section className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/15 bg-[#0d1117] shadow-[0_30px_120px_rgba(0,0,0,0.75)]">
+              <div className="flex items-center justify-between border-b border-white/10 px-6 py-5"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-300 text-black"><Command className="h-5 w-5" /></div><div><p className="font-black">Command Center</p><p className="text-xs text-zinc-500">Schnelle Navigation und Operations-Aktionen</p></div></div><button onClick={() => setCommandCenterOpen(false)} className="rounded-xl border border-white/10 p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button></div>
+              <div className="grid gap-2 p-4 sm:grid-cols-2">
+                {[['disputes', 'Disputes priorisieren', `${disputedMatches.length} offen`, Gavel, 'text-amber-200'], ['tickets', 'Support Queue öffnen', `${ticketsInQueue} in Bearbeitung`, Headphones, 'text-violet-200'], ['live', 'Live Arena beobachten', `${liveMatches.length} Matches`, Radar, 'text-emerald-200'], ['flagged', 'Fairness Monitor', `${flaggedPlayers.length} Accounts`, TriangleAlert, 'text-orange-200'], ['tournaments', 'Cup Control', `${activeTournamentCount} aktiv`, Trophy, 'text-cyan-200'], ['players', 'Spieler verwalten', `${profiles.length} Profile`, Users, 'text-zinc-100']].map(([id, title, meta, Icon, tone]) => {
+                  const SectionIcon = Icon as typeof Gavel;
+                  return <button key={id as string} onClick={() => goToSection(id as typeof activeTab)} className="flex items-center gap-4 rounded-2xl border border-white/8 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.07]"><SectionIcon className={`h-5 w-5 ${tone as string}`} /><span><span className="block text-sm font-black text-white">{title as string}</span><span className="mt-0.5 block text-xs text-zinc-500">{meta as string}</span></span></button>;
+                })}
+              </div>
+              <div className="flex flex-col gap-2 border-t border-white/10 bg-black/20 p-4 sm:flex-row"><button onClick={() => void refreshAdminData()} className="flex-1 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-xs font-black text-emerald-100 transition hover:bg-emerald-400/20">Alle Daten aktualisieren</button><button onClick={exportOperationsSnapshot} className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-200 transition hover:bg-white/10">Snapshot exportieren</button></div>
+            </section>
           </div>
-        </nav>
+        )}
 
-        <header className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-          <div>
-            <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-200">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
-              Operations Console · live
+        <section className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#090d13]/95 shadow-[0_35px_120px_rgba(0,0,0,0.55)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(16,185,129,0.21),transparent_31%),radial-gradient(circle_at_88%_15%,rgba(34,211,238,0.16),transparent_28%),linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.025)_48%,transparent_75%)]" />
+          <div className="relative border-b border-white/10 px-5 py-4 sm:px-7">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <button onClick={() => router.push('/')} className="flex items-center gap-3 text-left"><div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-emerald-300 via-lime-200 to-cyan-200 font-black text-black shadow-[0_0_30px_rgba(110,231,183,0.35)]">R</div><div><p className="text-sm font-black tracking-[-0.04em] text-white">RANKEDDARTS / OPS</p><p className="text-[9px] font-black uppercase tracking-[0.25em] text-emerald-300/80">Private administrator workspace</p></div></button>
+              <div className="flex items-center gap-2"><button onClick={() => setAutoRefresh((enabled) => !enabled)} className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition ${autoRefresh ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-zinc-400'}`}><span className={`h-1.5 w-1.5 rounded-full ${autoRefresh ? 'bg-emerald-300 animate-pulse' : 'bg-zinc-500'}`} />Sync {autoRefresh ? 'an' : 'aus'}</button><button onClick={() => setCommandCenterOpen(true)} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-200 transition hover:border-white/25 hover:bg-white/[0.09]"><Command className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Command</span><kbd className="hidden rounded border border-white/10 px-1 py-0.5 text-[9px] text-zinc-500 sm:inline">⌘K</kbd></button></div>
             </div>
-            <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[0.9] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Behalte die<br /><span className="bg-gradient-to-r from-emerald-200 via-lime-300 to-cyan-200 bg-clip-text text-transparent">Arena im Griff.</span></h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Deine Operations-Zentrale für faire Matches, schnelle Antworten und eine saubere Competitive-Ladder.</p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className={statCardClassName}>
-              <Users className="h-7 w-7 text-emerald-300" />
-              <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{profiles.length}</div>
-              <div className="mt-1 text-sm font-semibold text-zinc-400">Spieler gesamt</div>
-            </div>
-            <div className={statCardClassName}>
-              <ShieldAlert className="h-7 w-7 text-amber-300" />
-              <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{disputedMatches.length}</div>
-              <div className="mt-1 text-sm font-semibold text-zinc-400">Offene Disputes</div>
-            </div>
-            <div className={`${statCardClassName} col-span-2 sm:col-span-1`}>
-              <Headphones className="h-7 w-7 text-violet-300" />
-              <div className="mt-5 text-4xl font-black tracking-[-0.05em] text-violet-300">{tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length}</div>
-              <div className="mt-1 text-sm font-semibold text-zinc-400">Offene Tickets</div>
-            </div>
-            <div className={statCardClassName}>
-              <CheckCircle2 className="h-7 w-7 text-lime-300" />
-              <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{activeCount}</div>
-              <div className="mt-1 text-sm font-semibold text-zinc-400">Aktive Accounts</div>
-            </div>
-            <div className={`${statCardClassName} ${flaggedPlayers.length > 0 ? 'border-orange-400/30 bg-orange-400/[0.06]' : ''}`}>
-              <TriangleAlert className={`h-7 w-7 ${flaggedPlayers.length > 0 ? 'text-orange-300' : 'text-zinc-500'}`} />
-              <div className={`mt-5 text-4xl font-black tracking-[-0.05em] ${flaggedPlayers.length > 0 ? 'text-orange-300' : ''}`}>{flaggedPlayers.length}</div>
-              <div className="mt-1 text-sm font-semibold text-zinc-400">Verdächtige Accounts</div>
-            </div>
+          <div className="relative grid gap-8 px-5 py-8 sm:px-7 lg:grid-cols-[1.2fr_0.8fr] lg:px-9 lg:py-10">
+            <div><div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/[0.08] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100"><Activity className="h-3.5 w-3.5" /> Operations telemetry · {lastRefreshedAt ? `letzter Sync ${lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'initialisiert'}</div><h1 className="mt-6 max-w-4xl text-5xl font-black leading-[0.84] tracking-[-0.08em] text-white sm:text-6xl xl:text-7xl">Mission control<br /><span className="bg-gradient-to-r from-emerald-200 via-lime-200 to-cyan-200 bg-clip-text text-transparent">für die ganze Arena.</span></h1><p className="mt-6 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">Kein Admin-Chaos, keine versteckten Probleme. Priorisiere Fairness, Support und Turniere aus einer klaren Operations-Zentrale.</p><div className="mt-7 flex flex-wrap gap-3"><button onClick={() => goToSection(attentionCount > 0 ? 'disputes' : 'overview')} className="rounded-2xl bg-emerald-300 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-black transition hover:-translate-y-0.5 hover:bg-emerald-200">{attentionCount > 0 ? `${attentionCount} Vorgänge prüfen` : 'Systemübersicht öffnen'}</button><button onClick={() => void refreshAdminData()} className="inline-flex items-center gap-2 rounded-2xl border border-white/12 bg-white/[0.04] px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-zinc-200 transition hover:bg-white/[0.09]"><RefreshCw className="h-3.5 w-3.5" /> Jetzt synchronisieren</button></div></div>
+            <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr] lg:grid-cols-1 xl:grid-cols-[0.8fr_1.2fr]"><div className="relative grid min-h-48 place-items-center overflow-hidden rounded-[2rem] border border-white/10 bg-black/30"><div className="absolute h-44 w-44 rounded-full opacity-90" style={{ background: `conic-gradient(#6ee7b7 ${healthScore}%, rgba(255,255,255,0.08) 0)` }} /><div className="absolute h-36 w-36 rounded-full bg-[#0b0f14]" /><div className="relative text-center"><p className="text-4xl font-black tracking-[-0.07em] text-white">{healthScore}</p><p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">Health score</p></div></div><div className="grid grid-cols-2 gap-3"><button onClick={() => goToSection('disputes')} className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.06] p-4 text-left transition hover:bg-amber-300/[0.12]"><Gavel className="h-4 w-4 text-amber-200" /><p className="mt-5 text-3xl font-black">{disputedMatches.length}</p><p className="text-[10px] font-black uppercase tracking-[0.13em] text-amber-100/70">Disputes</p></button><button onClick={() => goToSection('tickets')} className="rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] p-4 text-left transition hover:bg-violet-400/[0.12]"><Headphones className="h-4 w-4 text-violet-200" /><p className="mt-5 text-3xl font-black">{ticketsInQueue}</p><p className="text-[10px] font-black uppercase tracking-[0.13em] text-violet-100/70">Support queue</p></button><button onClick={() => goToSection('live')} className="rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.06] p-4 text-left transition hover:bg-emerald-400/[0.12]"><Radar className="h-4 w-4 text-emerald-200" /><p className="mt-5 text-3xl font-black">{liveMatches.length}</p><p className="text-[10px] font-black uppercase tracking-[0.13em] text-emerald-100/70">Live matches</p></button><button onClick={() => goToSection('tournaments')} className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.06] p-4 text-left transition hover:bg-cyan-400/[0.12]"><Trophy className="h-4 w-4 text-cyan-200" /><p className="mt-5 text-3xl font-black">{activeTournamentCount}</p><p className="text-[10px] font-black uppercase tracking-[0.13em] text-cyan-100/70">Active cups</p></button></div></div>
           </div>
-        </header>
-
-        <section className="mt-7 grid gap-3 rounded-[2rem] border border-white/10 bg-black/45 p-3 shadow-2xl shadow-black/20 backdrop-blur-2xl md:grid-cols-4">
-          <button onClick={() => setActiveTab(attentionCount > 0 ? 'disputes' : 'overview')} className={`group rounded-[1.45rem] border p-4 text-left transition ${attentionCount > 0 ? 'border-amber-300/20 bg-amber-300/[0.08] hover:bg-amber-300/[0.13]' : 'border-emerald-300/20 bg-emerald-400/[0.07] hover:bg-emerald-400/[0.12]'}`}><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-400">Aufmerksamkeit</span><AlertTriangle className={`h-4 w-4 ${attentionCount > 0 ? 'text-amber-300' : 'text-emerald-300'}`} /></div><div className="mt-3 text-3xl font-black">{attentionCount}</div><p className="mt-1 text-xs text-zinc-500">{attentionCount > 0 ? 'Offene Vorgänge priorisieren' : 'Keine kritischen Vorgänge'}</p></button>
-          <button onClick={() => setActiveTab('tickets')} className="group rounded-[1.45rem] border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-violet-300/30 hover:bg-violet-400/[0.06]"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-400">Support Queue</span><Headphones className="h-4 w-4 text-violet-300" /></div><div className="mt-3 text-3xl font-black">{ticketsInQueue}</div><p className="mt-1 text-xs text-zinc-500">{unassignedTickets} nicht zugewiesen</p></button>
-          <button onClick={() => setActiveTab('live')} className="group rounded-[1.45rem] border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-emerald-300/30 hover:bg-emerald-400/[0.06]"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-400">Live Arena</span><Swords className="h-4 w-4 text-emerald-300" /></div><div className="mt-3 text-3xl font-black">{liveMatches.length}</div><p className="mt-1 text-xs text-zinc-500">Matches mit Ergebnispflege</p></button>
-          <button onClick={() => setActiveTab('tournaments')} className="group rounded-[1.45rem] border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-amber-300/30 hover:bg-amber-400/[0.06]"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-400">Cup Control</span><Trophy className="h-4 w-4 text-amber-300" /></div><div className="mt-3 text-3xl font-black">{tournaments.filter(t => t.status === 'registration' || t.status === 'live').length}</div><p className="mt-1 text-xs text-zinc-500">Registrierung & laufende Cups</p></button>
+          <div className="relative grid border-t border-white/10 bg-black/20 sm:grid-cols-3"><button onClick={() => goToSection('flagged')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-orange-400/[0.06] sm:border-b-0 sm:border-r"><TriangleAlert className="h-4 w-4 text-orange-300" /><span><span className="block text-xs font-black text-white">Fairness monitor</span><span className="text-[11px] text-zinc-500">{flaggedPlayers.length ? `${flaggedPlayers.length} Accounts brauchen Prüfung` : 'Keine auffälligen Signale'}</span></span></button><button onClick={() => goToSection('tickets')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-violet-400/[0.06] sm:border-b-0 sm:border-r"><MessageCircle className="h-4 w-4 text-violet-300" /><span><span className="block text-xs font-black text-white">Support routing</span><span className="text-[11px] text-zinc-500">{unassignedTickets ? `${unassignedTickets} Tickets nicht zugewiesen` : 'Jedes Ticket hat einen Owner'}</span></span></button><button onClick={exportOperationsSnapshot} className="flex items-center gap-3 px-5 py-4 text-left transition hover:bg-emerald-400/[0.06]"><Download className="h-4 w-4 text-emerald-300" /><span><span className="block text-xs font-black text-white">Operations snapshot</span><span className="text-[11px] text-zinc-500">CSV-Bericht für deinen Team-Stand</span></span></button></div>
         </section>
 
 
