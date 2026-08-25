@@ -6,6 +6,8 @@ import { Activity, AlertTriangle, CheckCircle2, Clock, Radar, ShieldCheck, Sword
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
+type DailyMatchQuota = { matches_used: number; daily_limit: number | null; is_premium: boolean };
+
 type MatchmakingStatus = 'idle' | 'selecting' | 'searching' | 'accepting' | 'found' | 'error';
 type AppChoice = 'scolia' | 'dartcounter';
 
@@ -82,6 +84,7 @@ export default function Matchmaking() {
   const [errorMessage, setErrorMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
+  const [dailyQuota, setDailyQuota] = useState<DailyMatchQuota | null>(null);
 
   // Accept-State
   const [acceptMatchId, setAcceptMatchId] = useState<string | null>(null);
@@ -405,7 +408,8 @@ export default function Matchmaking() {
     } catch (error) {
       if (statusRef.current === 'searching') {
         const msg = error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.';
-        if (msg.includes('COOLDOWN:')) {
+        if (msg.includes('DAILY_MATCH_LIMIT')) { setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
+        } else if (msg.includes('COOLDOWN:')) {
           // Cooldown serverseitig ignorieren – Queue ist nicht mehr gesperrt
           setCooldownSeconds(0);
           setErrorMessage('');
@@ -426,6 +430,8 @@ export default function Matchmaking() {
   const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
     setOpponent(null);
+
+    if (dailyQuota && !dailyQuota.is_premium && dailyQuota.matches_used >= 4) { setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.'); setStatus('error'); return; }
 
     if (cooldownSeconds > 0) {
       setErrorMessage(getCooldownMessage());
