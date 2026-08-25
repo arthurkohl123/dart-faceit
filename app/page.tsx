@@ -442,9 +442,14 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
           <div className="font-bold text-zinc-300">RANKEDDARTS</div>
           <div>© 2026 RankedDarts. Das Matchmaking für Dartspieler.</div>
-          <div className="flex gap-5">
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
             <a href="/leaderboard" className="transition hover:text-white">Leaderboard</a>
             <a href="/updates" className="transition hover:text-white">Updates</a>
+            <a href="/impressum" className="transition hover:text-white">Impressum</a>
+            <a href="/datenschutz" className="transition hover:text-white">Datenschutz</a>
+            <a href="/agb" className="transition hover:text-white">AGB</a>
+            <a href="/turnierregeln" className="transition hover:text-white">Turnierregeln</a>
+            <a href="/premium/kuendigung" className="transition hover:text-white">Premium kündigen</a>
           </div>
         </div>
       </footer>
