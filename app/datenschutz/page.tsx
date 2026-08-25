@@ -1,0 +1,14 @@
+import { LegalPageShell, LegalSection, PlaceholderNotice } from '@/components/legal-page-shell';
+
+export default function PrivacyPage() {
+  return <LegalPageShell eyebrow="Datenschutz" title="Datenschutzerklärung" intro="Informationen zur Verarbeitung personenbezogener Daten bei der Nutzung von RankedDarts.">
+    <PlaceholderNotice />
+    <LegalSection title="1. Verantwortliche Stelle"><p>[Vor- und Nachname / Firmenname], [Anschrift], E-Mail: [datenschutz@deine-domain.de].</p></LegalSection>
+    <LegalSection title="2. Welche Daten wir verarbeiten"><p>Bei der Registrierung und Nutzung verarbeiten wir insbesondere Accountdaten (E-Mail-Adresse, Nutzername, Authentifizierungs-ID), Profil- und Spielstatistiken, Turnier- und Matchdaten, Support-Nachrichten sowie – sofern aktiviert – Daten zur Telefonverifizierung. Technische Protokolldaten können bei der Bereitstellung der Website anfallen.</p></LegalSection>
+    <LegalSection title="3. Zwecke und Rechtsgrundlagen"><p>Die Datenverarbeitung dient der Bereitstellung des Nutzerkontos, Matchmakings, der Turniere, Kommunikation, Betrugs- und Missbrauchsprävention sowie der Zahlungsabwicklung. Rechtsgrundlagen können Art. 6 Abs. 1 lit. b DSGVO (Vertrag), lit. c (rechtliche Pflicht), lit. f (berechtigte Interessen) und – sofern erforderlich – lit. a (Einwilligung) sein.</p></LegalSection>
+    <LegalSection title="4. Eingesetzte Dienstleister"><p><strong>Supabase</strong> wird für Authentifizierung und Datenbankfunktionen eingesetzt. <strong>Stripe</strong> verarbeitet Zahlungsdaten für Premium-Abonnements. Je nach Hosting-Konfiguration kann <strong>Vercel</strong> technische Daten zur Auslieferung der Website verarbeiten. Mit Dienstleistern sind die jeweils erforderlichen Datenschutzvereinbarungen abzuschließen; prüfe dabei insbesondere Übermittlungen in Drittländer und passende Garantien.</p></LegalSection>
+    <LegalSection title="5. Speicherdauer"><p>Wir speichern Daten nur so lange, wie dies für die genannten Zwecke, die Vertragsabwicklung oder gesetzliche Aufbewahrungspflichten erforderlich ist. Accountdaten werden nach einer Löschanfrage geprüft; Daten, die wir rechtlich aufbewahren müssen, bleiben bis zum Ablauf der jeweiligen Frist gespeichert.</p></LegalSection>
+    <LegalSection title="6. Deine Rechte"><p>Du hast – soweit die Voraussetzungen vorliegen – das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch. Erteilte Einwilligungen kannst du mit Wirkung für die Zukunft widerrufen. Außerdem besteht ein Beschwerderecht bei einer Datenschutzaufsichtsbehörde.</p></LegalSection>
+    <LegalSection title="7. Kontakt für Datenschutzanfragen"><p>Bitte sende Anfragen an [datenschutz@deine-domain.de]. Vor einer Veröffentlichung muss diese Adresse durch eine tatsächlich erreichbare Kontaktmöglichkeit ersetzt werden.</p></LegalSection>
+  </LegalPageShell>;
+}
