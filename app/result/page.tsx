@@ -74,8 +74,7 @@ type ChatMessage = {
 
 const CONFIRM_TIMEOUT_SECONDS = 300;
 const NO_SHOW_TIMEOUT_SECONDS = 300; // 5 Minuten
-const BEST_OF_LEGS = 7;
-const LEGS_TO_WIN = Math.ceil(BEST_OF_LEGS / 2);
+const DEFAULT_BEST_OF_LEGS = 7;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -169,6 +168,7 @@ function LegCounter({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function MatchResult() {
+  const [bestOfLegs, setBestOfLegs] = useState(DEFAULT_BEST_OF_LEGS);
   // Form state
   const [legsWon, setLegsWon] = useState(0);
   const [legsLost, setLegsLost] = useState(0);
@@ -227,6 +227,11 @@ export default function MatchResult() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
+  useEffect(() => {
+    const bestOf = Number(new URLSearchParams(window.location.search).get('bestOf'));
+    if ([3, 5, 7, 9].includes(bestOf)) setBestOfLegs(bestOf);
+  }, []);
+
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   const iAmPlayer1 = match ? currentUserId === match.player1_id : false;
@@ -238,7 +243,8 @@ export default function MatchResult() {
     match.submitted_by &&
     match.submitted_by !== currentUserId
   );
-  const resultIsValid = (legsWon === LEGS_TO_WIN && legsLost >= 0 && legsLost < LEGS_TO_WIN) || (legsLost === LEGS_TO_WIN && legsWon >= 0 && legsWon < LEGS_TO_WIN);
+  const legsToWin = Math.ceil(bestOfLegs / 2);
+  const resultIsValid = (legsWon === legsToWin && legsLost >= 0 && legsLost < legsToWin) || (legsLost === legsToWin && legsWon >= 0 && legsWon < legsToWin);
   const statsAreComplete = [myAverage, opponentAverageInput, myOneEighties, opponentOneEighties].every((value) => value.trim() !== '');
   const statsAreValid = statsAreComplete &&
     [myAverage, opponentAverageInput].every((value) => Number.isFinite(Number.parseFloat(value)) && Number.parseFloat(value) >= 0 && Number.parseFloat(value) <= 180) &&
@@ -433,7 +439,7 @@ export default function MatchResult() {
   const submitResult = async () => {
     if (!match) return;
     if (!resultIsValid) {
-      setErrorMessage('Bitte trage ein gültiges Best-of-7-Ergebnis ein. Ein Spieler muss genau 4 Legs haben.');
+      setErrorMessage(`Bitte trage ein gültiges Best-of-${bestOfLegs}-Ergebnis ein. Ein Spieler muss genau ${legsToWin} Legs haben.`);
       return;
     }
     if (!statsAreValid) {
@@ -1116,7 +1122,7 @@ export default function MatchResult() {
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Scoreboard</p>
               <h2 className="mt-2 text-4xl font-black tracking-[-0.06em]">Ergebnis eintragen</h2>
               <p className="mt-2 text-sm text-zinc-500">
-                Trage das Best-of-7-Ergebnis sowie Average und 180er von beiden Spielern ein. Dein Gegner muss alles danach bestätigen.
+                Trage das Best-of-{bestOfLegs}-Ergebnis sowie Average und 180er von beiden Spielern ein. Dein Gegner muss alles danach bestätigen.
               </p>
             </div>
 
@@ -1125,16 +1131,16 @@ export default function MatchResult() {
               <div>
                 <p className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Legs</p>
                 <div className="flex items-start justify-center gap-4">
-                  <LegCounter label="Deine Legs" value={legsWon} onChange={(v) => setLegsWon(Math.min(LEGS_TO_WIN, v))} accent="text-emerald-300" />
+                  <LegCounter label="Deine Legs" value={legsWon} onChange={(v) => setLegsWon(Math.min(legsToWin, v))} accent="text-emerald-300" />
                   <span className="mt-[4.5rem] text-4xl font-black text-zinc-700 sm:mt-[5rem] sm:text-5xl">:</span>
-                  <LegCounter label="Gegner Legs" value={legsLost} onChange={(v) => setLegsLost(Math.min(LEGS_TO_WIN, v))} accent="text-zinc-300" />
+                  <LegCounter label="Gegner Legs" value={legsLost} onChange={(v) => setLegsLost(Math.min(legsToWin, v))} accent="text-zinc-300" />
                 </div>
                 <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-center text-sm font-bold text-zinc-400">
-                  Gespielt wird immer Best of 7. Ein gültiges Ergebnis endet mit 4 Legs für einen Spieler, zum Beispiel 4:0 bis 4:3.
+                  Gespielt wird Best of {bestOfLegs}. Ein gültiges Ergebnis endet mit {legsToWin} Legs für einen Spieler.
                 </p>
                 {!resultIsValid && (legsWon > 0 || legsLost > 0) && (
                   <p className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-center text-sm font-bold text-red-200">
-                    Ungültiges Best-of-7-Ergebnis. Ein Spieler muss genau 4 Legs erreicht haben.
+                    Ungültiges Best-of-{bestOfLegs}-Ergebnis. Ein Spieler muss genau {legsToWin} Legs erreicht haben.
                   </p>
                 )}
               </div>
