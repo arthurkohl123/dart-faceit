@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import { BrandLogo } from '@/components/BrandLogo';
 import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
 import { ArrowUpRight, CheckCircle2, Crosshair, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, X, XCircle, Zap } from 'lucide-react';
@@ -159,7 +160,7 @@ export default function Profile() {
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-lg font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
+            <BrandLogo className="h-10 w-10" />
             <div>
               <div className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Profil Hub</div>
@@ -570,5 +571,4 @@ export default function Profile() {
     </main>
   );
 }
-
 
