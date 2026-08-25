@@ -33,6 +33,7 @@ type ProfileData = {
   phone_verified: boolean;
   phone_number: string | null;
   is_admin: boolean;
+  isPremium: boolean;
   scolia_username: string | null;
   dartcounter_username: string | null;
 };
@@ -246,6 +247,11 @@ export default function Profile() {
                 <span className={`rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.2em] ${currentRank.ringColor} bg-black/30 ${currentRank.color}`}>
                   {currentRank.name}
                 </span>
+                {profile?.isPremium && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/35 bg-emerald-300/15 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-emerald-100 shadow-[0_0_22px_rgba(74,222,128,0.18)]">
+                    <Sparkles className="h-3.5 w-3.5 fill-current text-emerald-300" /> Premium
+                  </span>
+                )}
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-zinc-400">
                 <span className="flex items-center gap-1.5">
@@ -564,4 +570,5 @@ export default function Profile() {
     </main>
   );
 }
+
 
