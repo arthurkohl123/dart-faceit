@@ -46,7 +46,10 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data: { session } } = await supabase.auth.getSession();
+  // Never trust the user embedded in a cookie session for access control.
+  // getUser() verifies the access token with Supabase Auth before we use it
+  // for bans, role checks or protected routes.
+  const { data: { user } } = await supabase.auth.getUser();
 
   const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
   const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
@@ -56,11 +59,11 @@ export async function middleware(request: NextRequest) {
 
   let profile: MiddlewareProfile | null = null;
 
-  if (session) {
+  if (user) {
     const { data } = await supabase
       .from('profiles')
       .select('is_banned, is_admin, is_developer')
-      .eq('supabaseId', session.user.id)
+      .eq('supabaseId', user.id)
       .single();
 
     profile = data as MiddlewareProfile | null;
@@ -87,7 +90,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Nicht eingeloggte User von geschützten Seiten auf Login weiterleiten.
-  if (!session && isProtected) {
+  if (!user && isProtected) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/auth/login';
     loginUrl.searchParams.set('redirectTo', pathname);
@@ -95,7 +98,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Gebannte User auf die Banned-Seite weiterleiten.
-  if (session && isProtected && pathname !== '/auth/banned') {
+  if (user && isProtected && pathname !== '/auth/banned') {
     if (profile?.is_banned) {
       await supabase.auth.signOut();
       const bannedUrl = request.nextUrl.clone();
@@ -117,7 +120,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Bereits eingeloggte User von Login/Register wegweiterleiten.
-  if (session && isAuthRoute) {
+  if (user && isAuthRoute) {
     const redirectTo = searchParams.get('redirectTo') || (profile?.is_developer ? '/developer' : '/profile');
     const dest = request.nextUrl.clone();
     dest.pathname = redirectTo;
