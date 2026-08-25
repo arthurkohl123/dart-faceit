@@ -655,6 +655,7 @@ export default function AdminPanel() {
   const ticketsWaitingForUser = tickets.filter((ticket) => ticket.status === 'waiting_for_user').length;
   const unassignedTickets = tickets.filter((ticket) => !ticket.assigned_to_id && !['resolved', 'closed'].includes(ticket.status)).length;
   const urgentTickets = tickets.filter((ticket) => ticket.priority === 'urgent' && !['resolved', 'closed'].includes(ticket.status)).length;
+  const attentionCount = disputedMatches.length + urgentTickets + flaggedPlayers.length + unassignedTickets;
 
   if (loading) {
     return (
@@ -710,12 +711,12 @@ export default function AdminPanel() {
 
         <header className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
           <div>
-            <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">
+            <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-200">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
-              Geschützter Admin-Bereich
+              Operations Console · live
             </div>
-            <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[0.9] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Admin Panel für Ladder, Spieler und Disputes.</h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Verwalte Spielerprofile, prüfe widersprochene Matches und entscheide kritische Ergebnisse in einem einheitlichen RankedDarts-Dashboard.</p>
+            <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[0.9] tracking-[-0.07em] sm:text-5xl md:text-6xl lg:text-7xl">Behalte die<br /><span className="bg-gradient-to-r from-emerald-200 via-lime-300 to-cyan-200 bg-clip-text text-transparent">Arena im Griff.</span></h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Deine Operations-Zentrale für faire Matches, schnelle Antworten und eine saubere Competitive-Ladder.</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -747,11 +748,18 @@ export default function AdminPanel() {
           </div>
         </header>
 
+        <section className="mt-7 grid gap-3 rounded-[2rem] border border-white/10 bg-black/45 p-3 shadow-2xl shadow-black/20 backdrop-blur-2xl md:grid-cols-4">
+          <button onClick={() => setActiveTab(attentionCount > 0 ? 'disputes' : 'overview')} className={`group rounded-[1.45rem] border p-4 text-left transition ${attentionCount > 0 ? 'border-amber-300/20 bg-amber-300/[0.08] hover:bg-amber-300/[0.13]' : 'border-emerald-300/20 bg-emerald-400/[0.07] hover:bg-emerald-400/[0.12]'}`}><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-400">Aufmerksamkeit</span><AlertTriangle className={`h-4 w-4 ${attentionCount > 0 ? 'text-amber-300' : 'text-emerald-300'}`} /></div><div className="mt-3 text-3xl font-black">{attentionCount}</div><p className="mt-1 text-xs text-zinc-500">{attentionCount > 0 ? 'Offene Vorgänge priorisieren' : 'Keine kritischen Vorgänge'}</p></button>
+          <button onClick={() => setActiveTab('tickets')} className="group rounded-[1.45rem] border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-violet-300/30 hover:bg-violet-400/[0.06]"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-400">Support Queue</span><Headphones className="h-4 w-4 text-violet-300" /></div><div className="mt-3 text-3xl font-black">{ticketsInQueue}</div><p className="mt-1 text-xs text-zinc-500">{unassignedTickets} nicht zugewiesen</p></button>
+          <button onClick={() => setActiveTab('live')} className="group rounded-[1.45rem] border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-emerald-300/30 hover:bg-emerald-400/[0.06]"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-400">Live Arena</span><Swords className="h-4 w-4 text-emerald-300" /></div><div className="mt-3 text-3xl font-black">{liveMatches.length}</div><p className="mt-1 text-xs text-zinc-500">Matches mit Ergebnispflege</p></button>
+          <button onClick={() => setActiveTab('tournaments')} className="group rounded-[1.45rem] border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-amber-300/30 hover:bg-amber-400/[0.06]"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-400">Cup Control</span><Trophy className="h-4 w-4 text-amber-300" /></div><div className="mt-3 text-3xl font-black">{tournaments.filter(t => t.status === 'registration' || t.status === 'live').length}</div><p className="mt-1 text-xs text-zinc-500">Registrierung & laufende Cups</p></button>
+        </section>
+
 
 
 
         {/* ── Tab-Navigation ── */}
-        <div className="mt-8 flex flex-wrap gap-2 rounded-[1.5rem] border border-white/10 bg-zinc-950/60 p-2 backdrop-blur-xl">
+        <div className="sticky top-3 z-30 mt-8 flex flex-wrap gap-2 rounded-[1.6rem] border border-white/10 bg-zinc-950/80 p-2 shadow-2xl shadow-black/30 backdrop-blur-2xl">
           {([
             { id: 'overview',  label: 'Übersicht',   icon: <Trophy className="h-4 w-4" />,         badge: null },
             { id: 'disputes',  label: 'Disputes',    icon: <Gavel className="h-4 w-4" />,           badge: disputedMatches.length > 0 ? disputedMatches.length : null },
@@ -765,10 +773,10 @@ export default function AdminPanel() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+              className={`relative flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white/10 text-white shadow-sm'
-                  : 'text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200'
+                  ? 'bg-gradient-to-r from-emerald-400/20 to-cyan-400/10 text-white shadow-[0_8px_25px_rgba(34,197,94,0.10)]'
+                  : 'text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-100'
               }`}
             >
               {tab.icon}
@@ -793,6 +801,10 @@ export default function AdminPanel() {
                   {actionMessage}
                 </div>
               )}
+              <div className="mb-6 grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+                <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/75 p-6 shadow-2xl shadow-black/25"><div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl" /><div className="relative flex items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Next best action</p><h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">{attentionCount > 0 ? 'Die Arena braucht Aufmerksamkeit.' : 'Alles unter Kontrolle.'}</h2><p className="mt-2 max-w-lg text-sm leading-6 text-zinc-400">{attentionCount > 0 ? `${disputedMatches.length} Disputes, ${urgentTickets} dringende Tickets und ${flaggedPlayers.length} verdächtige Accounts warten auf Prüfung.` : 'Keine eskalierten Vorgänge. Nutze die Zeit für Spielerpflege oder den nächsten Cup.'}</p></div><div className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl border ${attentionCount > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-200' : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200'}`}>{attentionCount > 0 ? <AlertTriangle className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}</div></div><div className="relative mt-5 flex flex-wrap gap-2">{disputedMatches.length > 0 && <button onClick={() => setActiveTab('disputes')} className="rounded-xl bg-amber-300 px-4 py-2.5 text-xs font-black text-black transition hover:bg-amber-200">Disputes prüfen</button>}{urgentTickets > 0 && <button onClick={() => setActiveTab('tickets')} className="rounded-xl border border-violet-300/25 bg-violet-400/10 px-4 py-2.5 text-xs font-black text-violet-100 transition hover:bg-violet-400/20">Dringende Tickets</button>}{flaggedPlayers.length > 0 && <button onClick={() => setActiveTab('flagged')} className="rounded-xl border border-orange-300/25 bg-orange-400/10 px-4 py-2.5 text-xs font-black text-orange-100 transition hover:bg-orange-400/20">Accounts prüfen</button>}{attentionCount === 0 && <button onClick={() => setActiveTab('tournaments')} className="rounded-xl bg-emerald-300 px-4 py-2.5 text-xs font-black text-black transition hover:bg-emerald-200">Cup erstellen</button>}</div></section>
+                <section className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-6"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">System Pulse</p><div className="mt-5 space-y-4"><div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-zinc-400"><span className="h-2 w-2 rounded-full bg-emerald-300" />Match-System</span><span className="text-xs font-black text-emerald-200">ONLINE</span></div><div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-zinc-400"><span className={`h-2 w-2 rounded-full ${urgentTickets > 0 ? 'bg-amber-300' : 'bg-emerald-300'}`} />Support-SLA</span><span className={`text-xs font-black ${urgentTickets > 0 ? 'text-amber-200' : 'text-emerald-200'}`}>{urgentTickets > 0 ? 'PRIORITÄT' : 'STABIL'}</span></div><div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-zinc-400"><span className={`h-2 w-2 rounded-full ${flaggedPlayers.length > 0 ? 'bg-orange-300' : 'bg-emerald-300'}`} />Fairness Monitor</span><span className={`text-xs font-black ${flaggedPlayers.length > 0 ? 'text-orange-200' : 'text-emerald-200'}`}>{flaggedPlayers.length > 0 ? 'PRÜFUNG' : 'CLEAR'}</span></div></div></section>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div className={statCardClassName}>
                   <Users className="h-7 w-7 text-emerald-300" />
