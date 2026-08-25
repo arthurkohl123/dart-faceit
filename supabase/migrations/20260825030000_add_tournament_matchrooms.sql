@@ -3,6 +3,8 @@
 alter table public.tournament_matches
   add column if not exists active_match_id uuid unique references public.active_matches(id) on delete set null;
 
+drop function if exists public.get_tournament_bracket(uuid);
+
 create or replace function public.get_tournament_bracket(p_tournament_id uuid)
 returns table (
   id uuid, round_number integer, match_number integer, player1_id uuid, player2_id uuid,
