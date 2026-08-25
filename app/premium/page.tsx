@@ -12,6 +12,9 @@ type ProfileData = {
   gamesPlayed?: number;
   wins?: number;
   isPremium?: boolean;
+  stripe_subscription_status?: string | null;
+  stripe_current_period_end?: string | null;
+  stripe_cancel_at_period_end?: boolean;
 };
 
 const premiumBenefits = [
@@ -50,6 +53,8 @@ export default function Premium() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -73,7 +78,7 @@ export default function Premium() {
 
       const { data } = await supabase
         .from('profiles')
-        .select('username, elo, gamesPlayed, wins, isPremium')
+        .select('username, elo, gamesPlayed, wins, isPremium, stripe_subscription_status, stripe_current_period_end, stripe_cancel_at_period_end')
         .eq('supabaseId', session.user.id)
         .single();
 
@@ -115,6 +120,24 @@ export default function Premium() {
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : 'Der Checkout konnte nicht gestartet werden.');
       setCheckoutLoading(false);
+    }
+  };
+
+  const openBillingPortal = async () => {
+    setPortalLoading(true);
+    setPortalError(null);
+    try {
+      const response = await fetch('/api/billing-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flow: 'manage' }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.url) throw new Error(payload.error || 'Das Abo-Portal konnte nicht geöffnet werden.');
+      window.location.assign(payload.url);
+    } catch (error) {
+      setPortalError(error instanceof Error ? error.message : 'Das Abo-Portal konnte nicht geöffnet werden.');
+      setPortalLoading(false);
     }
   };
 
@@ -254,10 +277,9 @@ export default function Premium() {
                 <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{profile?.isPremium ? 'Premium aktiv' : 'Free Account'}</h2>
               </div>
             </div>
-            <p className="mt-6 text-lg leading-8 text-zinc-300">{profile?.isPremium ? 'Dein Profil ist bereits als Premium markiert.' : 'Du nutzt aktuell den kostenlosen Zugang. Wähle Premium, um den sicheren Stripe-Checkout zu öffnen.'}</p>
-            <Link href="/updates" className="mt-7 inline-flex rounded-full border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20">
-              Updates ansehen
-            </Link>
+            <p className="mt-6 text-lg leading-8 text-zinc-300">{profile?.isPremium ? profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? `Dein Abo endet am ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(profile.stripe_current_period_end))}. Bis dahin bleiben deine Vorteile aktiv.` : 'Dein Profil ist bereits als Premium markiert.' : 'Du nutzt aktuell den kostenlosen Zugang. Wähle Premium, um den sicheren Stripe-Checkout zu öffnen.'}</p>
+            {profile?.isPremium ? <div className="mt-7 flex flex-wrap gap-3"><button onClick={openBillingPortal} disabled={portalLoading} className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-60">{portalLoading ? 'Portal wird geöffnet …' : 'Premium verwalten'}</button><Link href="/premium/kuendigung" className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:bg-white/10">Kündigen</Link></div> : <Link href="/updates" className="mt-7 inline-flex rounded-full border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20">Updates ansehen</Link>}
+            {portalError && <p className="mt-4 text-sm font-semibold text-rose-300">{portalError}</p>}
           </div>
 
           <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/80 backdrop-blur-xl">
