@@ -349,6 +349,15 @@ export default function SupportPage() {
     if (!subject.trim() || !message.trim()) { setError('Bitte Betreff und Nachricht ausfüllen.'); return; }
     setSending(true); setError('');
     try {
+      const rateLimitResponse = await fetch('/api/rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'support' }),
+      });
+      if (!rateLimitResponse.ok) {
+        const payload = await rateLimitResponse.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error || 'Die Sicherheitsprüfung ist gerade nicht verfügbar.');
+      }
       const uploadedImages = await uploadSupportImages(ticketImages, `new-${Date.now()}`);
       const { error: err } = await supabase.rpc('create_ticket', {
         p_subject:  subject.trim(),
@@ -371,6 +380,15 @@ export default function SupportPage() {
     if ((!replyText.trim() && replyImages.length === 0) || !detail) return;
     setSending(true); setError('');
     try {
+      const rateLimitResponse = await fetch('/api/rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'support' }),
+      });
+      if (!rateLimitResponse.ok) {
+        const payload = await rateLimitResponse.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error || 'Die Sicherheitsprüfung ist gerade nicht verfügbar.');
+      }
       const uploadedImages = await uploadSupportImages(replyImages, detail.ticket.id);
       const { error: err } = await supabase.rpc('send_ticket_message', {
         p_ticket_id: detail.ticket.id,
