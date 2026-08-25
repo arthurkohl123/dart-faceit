@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { consumeRateLimit, type RateLimitScope } from '@/lib/rate-limit';
+import { consumeRateLimit, type RateLimitScope } from '@/lib/rate-limit.ts/rate-limit';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 export const runtime = 'nodejs';
