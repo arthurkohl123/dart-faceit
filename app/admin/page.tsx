@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   Activity,
-  ArrowLeft,
   Ban,
   CheckCircle2,
   ChevronDown,
@@ -183,6 +182,7 @@ type AdminTournament = {
   id: string; title: string; description: string; starts_at: string; registration_closes_at: string;
   max_players: number; best_of: number; premium_only: boolean; max_average: number | null; min_average: number | null;
   status: 'registration' | 'live' | 'completed' | 'cancelled'; participant_count: number; winner_username: string | null;
+  scoring_platform: 'scolia' | 'dartcounter'; requires_access_code: boolean;
 };
 
 type TournamentMatch = {
@@ -192,7 +192,7 @@ type TournamentMatch = {
 
 type TournamentForm = {
   title: string; description: string; startsAt: string; closesAt: string; maxPlayers: string; bestOf: string;
-  premiumOnly: boolean; maxAverage: string; minAverage: string;
+  premiumOnly: boolean; maxAverage: string; minAverage: string; scoringPlatform: 'scolia' | 'dartcounter'; accessCode: string;
 };
 
 type ResolveFormState = {
@@ -264,7 +264,7 @@ export default function AdminPanel() {
   const [ticketSending, setTicketSending] = useState(false);
   const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
   const [tournaments, setTournaments] = useState<AdminTournament[]>([]);
-  const [tournamentForm, setTournamentForm] = useState<TournamentForm>({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '' });
+  const [tournamentForm, setTournamentForm] = useState<TournamentForm>({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '' });
   const [tournamentSaving, setTournamentSaving] = useState(false);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [tournamentBracket, setTournamentBracket] = useState<TournamentMatch[]>([]);
@@ -359,10 +359,11 @@ export default function AdminPanel() {
       p_starts_at: new Date(tournamentForm.startsAt).toISOString(), p_registration_closes_at: new Date(tournamentForm.closesAt).toISOString(),
       p_max_players: Number(tournamentForm.maxPlayers), p_best_of: Number(tournamentForm.bestOf), p_premium_only: tournamentForm.premiumOnly,
       p_max_average: toOptionalNumber(tournamentForm.maxAverage), p_min_average: toOptionalNumber(tournamentForm.minAverage),
+      p_scoring_platform: tournamentForm.scoringPlatform, p_access_code: tournamentForm.accessCode.trim() || null,
     });
     setTournamentSaving(false);
     if (error) { setActionMessage(`Turnier konnte nicht erstellt werden: ${error.message}`); return; }
-    setTournamentForm({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '' });
+    setTournamentForm({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '' });
     setActionMessage('Turnier ist veröffentlicht und für Spieler sichtbar.');
     await loadTournaments();
   };
@@ -1193,7 +1194,15 @@ export default function AdminPanel() {
               {actionMessage && <div className="rounded-[1.7rem] border border-amber-300/20 bg-amber-400/10 p-5 text-sm font-semibold leading-6 text-amber-100">{actionMessage}</div>}
               <section className="overflow-hidden rounded-[2.4rem] border border-amber-300/20 bg-[radial-gradient(ellipse_at_top_right,rgba(245,158,11,0.15),transparent_50%),rgba(9,9,11,0.82)] p-5 shadow-2xl shadow-black/30 md:p-7">
                 <div className="mb-6 flex items-start gap-4"><div className="grid h-12 w-12 place-items-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-amber-200"><Trophy className="h-6 w-6" /></div><div><p className="text-[10px] font-black tracking-[0.2em] text-amber-300">CUP CONTROL</p><h2 className="mt-1 text-3xl font-black tracking-[-0.045em]">Turnier erstellen</h2><p className="mt-1 text-sm text-zinc-400">Die Anmeldung wird nach dem Veröffentlichen sofort im Turnierzentrum sichtbar.</p></div></div>
-                <div className="grid gap-4 md:grid-cols-2"><input value={tournamentForm.title} onChange={e => setTournamentForm(f => ({ ...f, title: e.target.value }))} placeholder="Name, z. B. Friday Night Cup" className={inputClassName} /><select value={tournamentForm.maxPlayers} onChange={e => setTournamentForm(f => ({ ...f, maxPlayers: e.target.value }))} className={inputClassName}><option className={selectOptionClassName} value="4">4 Spieler</option><option className={selectOptionClassName} value="8">8 Spieler</option><option className={selectOptionClassName} value="16">16 Spieler</option><option className={selectOptionClassName} value="32">32 Spieler</option></select><textarea value={tournamentForm.description} onChange={e => setTournamentForm(f => ({ ...f, description: e.target.value }))} placeholder="Kurze Beschreibung und Regeln" className={`${inputClassName} min-h-24 resize-none md:col-span-2`} /><label className="text-xs font-bold text-zinc-400">Anmeldeschluss<input type="datetime-local" value={tournamentForm.closesAt} onChange={e => setTournamentForm(f => ({ ...f, closesAt: e.target.value }))} className={`${inputClassName} mt-2 w-full`} /></label><label className="text-xs font-bold text-zinc-400">Turnierstart<input type="datetime-local" value={tournamentForm.startsAt} onChange={e => setTournamentForm(f => ({ ...f, startsAt: e.target.value }))} className={`${inputClassName} mt-2 w-full`} /></label><select value={tournamentForm.bestOf} onChange={e => setTournamentForm(f => ({ ...f, bestOf: e.target.value }))} className={inputClassName}><option className={selectOptionClassName} value="3">Best of 3</option><option className={selectOptionClassName} value="5">Best of 5</option><option className={selectOptionClassName} value="7">Best of 7</option><option className={selectOptionClassName} value="9">Best of 9</option></select><input type="number" min="0" step="0.1" value={tournamentForm.maxAverage} onChange={e => setTournamentForm(f => ({ ...f, maxAverage: e.target.value }))} placeholder="Max. AVG (optional, z. B. 60)" className={inputClassName} /><input type="number" min="0" step="0.1" value={tournamentForm.minAverage} onChange={e => setTournamentForm(f => ({ ...f, minAverage: e.target.value }))} placeholder="Min. AVG (optional)" className={inputClassName} /><label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-bold text-zinc-300"><input type="checkbox" checked={tournamentForm.premiumOnly} onChange={e => setTournamentForm(f => ({ ...f, premiumOnly: e.target.checked }))} className="h-4 w-4 accent-amber-300" /> <Crown className="h-4 w-4 text-amber-300" />Nur für Premium</label></div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <input value={tournamentForm.title} onChange={e => setTournamentForm(f => ({ ...f, title: e.target.value }))} placeholder="Name, z. B. Friday Night Cup" className={inputClassName} />
+                  <select value={tournamentForm.maxPlayers} onChange={e => setTournamentForm(f => ({ ...f, maxPlayers: e.target.value }))} className={inputClassName}><option className={selectOptionClassName} value="4">4 Spieler</option><option className={selectOptionClassName} value="8">8 Spieler</option><option className={selectOptionClassName} value="16">16 Spieler</option><option className={selectOptionClassName} value="32">32 Spieler</option></select>
+                  <textarea value={tournamentForm.description} onChange={e => setTournamentForm(f => ({ ...f, description: e.target.value }))} placeholder="Kurze Beschreibung, Regeln oder Streamer-Hinweis" className={`${inputClassName} min-h-24 resize-none md:col-span-2`} />
+                  <label className="text-xs font-bold text-zinc-400">Anmeldeschluss<input type="datetime-local" value={tournamentForm.closesAt} onChange={e => setTournamentForm(f => ({ ...f, closesAt: e.target.value }))} className={`${inputClassName} mt-2 w-full`} /></label><label className="text-xs font-bold text-zinc-400">Turnierstart<input type="datetime-local" value={tournamentForm.startsAt} onChange={e => setTournamentForm(f => ({ ...f, startsAt: e.target.value }))} className={`${inputClassName} mt-2 w-full`} /></label>
+                  <label className="text-xs font-bold text-zinc-400">Match-Plattform<select value={tournamentForm.scoringPlatform} onChange={e => setTournamentForm(f => ({ ...f, scoringPlatform: e.target.value as 'scolia' | 'dartcounter' }))} className={`${inputClassName} mt-2`}><option className={selectOptionClassName} value="dartcounter">DartCounter</option><option className={selectOptionClassName} value="scolia">Scolia</option></select><span className="mt-1 block text-[10px] font-normal text-zinc-500">Alle Matchrooms dieses Cups werden darauf festgelegt.</span></label>
+                  <label className="text-xs font-bold text-zinc-400">Community-Code <span className="font-normal text-zinc-600">(optional)</span><input value={tournamentForm.accessCode} onChange={e => setTournamentForm(f => ({ ...f, accessCode: e.target.value.toUpperCase() }))} placeholder="z. B. STREAM24" className={`${inputClassName} mt-2 uppercase`} /><span className="mt-1 block text-[10px] font-normal text-zinc-500">Nur mit diesem Code kann man dem Turnier beitreten.</span></label>
+                  <select value={tournamentForm.bestOf} onChange={e => setTournamentForm(f => ({ ...f, bestOf: e.target.value }))} className={inputClassName}><option className={selectOptionClassName} value="3">Best of 3</option><option className={selectOptionClassName} value="5">Best of 5</option><option className={selectOptionClassName} value="7">Best of 7</option><option className={selectOptionClassName} value="9">Best of 9</option></select><input type="number" min="0" step="0.1" value={tournamentForm.maxAverage} onChange={e => setTournamentForm(f => ({ ...f, maxAverage: e.target.value }))} placeholder="Max. AVG (optional, z. B. 60)" className={inputClassName} /><input type="number" min="0" step="0.1" value={tournamentForm.minAverage} onChange={e => setTournamentForm(f => ({ ...f, minAverage: e.target.value }))} placeholder="Min. AVG (optional)" className={inputClassName} /><label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-bold text-zinc-300"><input type="checkbox" checked={tournamentForm.premiumOnly} onChange={e => setTournamentForm(f => ({ ...f, premiumOnly: e.target.checked }))} className="h-4 w-4 accent-amber-300" /> <Crown className="h-4 w-4 text-amber-300" />Nur für Premium</label>
+                </div>
                 <button onClick={() => void createTournament()} disabled={tournamentSaving} className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 to-orange-400 px-6 py-3.5 text-sm font-black uppercase tracking-[0.12em] text-black transition hover:-translate-y-0.5 disabled:opacity-60"><Sparkles className="h-4 w-4" />{tournamentSaving ? 'Wird veröffentlicht …' : 'Turnier veröffentlichen'}</button>
               </section>
 
