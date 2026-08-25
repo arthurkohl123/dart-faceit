@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUpRight, CalendarDays, Crosshair, Flame, Menu, Radar, ShieldCheck, Sparkles, Target, Trophy, X, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { BrandLogo } from '@/components/BrandLogo';
 
 const features = [
   {
@@ -88,10 +89,7 @@ export default function Home() {
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <button onClick={() => router.push('/')} className="group flex items-center gap-3" aria-label="Zur Startseite">
-            <div className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-xl font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">
-              <span>R</span>
-              <div className="absolute inset-x-0 bottom-0 h-px bg-white/70" />
-            </div>
+            <BrandLogo className="h-11 w-11" />
             <div className="text-left">
               <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Competitive Darts</div>
