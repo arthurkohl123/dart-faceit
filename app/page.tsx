@@ -164,6 +164,11 @@ export default function Home() {
       </nav>
 
       <section className="relative z-10 mx-auto grid min-h-screen max-w-7xl items-center gap-14 px-5 pb-20 pt-32 md:px-8 lg:grid-cols-[1.04fr_0.96fr] lg:pt-28">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-10 -z-10 h-[80%] overflow-hidden rounded-[3.5rem]">
+          <div className="absolute inset-0 bg-[url('/rankeddarts-arena-hero.png')] bg-cover bg-[70%_center] opacity-55 [mask-image:linear-gradient(90deg,transparent_0%,black_35%,black_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,#050607_0%,rgba(5,6,7,0.88)_32%,rgba(5,6,7,0.22)_75%,#050607_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,#050607_0%,transparent_25%,#050607_96%)]" />
+        </div>
         <div>
           <div className="mb-7 inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-[0_0_30px_rgba(34,197,94,0.12)]">
             <span className="relative flex h-2.5 w-2.5">
@@ -240,12 +245,6 @@ export default function Home() {
         </div>
 
         <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
-          <div className="pointer-events-none absolute -bottom-20 -right-24 hidden h-80 w-80 rounded-full border border-emerald-300/10 opacity-70 lg:block ranked-dartboard">
-            <div className="absolute inset-[12%] rounded-full border border-emerald-300/10" />
-            <div className="absolute inset-[26%] rounded-full border border-cyan-300/15" />
-            <div className="absolute inset-[42%] rounded-full border border-emerald-200/20" />
-            <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-200 shadow-[0_0_25px_rgba(190,242,100,0.95)]" />
-          </div>
           <div className="absolute -inset-8 rounded-[3rem] bg-emerald-400/10 blur-3xl" />
           <div className="pointer-events-none absolute -right-5 -top-5 hidden h-48 w-48 items-center justify-center md:flex">
             <div className="absolute inset-0 rounded-full border border-emerald-300/15" />
