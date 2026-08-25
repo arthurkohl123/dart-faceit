@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { NotificationBell } from '@/components/notification-bell';
 import { ArrowUpRight, CheckCircle2, Crosshair, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, X, XCircle, Zap } from 'lucide-react';
 
 const rankTiers = [
@@ -174,6 +175,7 @@ export default function Profile() {
           </div>
 
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <button onClick={logout} className="hidden rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10 sm:block">
               Logout
             </button>
