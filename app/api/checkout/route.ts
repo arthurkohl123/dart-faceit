@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 export const runtime = 'nodejs';
@@ -32,6 +33,12 @@ export async function POST() {
     const priceId = getRequiredEnvironment('STRIPE_PREMIUM_PRICE_ID');
     const appUrl = new URL(getRequiredEnvironment('NEXT_PUBLIC_APP_URL')).origin;
 
+    const { data: profile } = await createAdminClient()
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('supabaseId', user.id)
+      .maybeSingle();
+
     const body = new URLSearchParams({
       mode: 'subscription',
       'line_items[0][price]': priceId,
@@ -43,7 +50,9 @@ export async function POST() {
       'subscription_data[metadata][supabaseUserId]': user.id,
     });
 
-    if (user.email) {
+    if (profile?.stripe_customer_id) {
+      body.set('customer', profile.stripe_customer_id);
+    } else if (user.email) {
       body.set('customer_email', user.email);
     }
 
