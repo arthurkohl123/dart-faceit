@@ -8,14 +8,27 @@ export const dynamic = 'force-dynamic';
 
 type StripeEvent = {
   type: string;
+  created?: number;
   data: {
     object: {
+      id?: string;
       metadata?: Record<string, string | undefined>;
       client_reference_id?: string | null;
       status?: string;
+      customer?: string | null;
+      subscription?: string | null;
+      current_period_end?: number | null;
+      cancel_at_period_end?: boolean;
+      canceled_at?: number | null;
     };
   };
 };
+
+const premiumStatuses = new Set(['active', 'trialing']);
+
+function timestamp(value?: number | null) {
+  return typeof value === 'number' ? new Date(value * 1000).toISOString() : null;
+}
 
 function verifyStripeSignature(payload: string, signature: string, webhookSecret: string) {
   const parts = signature.split(',').map((part) => part.split('='));
@@ -53,21 +66,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const premiumActive = event.type === 'checkout.session.completed'
-      || (event.type === 'customer.subscription.updated' && ['active', 'trialing'].includes(object.status || ''));
-    const premiumInactive = event.type === 'customer.subscription.deleted'
-      || (event.type === 'customer.subscription.updated' && !['active', 'trialing'].includes(object.status || ''));
+    const isCheckout = event.type === 'checkout.session.completed';
+    const isSubscriptionEvent = event.type === 'customer.subscription.updated'
+      || event.type === 'customer.subscription.deleted';
 
-    if (premiumActive || premiumInactive) {
-      const { error } = await createAdminClient()
-        .from('profiles')
-        .update({ isPremium: premiumActive })
-        .eq('supabaseId', supabaseUserId);
+    if (!isCheckout && !isSubscriptionEvent) return NextResponse.json({ received: true });
 
-      if (error) {
-        throw error;
-      }
+    const admin = createAdminClient();
+    const { data: profile, error: profileError } = await admin
+      .from('profiles')
+      .select('stripe_last_event_at')
+      .eq('supabaseId', supabaseUserId)
+      .maybeSingle();
+    if (profileError) throw profileError;
+
+    const eventAt = timestamp(event.created) || new Date().toISOString();
+    if (profile?.stripe_last_event_at && new Date(profile.stripe_last_event_at).getTime() > new Date(eventAt).getTime()) {
+      return NextResponse.json({ received: true, ignored: 'stale_event' });
     }
+
+    const subscriptionId = isCheckout ? object.subscription : object.id;
+    const stripeStatus = isCheckout ? 'active' : (object.status || (event.type === 'customer.subscription.deleted' ? 'canceled' : 'unknown'));
+    const premiumActive = isCheckout || premiumStatuses.has(stripeStatus);
+    const { error } = await admin
+      .from('profiles')
+      .update({
+        isPremium: premiumActive,
+        stripe_customer_id: object.customer ?? undefined,
+        stripe_subscription_id: subscriptionId ?? undefined,
+        stripe_subscription_status: stripeStatus,
+        stripe_current_period_end: timestamp(object.current_period_end) ?? undefined,
+        stripe_cancel_at_period_end: Boolean(object.cancel_at_period_end),
+        stripe_cancelled_at: timestamp(object.canceled_at) ?? (event.type === 'customer.subscription.deleted' ? eventAt : undefined),
+        stripe_last_event_at: eventAt,
+      })
+      .eq('supabaseId', supabaseUserId);
+
+    if (error) throw error;
 
     return NextResponse.json({ received: true });
   } catch (error) {
