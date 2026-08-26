@@ -71,6 +71,7 @@ export default function Register() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const router = useRouter();
@@ -80,7 +81,7 @@ export default function Register() {
   const trimmedUsername = username.trim();
   const normalizedPhoneNumber = useMemo(() => normalizePhoneNumber(phoneNumber), [phoneNumber]);
   const phoneNumberIsValid = /^\+[1-9]\d{7,14}$/.test(normalizedPhoneNumber);
-  const canSubmit = !smsVerificationEnabled || phoneNumberIsValid;
+  const canSubmit = (!smsVerificationEnabled || phoneNumberIsValid) && termsAccepted;
 
   useEffect(() => {
     const loadSmsSetting = async () => {
@@ -141,6 +142,11 @@ export default function Register() {
       return;
     }
 
+    if (!termsAccepted) {
+      setFormMessage({ type: 'error', text: 'Bitte akzeptiere die AGB und Turnierregeln, um einen Account zu erstellen.' });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -158,11 +164,13 @@ export default function Register() {
         password,
         options: {
           emailRedirectTo,
-          data: {
+            data: {
             username: trimmedUsername,
             phone_number: normalizedPhoneNumber || null,
-            phone_verified: !smsVerificationEnabled,
-          },
+              phone_verified: !smsVerificationEnabled,
+              terms_accepted: true,
+              terms_version: '2026-08-27',
+            },
         },
       });
 
@@ -333,6 +341,11 @@ export default function Register() {
               </label>
 
               <TurnstileWidget action="register" onToken={setCaptchaToken} />
+
+              <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">
+                <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-emerald-400" />
+                <span>Ich akzeptiere die <Link href="/agb" target="_blank" className="font-bold text-emerald-300 underline-offset-2 hover:underline">AGB</Link> und die <Link href="/turnierregeln" target="_blank" className="font-bold text-emerald-300 underline-offset-2 hover:underline">Turnierregeln</Link>.</span>
+              </label>
 
               <button
                 type="submit"
