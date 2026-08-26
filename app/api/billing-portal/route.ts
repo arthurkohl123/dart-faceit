@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: portal.url });
   } catch (error) {
     console.error('Stripe billing portal error:', error);
+    await recordMonitoringEvent({
+      source: 'billing_portal',
+      eventType: 'billing_portal_error',
+      severity: 'error',
+      message: monitoringErrorMessage(error),
+      fingerprint: 'billing_portal:session_creation',
+      context: { endpoint: '/api/billing-portal' },
+    });
     return NextResponse.json({ error: 'Das Abo-Portal konnte gerade nicht geöffnet werden. Bitte versuche es später erneut.' }, { status: 500 });
   }
 }
