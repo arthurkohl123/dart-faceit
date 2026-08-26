@@ -4,6 +4,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import { TurnstileWidget } from '@/components/turnstile-widget';
+import { verifyCaptcha } from '@/lib/captcha-client';
 import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
@@ -200,6 +202,7 @@ export default function SupportPage() {
   const [detail, setDetail] = useState<TicketDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -350,6 +353,8 @@ export default function SupportPage() {
     if (!subject.trim() || !message.trim()) { setError('Bitte Betreff und Nachricht ausfüllen.'); return; }
     setSending(true); setError('');
     try {
+      const captcha = await verifyCaptcha('support', captchaToken);
+      if (!captcha.ok) throw new Error(captcha.error || 'Sicherheitsprüfung fehlgeschlagen.');
       const rateLimitResponse = await fetch('/api/rate-limit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -784,6 +789,7 @@ export default function SupportPage() {
                   </div>
                 </div>
 
+                <TurnstileWidget action="support" onToken={setCaptchaToken} />
                 <button
                   onClick={() => void submitNewTicket()}
                   disabled={sending || uploadingImages || !subject.trim() || !message.trim()}

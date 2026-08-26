@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { TurnstileWidget } from '@/components/turnstile-widget';
+import { verifyCaptcha } from '@/lib/captcha-client';
 
 // ─── Innere Komponente (nutzt useSearchParams) ────────────────────────────────
 // useSearchParams() erfordert ein Suspense-Boundary im App Router.
@@ -12,6 +14,7 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,6 +24,13 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setFormMessage(null);
+
+    const captcha = await verifyCaptcha('login', captchaToken);
+    if (!captcha.ok) {
+      setFormMessage({ type: 'error', text: captcha.error || 'Sicherheitsprüfung fehlgeschlagen.' });
+      setLoading(false);
+      return;
+    }
 
     const rateLimitResponse = await fetch('/api/rate-limit', {
       method: 'POST',
@@ -61,6 +71,13 @@ function LoginForm() {
 
     setResetLoading(true);
     setFormMessage(null);
+
+    const captcha = await verifyCaptcha('login', captchaToken);
+    if (!captcha.ok) {
+      setFormMessage({ type: 'error', text: captcha.error || 'Sicherheitsprüfung fehlgeschlagen.' });
+      setResetLoading(false);
+      return;
+    }
 
     const rateLimitResponse = await fetch('/api/rate-limit', {
       method: 'POST',
@@ -113,7 +130,7 @@ function LoginForm() {
       <form onSubmit={handleLogin} className="space-y-4">
         <label className="block">
           <span className="mb-2 block text-sm font-bold text-zinc-300">E-Mail</span>
-          <input
+        <input
             type="email"
             placeholder="name@example.com"
             value={email}
@@ -141,11 +158,13 @@ function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"
-            required
-          />
-        </label>
+          required
+        />
+      </label>
 
-        <button
+      <TurnstileWidget action="login" onToken={setCaptchaToken} />
+
+      <button
           type="submit"
           disabled={loading || resetLoading}
           className="w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-4 font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.24)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"

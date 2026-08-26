@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { TurnstileWidget } from '@/components/turnstile-widget';
+import { verifyCaptcha } from '@/lib/captcha-client';
 
 const normalizePhoneNumber = (value: string) => value.replace(/[\s()-]/g, '');
 
@@ -68,6 +70,7 @@ export default function Register() {
   const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const router = useRouter();
@@ -141,6 +144,11 @@ export default function Register() {
     setLoading(true);
 
     try {
+      const captcha = await verifyCaptcha('register', captchaToken);
+      if (!captcha.ok) {
+        setFormMessage({ type: 'error', text: captcha.error || 'Sicherheitsprüfung fehlgeschlagen.' });
+        return;
+      }
       const emailRedirectTo = typeof window !== 'undefined'
         ? `${window.location.origin}/auth/login?confirmed=1`
         : undefined;
@@ -322,6 +330,8 @@ export default function Register() {
                   required
                 />
               </label>
+
+              <TurnstileWidget action="register" onToken={setCaptchaToken} />
 
               <button
                 type="submit"

@@ -171,6 +171,7 @@ type FlaggedPlayer = {
   account_age_days: number;
   flags: string[];
 };
+type FairnessRiskFlag = { id: string; player1_id: string; player2_id: string; player1_username: string; player2_username: string; reason: string; severity: string; occurrence_count: number; context: Record<string, unknown>; last_seen_at: string };
 
 type LiveMatch = {
   id: string;
@@ -272,6 +273,7 @@ export default function AdminPanel() {
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
   const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
   const [flaggedPlayers, setFlaggedPlayers] = useState<FlaggedPlayer[]>([]);
+  const [fairnessRiskFlags, setFairnessRiskFlags] = useState<FairnessRiskFlag[]>([]);
   const [resolveForms, setResolveForms] = useState<Record<string, ResolveFormState>>({});
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -376,6 +378,19 @@ export default function AdminPanel() {
     const visible = ((data || []) as FlaggedPlayer[]).filter((player) => !dismissedIds.includes(player.id) && !dismissedRows.some((row) => row.username && row.username === player.username));
     setFlaggedPlayers(visible);
   }, [supabase]);
+
+  const loadFairnessRiskFlags = useCallback(async () => {
+    const { data, error } = await supabase.rpc('admin_get_fairness_risk_flags', { p_limit: 100 });
+    if (error) { setActionMessage(`Match-Verhaltenssignale konnten nicht geladen werden: ${error.message}`); return; }
+    setFairnessRiskFlags((data || []) as FairnessRiskFlag[]);
+  }, [supabase]);
+
+  const resolveFairnessRiskFlag = async (id: string) => {
+    const { error } = await supabase.rpc('admin_resolve_fairness_risk_flag', { p_flag_id: id });
+    if (error) { setActionMessage(`Signal konnte nicht erledigt werden: ${error.message}`); return; }
+    setFairnessRiskFlags((current) => current.filter((flag) => flag.id !== id));
+    setActionMessage('Match-Verhaltenssignal als geprüft markiert.');
+  };
 
   const loadTickets = useCallback(async (status?: string | null, assignedToId?: string | null) => {
     const { data } = await supabase.rpc('admin_get_all_tickets', {
@@ -566,7 +581,7 @@ export default function AdminPanel() {
         setTimeout(() => router.push('/'), 1200);
         return;
       }
-      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadTickets(null, null), loadTournaments()]);
+      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(null, null), loadTournaments()]);
       if (isMounted) {
         setLastRefreshedAt(new Date());
         setLoading(false);
@@ -574,13 +589,13 @@ export default function AdminPanel() {
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs, loadFlaggedPlayers, loadTickets, loadTournaments]);
+  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs, loadFlaggedPlayers, loadFairnessRiskFlags, loadTickets, loadTournaments]);
 
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
-    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadTickets(ticketFilter), loadTournaments()]);
+    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(ticketFilter), loadTournaments()]);
     setLastRefreshedAt(new Date());
-  }, [loadAdminLogs, loadDisputedMatches, loadFlaggedPlayers, loadLiveMatches, loadProfiles, loadTickets, loadTournaments, ticketFilter]);
+  }, [loadAdminLogs, loadDisputedMatches, loadFairnessRiskFlags, loadFlaggedPlayers, loadLiveMatches, loadProfiles, loadTickets, loadTournaments, ticketFilter]);
 
   useEffect(() => {
     if (!autoRefresh || loading) return;
@@ -915,9 +930,9 @@ export default function AdminPanel() {
   const ticketsWaitingForUser = tickets.filter((ticket) => ticket.status === 'waiting_for_user').length;
   const unassignedTickets = tickets.filter((ticket) => !ticket.assigned_to_id && !['resolved', 'closed'].includes(ticket.status)).length;
   const urgentTickets = tickets.filter((ticket) => ticket.priority === 'urgent' && !['resolved', 'closed'].includes(ticket.status)).length;
-  const attentionCount = disputedMatches.length + urgentTickets + flaggedPlayers.length + unassignedTickets;
+  const attentionCount = disputedMatches.length + urgentTickets + flaggedPlayers.length + fairnessRiskFlags.length + unassignedTickets;
   const activeTournamentCount = tournaments.filter((tournament) => tournament.status === 'registration' || tournament.status === 'live').length;
-  const healthScore = Math.max(0, 100 - Math.min(100, (disputedMatches.length * 12) + (urgentTickets * 10) + (flaggedPlayers.length * 6) + (unassignedTickets * 5)));
+  const healthScore = Math.max(0, 100 - Math.min(100, (disputedMatches.length * 12) + (urgentTickets * 10) + (flaggedPlayers.length * 6) + (fairnessRiskFlags.length * 6) + (unassignedTickets * 5)));
   const primaryAttentionSection: typeof activeTab = disputedMatches.length > 0
     ? 'disputes'
     : flaggedPlayers.length > 0
@@ -1928,6 +1943,12 @@ export default function AdminPanel() {
                 </div>
               )}
         {/* Verdächtige Accounts / Anti-Smurf-Flagging */}
+        {fairnessRiskFlags.length > 0 && (
+          <section className="mb-6 rounded-[2.4rem] border border-cyan-300/20 bg-cyan-400/[0.04] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+            <div className="mb-5 flex items-center justify-between gap-3"><div><h2 className="text-2xl font-black text-white">Match-Verhaltenssignale</h2><p className="mt-1 text-sm text-zinc-400">Wiederholte Paarungen innerhalb von sieben Tagen – Hinweis zur manuellen Prüfung, kein automatischer Ban.</p></div><span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-black text-cyan-100">{fairnessRiskFlags.length} offen</span></div>
+            <div className="grid gap-3 md:grid-cols-2">{fairnessRiskFlags.map((flag) => <div key={flag.id} className="rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-white">{flag.player1_username} <span className="text-zinc-500">vs.</span> {flag.player2_username}</p><p className="mt-1 text-xs text-zinc-400">{flag.occurrence_count} Matches in 7 Tagen · zuletzt {formatDate(flag.last_seen_at)}</p></div><button onClick={() => void resolveFairnessRiskFlag(flag.id)} className="shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-100 hover:bg-emerald-400/20">Geprüft</button></div></div>)}</div>
+          </section>
+        )}
         {flaggedPlayers.length === 0 ? (
           <section className="rounded-[2.4rem] border border-emerald-300/15 bg-emerald-400/[0.035] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
             <div className="flex items-start gap-4">

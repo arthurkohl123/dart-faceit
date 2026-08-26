@@ -31,6 +31,10 @@ function hashRateLimitKey(scope: RateLimitScope, subject: string) {
     .update(`rankeddarts:${scope}:${subject}`)
     .digest('hex');
 }
+function getPrivacySafeDeviceSignal(request: Request) {
+  const userAgent = request.headers.get('user-agent')?.trim();
+  return userAgent ? `device:${getClientIp(request)}:${userAgent.slice(0, 256)}` : null;
+}
 
 export async function consumeRateLimit(
   scope: RateLimitScope,
@@ -42,6 +46,8 @@ export async function consumeRateLimit(
   // prevents a user from simply changing networks to reset their attempts.
   const subjects = [`ip:${getClientIp(request)}`];
   if (identifier?.trim()) subjects.push(`account:${identifier.trim().toLowerCase()}`);
+  const deviceSignal = getPrivacySafeDeviceSignal(request);
+  if (deviceSignal) subjects.push(deviceSignal);
 
   const results = await Promise.all(subjects.map(async (subject) => {
     const { data, error } = await createAdminClient().rpc('consume_rate_limit', {
