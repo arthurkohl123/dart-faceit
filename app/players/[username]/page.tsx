@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { AdminBadge } from '@/components/AdminBadge';
 import { ArrowUpRight, Crosshair, Medal, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
 const rankTiers = [
@@ -22,6 +23,7 @@ type PublicProfile = {
   gamesPlayed: number;
   wins: number;
   isPremium: boolean;
+  isAdmin: boolean;
   supabaseId: string;
 };
 
@@ -61,14 +63,21 @@ export default function PlayerProfile() {
   useEffect(() => {
     let isMounted = true;
     async function load() {
-      const { data: profileData } = await supabase
-        .from('public_profiles')
-        .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
-        .eq('username', username)
-        .maybeSingle();
+      const [{ data: profileData }, { data: adminRows, error: adminError }] = await Promise.all([
+        supabase
+          .from('public_profiles')
+          .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
+          .eq('username', username)
+          .maybeSingle(),
+        supabase.rpc('get_public_admin_profile_ids'),
+      ]);
 
       if (!isMounted) return;
       if (!profileData) { setNotFound(true); setLoading(false); return; }
+      if (adminError) console.error('Admin-Badge konnte nicht geladen werden:', adminError);
+      const isAdmin = (adminRows || []).some(
+        (row: { profile_id: string }) => row.profile_id === profileData.supabaseId
+      );
 
       const p: PublicProfile = {
         username: profileData.username,
@@ -76,6 +85,7 @@ export default function PlayerProfile() {
         gamesPlayed: profileData.gamesPlayed ?? 0,
         wins: profileData.wins ?? 0,
         isPremium: Boolean(profileData.isPremium),
+        isAdmin,
         supabaseId: profileData.supabaseId,
       };
       setProfile(p);
@@ -222,6 +232,7 @@ export default function PlayerProfile() {
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 {profile!.isPremium && <Star className="h-5 w-5 fill-current text-emerald-300" />}
                 <h1 className="text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl">{profile!.username}</h1>
+                {profile!.isAdmin && <AdminBadge />}
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>{currentRank.name}</span>{profile!.isPremium && <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">PREMIUM</span>}</div>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-zinc-400 sm:justify-start"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Bestätigte Ranked-Stats</span><span className="hidden h-3 w-px bg-white/15 sm:block" /><span>{gamesPlayed} Matches gespielt</span></div>
