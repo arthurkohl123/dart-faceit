@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     const { data: profile, error: profileError } = await admin
       .from('profiles')
-      .select('stripe_last_event_at')
+      .select('stripe_last_event_at, premium_manual_granted_at, premium_manual_until')
       .eq('supabaseId', supabaseUserId)
       .maybeSingle();
     if (profileError) throw profileError;
@@ -87,7 +87,11 @@ export async function POST(request: Request) {
 
     const subscriptionId = isCheckout ? object.subscription : object.id;
     const stripeStatus = isCheckout ? 'active' : (object.status || (event.type === 'customer.subscription.deleted' ? 'canceled' : 'unknown'));
-    const premiumActive = isCheckout || premiumStatuses.has(stripeStatus);
+    const manualPremiumActive = Boolean(
+      profile?.premium_manual_granted_at
+      && (!profile.premium_manual_until || new Date(profile.premium_manual_until).getTime() > Date.now()),
+    );
+    const premiumActive = isCheckout || premiumStatuses.has(stripeStatus) || manualPremiumActive;
     const { error } = await admin
       .from('profiles')
       .update({
