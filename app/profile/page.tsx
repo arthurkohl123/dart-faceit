@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
+import { AdminBadge } from '@/components/AdminBadge';
 import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
 import { ArrowUpRight, CheckCircle2, Crosshair, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, X, XCircle, Zap } from 'lucide-react';
@@ -253,6 +254,7 @@ export default function Profile() {
                     <Sparkles className="h-3.5 w-3.5 fill-current text-emerald-300" /> Premium
                   </span>
                 )}
+                {profile?.is_admin && <AdminBadge />}
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-zinc-400">
                 <span className="flex items-center gap-1.5">
