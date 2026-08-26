@@ -110,10 +110,11 @@ function LoginForm() {
 
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
+      <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-emerald-300/10 blur-3xl" />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
       <div className="mb-8 text-center">
-        <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">Login</div>
-        <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">Willkommen zurück</h2>
+        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" /> Arena-Zugang</div>
+        <h2 className="mt-4 text-4xl font-black tracking-[-0.05em]">Willkommen zurück</h2>
         <p className="mt-3 text-sm leading-6 text-zinc-400">Logge dich mit deiner E-Mail und deinem Passwort ein.</p>
       </div>
 
@@ -173,7 +174,8 @@ function LoginForm() {
         </button>
       </form>
 
-      <p className="mt-7 text-center text-sm text-zinc-400">
+      <div className="mt-6 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600"><span>Season 01</span><span className="h-1 w-1 rounded-full bg-zinc-700" /><span>Secure access</span></div>
+      <p className="mt-4 text-center text-sm text-zinc-400">
         Noch kein Account?{' '}
         <Link href="/auth/register" className="font-bold text-emerald-300 transition hover:text-emerald-200">
           Kostenlos registrieren

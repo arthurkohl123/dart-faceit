@@ -261,9 +261,10 @@ export default function Register() {
           </Link>
 
           <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
+            <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-cyan-300/10 blur-3xl" />
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
             <div className="mb-8 text-center">
-              <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">Registrierung</div>
+              <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Neues Ranked-Profil</div>
               <h2 className="mt-3 text-4xl font-black tracking-[-0.05em]">Kostenlos starten</h2>
               <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Spielernamen{smsVerificationEnabled ? ' und hinterlege deine Handynummer für die spätere Verifizierung.' : '. Die SMS-Verifizierung ist aktuell deaktiviert.'}</p>
             </div>
