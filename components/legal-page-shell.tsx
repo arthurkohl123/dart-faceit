@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ArrowLeft, FileText, Scale, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Scale, ShieldCheck } from 'lucide-react';
 
 type LegalPageShellProps = {
   eyebrow: string;
@@ -42,9 +42,6 @@ export function LegalPageShell({ eyebrow, title, intro, children }: LegalPageShe
 
         <article className="space-y-9 pb-16 text-sm leading-7 text-zinc-300 sm:text-base">{children}</article>
 
-        <footer className="border-t border-white/10 py-8 text-xs leading-6 text-zinc-500">
-          <div className="flex items-start gap-3"><FileText className="mt-1 h-4 w-4 shrink-0 text-amber-200" /><p>Diese Inhalte sind ein strukturierter Entwurf für RankedDarts und keine Rechtsberatung. Bitte lass die Texte und alle Platzhalter vor dem produktiven Betrieb mit einem Rechtsberater prüfen und vervollständigen.</p></div>
-        </footer>
       </div>
     </main>
   );
