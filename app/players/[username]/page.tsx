@@ -5,17 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { AdminBadge } from '@/components/AdminBadge';
+import { getRankProgress } from '@/lib/ranks';
 import { ArrowUpRight, Crosshair, Medal, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
-
-const rankTiers = [
-  { name: 'Eisen',   min: 0,    color: 'text-zinc-300',   accent: 'from-zinc-400/20 to-zinc-950',    badge: 'EI', glowColor: 'rgba(161,161,170,0.18)' },
-  { name: 'Bronze',  min: 1000, color: 'text-amber-300',  accent: 'from-amber-500/20 to-zinc-950',   badge: 'BR', glowColor: 'rgba(251,191,36,0.18)' },
-  { name: 'Silber',  min: 1250, color: 'text-slate-200',  accent: 'from-slate-300/20 to-zinc-950',   badge: 'SI', glowColor: 'rgba(203,213,225,0.18)' },
-  { name: 'Gold',    min: 1500, color: 'text-yellow-200', accent: 'from-yellow-300/20 to-zinc-950',  badge: 'GO', glowColor: 'rgba(253,224,71,0.18)' },
-  { name: 'Platin',  min: 1750, color: 'text-cyan-200',   accent: 'from-cyan-300/20 to-zinc-950',    badge: 'PL', glowColor: 'rgba(103,232,249,0.18)' },
-  { name: 'Diamant', min: 2000, color: 'text-blue-200',   accent: 'from-blue-300/20 to-zinc-950',    badge: 'DI', glowColor: 'rgba(147,197,253,0.18)' },
-  { name: 'Legende', min: 2500, color: 'text-emerald-200',accent: 'from-emerald-300/25 to-zinc-950', badge: 'LG', glowColor: 'rgba(110,231,183,0.22)' },
-];
 
 type PublicProfile = {
   username: string;
@@ -159,12 +150,8 @@ export default function PlayerProfile() {
   const losses = Math.max(gamesPlayed - wins, 0);
   const winrate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
 
-  const currentRankIndex = rankTiers.reduce((cur, r, i) => (elo >= r.min ? i : cur), 0);
-  const currentRank = rankTiers[currentRankIndex];
-  const nextRank = rankTiers[currentRankIndex + 1] || currentRank;
-  const eloToNext = Math.max(nextRank.min - elo, 0);
-  const rankRange = nextRank.min - currentRank.min;
-  const progress = nextRank === currentRank ? 100 : Math.min(Math.max(((elo - currentRank.min) / rankRange) * 100, 0), 100);
+  const { current: currentRank, upcoming, eloToNext, progress } = getRankProgress(elo);
+  const nextRank = upcoming ?? currentRank;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
@@ -234,7 +221,7 @@ export default function PlayerProfile() {
                 <h1 className="text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl">{profile!.username}</h1>
                 {profile!.isAdmin && <AdminBadge />}
               </div>
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>{currentRank.name}</span>{profile!.isPremium && <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">PREMIUM</span>}</div>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">PREMIUM</span>}</div>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-zinc-400 sm:justify-start"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Bestätigte Ranked-Stats</span><span className="hidden h-3 w-px bg-white/15 sm:block" /><span>{gamesPlayed} Matches gespielt</span></div>
             </div>
             <div className="relative shrink-0 overflow-hidden rounded-[1.75rem] border border-emerald-300/25 bg-[#07120e]/95 px-7 py-5 text-center shadow-[0_0_35px_rgba(34,197,94,0.15)]">
@@ -304,7 +291,7 @@ export default function PlayerProfile() {
           <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-5 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-zinc-400"><span className="inline-flex items-center gap-2"><Medal className="h-4 w-4 text-emerald-300" /> Division {currentRank.name}</span><span className="font-black text-white">{elo} Elo</span></div>
+          <div className="mt-5 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-zinc-400"><span className="inline-flex items-center gap-2"><Medal className="h-4 w-4 text-emerald-300" /> Level {currentRank.level} · {currentRank.name}</span><span className="font-black text-white">{elo} Elo</span></div>
         </div>
           </div>
 
