@@ -7,7 +7,7 @@ const DEVELOPER_ROUTES = ['/developer'];
 const AUTH_ROUTES = ['/auth/login', '/auth/register'];
 // Stripe must be able to deliver subscription events while the public site is
 // in maintenance mode. The route verifies Stripe's signed payload itself.
-const MAINTENANCE_ALLOWED_ROUTES = ['/maintenance', '/auth/login', '/auth/register', '/auth/banned', '/api/stripe/webhook'];
+const MAINTENANCE_ALLOWED_ROUTES = ['/maintenance', '/auth/login', '/auth/register', '/auth/banned', '/api/stripe/webhook', '/api/health'];
 
 type MiddlewareProfile = {
   is_banned: boolean | null;
