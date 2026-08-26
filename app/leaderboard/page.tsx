@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { AdminBadge } from '@/components/AdminBadge';
+import { getRankForElo } from '@/lib/ranks';
 import { ArrowUpRight, Crown, Crosshair, Flame, Medal, Radar, Search, ShieldCheck, Star, Swords, Trophy, Users, Menu, X } from 'lucide-react';
 
 type Player = {
@@ -18,20 +19,6 @@ type Player = {
 };
 
 type PlayerAvgMap = Record<string, number>;
-
-const rankTiers = [
-  { name: 'Eisen',   min: 0,    color: 'text-zinc-400' },
-  { name: 'Bronze',  min: 1000, color: 'text-amber-400' },
-  { name: 'Silber',  min: 1250, color: 'text-slate-300' },
-  { name: 'Gold',    min: 1500, color: 'text-yellow-300' },
-  { name: 'Platin',  min: 1750, color: 'text-cyan-300' },
-  { name: 'Diamant', min: 2000, color: 'text-blue-300' },
-  { name: 'Legende', min: 2500, color: 'text-emerald-300' },
-];
-
-function getRank(elo: number) {
-  return rankTiers.reduce((cur, r) => (elo >= r.min ? r : cur), rankTiers[0]);
-}
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -223,7 +210,7 @@ export default function Leaderboard() {
             {podiumOrder.map((idx) => {
               const player = topPlayers[idx];
               if (!player) return null;
-              const rank = getRank(player.elo);
+              const rank = getRankForElo(player.elo);
               const isGold = idx === 0;
               const winrate = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               return (
@@ -242,7 +229,7 @@ export default function Leaderboard() {
                   <div className="relative mt-4 text-[10px] font-black uppercase tracking-[0.26em] text-zinc-500">Platz {idx + 1}</div>
                   <div className="relative mt-1 truncate text-xl font-black tracking-[-0.05em]">{player.username}</div>
                   {player.isAdmin && <AdminBadge compact className="relative mt-2" />}
-                  <div className={`relative mt-1 text-xs font-black uppercase tracking-[0.18em] ${rank.color}`}>{rank.name}</div>
+                  <div className={`relative mt-1 text-xs font-black uppercase tracking-[0.18em] ${rank.color}`}>L{rank.level} · {rank.name}</div>
                   <div className="relative mt-4 text-4xl font-black tracking-[-0.07em] text-emerald-300">{player.elo}</div>
                   <div className="relative mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Elo Rating</div>
                   <div className="relative mt-5 grid grid-cols-2 gap-2 border-t border-white/10 pt-4 text-xs"><div><span className="block font-black text-white">{player.gamesPlayed}</span><span className="text-zinc-500">Matches</span></div><div><span className="block font-black text-cyan-300">{winrate}%</span><span className="text-zinc-500">Winrate</span></div></div>
@@ -270,7 +257,7 @@ export default function Leaderboard() {
 
           <div className="divide-y divide-white/[0.07]">
             {filteredPlayers.map(({ player, index }) => {
-              const rank = getRank(player.elo);
+              const rank = getRankForElo(player.elo);
               const winrate = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               const isTop3 = index < 3;
               const prize = index === 0 ? '3 Monate Premium' : index === 1 ? '2 Monate Premium' : index === 2 ? '1 Monat Premium' : null;
@@ -297,7 +284,7 @@ export default function Leaderboard() {
                       {player.isAdmin && <AdminBadge compact />}
                       {isTop3 && <Flame className="h-3.5 w-3.5 shrink-0 text-cyan-300" />}
                     </div>
-                    <div className={`text-xs font-bold ${rank.color}`}>{rank.name}</div>
+                    <div className={`text-xs font-bold ${rank.color}`}>L{rank.level} · {rank.name}</div>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-3 sm:gap-5">
