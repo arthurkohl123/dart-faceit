@@ -274,7 +274,7 @@ export default function AdminPanel() {
   const [premiumDuration, setPremiumDuration] = useState<'7' | '30' | '90' | 'unlimited'>('30');
   const [premiumReason, setPremiumReason] = useState('');
   const [premiumSavingUserId, setPremiumSavingUserId] = useState<string | null>(null);
-  const [softResetSeasonLabel, setSoftResetSeasonLabel] = useState('Season 02');
+  const [softResetSeasonLabel, setSoftResetSeasonLabel] = useState('Season 01');
   const [softResetConfirming, setSoftResetConfirming] = useState(false);
   const [softResetLoading, setSoftResetLoading] = useState(false);
   const [softResetResult, setSoftResetResult] = useState<SoftResetResult | null>(null);
