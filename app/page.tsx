@@ -5,30 +5,31 @@ import { useRouter } from 'next/navigation';
 import { ArrowUpRight, CalendarDays, Crosshair, Flame, Menu, Radar, ShieldCheck, Sparkles, Target, Trophy, X, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
+import { ResultRoomPreview } from '@/components/ResultRoomPreview';
 import { getRankRangeLabel, RANK_TIERS } from '@/lib/ranks';
 
 const features = [
   {
-    eyebrow: 'Ranked System',
-    title: 'Elo, das sich verdient anfühlt.',
-    text: 'Jedes bestätigte Match beeinflusst dein Rating nachvollziehbar. Je stärker dein Gegner, desto mehr zählt dein Sieg.',
+    eyebrow: 'Ranking',
+    title: 'Ein Rating, das jedes Match zählt.',
+    text: 'Nach einem bestätigten Ergebnis wird deine Elo aktualisiert. Gegen stärkere Gegner kannst du mehr Punkte gewinnen.',
   },
   {
-    eyebrow: 'Live Queue',
-    title: 'Gegner auf deinem Niveau.',
-    text: 'Das Matchmaking verbindet Spieler mit ähnlicher Stärke und vermeidet sinnlose Mismatches, bevor das erste Leg beginnt.',
+    eyebrow: 'Matchmaking',
+    title: 'Passende Gegner statt Zufall.',
+    text: 'Die Suche beginnt in deiner Elo-Nähe und erweitert den Bereich nur, wenn gerade niemand Passendes verfügbar ist.',
   },
   {
-    eyebrow: 'Proof & Review',
-    title: 'Fairness vor Elo.',
-    text: 'Ergebnisse werden bestätigt. Bei Widerspruch kann ein Admin den Fall prüfen, korrigieren oder ohne Elo annullieren.',
+    eyebrow: 'Ergebnisse',
+    title: 'Erst bestätigen, dann werten.',
+    text: 'Dein Gegner bestätigt das eingetragene Resultat. Wenn etwas nicht stimmt, landet der Fall mit Nachweisen beim Admin-Team.',
   },
 ];
 
 const liveFeed = [
-  { label: 'Queue geöffnet', detail: 'Neue Gegner werden gesucht', icon: Radar },
-  { label: 'Elo geschützt', detail: 'Jedes Resultat wird bestätigt', icon: Target },
-  { label: 'Season 01', detail: 'Dein Rang beginnt bei deinem ersten Wurf', icon: Trophy },
+  { label: 'Matchmaking geöffnet', detail: 'Suche jederzeit nach einem Gegner', icon: Radar },
+  { label: 'Bestätigte Ergebnisse', detail: 'Keine Wertung ohne Gegenprüfung', icon: Target },
+  { label: 'Season 01', detail: 'Die erste RankedDarts-Saison läuft', icon: Trophy },
 ];
 
 export default function Home() {
@@ -64,10 +65,10 @@ export default function Home() {
   }, [supabase]);
 
   const stats = [
-    { value: String(communityStats.players), label: 'Ranked Spieler', detail: 'Bereit für das nächste Leg' },
-    { value: String(communityStats.matches), label: 'Bestätigte Matches', detail: 'Ergebnisse mit Gewicht' },
-    { value: String(communityStats.cups), label: 'Turniere', detail: 'Cups für jede Spielstärke' },
-    { value: communityStats.liveCups > 0 ? String(communityStats.liveCups) : 'LIVE', label: 'Cup Arena', detail: communityStats.liveCups > 0 ? 'Turniere laufen gerade' : 'Nächster Cup in Planung' },
+    { value: String(communityStats.players), label: 'Spieler', detail: 'Mit RankedDarts-Profil' },
+    { value: String(communityStats.matches), label: 'Matches', detail: 'Abgeschlossen und bestätigt' },
+    { value: String(communityStats.cups), label: 'Turniere', detail: 'Bisher auf der Plattform' },
+    { value: communityStats.liveCups > 0 ? String(communityStats.liveCups) : '0', label: 'Turniere live', detail: communityStats.liveCups > 0 ? 'Werden gerade gespielt' : 'Aktuell läuft keines' },
   ];
 
   return (
@@ -167,7 +168,7 @@ export default function Home() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" />
             </span>
-            DIE ARENA IST LIVE · MATCHMAKING BEREIT
+            MATCHMAKING IST GEÖFFNET
           </div>
 
           <h1 className="max-w-5xl text-5xl font-black leading-[0.9] tracking-[-0.08em] text-white sm:text-6xl md:text-8xl xl:text-[9.5rem]">
@@ -176,7 +177,7 @@ export default function Home() {
           </h1>
 
           <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-300 md:text-2xl md:leading-10">
-            Nicht nur Darts spielen. Um jeden Punkt kämpfen. Finde Gegner auf deinem Level, sichere dein Ergebnis und mach jeden Sieg im Ranking sichtbar.
+            Finde Gegner in deiner Spielstärke, trage das Ergebnis gemeinsam ein und arbeite dich Match für Match im Ranking nach oben.
           </p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -217,7 +218,7 @@ export default function Home() {
 
           <div className="mt-8 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
             <span className="h-px w-10 bg-emerald-300/60" />
-            Kein Zufall. Kein Blind Match. Nur dein nächstes Level.
+            Vier Ranked-Matches pro Tag kostenlos. Mit Premium ohne Tageslimit.
           </div>
 
           <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 text-sm text-zinc-400">
@@ -236,7 +237,11 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
+        <div>
+          <ResultRoomPreview onOpen={() => router.push('/matchmaking')} />
+        </div>
+
+        <div className="hidden">
           <div className="absolute -inset-8 rounded-[3rem] bg-emerald-400/10 blur-3xl" />
           <div className="pointer-events-none absolute -right-5 -top-5 hidden h-48 w-48 items-center justify-center md:flex">
             <div className="absolute inset-0 rounded-full border border-emerald-300/15" />
@@ -309,13 +314,13 @@ export default function Home() {
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button onClick={() => router.push('/tournaments')} className="group rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-left transition hover:border-amber-300/45 hover:bg-amber-300/[0.12]">
                   <div className="flex items-center justify-between text-amber-200"><CalendarDays className="h-4 w-4" /><ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></div>
-                  <div className="mt-4 text-sm font-black text-white">Cup Arena</div>
-                  <div className="mt-1 text-xs text-zinc-500">Spiele um den Pokal</div>
+                  <div className="mt-4 text-sm font-black text-white">Turniere</div>
+                  <div className="mt-1 text-xs text-zinc-500">Offene und Premium-Cups</div>
                 </button>
                 <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4">
                   <div className="flex items-center justify-between text-cyan-200"><ShieldCheck className="h-4 w-4" /><span className="text-[10px] font-black tracking-widest">FAIR PLAY</span></div>
-                  <div className="mt-4 text-sm font-black text-white">Result protected</div>
-                  <div className="mt-1 text-xs text-zinc-500">Bestätigung vor Elo</div>
+                  <div className="mt-4 text-sm font-black text-white">Ergebnisprüfung</div>
+                  <div className="mt-1 text-xs text-zinc-500">Beide Spieler bestätigen</div>
                 </div>
               </div>
             </div>
@@ -358,10 +363,10 @@ export default function Home() {
       <section className="relative z-10 mx-auto max-w-7xl px-5 py-24 md:px-8">
         <div className="mb-14 flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div>
-            <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">Warum RankedDarts</div>
-            <h2 className="mt-4 max-w-3xl text-5xl font-black tracking-[-0.06em] md:text-7xl">Gebaut für echte Competitive-Matches.</h2>
+            <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">So funktioniert es</div>
+            <h2 className="mt-4 max-w-3xl text-5xl font-black tracking-[-0.06em] md:text-7xl">Darts spielen. Ergebnis bestätigen. Aufsteigen.</h2>
           </div>
-          <p className="max-w-md text-lg leading-8 text-zinc-400">Fairere Gegner. Sichere Resultate. Ein Ranking, das sich mit jedem starken Match wie dein eigener Fortschritt anfühlt.</p>
+          <p className="max-w-md text-lg leading-8 text-zinc-400">RankedDarts verbindet Matchmaking, Ergebnisse, Statistiken und Turniere an einem Ort.</p>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-3">
@@ -381,9 +386,9 @@ export default function Home() {
         <div className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-zinc-950 via-black to-zinc-950 p-6 md:p-10">
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
-              <div className="text-sm font-black uppercase tracking-[0.3em] text-cyan-300">Rank Progression</div>
-              <h2 className="mt-4 text-4xl font-black tracking-[-0.05em] md:text-6xl">Jeder Sieg verändert deinen Status.</h2>
-              <p className="mt-6 text-lg leading-8 text-zinc-400">Spieler sehen nicht nur Zahlen, sondern ein klares Ziel: bessere Gegner schlagen, Rating verbessern und sichtbar im Ranking aufsteigen.</p>
+              <div className="text-sm font-black uppercase tracking-[0.3em] text-cyan-300">Ränge & Elo</div>
+              <h2 className="mt-4 text-4xl font-black tracking-[-0.05em] md:text-6xl">Von Level 1 bis Level 10.</h2>
+              <p className="mt-6 text-lg leading-8 text-zinc-400">Deine Elo entscheidet über deinen Rang und die Gegner, die du in der Suche triffst. Level 10 beginnt bei 2.000 Elo.</p>
               <button
                 onClick={() => router.push('/matchmaking')}
                 className="mt-8 rounded-3xl border border-emerald-300/30 bg-emerald-400/10 px-7 py-4 font-black text-emerald-100 transition hover:bg-emerald-400/20"
@@ -410,9 +415,9 @@ export default function Home() {
         <div className="relative overflow-hidden rounded-[2.5rem] border border-emerald-300/20 bg-emerald-400/[0.08] p-8 text-center md:p-14">
           <div className="absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 rounded-full bg-emerald-300/20 blur-3xl" />
           <div className="relative">
-            <div className="text-sm font-black uppercase tracking-[0.35em] text-emerald-200">Bereit für dein erstes Ranked Match?</div>
-            <h2 className="mx-auto mt-5 max-w-4xl text-5xl font-black tracking-[-0.06em] md:text-7xl">Erstelle deinen Account und starte in die Queue.</h2>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-zinc-300">RankedDarts ist darauf ausgelegt, aus einzelnen Dart-Abenden eine echte Competitive-Season zu machen.</p>
+            <div className="text-sm font-black uppercase tracking-[0.35em] text-emerald-200">Lust auf ein Match?</div>
+            <h2 className="mx-auto mt-5 max-w-4xl text-5xl font-black tracking-[-0.06em] md:text-7xl">Account erstellen und Gegner suchen.</h2>
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Die Registrierung ist kostenlos. Danach kannst du direkt dein Profil einrichten und ins Matchmaking gehen.</p>
             <div className="mt-9 flex flex-col justify-center gap-4 sm:flex-row">
               <button
                 onClick={() => router.push('/auth/register')}
