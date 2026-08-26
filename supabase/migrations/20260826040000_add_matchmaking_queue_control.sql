@@ -64,7 +64,8 @@ begin
     set value = excluded.value;
 
   if not p_enabled then
-    delete from public.matchmaking_queue;
+    -- Explicit predicate is required by Supabase's safe-update protection.
+    delete from public.matchmaking_queue where true;
     get diagnostics v_cleared = row_count;
   end if;
 
