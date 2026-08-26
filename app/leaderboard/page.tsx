@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
+import { AdminBadge } from '@/components/AdminBadge';
 import { ArrowUpRight, Crown, Crosshair, Flame, Medal, Radar, Search, ShieldCheck, Star, Swords, Trophy, Users, Menu, X } from 'lucide-react';
 
 type Player = {
@@ -12,6 +13,7 @@ type Player = {
   gamesPlayed: number;
   wins: number;
   isPremium?: boolean;
+  isAdmin?: boolean;
   supabaseId?: string;
 };
 
@@ -44,16 +46,26 @@ export default function Leaderboard() {
 
     async function fetchLeaderboard() {
       try {
-        const { data, error } = await supabase
-          .from('public_profiles')
-          .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
-          .gte('gamesPlayed', 1)
-          .order('elo', { ascending: false })
-          .limit(100);
+        const [{ data, error }, { data: adminRows, error: adminError }] = await Promise.all([
+          supabase
+            .from('public_profiles')
+            .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
+            .gte('gamesPlayed', 1)
+            .order('elo', { ascending: false })
+            .limit(100),
+          supabase.rpc('get_public_admin_profile_ids'),
+        ]);
 
         if (error) { console.error(error); }
         else if (isMounted) {
-          const players = (data || []) as Player[];
+          if (adminError) console.error('Admin-Badges konnten nicht geladen werden:', adminError);
+          const adminIds = new Set(
+            (adminRows || []).map((row: { profile_id: string }) => row.profile_id)
+          );
+          const players = ((data || []) as Player[]).map((player) => ({
+            ...player,
+            isAdmin: Boolean(player.supabaseId && adminIds.has(player.supabaseId)),
+          }));
           setPlayers(players);
 
           // Average für jeden Spieler aus active_matches berechnen
@@ -229,6 +241,7 @@ export default function Leaderboard() {
                   <div className={`relative mx-auto grid h-14 w-14 place-items-center rounded-2xl border text-2xl shadow-xl ${isGold ? 'border-yellow-200/40 bg-yellow-300 text-black shadow-yellow-300/20' : 'border-white/15 bg-black/30'}`}>{isGold ? <Crown className="h-7 w-7" /> : medals[idx]}</div>
                   <div className="relative mt-4 text-[10px] font-black uppercase tracking-[0.26em] text-zinc-500">Platz {idx + 1}</div>
                   <div className="relative mt-1 truncate text-xl font-black tracking-[-0.05em]">{player.username}</div>
+                  {player.isAdmin && <AdminBadge compact className="relative mt-2" />}
                   <div className={`relative mt-1 text-xs font-black uppercase tracking-[0.18em] ${rank.color}`}>{rank.name}</div>
                   <div className="relative mt-4 text-4xl font-black tracking-[-0.07em] text-emerald-300">{player.elo}</div>
                   <div className="relative mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Elo Rating</div>
@@ -281,6 +294,7 @@ export default function Leaderboard() {
                     <div className="flex items-center gap-2">
                       {player.isPremium && <Star className="h-3.5 w-3.5 shrink-0 fill-current text-emerald-300" />}
                       <span className="truncate text-sm font-black sm:text-base">{player.username}</span>
+                      {player.isAdmin && <AdminBadge compact />}
                       {isTop3 && <Flame className="h-3.5 w-3.5 shrink-0 text-cyan-300" />}
                     </div>
                     <div className={`text-xs font-bold ${rank.color}`}>{rank.name}</div>
