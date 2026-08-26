@@ -6,6 +6,7 @@ import { Activity, AlertTriangle, CheckCircle2, Clock, Radar, ShieldCheck, Sword
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useRouter } from 'next/navigation';
+import { getDailyMatchesUsed, getMaxEloDiff, hasReachedDailyMatchLimit, type DailyMatchQuota } from '@/lib/matchmaking-rules';
 
 type MatchmakingStatus = 'idle' | 'selecting' | 'searching' | 'accepting' | 'found' | 'error';
 type AppChoice = 'scolia' | 'dartcounter';
@@ -33,14 +34,6 @@ type LiveMatch = {
   status: string;
   app: string | null;
   created_at: string;
-};
-
-type DailyMatchQuota = {
-  matches_used?: number;
-  matches_started?: number;
-  matches_played?: number;
-  daily_limit: number | null;
-  is_premium: boolean;
 };
 
 type MatchmakingQueueSetting = {
@@ -150,18 +143,9 @@ export default function Matchmaking() {
   useEffect(() => { selectedAppRef.current = selectedApp; }, [selectedApp]);
   useEffect(() => { iHaveAcceptedRef.current = iHaveAccepted; }, [iHaveAccepted]);
 
-  const getMaxEloDiff = (seconds: number) => {
-    if (seconds < 20) return 100;
-    if (seconds < 40) return 200;
-    if (seconds < 60) return 350;
-    return 600;
-  };
-
   const searchProgress = Math.min((elapsedSeconds / 60) * 100, 100);
   const currentRange = getMaxEloDiff(elapsedSeconds);
-  const dailyMatchesUsed = dailyQuota
-    ? Number(dailyQuota.matches_used ?? dailyQuota.matches_started ?? dailyQuota.matches_played ?? 0)
-    : 0;
+  const dailyMatchesUsed = getDailyMatchesUsed(dailyQuota);
   const totalQueuePlayers = queueCounts.scolia + queueCounts.dartcounter;
   // null = Profil noch nicht geladen → Box NICHT anzeigen (kein false-positive beim Status-Wechsel)
   const effectivePhoneVerified = phoneVerified === null ? null : (!smsVerificationEnabled || phoneVerified === true);
@@ -490,7 +474,7 @@ export default function Matchmaking() {
       return;
     }
 
-    if (dailyQuota && !dailyQuota.is_premium && dailyMatchesUsed >= (dailyQuota.daily_limit ?? 4)) {
+    if (hasReachedDailyMatchLimit(dailyQuota)) {
       setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
       setStatus('error');
       return;
