@@ -43,6 +43,11 @@ type DailyMatchQuota = {
   is_premium: boolean;
 };
 
+type MatchmakingQueueSetting = {
+  enabled?: boolean;
+  message?: string;
+};
+
 const searchSteps = [
   { time: '0–20s', range: '±100 Elo', label: 'Sehr nahes Skill-Level' },
   { time: '20–40s', range: '±200 Elo', label: 'Erweiterte Suche' },
@@ -92,6 +97,8 @@ export default function Matchmaking() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
   const [dailyQuota, setDailyQuota] = useState<DailyMatchQuota | null>(null);
+  const [matchmakingEnabled, setMatchmakingEnabled] = useState(true);
+  const [matchmakingMessage, setMatchmakingMessage] = useState('Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
 
   // Accept-State
   const [acceptMatchId, setAcceptMatchId] = useState<string | null>(null);
@@ -382,6 +389,23 @@ export default function Matchmaking() {
     });
   }, [supabase]);
 
+  const fetchMatchmakingStatus = useCallback(async () => {
+    const { data, error } = await supabase.rpc('get_matchmaking_queue_status');
+    if (error) return;
+    const setting = data as MatchmakingQueueSetting | null;
+    const enabled = setting?.enabled !== false;
+    setMatchmakingEnabled(enabled);
+    setMatchmakingMessage(setting?.message ?? 'Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
+
+    if (!enabled && statusRef.current === 'searching') {
+      await supabase.rpc('cancel_matchmaking');
+      statusRef.current = 'idle';
+      setStatus('idle');
+      setSelectedApp(null);
+      setElapsedSeconds(0);
+    }
+  }, [supabase]);
+
   const fetchLiveMatches = useCallback(async () => {
     const { data } = await supabase
       .from('active_matches')
@@ -429,7 +453,10 @@ export default function Matchmaking() {
     } catch (error) {
       if (statusRef.current === 'searching') {
         const msg = error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.';
-        if (msg.includes('DAILY_MATCH_LIMIT')) {
+        if (msg.includes('MATCHMAKING_QUEUE_DISABLED')) {
+          setMatchmakingEnabled(false);
+          setErrorMessage(msg.split('MATCHMAKING_QUEUE_DISABLED:').pop()?.trim() || matchmakingMessage);
+        } else if (msg.includes('DAILY_MATCH_LIMIT')) {
           setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
         } else if (msg.includes('COOLDOWN:')) {
           // Cooldown serverseitig ignorieren – Queue ist nicht mehr gesperrt
@@ -443,7 +470,7 @@ export default function Matchmaking() {
     } finally {
       isPollingRef.current = false;
     }
-  }, [fetchQueueCounts, getCooldownMessage, playMatchFoundSound, startAcceptCountdown, supabase]);
+  }, [fetchQueueCounts, getCooldownMessage, matchmakingMessage, playMatchFoundSound, startAcceptCountdown, supabase]);
 
   // Ref immer aktuell halten damit der searching-useEffect die neueste Version hat
   // ohne selbst als Dependency aufgeführt zu sein
@@ -452,6 +479,11 @@ export default function Matchmaking() {
   const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
     setOpponent(null);
+
+    if (!matchmakingEnabled) {
+      setErrorMessage(matchmakingMessage);
+      return;
+    }
 
     if (cooldownSeconds > 0) {
       setErrorMessage(getCooldownMessage());
@@ -563,6 +595,7 @@ export default function Matchmaking() {
 
       const smsEnabled = (smsSetting?.value as { enabled?: boolean } | null)?.enabled !== false;
       setSmsVerificationEnabled(smsEnabled);
+      await fetchMatchmakingStatus();
 
       const { data: profileData } = await supabase
         .from('profiles')
@@ -588,7 +621,14 @@ export default function Matchmaking() {
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, fetchQueueCounts, fetchLiveMatches, fetchCooldown, startAcceptCountdown]);
+  }, [supabase, router, fetchQueueCounts, fetchLiveMatches, fetchCooldown, fetchMatchmakingStatus, startAcceptCountdown]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void fetchMatchmakingStatus();
+    }, 5000);
+    return () => window.clearInterval(interval);
+  }, [fetchMatchmakingStatus]);
 
   // Realtime: Live-Matches aktualisieren wenn sich active_matches ändert
   useEffect(() => {
@@ -978,7 +1018,7 @@ export default function Matchmaking() {
           <div className="absolute -left-7 top-16 h-36 w-1 rounded-full bg-gradient-to-b from-transparent via-emerald-300 to-transparent opacity-80" />
           <div className="inline-flex items-center gap-3 rounded-full border border-emerald-300/25 bg-emerald-400/[0.09] px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100 shadow-[0_0_30px_rgba(52,211,153,0.12)]">
             <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-200" /></span>
-            Arena online
+            {matchmakingEnabled ? 'Arena online' : 'Arena pausiert'}
           </div>
           <div className="mt-7 flex items-end gap-4">
             <div className="font-mono text-[11px] font-bold tracking-[0.28em] text-emerald-300/70">RANKED // 01</div>
@@ -1003,6 +1043,13 @@ export default function Matchmaking() {
                 <div className="font-black">{queueBanReason ? 'Queue-Sperre aktiv' : 'Cooldown aktiv'}</div>
                 <p className="mt-1 text-amber-100/85">{getCooldownMessage()}</p>
               </div>
+            </div>
+          )}
+
+          {!matchmakingEnabled && (
+            <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-4 text-sm leading-6 text-red-100">
+              <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-300" />
+              <div><div className="font-black">Matchmaking ist pausiert</div><p className="mt-1 text-red-100/85">{matchmakingMessage}</p></div>
             </div>
           )}
 
@@ -1045,7 +1092,7 @@ export default function Matchmaking() {
               <div className="grid h-9 w-9 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-400/10"><Radar className="h-4 w-4 text-emerald-200" /></div>
               <div><div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Queue Control</div><div className="mt-0.5 text-sm font-bold text-zinc-300">Ranked Matchmaking</div></div>
             </div>
-            <div className="flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/[0.07] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />bereit</div>
+            <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] ${matchmakingEnabled ? 'border-emerald-300/20 bg-emerald-400/[0.07] text-emerald-200' : 'border-red-300/20 bg-red-500/[0.08] text-red-100'}`}><span className={`h-1.5 w-1.5 rounded-full ${matchmakingEnabled ? 'bg-emerald-300' : 'bg-red-300'}`} />{matchmakingEnabled ? 'bereit' : 'pausiert'}</div>
           </div>
 
           {/* IDLE: App-Auswahl */}
@@ -1065,9 +1112,9 @@ export default function Matchmaking() {
                     <button
                       key={app}
                       onClick={() => void startSearch(app)}
-                      disabled={cooldownSeconds > 0}
-                      title={cooldownSeconds > 0 ? getCooldownMessage() : undefined}
-                      className={`group relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-white/[0.035] p-5 text-left transition-all duration-300 ${cooldownSeconds > 0 ? 'cursor-not-allowed opacity-55' : `${c.borderHover} hover:-translate-y-1 hover:scale-[1.015] hover:shadow-[0_18px_35px_rgba(0,0,0,0.24)]`}`}
+                      disabled={cooldownSeconds > 0 || !matchmakingEnabled}
+                      title={!matchmakingEnabled ? matchmakingMessage : cooldownSeconds > 0 ? getCooldownMessage() : undefined}
+                      className={`group relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-white/[0.035] p-5 text-left transition-all duration-300 ${cooldownSeconds > 0 || !matchmakingEnabled ? 'cursor-not-allowed opacity-55' : `${c.borderHover} hover:-translate-y-1 hover:scale-[1.015] hover:shadow-[0_18px_35px_rgba(0,0,0,0.24)]`}`}
                     >
                       <div className="absolute right-4 top-3 text-3xl opacity-70 transition duration-300 group-hover:scale-110 group-hover:opacity-100">{c.icon}</div>
                       <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Plattform</div>
