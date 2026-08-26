@@ -260,7 +260,7 @@ export default function Leaderboard() {
               const rank = getRankForElo(player.elo);
               const winrate = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               const isTop3 = index < 3;
-              const prize = index === 0 ? '3 Monate Premium' : index === 1 ? '2 Monate Premium' : index === 2 ? '1 Monat Premium' : null;
+              const prize = [175, 100, 75, 50, 30][index];
 
               return (
                 <Link
@@ -310,8 +310,8 @@ export default function Leaderboard() {
                     </div>
                     <ArrowUpRight className="hidden h-4 w-4 text-emerald-300/0 transition group-hover:text-emerald-300 md:block" />
                     {prize && (
-                      <div className="hidden rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200 sm:block">
-                        {prize}
+                      <div className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2.5 py-1 text-[10px] font-black text-amber-100 sm:px-3 sm:text-xs">
+                        {prize} €
                       </div>
                     )}
                   </div>
@@ -333,7 +333,7 @@ export default function Leaderboard() {
         )}
 
         <p className="mt-8 text-center text-sm text-zinc-500">
-          Rangliste aktualisiert sich beim Laden · Die Top 3 erhalten Premium-Belohnungen
+          Rangliste aktualisiert sich beim Laden · Saison-Preisgeld für die Top 5: 430 €
         </p>
       </section>
     </main>
