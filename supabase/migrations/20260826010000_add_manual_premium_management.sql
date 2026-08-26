@@ -42,7 +42,7 @@ begin
     raise exception 'Kein Admin-Zugriff.';
   end if;
 
-  select * into v_target from public.profiles where id = p_profile_id for update;
+  select * into v_target from public.profiles where id::text = p_profile_id for update;
   if not found then raise exception 'Spieler nicht gefunden.'; end if;
   if p_active and p_until is not null and p_until <= now() then raise exception 'Das Ablaufdatum muss in der Zukunft liegen.'; end if;
 
@@ -56,7 +56,7 @@ begin
       premium_manual_until = p_until,
       premium_manual_reason = v_reason,
       premium_manual_granted_by = auth.uid()
-    where id = p_profile_id;
+    where id::text = p_profile_id;
   else
     update public.profiles set
       "isPremium" = v_stripe_active,
@@ -64,7 +64,7 @@ begin
       premium_manual_until = null,
       premium_manual_reason = null,
       premium_manual_granted_by = null
-    where id = p_profile_id;
+    where id::text = p_profile_id;
   end if;
 
   insert into public.premium_grant_audit(admin_id, admin_username, profile_id, username, action, valid_until, reason)
@@ -83,7 +83,7 @@ begin
     '/premium'
   );
 
-  return query select p."isPremium", p.premium_manual_until from public.profiles p where p.id = p_profile_id;
+  return query select p."isPremium", p.premium_manual_until from public.profiles p where p.id::text = p_profile_id;
 end;
 $$;
 
