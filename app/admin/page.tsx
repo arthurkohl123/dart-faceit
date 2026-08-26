@@ -363,8 +363,18 @@ export default function AdminPanel() {
   }, [supabase]);
 
   const loadFlaggedPlayers = useCallback(async () => {
-    const { data } = await supabase.rpc('get_flagged_players');
-    if (data) setFlaggedPlayers(data as FlaggedPlayer[]);
+    const [{ data, error }, { data: dismissed }] = await Promise.all([
+      supabase.rpc('get_flagged_players'),
+      supabase.rpc('admin_get_flagged_dismissals'),
+    ]);
+    if (error) {
+      setActionMessage(`Verdächtige Accounts konnten nicht geladen werden: ${error.message}`);
+      return;
+    }
+    const dismissedRows = (dismissed || []) as { profile_id: string; supabase_id: string | null; username: string | null }[];
+    const dismissedIds = dismissedRows.flatMap((row) => [row.profile_id, row.supabase_id, row.username].filter((value): value is string => Boolean(value)));
+    const visible = ((data || []) as FlaggedPlayer[]).filter((player) => !dismissedIds.includes(player.id) && !dismissedRows.some((row) => row.username && row.username === player.username));
+    setFlaggedPlayers(visible);
   }, [supabase]);
 
   const loadTickets = useCallback(async (status?: string | null, assignedToId?: string | null) => {
@@ -613,10 +623,11 @@ export default function AdminPanel() {
 
     const reason = newStatus ? (banReasonInput.trim() || null) : null;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_banned: newStatus, ban_reason: reason })
-      .eq('id', user.id);
+    const { error } = await supabase.rpc('admin_set_player_ban', {
+      p_player_id: user.id || user.supabaseId,
+      p_is_banned: newStatus,
+      p_reason: reason,
+    });
 
     if (error) {
       setActionMessage(`Ban-Status konnte nicht geändert werden: ${error.message}`);
@@ -627,6 +638,46 @@ export default function AdminPanel() {
     setBanReasonInput('');
     setActionMessage(newStatus ? 'Nutzer wurde gesperrt.' : 'Nutzer wurde entsperrt.');
     await loadProfiles();
+  };
+
+  const banFlaggedPlayer = async (player: FlaggedPlayer) => {
+    if (banReasonUserId !== player.id) {
+      setBanReasonUserId(player.id);
+      setBanReasonInput('');
+      setActionMessage(`Bitte gib den Ban-Grund für ${player.username} direkt im Verdachtsfall ein.`);
+      return;
+    }
+
+    const reason = banReasonInput.trim() || 'Verdachtsfall durch Fairness Monitor';
+    const { error } = await supabase.rpc('admin_set_player_ban', {
+      p_player_id: player.id,
+      p_is_banned: true,
+      p_reason: reason,
+    });
+    if (error) {
+      setActionMessage(`Ban konnte nicht gesetzt werden: ${error.message}`);
+      return;
+    }
+
+    setBanReasonUserId(null);
+    setBanReasonInput('');
+    setActionMessage(`${player.username} wurde gesperrt.`);
+    await Promise.all([loadProfiles(), loadFlaggedPlayers(), loadAdminLogs()]);
+  };
+
+  const dismissFlaggedPlayer = async (player: FlaggedPlayer) => {
+    const { error } = await supabase.rpc('admin_dismiss_flagged_player', {
+      p_player_id: player.id,
+      p_reason: 'Manuell geprüft – aktuell keine weitere Aktion',
+    });
+    if (error) {
+      setActionMessage(`Verdachtsfall konnte nicht ignoriert werden: ${error.message}`);
+      return;
+    }
+
+    setFlaggedPlayers((current) => current.filter((item) => item.id !== player.id));
+    setActionMessage(`${player.username} wurde aus der offenen Prüfung entfernt.`);
+    await loadAdminLogs();
   };
 
   const toggleModerator = async (id: string, current: boolean | null) => {
@@ -867,6 +918,15 @@ export default function AdminPanel() {
   const attentionCount = disputedMatches.length + urgentTickets + flaggedPlayers.length + unassignedTickets;
   const activeTournamentCount = tournaments.filter((tournament) => tournament.status === 'registration' || tournament.status === 'live').length;
   const healthScore = Math.max(0, 100 - Math.min(100, (disputedMatches.length * 12) + (urgentTickets * 10) + (flaggedPlayers.length * 6) + (unassignedTickets * 5)));
+  const primaryAttentionSection: typeof activeTab = disputedMatches.length > 0
+    ? 'disputes'
+    : flaggedPlayers.length > 0
+      ? 'flagged'
+      : urgentTickets > 0 || unassignedTickets > 0
+        ? 'tickets'
+        : liveMatches.length > 0
+          ? 'live'
+          : 'overview';
 
   const goToSection = (section: typeof activeTab) => {
     setActiveTab(section);
@@ -948,7 +1008,7 @@ export default function AdminPanel() {
           </div>
 
           <div className="relative grid gap-8 px-5 py-8 sm:px-7 lg:grid-cols-[1.2fr_0.8fr] lg:px-9 lg:py-10">
-            <div><div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/[0.08] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100"><Activity className="h-3.5 w-3.5" /> Operations telemetry · {lastRefreshedAt ? `letzter Sync ${lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'initialisiert'}</div><h1 className="mt-6 max-w-4xl text-5xl font-black leading-[0.84] tracking-[-0.08em] text-white sm:text-6xl xl:text-7xl">Mission control<br /><span className="bg-gradient-to-r from-emerald-200 via-lime-200 to-cyan-200 bg-clip-text text-transparent">für die ganze Arena.</span></h1><p className="mt-6 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">Kein Admin-Chaos, keine versteckten Probleme. Priorisiere Fairness, Support und Turniere aus einer klaren Operations-Zentrale.</p><div className="mt-7 flex flex-wrap gap-3"><button onClick={() => goToSection(attentionCount > 0 ? 'disputes' : 'overview')} className="rounded-2xl bg-emerald-300 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-black transition hover:-translate-y-0.5 hover:bg-emerald-200">{attentionCount > 0 ? `${attentionCount} Vorgänge prüfen` : 'Systemübersicht öffnen'}</button><button onClick={() => void refreshAdminData()} className="inline-flex items-center gap-2 rounded-2xl border border-white/12 bg-white/[0.04] px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-zinc-200 transition hover:bg-white/[0.09]"><RefreshCw className="h-3.5 w-3.5" /> Jetzt synchronisieren</button></div></div>
+            <div><div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/[0.08] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100"><Activity className="h-3.5 w-3.5" /> Operations telemetry · {lastRefreshedAt ? `letzter Sync ${lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'initialisiert'}</div><h1 className="mt-6 max-w-4xl text-5xl font-black leading-[0.84] tracking-[-0.08em] text-white sm:text-6xl xl:text-7xl">Mission control<br /><span className="bg-gradient-to-r from-emerald-200 via-lime-200 to-cyan-200 bg-clip-text text-transparent">für die ganze Arena.</span></h1><p className="mt-6 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">Kein Admin-Chaos, keine versteckten Probleme. Priorisiere Fairness, Support und Turniere aus einer klaren Operations-Zentrale.</p><div className="mt-7 flex flex-wrap gap-3"><button onClick={() => goToSection(primaryAttentionSection)} className="rounded-2xl bg-emerald-300 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-black transition hover:-translate-y-0.5 hover:bg-emerald-200">{attentionCount > 0 ? `${attentionCount} Vorgänge prüfen` : 'Systemübersicht öffnen'}</button><button onClick={() => void refreshAdminData()} className="inline-flex items-center gap-2 rounded-2xl border border-white/12 bg-white/[0.04] px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-zinc-200 transition hover:bg-white/[0.09]"><RefreshCw className="h-3.5 w-3.5" /> Jetzt synchronisieren</button></div></div>
             <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr] lg:grid-cols-1 xl:grid-cols-[0.8fr_1.2fr]"><div className="relative grid min-h-48 place-items-center overflow-hidden rounded-[2rem] border border-white/10 bg-black/30"><div className="absolute h-44 w-44 rounded-full opacity-90" style={{ background: `conic-gradient(#6ee7b7 ${healthScore}%, rgba(255,255,255,0.08) 0)` }} /><div className="absolute h-36 w-36 rounded-full bg-[#0b0f14]" /><div className="relative text-center"><p className="text-4xl font-black tracking-[-0.07em] text-white">{healthScore}</p><p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">Health score</p></div></div><div className="grid grid-cols-2 gap-3"><button onClick={() => goToSection('disputes')} className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.06] p-4 text-left transition hover:bg-amber-300/[0.12]"><Gavel className="h-4 w-4 text-amber-200" /><p className="mt-5 text-3xl font-black">{disputedMatches.length}</p><p className="text-[10px] font-black uppercase tracking-[0.13em] text-amber-100/70">Disputes</p></button><button onClick={() => goToSection('tickets')} className="rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] p-4 text-left transition hover:bg-violet-400/[0.12]"><Headphones className="h-4 w-4 text-violet-200" /><p className="mt-5 text-3xl font-black">{ticketsInQueue}</p><p className="text-[10px] font-black uppercase tracking-[0.13em] text-violet-100/70">Support queue</p></button><button onClick={() => goToSection('live')} className="rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.06] p-4 text-left transition hover:bg-emerald-400/[0.12]"><Radar className="h-4 w-4 text-emerald-200" /><p className="mt-5 text-3xl font-black">{liveMatches.length}</p><p className="text-[10px] font-black uppercase tracking-[0.13em] text-emerald-100/70">Live matches</p></button><button onClick={() => goToSection('tournaments')} className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.06] p-4 text-left transition hover:bg-cyan-400/[0.12]"><Trophy className="h-4 w-4 text-cyan-200" /><p className="mt-5 text-3xl font-black">{activeTournamentCount}</p><p className="text-[10px] font-black uppercase tracking-[0.13em] text-cyan-100/70">Active cups</p></button></div></div>
           </div>
           <div className="relative grid border-t border-white/10 bg-black/20 sm:grid-cols-3"><button onClick={() => goToSection('flagged')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-orange-400/[0.06] sm:border-b-0 sm:border-r"><TriangleAlert className="h-4 w-4 text-orange-300" /><span><span className="block text-xs font-black text-white">Fairness monitor</span><span className="text-[11px] text-zinc-500">{flaggedPlayers.length ? `${flaggedPlayers.length} Accounts brauchen Prüfung` : 'Keine auffälligen Signale'}</span></span></button><button onClick={() => goToSection('tickets')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-violet-400/[0.06] sm:border-b-0 sm:border-r"><MessageCircle className="h-4 w-4 text-violet-300" /><span><span className="block text-xs font-black text-white">Support routing</span><span className="text-[11px] text-zinc-500">{unassignedTickets ? `${unassignedTickets} Tickets nicht zugewiesen` : 'Jedes Ticket hat einen Owner'}</span></span></button><button onClick={exportOperationsSnapshot} className="flex items-center gap-3 px-5 py-4 text-left transition hover:bg-emerald-400/[0.06]"><Download className="h-4 w-4 text-emerald-300" /><span><span className="block text-xs font-black text-white">Operations snapshot</span><span className="text-[11px] text-zinc-500">CSV-Bericht für deinen Team-Stand</span></span></button></div>
@@ -1868,7 +1928,19 @@ export default function AdminPanel() {
                 </div>
               )}
         {/* Verdächtige Accounts / Anti-Smurf-Flagging */}
-        {flaggedPlayers.length > 0 && (
+        {flaggedPlayers.length === 0 ? (
+          <section className="rounded-[2.4rem] border border-emerald-300/15 bg-emerald-400/[0.035] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-200">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black tracking-[-0.04em] text-white">Keine offenen Verdachtsfälle</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">Alle Fairness-Signale sind geprüft oder aktuell unauffällig.</p>
+              </div>
+            </div>
+          </section>
+        ) : (
           <section className="rounded-[2.4rem] border border-orange-400/20 bg-orange-400/[0.03] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-4">
@@ -1938,21 +2010,36 @@ export default function AdminPanel() {
                     {/* Aktionen */}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
-                        onClick={() => {
-                          const user = profiles.find((p) => p.id === player.id);
-                          if (user) void toggleBan(user);
-                        }}
+                        onClick={() => void banFlaggedPlayer(player)}
                         className="rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-rose-100 transition hover:bg-rose-400/15"
                       >
-                        Bannen
+                        {banReasonUserId === player.id ? 'Ban bestätigen' : 'Bannen'}
                       </button>
                       <button
-                        onClick={() => refreshAdminData()}
+                        onClick={() => void dismissFlaggedPlayer(player)}
                         className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-zinc-300 transition hover:bg-white/10"
                       >
                         Ignorieren
                       </button>
                     </div>
+                    {banReasonUserId === player.id && (
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <input
+                          type="text"
+                          value={banReasonInput}
+                          onChange={(event) => setBanReasonInput(event.target.value)}
+                          placeholder="Ban-Grund (optional)"
+                          className={`${inputClassName} flex-1`}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => { setBanReasonUserId(null); setBanReasonInput(''); }}
+                          className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-400 transition hover:bg-white/10"
+                        >
+                          Abbrechen
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
