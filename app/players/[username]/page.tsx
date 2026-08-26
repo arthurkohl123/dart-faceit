@@ -34,6 +34,12 @@ type MatchHistory = {
   submitted_player2_legs: number | null;
 };
 
+type TournamentHistory = {
+  tournament_id: string; title: string; starts_at: string; status: string; tournament_format: string;
+  scoring_platform: string; participant_status: string; wins: number; losses: number; points: number;
+  placement: number | null; is_winner: boolean; prize_title: string | null;
+};
+
 export default function PlayerProfile() {
   const params = useParams();
   const username = decodeURIComponent(params.username as string);
@@ -42,6 +48,7 @@ export default function PlayerProfile() {
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [matches, setMatches] = useState<MatchHistory[]>([]);
+  const [tournamentHistory, setTournamentHistory] = useState<TournamentHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -94,6 +101,8 @@ export default function PlayerProfile() {
 
       const history = (matchData || []) as MatchHistory[];
       setMatches(history);
+      const { data: tournamentRows } = await supabase.rpc('list_player_tournament_history', { p_user_id: p.supabaseId });
+      if (isMounted) setTournamentHistory((tournamentRows || []) as TournamentHistory[]);
 
       // Stats berechnen
       const avgs = history
@@ -337,6 +346,11 @@ export default function PlayerProfile() {
             </div>
           )}
         </div>
+        </div>
+
+        <div className="mt-5 rounded-[1.75rem] border border-amber-300/15 bg-amber-300/[0.035] p-6 backdrop-blur-xl sm:p-7">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><div className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">Tournament record</div><h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em]">Öffentliche Turnier-Historie</h2></div><span className="rounded-full border border-amber-300/15 bg-amber-300/10 px-3 py-1.5 text-xs font-black text-amber-100">{tournamentHistory.length} Events</span></div>
+          {tournamentHistory.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-zinc-500">Noch keine öffentlichen Turnierergebnisse.</div> : <div className="mt-5 grid gap-3 md:grid-cols-2">{tournamentHistory.map(event => <Link href="/tournaments" key={event.tournament_id} className="group rounded-2xl border border-white/10 bg-black/25 p-4 transition hover:border-amber-300/25 hover:bg-amber-300/[0.05]"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-zinc-100">{event.title}</p><p className="mt-1 text-xs text-zinc-500">{new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(event.starts_at))} · {event.tournament_format.replaceAll('_', ' ')}</p></div>{event.is_winner && <span className="rounded-full bg-amber-300 px-2.5 py-1 text-[10px] font-black text-black"><Trophy className="mr-1 inline h-3 w-3" />CHAMPION</span>}</div><div className="mt-4 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wider"><span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-200">{event.wins} Siege</span><span className="rounded-full bg-red-400/10 px-2.5 py-1 text-red-200">{event.losses} Niederlagen</span><span className="rounded-full bg-white/5 px-2.5 py-1 text-zinc-400">{event.scoring_platform}</span>{event.prize_title && <span className="rounded-full bg-amber-300/10 px-2.5 py-1 text-amber-200">{event.prize_title}</span>}</div></Link>)}</div>}
         </div>
 
       </section>
