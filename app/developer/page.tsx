@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Activity, AlertTriangle, CheckCircle2, Clock, Database, Pencil, Power, RadioTower, RefreshCcw, Save, Search, Shield, SlidersHorizontal, Swords, Trophy, Wrench, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { DeveloperMonitoring } from '@/components/DeveloperMonitoring';
 
 type DashboardStats = {
   profiles?: number;
@@ -431,6 +432,8 @@ export default function DeveloperDashboard() {
             {operationalStatus.label}
           </span>
         </section>
+
+        <DeveloperMonitoring />
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <section className={`relative overflow-hidden rounded-[2rem] border p-6 shadow-2xl shadow-black/30 lg:col-span-2 ${matchmakingEnabled ? 'border-emerald-300/20 bg-emerald-400/[0.055]' : 'border-red-300/25 bg-red-500/[0.07]'}`}>
