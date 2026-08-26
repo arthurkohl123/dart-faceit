@@ -111,7 +111,7 @@ export default function Matchmaking() {
 
   // Cooldown-State
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const [cancelCount24h, setCancelCount24h] = useState(0);
+  const [, setCancelCount24h] = useState(0);
   const [queueBanReason, setQueueBanReason] = useState<string | null>(null);
   const [queueBannedUntil, setQueueBannedUntil] = useState<string | null>(null);
   const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -366,13 +366,20 @@ export default function Matchmaking() {
   }, [cooldownSeconds, queueBanReason, queueBannedUntil]);
 
   const fetchQueueCounts = useCallback(async () => {
-    const [{ count: scoliaCount }, { count: dartCount }] = await Promise.all([
-      supabase.from('matchmaking_queue').select('*', { count: 'exact', head: true }).eq('app', 'scolia'),
-      supabase.from('matchmaking_queue').select('*', { count: 'exact', head: true }).eq('app', 'dartcounter'),
-    ]);
+    const { data, error } = await supabase.rpc('get_matchmaking_queue_counts');
+    if (error) {
+      reportClientError('matchmaking_queue_count_error', error.message, { phase: 'queue_counts' });
+      return;
+    }
+    const counts = new Map(
+      ((data ?? []) as Array<{ app: string; player_count: number | string }>).map((row) => [
+        row.app,
+        Number(row.player_count) || 0,
+      ]),
+    );
     setQueueCounts({
-      scolia: scoliaCount || 0,
-      dartcounter: dartCount || 0,
+      scolia: counts.get('scolia') ?? 0,
+      dartcounter: counts.get('dartcounter') ?? 0,
     });
   }, [supabase]);
 
@@ -458,7 +465,7 @@ export default function Matchmaking() {
     } finally {
       isPollingRef.current = false;
     }
-  }, [fetchQueueCounts, getCooldownMessage, matchmakingMessage, playMatchFoundSound, startAcceptCountdown, supabase]);
+  }, [fetchQueueCounts, matchmakingMessage, playMatchFoundSound, startAcceptCountdown, supabase]);
 
   // Ref immer aktuell halten damit der searching-useEffect die neueste Version hat
   // ohne selbst als Dependency aufgeführt zu sein
@@ -724,7 +731,6 @@ export default function Matchmaking() {
       }
       skipCancelOnSearchingExitRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, supabase, redirectToResult, playMatchFoundSound, startAcceptCountdown]);
 
   // Realtime: Accept-Phase — separater Kanal der auch bei status='accepting' aktiv ist
@@ -898,7 +904,6 @@ export default function Matchmaking() {
       window.clearInterval(acceptStatusPollInterval);
       void supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acceptMatchId, redirectToResult, playMatchFoundSound, startAcceptCountdown, supabase]);
 
   // Heartbeat: solange gesucht wird, alle 20 Sekunden last_seen aktualisieren.

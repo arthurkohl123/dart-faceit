@@ -40,6 +40,10 @@ yarn-error.log*
 
 # vercel
 .vercel
+/.vercel-cache
+/.vercel-data
+/.vercel-config
+/.gcm-dpapi
 
 # typescript
 *.tsbuildinfo

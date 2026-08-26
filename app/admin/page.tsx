@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element -- Support attachments may use arbitrary signed storage URLs. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
@@ -449,6 +450,12 @@ export default function AdminPanel() {
     setActionMessage(winnerId ? 'Turniersieger und Preisverwaltung aktualisiert.' : 'Preisinformationen aktualisiert.'); await loadTournaments();
   };
 
+  const openTicketDetail = useCallback(async (ticketId: string) => {
+    if (openTicketId === ticketId) { setOpenTicketId(null); setTicketDetail(null); return; }
+    const { data } = await supabase.rpc('admin_get_ticket_detail', { p_ticket_id: ticketId });
+    if (data) { setTicketDetail(data as AdminTicketDetail); setOpenTicketId(ticketId); }
+  }, [openTicketId, supabase]);
+
   const assignTicket = useCallback(async (ticketId: string, assignedToId: string | null) => {
     const { error } = await supabase.rpc('admin_assign_ticket', {
       p_ticket_id: ticketId,
@@ -461,13 +468,7 @@ export default function AdminPanel() {
     setActionMessage('Ticket zugewiesen.');
     await loadTickets(ticketFilter, ticketAssignmentFilter === 'my' ? currentAdminId : null);
     if (openTicketId === ticketId) await openTicketDetail(ticketId);
-  }, [supabase, ticketFilter, ticketAssignmentFilter, currentAdminId, loadTickets, openTicketId]);
-
-  async function openTicketDetail(ticketId: string) {
-    if (openTicketId === ticketId) { setOpenTicketId(null); setTicketDetail(null); return; }
-    const { data } = await supabase.rpc('admin_get_ticket_detail', { p_ticket_id: ticketId });
-    if (data) { setTicketDetail(data as AdminTicketDetail); setOpenTicketId(ticketId); }
-  }
+  }, [supabase, ticketFilter, ticketAssignmentFilter, currentAdminId, loadTickets, openTicketId, openTicketDetail]);
 
   const sendTicketReply = async (ticketId: string) => {
     if (!ticketReply.trim()) return;
@@ -1139,7 +1140,6 @@ export default function AdminPanel() {
                                 rel="noopener noreferrer"
                                 className="block overflow-hidden rounded-xl border border-white/10 hover:border-amber-300/40 transition"
                               >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={match.dispute_screenshot_url}
                                   alt="Dispute Screenshot"

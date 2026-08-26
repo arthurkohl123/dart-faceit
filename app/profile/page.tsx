@@ -556,6 +556,9 @@ export default function Profile() {
             </Link>
           </div>
         )}
+        <div className="mt-6 text-center">
+          <Link href="/account" className="text-xs font-bold text-zinc-600 transition hover:text-zinc-300">Account verwalten & Daten exportieren</Link>
+        </div>
       </section>
     </main>
   );

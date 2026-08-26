@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element -- Ticket attachments use arbitrary signed storage URLs. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -7,16 +8,13 @@ import { useRouter } from 'next/navigation';
 import {
   Activity,
   AlertTriangle,
-  Ban,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   ClipboardList,
-  Clock,
   Gavel,
   Headphones,
   Loader2,
-  MessageCircle,
   RefreshCw,
   Send,
   Shield,
@@ -24,9 +22,7 @@ import {
   ShieldCheck,
   Swords,
   Timer,
-  Users,
   XCircle,
-  Zap,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -180,10 +176,6 @@ function timeAgo(iso: string) {
   const h = Math.floor(mins / 60);
   if (h < 24) return `vor ${h} Std.`;
   return `vor ${Math.floor(h / 24)} Tag(en)`;
-}
-
-function fmtDate(iso: string) {
-  return new Intl.DateTimeFormat('de-DE', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
 }
 
 // ─── Tab-Button ───────────────────────────────────────────────────────────────

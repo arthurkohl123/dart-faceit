@@ -6,6 +6,7 @@ export const RATE_LIMITS = {
   support: { limit: 8, windowSeconds: 10 * 60 },
   checkout: { limit: 3, windowSeconds: 15 * 60 },
   monitoring: { limit: 20, windowSeconds: 10 * 60 },
+  account: { limit: 5, windowSeconds: 60 * 60 },
 } as const;
 
 export type RateLimitScope = keyof typeof RATE_LIMITS;

@@ -8,6 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type StripeEvent = {
+  id: string;
   type: string;
   created?: number;
   data: {
@@ -26,6 +27,11 @@ type StripeEvent = {
 };
 
 const premiumStatuses = new Set(['active', 'trialing']);
+const subscriptionEvents = new Set([
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+]);
 
 function timestamp(value?: number | null) {
   return typeof value === 'number' ? new Date(value * 1000).toISOString() : null;
@@ -48,22 +54,52 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid Stripe signature.' }, { status: 400 });
   }
 
+  let event: StripeEvent | null = null;
+  let claimed = false;
+
   try {
-    const event = JSON.parse(payload) as StripeEvent;
+    event = JSON.parse(payload) as StripeEvent;
+    if (!event.id || !event.type || !event.data?.object) {
+      return NextResponse.json({ error: 'Invalid Stripe event payload.' }, { status: 400 });
+    }
+
+    const admin = createAdminClient();
+    const eventAt = timestamp(event.created) || new Date().toISOString();
+    const { data: claimResult, error: claimError } = await admin.rpc('claim_stripe_webhook_event', {
+      p_event_id: event.id,
+      p_event_type: event.type,
+      p_event_created_at: eventAt,
+    });
+    if (claimError) throw claimError;
+    claimed = Boolean(claimResult);
+    if (!claimed) return NextResponse.json({ received: true, ignored: 'duplicate_event' });
+
     const object = event.data.object;
-    const supabaseUserId = object.metadata?.supabaseUserId || object.client_reference_id;
+    let supabaseUserId = object.metadata?.supabaseUserId || object.client_reference_id || null;
+
+    if (!supabaseUserId && object.customer) {
+      const { data: customerProfile, error: customerError } = await admin
+        .from('profiles')
+        .select('supabaseId')
+        .eq('stripe_customer_id', object.customer)
+        .maybeSingle();
+      if (customerError) throw customerError;
+      supabaseUserId = customerProfile?.supabaseId ?? null;
+    }
 
     if (!supabaseUserId) {
+      await admin.rpc('finish_stripe_webhook_event', { p_event_id: event.id, p_success: true });
       return NextResponse.json({ received: true });
     }
 
     const isCheckout = event.type === 'checkout.session.completed';
-    const isSubscriptionEvent = event.type === 'customer.subscription.updated'
-      || event.type === 'customer.subscription.deleted';
+    const isSubscriptionEvent = subscriptionEvents.has(event.type);
 
-    if (!isCheckout && !isSubscriptionEvent) return NextResponse.json({ received: true });
+    if (!isCheckout && !isSubscriptionEvent) {
+      await admin.rpc('finish_stripe_webhook_event', { p_event_id: event.id, p_success: true });
+      return NextResponse.json({ received: true });
+    }
 
-    const admin = createAdminClient();
     const { data: profile, error: profileError } = await admin
       .from('profiles')
       .select('stripe_last_event_at, premium_manual_granted_at, premium_manual_until')
@@ -71,8 +107,8 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (profileError) throw profileError;
 
-    const eventAt = timestamp(event.created) || new Date().toISOString();
     if (profile?.stripe_last_event_at && new Date(profile.stripe_last_event_at).getTime() > new Date(eventAt).getTime()) {
+      await admin.rpc('finish_stripe_webhook_event', { p_event_id: event.id, p_success: true });
       return NextResponse.json({ received: true, ignored: 'stale_event' });
     }
 
@@ -99,6 +135,12 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
+    const { error: finishError } = await admin.rpc('finish_stripe_webhook_event', {
+      p_event_id: event.id,
+      p_success: true,
+    });
+    if (finishError) throw finishError;
+
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error('Stripe webhook error:', error);
@@ -110,6 +152,17 @@ export async function POST(request: Request) {
       fingerprint: 'stripe_webhook:processing_error',
       context: { endpoint: '/api/stripe/webhook' },
     });
+    if (event?.id && claimed) {
+      try {
+        await createAdminClient().rpc('finish_stripe_webhook_event', {
+          p_event_id: event.id,
+          p_success: false,
+          p_error: monitoringErrorMessage(error),
+        });
+      } catch {
+        // The original webhook failure remains the relevant response.
+      }
+    }
     return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 });
   }
 }

@@ -1,13 +1,13 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
-const PROTECTED_ROUTES = ['/matchmaking', '/result', '/history', '/profile', '/admin', '/developer'];
+const PROTECTED_ROUTES = ['/matchmaking', '/result', '/history', '/profile', '/account', '/admin', '/developer', '/auth/mfa'];
 const ADMIN_ROUTES = ['/admin'];
 const DEVELOPER_ROUTES = ['/developer'];
 const AUTH_ROUTES = ['/auth/login', '/auth/register'];
 // Stripe must be able to deliver subscription events while the public site is
 // in maintenance mode. The route verifies Stripe's signed payload itself.
-const MAINTENANCE_ALLOWED_ROUTES = ['/maintenance', '/auth/login', '/auth/register', '/auth/banned', '/api/stripe/webhook', '/api/health'];
+const MAINTENANCE_ALLOWED_ROUTES = ['/maintenance', '/auth/login', '/auth/register', '/auth/mfa', '/auth/banned', '/api/stripe/webhook', '/api/health'];
 
 type MiddlewareProfile = {
   is_banned: boolean | null;
@@ -15,7 +15,7 @@ type MiddlewareProfile = {
   is_developer: boolean | null;
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
   // URLs sind in Next.js case-sensitive. Viele Nutzer tippen die Seite mit
@@ -116,6 +116,17 @@ export async function middleware(request: NextRequest) {
     // Admins bekommen hier bewusst keinen automatischen Zugriff, außer sie sind zusätzlich is_developer.
     if (isDeveloperRoute && !profile?.is_developer) {
       return NextResponse.redirect(new URL('/', request.url));
+    }
+
+    if ((isAdminRoute || isDeveloperRoute) && pathname !== '/auth/mfa') {
+      const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (assurance?.currentLevel !== 'aal2') {
+        const mfaUrl = request.nextUrl.clone();
+        mfaUrl.pathname = '/auth/mfa';
+        mfaUrl.search = '';
+        mfaUrl.searchParams.set('redirectTo', pathname);
+        return NextResponse.redirect(mfaUrl);
+      }
     }
   }
 

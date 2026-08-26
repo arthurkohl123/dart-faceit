@@ -13,7 +13,6 @@ import {
   Flame,
   Menu,
   Minus,
-  Swords,
   TrendingDown,
   TrendingUp,
   Trophy,
@@ -90,30 +89,6 @@ function WinrateArc({ winrate }: { winrate: number }) {
         <div className="text-3xl font-black tracking-[-0.06em] text-emerald-300">{winrate}%</div>
         <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Winrate</div>
       </div>
-    </div>
-  );
-}
-
-// ─── Form-Streak ──────────────────────────────────────────────────────────────
-
-function FormStreak({ matches }: { matches: MatchEntry[] }) {
-  const last10 = matches.slice(0, 10);
-  return (
-    <div className="flex items-center gap-1.5">
-      {last10.map((m, i) => (
-        <div
-          key={i}
-          title={m.is_win ? `Sieg vs ${m.opponent_name}` : `Niederlage vs ${m.opponent_name}`}
-          className={`h-7 w-7 rounded-lg text-[10px] font-black flex items-center justify-center transition ${
-            m.is_win
-              ? 'bg-emerald-400/20 border border-emerald-300/30 text-emerald-300'
-              : 'bg-red-400/20 border border-red-400/30 text-red-300'
-          }`}
-        >
-          {m.is_win ? 'W' : 'L'}
-        </div>
-      ))}
-      {last10.length === 0 && <span className="text-xs text-zinc-600">Noch keine Matches</span>}
     </div>
   );
 }

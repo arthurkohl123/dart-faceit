@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { ArrowUpRight, BellRing, CheckCircle2, Rocket, Sparkles, Wrench } from 'lucide-react';
+import { ArrowUpRight, BellRing, CheckCircle2, Rocket, Sparkles } from 'lucide-react';
 
 type UpdateCategory = 'Feature' | 'System' | 'Experience' | 'Announcement';
 
@@ -146,7 +146,7 @@ export default function Updates() {
         <div className="relative">
           <div className="absolute bottom-8 left-6 top-8 hidden w-px bg-gradient-to-b from-emerald-300/60 via-white/10 to-transparent md:block" />
           <div className="space-y-5">
-            {timelineUpdates.map((update, index) => (
+            {timelineUpdates.map((update) => (
               <article
                 key={`${update.date}-${update.title}`}
                 className={`group relative overflow-hidden rounded-[2rem] border bg-black/35 p-6 shadow-xl shadow-black/25 backdrop-blur-xl transition hover:-translate-y-1 md:ml-14 md:p-8 ${update.highlight ? 'border-emerald-300/30' : 'border-white/10 hover:border-emerald-300/25'}`}

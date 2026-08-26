@@ -129,14 +129,14 @@ export default function VerifyPhone() {
     const userId = data.user?.id;
 
     if (userId) {
-      await supabase
-        .from('profiles')
-        .update({
-          phone_number: normalizedPhoneNumber,
-          phone_verified: true,
-          phone_verified_at: new Date().toISOString(),
-        })
-        .eq('supabaseId', userId);
+      const { error: profileError } = await supabase.rpc('complete_my_phone_verification', {
+        p_phone_number: normalizedPhoneNumber,
+      });
+      if (profileError) {
+        setErrorMessage(`Die Telefonnummer wurde bestätigt, aber das Profil konnte nicht aktualisiert werden: ${profileError.message}`);
+        setVerifying(false);
+        return;
+      }
     }
 
     setVerified(true);
