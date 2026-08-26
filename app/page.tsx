@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowUpRight, CalendarDays, Crosshair, Flame, Menu, Radar, ShieldCheck, Sparkles, Target, Trophy, X, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
+import { getRankRangeLabel, RANK_TIERS } from '@/lib/ranks';
 
 const features = [
   {
@@ -22,13 +23,6 @@ const features = [
     title: 'Fairness vor Elo.',
     text: 'Ergebnisse werden bestätigt. Bei Widerspruch kann ein Admin den Fall prüfen, korrigieren oder ohne Elo annullieren.',
   },
-];
-
-const ranks = [
-  { name: 'Bronze', range: '800 - 999', tone: 'from-orange-500/20 to-zinc-950' },
-  { name: 'Silver', range: '1000 - 1199', tone: 'from-slate-300/20 to-zinc-950' },
-  { name: 'Elite', range: '1200 - 1499', tone: 'from-emerald-400/20 to-zinc-950' },
-  { name: 'Legend', range: '1500+', tone: 'from-cyan-400/20 to-zinc-950' },
 ];
 
 const liveFeed = [
@@ -398,12 +392,13 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              {ranks.map((rank) => (
-                <div key={rank.name} className={`rounded-3xl border border-white/10 bg-gradient-to-br ${rank.tone} p-6`}>
-                  <div className="text-sm font-bold uppercase tracking-[0.24em] text-zinc-400">Division</div>
-                  <div className="mt-4 text-4xl font-black tracking-[-0.06em]">{rank.name}</div>
-                  <div className="mt-2 text-zinc-400">{rank.range} Elo</div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {RANK_TIERS.map((rank) => (
+                <div key={rank.level} className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br ${rank.accent} p-5 transition hover:-translate-y-1 hover:border-white/20 sm:p-6`}>
+                  <div className="absolute right-4 top-3 text-5xl font-black tracking-[-0.08em] text-white/[0.04]">{rank.badge}</div>
+                  <div className={`text-xs font-black uppercase tracking-[0.24em] ${rank.color}`}>Level {rank.level}</div>
+                  <div className="relative mt-3 text-3xl font-black tracking-[-0.06em] sm:text-4xl">{rank.name}</div>
+                  <div className="mt-2 text-sm font-medium text-zinc-400">{getRankRangeLabel(rank)} Elo</div>
                 </div>
               ))}
             </div>
