@@ -50,6 +50,11 @@ type Profile = {
   is_admin: boolean | null;
   is_moderator: boolean | null;
   phone_verified: boolean | null;
+  isPremium: boolean | null;
+  stripe_subscription_status: string | null;
+  premium_manual_granted_at: string | null;
+  premium_manual_until: string | null;
+  premium_manual_reason: string | null;
 };
 
 type DisputedMatch = {
@@ -253,6 +258,10 @@ export default function AdminPanel() {
   const [pendingDisputeCancelMatchId, setPendingDisputeCancelMatchId] = useState<string | null>(null);
   const [banReasonUserId, setBanReasonUserId] = useState<string | null>(null);
   const [banReasonInput, setBanReasonInput] = useState('');
+  const [premiumEditorUserId, setPremiumEditorUserId] = useState<string | null>(null);
+  const [premiumDuration, setPremiumDuration] = useState<'7' | '30' | '90' | 'unlimited'>('30');
+  const [premiumReason, setPremiumReason] = useState('');
+  const [premiumSavingUserId, setPremiumSavingUserId] = useState<string | null>(null);
 
   // Ticket-System State
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
@@ -608,6 +617,40 @@ export default function AdminPanel() {
     await loadProfiles();
   };
 
+  const updateManualPremium = async (user: Profile, active: boolean) => {
+    const reason = premiumReason.trim();
+    if (!reason) {
+      setActionMessage('Bitte trage für die Premium-Änderung eine interne Begründung ein.');
+      return;
+    }
+
+    const until = active && premiumDuration !== 'unlimited'
+      ? new Date(Date.now() + Number(premiumDuration) * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
+    setPremiumSavingUserId(user.id);
+    const { error } = await supabase.rpc('admin_set_manual_premium', {
+      p_profile_id: user.id,
+      p_active: active,
+      p_until: until,
+      p_reason: reason,
+    });
+    setPremiumSavingUserId(null);
+
+    if (error) {
+      setActionMessage(`Premium konnte nicht geändert werden: ${error.message}`);
+      return;
+    }
+
+    setPremiumEditorUserId(null);
+    setPremiumReason('');
+    setPremiumDuration('30');
+    setActionMessage(active
+      ? `Premium wurde für ${user.username || 'den Spieler'} aktiviert.`
+      : `Die manuelle Premium-Freigabe für ${user.username || 'den Spieler'} wurde beendet.`);
+    await Promise.all([loadProfiles(), loadAdminLogs()]);
+  };
+
   const updateResolveForm = (matchId: string, patch: Partial<ResolveFormState>) => {
     setResolveForms((current) => ({
       ...current,
@@ -681,6 +724,7 @@ export default function AdminPanel() {
 
   const adminCount = profiles.filter((profile) => profile.is_admin).length;
   const bannedCount = profiles.filter((profile) => profile.is_banned).length;
+  const premiumCount = profiles.filter((profile) => profile.isPremium).length;
   const activeCount = profiles.length - bannedCount;
   const ticketsInQueue = tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in_progress').length;
   const ticketsWaitingForUser = tickets.filter((ticket) => ticket.status === 'waiting_for_user').length;
@@ -1227,10 +1271,11 @@ export default function AdminPanel() {
                 <Users className="h-7 w-7 text-emerald-300" />
                 Spieler-Verwaltung
               </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Elo direkt korrigieren, Accounts bannen oder Admin-Rechte vergeben.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Elo korrigieren, Premium verwalten, Accounts sperren oder Rollen vergeben.</p>
             </div>
-            <div className="grid grid-cols-3 gap-3 text-center text-xs font-bold text-zinc-400">
+            <div className="grid grid-cols-2 gap-3 text-center text-xs font-bold text-zinc-400 sm:grid-cols-4">
               <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"><span className="block text-lg font-black text-emerald-200">{activeCount}</span>Aktiv</div>
+              <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3"><span className="block text-lg font-black text-amber-200">{premiumCount}</span>Premium</div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"><span className="block text-lg font-black text-amber-200">{adminCount}</span>Admins</div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"><span className="block text-lg font-black text-rose-200">{bannedCount}</span>Bans</div>
             </div>
@@ -1264,6 +1309,9 @@ export default function AdminPanel() {
                        ) : (
                         <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100"><Trophy className="h-3 w-3" />Aktiv</span>
                       )}
+                      {user.isPremium && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100"><Crown className="h-3 w-3" />{user.premium_manual_granted_at ? 'Premium · manuell' : 'Premium'}</span>
+                      )}
                       <button
                         onClick={() => toggleVerification(user)}
                         className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] transition ${
@@ -1277,6 +1325,9 @@ export default function AdminPanel() {
                       </button>
                     </div>
                     {user.ban_reason && <div className="mt-1 text-xs text-rose-200/80">Ban-Grund: {user.ban_reason}</div>}
+                    {user.premium_manual_granted_at && (
+                      <div className="mt-1 text-xs text-amber-200/80">Manuelle Freigabe: {user.premium_manual_until ? `bis ${formatDate(user.premium_manual_until)}` : 'unbegrenzt'}{user.premium_manual_reason ? ` · ${user.premium_manual_reason}` : ''}</div>
+                    )}
                     {banReasonUserId === user.id && !user.is_banned && (
                       <div className="mt-3 rounded-2xl border border-rose-300/20 bg-rose-400/10 p-3">
                         <label className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-100">Ban-Grund</label>
@@ -1291,6 +1342,26 @@ export default function AdminPanel() {
                           <button onClick={() => toggleBan(user)} className="rounded-xl bg-rose-400 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-black">Sperre bestätigen</button>
                           <button onClick={() => { setBanReasonUserId(null); setBanReasonInput(''); }} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs font-bold text-zinc-300 hover:bg-white/10">Abbrechen</button>
                         </div>
+                      </div>
+                    )}
+                    {premiumEditorUserId === user.id && (
+                      <div className="mt-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4">
+                        <div className="flex items-center gap-2"><Crown className="h-4 w-4 text-amber-200" /><span className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-100">Premium Control</span></div>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-[0.65fr_1.35fr]">
+                          <select value={premiumDuration} onChange={(event) => setPremiumDuration(event.target.value as typeof premiumDuration)} className={`${inputClassName} [color-scheme:dark]`}>
+                            <option className={selectOptionClassName} value="7">7 Tage</option>
+                            <option className={selectOptionClassName} value="30">30 Tage</option>
+                            <option className={selectOptionClassName} value="90">90 Tage</option>
+                            <option className={selectOptionClassName} value="unlimited">Unbegrenzt</option>
+                          </select>
+                          <input value={premiumReason} onChange={(event) => setPremiumReason(event.target.value)} className={inputClassName} placeholder="Interne Begründung, z. B. Community-Gewinnspiel" />
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button onClick={() => void updateManualPremium(user, true)} disabled={premiumSavingUserId === user.id} className="rounded-xl bg-amber-300 px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-black disabled:opacity-50">{premiumSavingUserId === user.id ? 'Speichert …' : user.premium_manual_granted_at ? 'Freigabe aktualisieren' : 'Premium vergeben'}</button>
+                          {user.premium_manual_granted_at && <button onClick={() => void updateManualPremium(user, false)} disabled={premiumSavingUserId === user.id} className="rounded-xl border border-rose-300/20 bg-rose-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-rose-100 disabled:opacity-50">Manuell entziehen</button>}
+                          <button onClick={() => { setPremiumEditorUserId(null); setPremiumReason(''); }} className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10">Abbrechen</button>
+                        </div>
+                        {user.stripe_subscription_status && <p className="mt-3 text-[11px] text-zinc-500">Stripe-Status: {user.stripe_subscription_status}. Eine manuelle Änderung beendet kein bezahltes Stripe-Abo.</p>}
                       </div>
                     )}
                   </div>
@@ -1313,7 +1384,13 @@ export default function AdminPanel() {
                   </div>
 
                   {/* Aktionen */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => { setPremiumEditorUserId(premiumEditorUserId === user.id ? null : user.id); setPremiumReason(user.premium_manual_reason || ''); }}
+                      className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-amber-100 transition hover:bg-amber-300/15"
+                    >
+                      {user.premium_manual_granted_at ? 'Premium verwalten' : 'Premium'}
+                    </button>
                     <button
                       onClick={() => toggleBan(user)}
                       className={`rounded-xl px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] transition ${user.is_banned ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15' : 'border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/15'}`}
