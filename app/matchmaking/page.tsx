@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useRouter } from 'next/navigation';
 import { getDailyMatchesUsed, getMaxEloDiff, hasReachedDailyMatchLimit, type DailyMatchQuota } from '@/lib/matchmaking-rules';
+import { reportClientError } from '@/lib/client-monitoring';
 
 type MatchmakingStatus = 'idle' | 'selecting' | 'searching' | 'accepting' | 'found' | 'error';
 type AppChoice = 'scolia' | 'dartcounter';
@@ -269,6 +270,7 @@ export default function Matchmaking() {
         setStatus('error');
       } else {
         console.error('accept_match fehlgeschlagen:', err);
+        reportClientError('matchmaking_accept_error', message, { phase: 'accept' });
         setErrorMessage('Das Match konnte nicht gestartet werden. Bitte versuche es erneut.');
         setStatus('error');
       }
@@ -287,6 +289,7 @@ export default function Matchmaking() {
       if (error) throw error;
     } catch (err) {
       console.error('decline_match fehlgeschlagen:', err);
+      reportClientError('matchmaking_decline_error', err instanceof Error ? err.message : String(err), { phase: 'decline' });
     } finally {
       if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
       setAcceptMatchId(null);
@@ -448,6 +451,7 @@ export default function Matchmaking() {
           setErrorMessage('');
         } else {
           setErrorMessage(msg);
+          reportClientError('matchmaking_queue_error', msg, { phase: 'poll', app });
         }
         setStatus('error');
       }
@@ -514,6 +518,7 @@ export default function Matchmaking() {
       await supabase.rpc('cancel_matchmaking');
     } catch (error) {
       console.error('Matchmaking-Abbruch fehlgeschlagen:', error);
+      reportClientError('matchmaking_cancel_error', error instanceof Error ? error.message : String(error), { phase: 'cancel' });
     } finally {
       setStatus('idle');
       setSelectedApp(null);
@@ -908,6 +913,7 @@ export default function Matchmaking() {
         await supabase.rpc('queue_heartbeat');
       } catch (err) {
         console.error('Heartbeat fehlgeschlagen:', err);
+        reportClientError('matchmaking_heartbeat_error', err instanceof Error ? err.message : String(err), { phase: 'heartbeat' });
       }
     };
 
