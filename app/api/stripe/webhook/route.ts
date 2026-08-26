@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { verifyStripeSignature } from '@/lib/stripe-webhook';
+import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,14 @@ export async function POST(request: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!signature || !webhookSecret || !verifyStripeSignature(payload, signature, webhookSecret)) {
+    await recordMonitoringEvent({
+      source: 'stripe_webhook',
+      eventType: 'invalid_signature',
+      severity: 'warning',
+      message: 'Ein Stripe-Webhook wurde wegen einer ungültigen Signatur abgewiesen.',
+      fingerprint: 'stripe_webhook:invalid_signature',
+      context: { secretConfigured: Boolean(webhookSecret) },
+    });
     return NextResponse.json({ error: 'Invalid Stripe signature.' }, { status: 400 });
   }
 
@@ -93,6 +102,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error('Stripe webhook error:', error);
+    await recordMonitoringEvent({
+      source: 'stripe_webhook',
+      eventType: 'processing_error',
+      severity: 'critical',
+      message: monitoringErrorMessage(error),
+      fingerprint: 'stripe_webhook:processing_error',
+      context: { endpoint: '/api/stripe/webhook' },
+    });
     return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 });
   }
 }
