@@ -239,8 +239,10 @@ export default function MatchResult() {
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   const iAmPlayer1 = match ? currentUserId === match.player1_id : false;
+  const iAmParticipant = match
+    ? currentUserId === match.player1_id || currentUserId === match.player2_id
+    : false;
   const opponentUsername = match ? (iAmPlayer1 ? match.player2_username : match.player1_username) : '';
-  const opponentElo = match ? (iAmPlayer1 ? match.player2_elo : match.player1_elo) : 0;
   const isSubmitter = Boolean(match?.submitted_by && match.submitted_by === currentUserId);
   const needsMyConfirmation = Boolean(
     match?.status === 'awaiting_confirmation' &&
@@ -1036,19 +1038,22 @@ export default function MatchResult() {
         {/* Match-Header — VS-Banner */}
         {match && (() => {
           const isScolia = match.app === 'scolia';
-          const myPlatformUsername = iAmPlayer1
+          const primaryIsPlayer1 = iAmParticipant ? iAmPlayer1 : true;
+          const myPlatformUsername = primaryIsPlayer1
             ? (isScolia ? match.player1_scolia_username : match.player1_dartcounter_username)
             : (isScolia ? match.player2_scolia_username : match.player2_dartcounter_username);
-          const oppPlatformUsername = iAmPlayer1
+          const oppPlatformUsername = primaryIsPlayer1
             ? (isScolia ? match.player2_scolia_username : match.player2_dartcounter_username)
             : (isScolia ? match.player1_scolia_username : match.player1_dartcounter_username);
           const platformLabel = isScolia ? 'Scolia' : 'DartCounter';
           const platformColor = isScolia ? 'text-emerald-300' : 'text-cyan-300';
           const platformBorder = isScolia ? 'border-emerald-300/20 bg-emerald-400/[0.06]' : 'border-cyan-300/20 bg-cyan-400/[0.06]';
-          const myName = iAmPlayer1 ? match.player1_username : match.player2_username;
-          const myElo = iAmPlayer1 ? match.player1_elo : match.player2_elo;
-          const myAvg = iAmPlayer1 ? player1AvgAverage : player2AvgAverage;
-          const oppAvg = iAmPlayer1 ? player2AvgAverage : player1AvgAverage;
+          const myName = primaryIsPlayer1 ? match.player1_username : match.player2_username;
+          const myElo = primaryIsPlayer1 ? match.player1_elo : match.player2_elo;
+          const displayedOpponentName = primaryIsPlayer1 ? match.player2_username : match.player1_username;
+          const displayedOpponentElo = primaryIsPlayer1 ? match.player2_elo : match.player1_elo;
+          const myAvg = primaryIsPlayer1 ? player1AvgAverage : player2AvgAverage;
+          const oppAvg = primaryIsPlayer1 ? player2AvgAverage : player1AvgAverage;
           const statusLabel = match.status === 'pending_result'
             ? 'Ergebnis offen'
             : match.status === 'awaiting_confirmation'
@@ -1077,7 +1082,7 @@ export default function MatchResult() {
                   <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-400/10 text-lg font-black text-emerald-200 shadow-[0_0_28px_rgba(52,211,153,0.12)] sm:h-14 sm:w-14 sm:text-xl">
                     {myName.slice(0, 1).toUpperCase()}
                   </div>
-                  <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-emerald-300/70 sm:text-[10px]">Du</span>
+                  <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-emerald-300/70 sm:text-[10px]">{iAmParticipant ? 'Du' : 'Spieler 1'}</span>
                   <span className="mt-1 w-full truncate text-lg font-black tracking-[-0.04em] sm:text-2xl" title={myName}>{myName}</span>
                   <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 text-[11px] font-bold text-zinc-500 sm:text-xs">
                     <span>{myElo} Elo</span>
@@ -1099,12 +1104,12 @@ export default function MatchResult() {
 
                 <div className="flex min-w-0 flex-col items-center justify-center px-2 py-5 text-center sm:px-6 sm:py-8">
                   <div className="grid h-11 w-11 place-items-center rounded-2xl border border-cyan-300/25 bg-cyan-400/10 text-lg font-black text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.1)] sm:h-14 sm:w-14 sm:text-xl">
-                    {opponentUsername.slice(0, 1).toUpperCase()}
+                    {displayedOpponentName.slice(0, 1).toUpperCase()}
                   </div>
-                  <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-cyan-300/70 sm:text-[10px]">Gegner</span>
-                  <span className="mt-1 w-full truncate text-lg font-black tracking-[-0.04em] sm:text-2xl" title={opponentUsername}>{opponentUsername}</span>
+                  <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-cyan-300/70 sm:text-[10px]">{iAmParticipant ? 'Gegner' : 'Spieler 2'}</span>
+                  <span className="mt-1 w-full truncate text-lg font-black tracking-[-0.04em] sm:text-2xl" title={displayedOpponentName}>{displayedOpponentName}</span>
                   <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 text-[11px] font-bold text-zinc-500 sm:text-xs">
-                    <span>{opponentElo} Elo</span>
+                    <span>{displayedOpponentElo} Elo</span>
                     {oppAvg !== null && <span>Ø <b className="text-cyan-300">{oppAvg.toFixed(1)}</b></span>}
                   </div>
                   {oppPlatformUsername ? (
