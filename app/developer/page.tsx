@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Clock, Database, Pencil, Power, RadioTower, RefreshCcw, Save, Search, Shield, SlidersHorizontal, Swords, Trophy, Wrench, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
@@ -110,6 +110,7 @@ export default function DeveloperDashboard() {
   const [matchmakingEnabled, setMatchmakingEnabled] = useState(true);
   const [matchmakingMessage, setMatchmakingMessage] = useState('Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
   const [developerNotice, setDeveloperNotice] = useState('');
+  const maintenanceDirtyRef = useRef(false);
 
   // Match-Editor
   const [matches, setMatches] = useState<DevMatch[]>([]);
@@ -163,8 +164,12 @@ export default function DeveloperDashboard() {
     const notice = getObjectSetting<DeveloperNoticeSetting>(settings, 'developer_notice');
 
     setStats(payload?.stats ?? {});
-    setMaintenanceEnabled(Boolean(maintenance.enabled));
-    setMaintenanceMessage(maintenance.message ?? 'RankedDarts wird gerade aktualisiert. Bitte versuche es gleich erneut.');
+    // Do not overwrite an unsaved maintenance draft during the 30-second
+    // background refresh. This previously made the toggle jump back to "Aktiv".
+    if (!maintenanceDirtyRef.current) {
+      setMaintenanceEnabled(Boolean(maintenance.enabled));
+      setMaintenanceMessage(maintenance.message ?? 'RankedDarts wird gerade aktualisiert. Bitte versuche es gleich erneut.');
+    }
     setNoShowBanMinutes(Number(banMinutes.minutes ?? 15));
     setSmsVerificationEnabled(smsVerification.enabled !== false);
     setMatchmakingEnabled(matchmakingQueue.enabled !== false);
@@ -239,6 +244,26 @@ export default function DeveloperDashboard() {
     showSuccess(matchmakingEnabled
       ? 'Matchmaking-Queue ist wieder geöffnet.'
       : `Matchmaking-Queue pausiert. ${cleared} wartende Einträge wurden entfernt.`);
+    void loadDashboard();
+  };
+
+  const saveMaintenanceSetting = async () => {
+    setSaving('maintenance_mode');
+    setError('');
+
+    const { error: rpcError } = await supabase.rpc('dev_update_setting', {
+      p_key: 'maintenance_mode',
+      p_value: { enabled: maintenanceEnabled, message: maintenanceMessage },
+    });
+
+    setSaving(null);
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+
+    maintenanceDirtyRef.current = false;
+    showSuccess(maintenanceEnabled ? 'Wartungsmodus aktiviert.' : 'Wartungsmodus deaktiviert.');
     void loadDashboard();
   };
 
@@ -493,7 +518,10 @@ export default function DeveloperDashboard() {
               </div>
               <button
                 type="button"
-                onClick={() => setMaintenanceEnabled((value) => !value)}
+                onClick={() => {
+                  maintenanceDirtyRef.current = true;
+                  setMaintenanceEnabled((value) => !value);
+                }}
                 className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${maintenanceEnabled ? 'border border-amber-300/30 bg-amber-400/15 text-amber-100' : 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-100'}`}
               >
                 {maintenanceEnabled ? 'Aktiv' : 'Aus'}
@@ -503,7 +531,10 @@ export default function DeveloperDashboard() {
             <label className="mt-6 block text-xs font-black uppercase tracking-[0.16em] text-zinc-500">Wartungstext</label>
             <textarea
               value={maintenanceMessage}
-              onChange={(event) => setMaintenanceMessage(event.target.value)}
+              onChange={(event) => {
+                maintenanceDirtyRef.current = true;
+                setMaintenanceMessage(event.target.value);
+              }}
               rows={4}
               className="mt-3 w-full rounded-3xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-amber-300/40"
             />
@@ -511,7 +542,7 @@ export default function DeveloperDashboard() {
             <button
               type="button"
               disabled={saving === 'maintenance_mode'}
-              onClick={() => void updateSetting('maintenance_mode', { enabled: maintenanceEnabled, message: maintenanceMessage }, maintenanceEnabled ? 'Wartungsmodus aktiviert.' : 'Wartungsmodus deaktiviert.')}
+              onClick={() => void saveMaintenanceSetting()}
               className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-5 py-3 text-sm font-black text-amber-100 transition hover:bg-amber-400/15 disabled:opacity-50"
             >
               <Save className="h-4 w-4" /> {saving === 'maintenance_mode' ? 'Speichert…' : 'Wartungsmodus speichern'}
