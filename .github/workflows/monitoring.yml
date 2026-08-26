@@ -1,0 +1,21 @@
+name: Production monitoring
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check RankedDarts production health
+        run: |
+          curl --fail --silent --show-error \
+            --retry 2 --retry-delay 5 --max-time 15 \
+            https://www.rankeddarts.de/api/health
+
