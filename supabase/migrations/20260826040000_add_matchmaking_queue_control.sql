@@ -49,7 +49,7 @@ begin
   if not exists (
     select 1
     from public.profiles
-    where "supabaseId" = auth.uid()
+    where "supabaseId" = auth.uid()::text
       and is_developer = true
   ) then
     raise exception 'DEVELOPER_REQUIRED';
@@ -113,4 +113,3 @@ drop trigger if exists matchmaking_queue_enabled_guard on public.matchmaking_que
 create trigger matchmaking_queue_enabled_guard
 before insert on public.matchmaking_queue
 for each row execute function public.enforce_matchmaking_queue_enabled();
-
