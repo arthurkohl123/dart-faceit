@@ -5,19 +5,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { AdminBadge } from '@/components/AdminBadge';
+import { getRankProgress } from '@/lib/ranks';
 import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
 import { ArrowUpRight, CheckCircle2, Crosshair, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, X, XCircle, Zap } from 'lucide-react';
-
-const rankTiers = [
-  { name: 'Eisen',   min: 0,    color: 'text-zinc-300',    accent: 'from-zinc-400/20 to-zinc-950',    ringColor: 'border-zinc-400/40',   glowColor: 'rgba(161,161,170,0.18)' },
-  { name: 'Bronze',  min: 1000, color: 'text-amber-300',   accent: 'from-amber-500/20 to-zinc-950',   ringColor: 'border-amber-400/40',  glowColor: 'rgba(251,191,36,0.18)' },
-  { name: 'Silber',  min: 1250, color: 'text-slate-200',   accent: 'from-slate-300/20 to-zinc-950',   ringColor: 'border-slate-300/40',  glowColor: 'rgba(203,213,225,0.18)' },
-  { name: 'Gold',    min: 1500, color: 'text-yellow-200',  accent: 'from-yellow-300/20 to-zinc-950',  ringColor: 'border-yellow-300/40', glowColor: 'rgba(253,224,71,0.18)' },
-  { name: 'Platin',  min: 1750, color: 'text-cyan-200',    accent: 'from-cyan-300/20 to-zinc-950',    ringColor: 'border-cyan-300/40',   glowColor: 'rgba(103,232,249,0.18)' },
-  { name: 'Diamant', min: 2000, color: 'text-blue-200',    accent: 'from-blue-300/20 to-zinc-950',    ringColor: 'border-blue-300/40',   glowColor: 'rgba(147,197,253,0.18)' },
-  { name: 'Legende', min: 2500, color: 'text-emerald-200', accent: 'from-emerald-300/25 to-zinc-950', ringColor: 'border-emerald-300/40',glowColor: 'rgba(110,231,183,0.22)' },
-];
 
 type MatchData = {
   id: string | number;
@@ -125,12 +116,8 @@ export default function Profile() {
   const wins = profile?.wins ?? 0;
   const losses = Math.max(gamesPlayed - wins, 0);
   const winrate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
-  const currentRankIndex = rankTiers.reduce((current, rank, index) => (elo >= rank.min ? index : current), 0);
-  const currentRank = rankTiers[currentRankIndex];
-  const nextRank = rankTiers[currentRankIndex + 1] || currentRank;
-  const eloToNext = Math.max(nextRank.min - elo, 0);
-  const rankRange = nextRank.min - currentRank.min;
-  const progress = nextRank === currentRank ? 100 : Math.min(Math.max(((elo - currentRank.min) / rankRange) * 100, 0), 100);
+  const { current: currentRank, upcoming, eloToNext, progress } = getRankProgress(elo);
+  const nextRank = upcoming ?? currentRank;
   const phoneVerified = Boolean(profile?.phone_verified);
   const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
   const hasPlatform = Boolean(profile?.scolia_username || profile?.dartcounter_username);
@@ -247,7 +234,7 @@ export default function Profile() {
                   {profile?.username || 'Spieler'}
                 </h1>
                 <span className={`rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.2em] ${currentRank.ringColor} bg-black/30 ${currentRank.color}`}>
-                  {currentRank.name}
+                  Level {currentRank.level} · {currentRank.name}
                 </span>
                 {profile?.isPremium && (
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/35 bg-emerald-300/15 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-emerald-100 shadow-[0_0_22px_rgba(74,222,128,0.18)]">
@@ -277,7 +264,7 @@ export default function Profile() {
                   <span className={`h-1.5 w-1.5 rounded-full ${queueReady ? 'bg-emerald-300 animate-pulse' : 'bg-amber-300'}`} />
                   {queueReady ? 'Queue bereit' : 'Profil vervollständigen'}
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-bold text-zinc-300"><Trophy className="h-3.5 w-3.5 text-yellow-200" /> {currentRank.name} Division</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-bold text-zinc-300"><Trophy className="h-3.5 w-3.5 text-yellow-200" /> Level {currentRank.level} · {currentRank.name}</span>
               </div>
             </div>
 
@@ -355,7 +342,7 @@ export default function Profile() {
           <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-8">
             <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Nächster Rang</div>
             <div className="mt-2 flex items-baseline justify-between gap-4">
-              <h2 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">Fortschritt zu <span className={nextRank.color}>{nextRank.name}</span></h2>
+              <h2 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">{upcoming ? <>Fortschritt zu <span className={nextRank.color}>{nextRank.name}</span></> : <span className={currentRank.color}>Maximaler Rang erreicht</span>}</h2>
               <span className="text-2xl font-black text-emerald-300">{Math.round(progress)}%</span>
             </div>
 
