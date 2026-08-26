@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { BrandLogo } from '@/components/BrandLogo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,7 +109,7 @@ function StatInput({
   required?: boolean;
 }) {
   return (
-    <label className="group block rounded-2xl border border-white/10 bg-black/25 p-3 transition focus-within:border-emerald-300/50 focus-within:bg-white/[0.06]">
+    <label className="group block rounded-2xl border border-white/10 bg-black/30 p-3 transition duration-300 focus-within:-translate-y-0.5 focus-within:border-emerald-300/50 focus-within:bg-white/[0.06]">
       <span className="mb-2 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500 transition group-focus-within:text-emerald-300">
         <span>{label}</span>
         {required && <span className="text-emerald-300"></span>}
@@ -121,7 +122,7 @@ function StatInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-14 w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 text-center text-2xl font-black tracking-[-0.04em] text-white outline-none transition placeholder:text-zinc-600 focus:border-transparent focus:bg-black/20 sm:h-16"
+        className="h-14 w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 text-center text-2xl font-black tabular-nums tracking-[-0.04em] text-white outline-none transition placeholder:text-zinc-700 focus:border-transparent focus:bg-black/30 sm:h-16"
       />
     </label>
   );
@@ -139,28 +140,29 @@ function LegCounter({
   accent: string;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-3">
-      <span className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">{label}</span>
-      {/* + Button */}
-      <button
-        type="button"
-        onClick={() => onChange(value + 1)}
-        className="grid h-16 w-full max-w-[10rem] place-items-center rounded-2xl border border-white/10 text-4xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95 sm:h-14 sm:max-w-[8rem]"
-      >
-        +
-      </button>
-      {/* Zahl */}
-      <span className={`text-7xl font-black leading-none tracking-[-0.1em] sm:text-8xl ${accent}`}>
-        {value}
-      </span>
-      {/* − Button */}
-      <button
-        type="button"
-        onClick={() => onChange(Math.max(0, value - 1))}
-        className="grid h-16 w-full max-w-[10rem] place-items-center rounded-2xl border border-white/10 text-4xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95 sm:h-14 sm:max-w-[8rem]"
-      >
-        −
-      </button>
+    <div className="min-w-0 flex-1 rounded-[1.5rem] border border-white/10 bg-black/30 p-3 sm:p-4">
+      <span className="block truncate text-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 sm:text-[11px]">{label}</span>
+      <div className="mt-3 grid grid-cols-[3.25rem_minmax(0,1fr)_3.25rem] items-center gap-2 sm:grid-cols-[3.5rem_minmax(0,1fr)_3.5rem]">
+        <button
+          type="button"
+          aria-label={`${label} verringern`}
+          onClick={() => onChange(Math.max(0, value - 1))}
+          className="grid h-14 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-3xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95"
+        >
+          −
+        </button>
+        <span className={`text-center text-6xl font-black leading-none tabular-nums tracking-[-0.1em] sm:text-7xl ${accent}`}>
+          {value}
+        </span>
+        <button
+          type="button"
+          aria-label={`${label} erhöhen`}
+          onClick={() => onChange(value + 1)}
+          className="grid h-14 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-3xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95"
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }
@@ -229,6 +231,8 @@ export default function MatchResult() {
 
   useEffect(() => {
     const bestOf = Number(new URLSearchParams(window.location.search).get('bestOf'));
+    // Query-Parameter ist erst im Browser verfügbar; einmalige Hydrierung des Matchformats.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if ([3, 5, 7, 9].includes(bestOf)) setBestOfLegs(bestOf);
   }, []);
 
@@ -823,9 +827,15 @@ export default function MatchResult() {
 
   if (pageLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-10 py-8 text-lg font-bold text-emerald-200 backdrop-blur-xl">
-          Match wird geladen…
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050607] px-5 text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(52,211,153,0.18),transparent_38%)]" />
+        <div className="relative flex flex-col items-center text-center">
+          <div className="relative grid h-20 w-20 place-items-center rounded-[1.75rem] border border-emerald-300/25 bg-emerald-400/10 shadow-[0_0_60px_rgba(52,211,153,0.2)]">
+            <Target className="h-9 w-9 animate-pulse text-emerald-200" />
+            <span className="absolute -inset-2 animate-ping rounded-[2rem] border border-emerald-300/10" />
+          </div>
+          <p className="mt-6 text-[10px] font-black uppercase tracking-[0.35em] text-emerald-300">Live Matchroom</p>
+          <p className="mt-2 text-xl font-black tracking-[-0.04em]">Match wird geladen…</p>
         </div>
       </main>
     );
@@ -835,13 +845,15 @@ export default function MatchResult() {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050607] p-6 text-white">
         <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.2),transparent_34%)]" />
-        <div className="relative max-w-xl rounded-[2rem] border border-red-400/25 bg-zinc-950/90 p-10 text-center shadow-2xl backdrop-blur-2xl">
-          <XCircle className="mx-auto h-14 w-14 text-red-300" />
-          <h1 className="mt-5 text-4xl font-black tracking-[-0.05em]">Kein gültiges Match</h1>
+        <div className="relative w-full max-w-xl rounded-[1.75rem] border border-red-400/25 bg-zinc-950/90 p-6 text-center shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem] sm:p-10">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-red-400/20 bg-red-500/10 sm:h-20 sm:w-20">
+            <XCircle className="h-8 w-8 text-red-300 sm:h-10 sm:w-10" />
+          </div>
+          <h1 className="mt-5 text-3xl font-black tracking-[-0.05em] sm:text-4xl">Kein gültiges Match</h1>
           <p className="mt-4 text-zinc-300">{errorMessage}</p>
           <button
             onClick={() => router.push('/matchmaking')}
-            className="mt-8 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black"
+            className="mt-8 min-h-14 w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.14em] text-black shadow-[0_14px_50px_rgba(52,211,153,0.18)] sm:w-auto"
           >
             Zum Matchmaking
           </button>
@@ -853,20 +865,20 @@ export default function MatchResult() {
   // ── Main render ───────────────────────────────────────────────────────────────
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white selection:bg-emerald-300 selection:text-black">
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(34,197,94,0.22),transparent_32%),radial-gradient(circle_at_85%_8%,rgba(6,182,212,0.12),transparent_28%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_72%)]" />
-        <div className="absolute inset-0 opacity-[0.07] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_4%,rgba(52,211,153,0.24),transparent_29%),radial-gradient(circle_at_88%_8%,rgba(34,211,238,0.14),transparent_28%),radial-gradient(circle_at_50%_55%,rgba(132,204,22,0.06),transparent_38%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_76%)]" />
+        <div className="absolute inset-0 opacity-[0.055] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_82%)]" />
+        <div className="absolute left-1/2 top-20 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full border border-emerald-300/[0.05] sm:h-[44rem] sm:w-[44rem]" />
+        <div className="absolute left-1/2 top-44 h-[18rem] w-[18rem] -translate-x-1/2 rounded-full border border-white/[0.04] sm:h-[30rem] sm:w-[30rem]" />
       </div>
 
       {/* Navbar */}
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 md:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 font-black text-black shadow-[0_0_28px_rgba(34,197,94,0.3)]">
-              R
-            </div>
+            <BrandLogo className="h-10 w-10" />
             <div className="hidden sm:block">
               <div className="text-base font-black tracking-[-0.04em]">RANKEDDARTS</div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/70">
@@ -901,7 +913,27 @@ export default function MatchResult() {
         )}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-2xl px-4 pb-12 pt-24 sm:px-5 md:px-8 md:pt-28">
+      <section className="relative z-10 mx-auto max-w-7xl px-3 pb-12 pt-20 sm:px-6 sm:pt-24 lg:px-8 lg:pb-20 lg:pt-28">
+
+        {/* Arena intro */}
+        <div className="mb-4 flex flex-col gap-3 px-1 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.9)]" />
+              Live Matchroom
+            </div>
+            <h1 className="mt-2 text-3xl font-black tracking-[-0.065em] sm:text-4xl lg:text-5xl">
+              Result <span className="text-zinc-600">Center</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-600 sm:justify-end sm:overflow-visible sm:pb-0">
+            <span className="whitespace-nowrap text-emerald-300">01 · Match</span>
+            <span>›</span>
+            <span className={`whitespace-nowrap ${match?.status === 'pending_result' ? 'text-white' : 'text-emerald-300'}`}>02 · Ergebnis</span>
+            <span>›</span>
+            <span className={`whitespace-nowrap ${match?.status === 'completed' ? 'text-emerald-300' : 'text-zinc-600'}`}>03 · Wertung</span>
+          </div>
+        </div>
 
         {/* ════════════════════════════════════════════════════════════
             NO-SHOW BANNER
@@ -920,12 +952,12 @@ export default function MatchResult() {
               </div>
             ) : noShowReportedAt ? (
               /* Timer läuft bereits */
-              <div className={`flex items-center gap-4 rounded-3xl border p-5 transition-colors ${
+              <div className={`flex flex-col items-stretch gap-4 rounded-[1.5rem] border p-4 transition-colors sm:flex-row sm:items-center sm:rounded-3xl sm:p-5 ${
                 (noShowCountdown ?? 999) <= 60
                   ? 'border-red-400/40 bg-red-500/10'
                   : 'border-orange-400/25 bg-orange-400/[0.07]'
               }`}>
-                <UserX className={`h-6 w-6 shrink-0 ${
+                <UserX className={`hidden h-6 w-6 shrink-0 sm:block ${
                   (noShowCountdown ?? 999) <= 60 ? 'text-red-300' : 'text-orange-300'
                 }`} />
                 <div className="flex-1">
@@ -971,7 +1003,7 @@ export default function MatchResult() {
                   )}
                 </div>
                 {noShowCountdown !== null && (
-                  <div className={`shrink-0 rounded-2xl border px-4 py-2 text-center ${
+                  <div className={`shrink-0 rounded-2xl border px-4 py-2 text-center sm:min-w-28 ${
                     (noShowCountdown ?? 999) <= 60
                       ? 'border-red-400/30 bg-red-500/10'
                       : 'border-orange-400/20 bg-orange-400/[0.07]'
@@ -1013,74 +1045,111 @@ export default function MatchResult() {
           const platformLabel = isScolia ? 'Scolia' : 'DartCounter';
           const platformColor = isScolia ? 'text-emerald-300' : 'text-cyan-300';
           const platformBorder = isScolia ? 'border-emerald-300/20 bg-emerald-400/[0.06]' : 'border-cyan-300/20 bg-cyan-400/[0.06]';
+          const myName = iAmPlayer1 ? match.player1_username : match.player2_username;
+          const myElo = iAmPlayer1 ? match.player1_elo : match.player2_elo;
+          const myAvg = iAmPlayer1 ? player1AvgAverage : player2AvgAverage;
+          const oppAvg = iAmPlayer1 ? player2AvgAverage : player1AvgAverage;
+          const statusLabel = match.status === 'pending_result'
+            ? 'Ergebnis offen'
+            : match.status === 'awaiting_confirmation'
+              ? 'Bestätigung offen'
+              : match.status === 'completed'
+                ? 'Abgeschlossen'
+                : match.status === 'disputed'
+                  ? 'In Prüfung'
+                  : 'Abgebrochen';
 
           return (
-            <div className="mb-8 overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/80 backdrop-blur-xl">
-              <div className="flex items-stretch">
-                <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 py-6">
-                  <span className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300/70">Du</span>
-                  <span className="text-2xl font-black tracking-[-0.04em]">
-                    {iAmPlayer1 ? match.player1_username : match.player2_username}
-                  </span>
-                  <span className="text-sm font-bold text-zinc-500">
-                    {iAmPlayer1 ? match.player1_elo : match.player2_elo} Elo
-                  </span>
-                  {(() => {
-                    const myAvg = iAmPlayer1 ? player1AvgAverage : player2AvgAverage;
-                    return myAvg !== null ? (
-                      <span className="mt-0.5 text-xs font-bold text-zinc-500">
-                        Ø <span className="text-emerald-300">{myAvg.toFixed(1)}</span>
-                      </span>
-                    ) : null;
-                  })()}
+            <div className="relative mb-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:mb-8 sm:rounded-[2.5rem]">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/70 to-transparent" />
+              <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.025] px-4 py-3 sm:px-6">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]" />
+                  Ranked Match
+                </div>
+                <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-300">
+                  {statusLabel}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-[minmax(0,1fr)_3.75rem_minmax(0,1fr)] items-stretch sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)]">
+                <div className="flex min-w-0 flex-col items-center justify-center px-2 py-5 text-center sm:px-6 sm:py-8">
+                  <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-400/10 text-lg font-black text-emerald-200 shadow-[0_0_28px_rgba(52,211,153,0.12)] sm:h-14 sm:w-14 sm:text-xl">
+                    {myName.slice(0, 1).toUpperCase()}
+                  </div>
+                  <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-emerald-300/70 sm:text-[10px]">Du</span>
+                  <span className="mt-1 w-full truncate text-lg font-black tracking-[-0.04em] sm:text-2xl" title={myName}>{myName}</span>
+                  <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 text-[11px] font-bold text-zinc-500 sm:text-xs">
+                    <span>{myElo} Elo</span>
+                    {myAvg !== null && <span>Ø <b className="text-emerald-300">{myAvg.toFixed(1)}</b></span>}
+                  </div>
                   {myPlatformUsername && (
-                    <span className={`mt-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${platformBorder} ${platformColor}`}>
-                      {platformLabel}: {myPlatformUsername}
+                    <span className={`mt-3 max-w-full truncate rounded-full border px-2 py-1 text-[9px] font-bold sm:px-3 sm:text-[10px] ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${myPlatformUsername}`}>
+                      {myPlatformUsername}
                     </span>
                   )}
                 </div>
-                <div className="flex flex-col items-center justify-center border-x border-white/10 px-6">
-                  <Target className="h-6 w-6 text-zinc-600" />
-                  <span className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-zinc-600">vs</span>
+
+                <div className="relative flex flex-col items-center justify-center border-x border-white/[0.07] bg-black/20">
+                  <div className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-zinc-950 shadow-[0_0_35px_rgba(255,255,255,0.06)] sm:h-14 sm:w-14">
+                    <Target className="h-5 w-5 text-emerald-300 sm:h-7 sm:w-7" />
+                  </div>
+                  <span className="mt-2 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">vs</span>
                 </div>
-                <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 py-6">
-                  <span className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-300/70">Gegner</span>
-                  <span className="text-2xl font-black tracking-[-0.04em]">{opponentUsername}</span>
-                  <span className="text-sm font-bold text-zinc-500">{opponentElo} Elo</span>
-                  {(() => {
-                    const oppAvg = iAmPlayer1 ? player2AvgAverage : player1AvgAverage;
-                    return oppAvg !== null ? (
-                      <span className="mt-0.5 text-xs font-bold text-zinc-500">
-                        Ø <span className="text-cyan-300">{oppAvg.toFixed(1)}</span>
-                      </span>
-                    ) : null;
-                  })()}
+
+                <div className="flex min-w-0 flex-col items-center justify-center px-2 py-5 text-center sm:px-6 sm:py-8">
+                  <div className="grid h-11 w-11 place-items-center rounded-2xl border border-cyan-300/25 bg-cyan-400/10 text-lg font-black text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.1)] sm:h-14 sm:w-14 sm:text-xl">
+                    {opponentUsername.slice(0, 1).toUpperCase()}
+                  </div>
+                  <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-cyan-300/70 sm:text-[10px]">Gegner</span>
+                  <span className="mt-1 w-full truncate text-lg font-black tracking-[-0.04em] sm:text-2xl" title={opponentUsername}>{opponentUsername}</span>
+                  <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 text-[11px] font-bold text-zinc-500 sm:text-xs">
+                    <span>{opponentElo} Elo</span>
+                    {oppAvg !== null && <span>Ø <b className="text-cyan-300">{oppAvg.toFixed(1)}</b></span>}
+                  </div>
                   {oppPlatformUsername ? (
-                    <span className={`mt-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${platformBorder} ${platformColor}`}>
-                      {platformLabel}: {oppPlatformUsername}
+                    <span className={`mt-3 max-w-full truncate rounded-full border px-2 py-1 text-[9px] font-bold sm:px-3 sm:text-[10px] ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${oppPlatformUsername}`}>
+                      {oppPlatformUsername}
                     </span>
                   ) : (
-                    <span className="mt-1 rounded-full border border-zinc-700/40 bg-zinc-800/40 px-2.5 py-0.5 text-[11px] font-bold text-zinc-600">
-                      {platformLabel}: nicht hinterlegt
+                    <span className="mt-3 max-w-full truncate rounded-full border border-zinc-700/40 bg-zinc-800/40 px-2 py-1 text-[9px] font-bold text-zinc-600 sm:px-3 sm:text-[10px]">
+                      Nicht hinterlegt
                     </span>
                   )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 divide-x divide-white/[0.07] border-t border-white/[0.07] bg-black/25 text-center">
+                <div className="px-2 py-3 sm:px-4">
+                  <p className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-600 sm:text-[9px]">Format</p>
+                  <p className="mt-1 text-[11px] font-black text-zinc-200 sm:text-xs">Best of {bestOfLegs}</p>
+                </div>
+                <div className="min-w-0 px-2 py-3 sm:px-4">
+                  <p className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-600 sm:text-[9px]">Plattform</p>
+                  <p className={`mt-1 truncate text-[11px] font-black sm:text-xs ${platformColor}`}>{platformLabel}</p>
+                </div>
+                <div className="px-2 py-3 sm:px-4">
+                  <p className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-600 sm:text-[9px]">Ziel</p>
+                  <p className="mt-1 text-[11px] font-black text-zinc-200 sm:text-xs">{legsToWin} Legs</p>
                 </div>
               </div>
             </div>
           );
         })()}
 
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(21rem,0.65fr)] lg:items-start lg:gap-6">
+          <div className="min-w-0">
         {/* Countdown-Banner */}
         {countdown !== null && match?.status === 'awaiting_confirmation' && (
           <div
-            className={`mb-6 flex items-center gap-4 rounded-3xl border p-5 transition-colors ${
+            className={`mb-5 flex flex-col items-stretch gap-3 rounded-[1.5rem] border p-4 transition-colors sm:mb-6 sm:flex-row sm:items-center sm:gap-4 sm:rounded-3xl sm:p-5 ${
               countdownIsUrgent
                 ? 'border-red-400/40 bg-red-500/10'
                 : 'border-amber-400/25 bg-amber-400/[0.07]'
             }`}
           >
             <Clock
-              className={`h-6 w-6 shrink-0 ${countdownIsUrgent ? 'text-red-300' : 'text-amber-300'}`}
+              className={`hidden h-6 w-6 shrink-0 sm:block ${countdownIsUrgent ? 'text-red-300' : 'text-amber-300'}`}
             />
             <div className="flex-1">
               <span
@@ -1116,11 +1185,11 @@ export default function MatchResult() {
             STATE: pending_result — Ergebnis eintragen
         ══════════════════════════════════════════════════════════════ */}
         {match?.status === 'pending_result' && (
-          <div className="rounded-[2.5rem] border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/60 backdrop-blur-2xl">
+          <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/60 backdrop-blur-2xl sm:rounded-[2.5rem]">
             {/* Header */}
-            <div className="border-b border-white/10 px-8 py-7">
+            <div className="border-b border-white/10 bg-gradient-to-r from-emerald-400/[0.06] to-transparent px-5 py-6 sm:px-8 sm:py-7">
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Scoreboard</p>
-              <h2 className="mt-2 text-4xl font-black tracking-[-0.06em]">Ergebnis eintragen</h2>
+              <h2 className="mt-2 text-3xl font-black tracking-[-0.06em] sm:text-4xl">Ergebnis eintragen</h2>
               <p className="mt-2 text-sm text-zinc-500">
                 Trage das Best-of-{bestOfLegs}-Ergebnis sowie Average und 180er von beiden Spielern ein. Dein Gegner muss alles danach bestätigen.
               </p>
@@ -1130,9 +1199,8 @@ export default function MatchResult() {
               {/* Legs */}
               <div>
                 <p className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Legs</p>
-                <div className="flex items-start justify-center gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                   <LegCounter label="Deine Legs" value={legsWon} onChange={(v) => setLegsWon(Math.min(legsToWin, v))} accent="text-emerald-300" />
-                  <span className="mt-[4.5rem] text-4xl font-black text-zinc-700 sm:mt-[5rem] sm:text-5xl">:</span>
                   <LegCounter label="Gegner Legs" value={legsLost} onChange={(v) => setLegsLost(Math.min(legsToWin, v))} accent="text-zinc-300" />
                 </div>
                 <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-center text-sm font-bold text-zinc-400">
@@ -1192,7 +1260,7 @@ export default function MatchResult() {
               {/* Live-Preview */}
               {resultIsValid && (
                 <div
-                  className={`flex items-center justify-between gap-4 rounded-2xl border p-5 ${
+                  className={`flex flex-col items-start justify-between gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:p-5 ${
                     legsWon > legsLost
                       ? 'border-emerald-300/20 bg-emerald-400/[0.07]'
                       : 'border-red-400/20 bg-red-500/[0.07]'
@@ -1221,7 +1289,7 @@ export default function MatchResult() {
               <button
                 onClick={submitResult}
                 disabled={loading || !canSubmitResult}
-                className="w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 py-5 text-lg font-black uppercase tracking-[0.16em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+                className="sticky bottom-3 z-20 min-h-16 w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.25)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 sm:rounded-3xl sm:py-5 sm:text-lg sm:tracking-[0.16em] lg:static"
               >
                 {loading ? 'Wird eingereicht…' : 'Zur Bestätigung einreichen'}
               </button>
@@ -1233,8 +1301,8 @@ export default function MatchResult() {
             STATE: awaiting_confirmation — Einreicher wartet
         ══════════════════════════════════════════════════════════════ */}
         {match?.status === 'awaiting_confirmation' && isSubmitter && (
-          <div className="rounded-[2.5rem] border border-cyan-300/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl">
-            <div className="flex flex-col items-center px-8 py-12 text-center">
+          <div className="rounded-[1.75rem] border border-cyan-300/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+            <div className="flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-12">
               <div className="grid h-20 w-20 place-items-center rounded-3xl border border-cyan-300/20 bg-cyan-400/10">
                 <Clock className="h-10 w-10 text-cyan-200" />
               </div>
@@ -1267,26 +1335,26 @@ export default function MatchResult() {
         {match?.status === 'awaiting_confirmation' && needsMyConfirmation && (
           <div className="space-y-5">
             {/* Eingereichte Daten */}
-            <div className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl">
-              <div className="border-b border-white/10 px-8 py-7">
+            <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+              <div className="border-b border-white/10 px-5 py-6 sm:px-8 sm:py-7">
                 <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">
                   Eingereicht von {submittedData?.submitterName}
                 </p>
-                <h2 className="mt-2 text-4xl font-black tracking-[-0.06em]">Ergebnis bestätigen</h2>
+                <h2 className="mt-2 text-3xl font-black tracking-[-0.06em] sm:text-4xl">Ergebnis bestätigen</h2>
               </div>
 
               {/* Scoreboard */}
-              <div className="flex items-center justify-center gap-8 px-8 py-8">
-                <div className="text-center">
+              <div className="grid grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)] items-center px-4 py-7 sm:grid-cols-[minmax(0,1fr)_4rem_minmax(0,1fr)] sm:px-8 sm:py-8">
+                <div className="min-w-0 text-center">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">Du</p>
-                  <p className="mt-2 text-8xl font-black leading-none tracking-[-0.1em] text-white">
+                  <p className="mt-2 text-6xl font-black leading-none tabular-nums tracking-[-0.1em] text-white sm:text-8xl">
                     {submittedData?.myLegs ?? '–'}
                   </p>
                 </div>
-                <span className="text-5xl font-black text-zinc-700">:</span>
-                <div className="text-center">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">{opponentUsername}</p>
-                  <p className="mt-2 text-8xl font-black leading-none tracking-[-0.1em] text-zinc-300">
+                <span className="text-center text-3xl font-black text-zinc-700 sm:text-5xl">:</span>
+                <div className="min-w-0 text-center">
+                  <p className="truncate text-xs font-black uppercase tracking-[0.14em] text-zinc-500" title={opponentUsername}>{opponentUsername}</p>
+                  <p className="mt-2 text-6xl font-black leading-none tabular-nums tracking-[-0.1em] text-zinc-300 sm:text-8xl">
                     {submittedData?.oppLegs ?? '–'}
                   </p>
                 </div>
@@ -1313,11 +1381,11 @@ export default function MatchResult() {
               </div>
 
               {/* Confirm button */}
-              <div className="px-8 pb-8 pt-6">
+              <div className="px-4 pb-5 pt-5 sm:px-8 sm:pb-8 sm:pt-6">
                 <button
                   onClick={confirmResult}
                   disabled={loading}
-                  className="w-full rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 py-5 text-lg font-black uppercase tracking-[0.16em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.2)] transition hover:-translate-y-0.5 disabled:opacity-40"
+                  className="min-h-16 w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.11em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.2)] transition hover:-translate-y-0.5 disabled:opacity-40 sm:rounded-3xl sm:py-5 sm:text-lg sm:tracking-[0.16em]"
                 >
                   {loading ? 'Wird bestätigt…' : 'Ergebnis bestätigen & Elo vergeben'}
                 </button>
@@ -1325,8 +1393,8 @@ export default function MatchResult() {
             </div>
 
             {/* Dispute-Bereich */}
-            <div className="overflow-hidden rounded-[2.5rem] border border-red-400/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl">
-              <div className="border-b border-white/[0.06] px-8 py-6">
+            <div className="overflow-hidden rounded-[1.75rem] border border-red-400/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+              <div className="border-b border-white/[0.06] px-5 py-5 sm:px-8 sm:py-6">
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="h-5 w-5 text-red-300 shrink-0" />
                   <h3 className="text-xl font-black tracking-[-0.03em] text-red-100">
@@ -1338,7 +1406,7 @@ export default function MatchResult() {
                 </p>
               </div>
 
-              <div className="space-y-5 px-8 py-7">
+              <div className="space-y-5 px-5 py-6 sm:px-8 sm:py-7">
                 <textarea
                   value={disputeReason}
                   onChange={(e) => setDisputeReason(e.target.value)}
@@ -1410,8 +1478,8 @@ export default function MatchResult() {
             STATE: completed
         ══════════════════════════════════════════════════════════════ */}
         {match?.status === 'completed' && (
-          <div className="rounded-[2.5rem] border border-emerald-300/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl">
-            <div className="flex flex-col items-center px-8 py-14 text-center">
+          <div className="rounded-[1.75rem] border border-emerald-300/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+            <div className="flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-14">
               <div className="grid h-20 w-20 place-items-center rounded-3xl border border-emerald-300/25 bg-emerald-400/10">
                 <CheckCircle2 className="h-10 w-10 text-emerald-200" />
               </div>
@@ -1421,7 +1489,7 @@ export default function MatchResult() {
               </p>
               <button
                 onClick={() => router.push('/history')}
-                className="mt-8 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black"
+                className="mt-8 min-h-14 w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.14em] text-black sm:w-auto sm:rounded-3xl"
               >
                 Zur History
               </button>
@@ -1433,8 +1501,8 @@ export default function MatchResult() {
             STATE: disputed
         ══════════════════════════════════════════════════════════════ */}
         {match?.status === 'disputed' && (
-          <div className="rounded-[2.5rem] border border-amber-300/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl">
-            <div className="flex flex-col items-center px-8 py-14 text-center">
+          <div className="rounded-[1.75rem] border border-amber-300/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+            <div className="flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-14">
               <div className="grid h-20 w-20 place-items-center rounded-3xl border border-amber-300/25 bg-amber-400/10">
                 <Shield className="h-10 w-10 text-amber-200" />
               </div>
@@ -1455,8 +1523,8 @@ export default function MatchResult() {
             STATE: cancelled
         ════════════════════════════════════════════════════════════ */}
         {match?.status === 'cancelled' && (
-          <div className="rounded-[2.5rem] border border-red-400/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl">
-            <div className="flex flex-col items-center px-8 py-14 text-center">
+          <div className="rounded-[1.75rem] border border-red-400/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+            <div className="flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-14">
               <div className="grid h-20 w-20 place-items-center rounded-3xl border border-red-400/25 bg-red-500/10">
                 <XCircle className="h-10 w-10 text-red-300" />
               </div>
@@ -1466,7 +1534,7 @@ export default function MatchResult() {
               </p>
               <button
                 onClick={() => router.push('/matchmaking')}
-                className="mt-8 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black"
+                className="mt-8 min-h-14 w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.14em] text-black sm:w-auto sm:rounded-3xl"
               >
                 Neues Match suchen
               </button>
@@ -1474,17 +1542,22 @@ export default function MatchResult() {
           </div>
         )}
 
+          </div>
+
+          <aside className="min-w-0 lg:sticky lg:top-24">
         {/* ════════════════════════════════════════════════════════════
             MATCHROOM CHAT
         ════════════════════════════════════════════════════════════ */}
         {match && (
-          <div className="mt-6 overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/60 backdrop-blur-2xl">
+          <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/60 backdrop-blur-2xl sm:rounded-[2rem]">
             {/* Header */}
-            <div className="flex items-center gap-3 border-b border-white/10 bg-white/[0.03] px-6 py-4">
-              <MessageCircle className="h-5 w-5 text-emerald-300" />
-              <div>
+            <div className="flex items-center gap-3 border-b border-white/10 bg-gradient-to-r from-emerald-400/[0.07] to-white/[0.02] px-4 py-4 sm:px-6">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10">
+                <MessageCircle className="h-5 w-5 text-emerald-300" />
+              </div>
+              <div className="min-w-0">
                 <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Matchroom</div>
-                <div className="text-sm font-bold text-zinc-300">
+                <div className="truncate text-sm font-bold text-zinc-300">
                   {match.player1_username} &amp; {match.player2_username}
                 </div>
               </div>
@@ -1497,7 +1570,7 @@ export default function MatchResult() {
             </div>
 
             {/* Nachrichtenliste */}
-            <div className="flex h-64 flex-col gap-2 overflow-y-auto px-5 py-4 sm:h-72">
+            <div className="flex h-72 flex-col gap-2 overflow-y-auto px-4 py-4 sm:h-80 lg:h-[27rem] lg:px-5">
               {chatMessages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
                   <MessageCircle className="h-8 w-8 text-zinc-700" />
@@ -1550,7 +1623,7 @@ export default function MatchResult() {
                   placeholder="Nachricht schreiben..."
                   maxLength={300}
                   disabled={chatSending}
-                  className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/40 focus:bg-white/[0.07] disabled:opacity-50"
+                  className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/40 focus:bg-white/[0.07] disabled:opacity-50"
                 />
                 <button
                   onClick={() => void sendChatMessage()}
@@ -1563,6 +1636,8 @@ export default function MatchResult() {
             </div>
           </div>
         )}
+          </aside>
+        </div>
 
         {/* ════════════════════════════════════════════════════════════
             ADMIN-TOOLS (nur für Admins sichtbar)
