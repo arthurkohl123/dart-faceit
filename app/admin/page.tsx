@@ -183,6 +183,18 @@ type LiveMatch = {
   created_at: string;
 };
 
+type SoftResetResult = {
+  reset_id: string;
+  player_count: number;
+  changed_count: number;
+  average_before: number;
+  average_after: number;
+  minimum_before: number;
+  maximum_before: number;
+  minimum_after: number;
+  maximum_after: number;
+};
+
 type AdminTournament = {
   id: string; title: string; description: string; starts_at: string; registration_closes_at: string;
   max_players: number; best_of: number; premium_only: boolean; max_average: number | null; min_average: number | null;
@@ -262,6 +274,11 @@ export default function AdminPanel() {
   const [premiumDuration, setPremiumDuration] = useState<'7' | '30' | '90' | 'unlimited'>('30');
   const [premiumReason, setPremiumReason] = useState('');
   const [premiumSavingUserId, setPremiumSavingUserId] = useState<string | null>(null);
+  const [softResetSeasonLabel, setSoftResetSeasonLabel] = useState('Season 02');
+  const [softResetConfirming, setSoftResetConfirming] = useState(false);
+  const [softResetLoading, setSoftResetLoading] = useState(false);
+  const [softResetResult, setSoftResetResult] = useState<SoftResetResult | null>(null);
+  const [softResetRollbackConfirming, setSoftResetRollbackConfirming] = useState(false);
 
   // Ticket-System State
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
@@ -617,6 +634,73 @@ export default function AdminPanel() {
     await loadProfiles();
   };
 
+  const executeSoftEloReset = async () => {
+    const seasonLabel = softResetSeasonLabel.trim();
+    if (!seasonLabel) {
+      setActionMessage('Bitte gib eine Season-Bezeichnung ein.');
+      return;
+    }
+
+    if (!softResetConfirming) {
+      setSoftResetConfirming(true);
+      setActionMessage('Soft Reset vorbereitet. Prüfe die Vorschau und bestätige die Aktion ein zweites Mal.');
+      return;
+    }
+
+    setSoftResetLoading(true);
+    setActionMessage(null);
+    const { data, error } = await supabase.rpc('admin_execute_soft_elo_reset', {
+      p_season_label: seasonLabel,
+      p_anchor_elo: 1000,
+      p_compression_factor: 0.5,
+      p_confirmation: 'SOFT RESET',
+    });
+    setSoftResetLoading(false);
+
+    if (error) {
+      setActionMessage(`Soft Reset fehlgeschlagen: ${error.message}`);
+      return;
+    }
+
+    const result = (Array.isArray(data) ? data[0] : data) as SoftResetResult | null;
+    if (!result) {
+      setActionMessage('Soft Reset wurde ausgeführt, aber die Zusammenfassung fehlt.');
+      return;
+    }
+
+    setSoftResetResult(result);
+    setSoftResetConfirming(false);
+    setActionMessage(`${seasonLabel} ist aktiv: ${result.changed_count} Elo-Werte wurden sicher komprimiert.`);
+    await loadProfiles();
+  };
+
+  const rollbackSoftEloReset = async () => {
+    if (!softResetResult) return;
+    if (!softResetRollbackConfirming) {
+      setSoftResetRollbackConfirming(true);
+      setActionMessage('Rollback vorbereitet. Bestätige erneut, um alle gesicherten Elo-Werte wiederherzustellen.');
+      return;
+    }
+
+    setSoftResetLoading(true);
+    const { data, error } = await supabase.rpc('admin_rollback_soft_elo_reset', {
+      p_reset_id: softResetResult.reset_id,
+      p_confirmation: 'ROLLBACK',
+    });
+    setSoftResetLoading(false);
+
+    if (error) {
+      setActionMessage(`Rollback fehlgeschlagen: ${error.message}`);
+      return;
+    }
+
+    const restored = Array.isArray(data) ? Number(data[0]?.restored_players ?? 0) : 0;
+    setSoftResetResult(null);
+    setSoftResetRollbackConfirming(false);
+    setActionMessage(`Rollback abgeschlossen: ${restored} Elo-Werte wurden wiederhergestellt.`);
+    await loadProfiles();
+  };
+
   const updateManualPremium = async (user: Profile, active: boolean) => {
     const reason = premiumReason.trim();
     if (!reason) {
@@ -726,6 +810,14 @@ export default function AdminPanel() {
   const bannedCount = profiles.filter((profile) => profile.is_banned).length;
   const premiumCount = profiles.filter((profile) => profile.isPremium).length;
   const activeCount = profiles.length - bannedCount;
+  const eloValues = profiles.map((profile) => profile.elo ?? 1000);
+  const projectedEloValues = eloValues.map((elo) => Math.round(1000 + ((elo - 1000) * 0.5)));
+  const projectedChangedCount = eloValues.filter((elo, index) => elo !== projectedEloValues[index]).length;
+  const projectedAverage = projectedEloValues.length
+    ? projectedEloValues.reduce((sum, elo) => sum + elo, 0) / projectedEloValues.length
+    : 1000;
+  const projectedMinimum = projectedEloValues.length ? Math.min(...projectedEloValues) : 1000;
+  const projectedMaximum = projectedEloValues.length ? Math.max(...projectedEloValues) : 1000;
   const ticketsInQueue = tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in_progress').length;
   const ticketsWaitingForUser = tickets.filter((ticket) => ticket.status === 'waiting_for_user').length;
   const unassignedTickets = tickets.filter((ticket) => !ticket.assigned_to_id && !['resolved', 'closed'].includes(ticket.status)).length;
@@ -1258,12 +1350,57 @@ export default function AdminPanel() {
           )}
 
           {activeTab === 'players' && (
-            <div>
+            <div className="space-y-6">
               {actionMessage && (
-                <div className="mb-6 rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                <div className="rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
                   {actionMessage}
                 </div>
               )}
+
+        <section className="relative overflow-hidden rounded-[2.4rem] border border-cyan-300/15 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.13),transparent_48%),rgba(9,9,11,0.78)] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/80 to-transparent" />
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300"><RefreshCw className="h-4 w-4" /> Season Control</div>
+              <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">Soft Elo Reset</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">Komprimiert jedes Rating zu 50 % Richtung 1000. Die Rangfolge bleibt erhalten; Match-Historie, Siege und Statistiken werden nicht verändert.</p>
+              <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold">
+                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-zinc-300">1600 → 1300</span>
+                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-zinc-300">1000 → 1000</span>
+                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-zinc-300">800 → 900</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[34rem]">
+              <div className="rounded-2xl border border-white/10 bg-black/25 p-3 text-center"><span className="block text-xl font-black text-white">{profiles.length}</span><span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">Spieler</span></div>
+              <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.05] p-3 text-center"><span className="block text-xl font-black text-cyan-200">{projectedChangedCount}</span><span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">Änderungen</span></div>
+              <div className="rounded-2xl border border-white/10 bg-black/25 p-3 text-center"><span className="block text-xl font-black text-white">{projectedMinimum}–{projectedMaximum}</span><span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">Neue Spanne</span></div>
+              <div className="rounded-2xl border border-white/10 bg-black/25 p-3 text-center"><span className="block text-xl font-black text-white">{projectedAverage.toFixed(1)}</span><span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">Neuer Ø</span></div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <label className="text-xs font-black uppercase tracking-[0.14em] text-zinc-400">Neue Season
+              <input value={softResetSeasonLabel} onChange={(event) => { setSoftResetSeasonLabel(event.target.value); setSoftResetConfirming(false); }} className={`${inputClassName} mt-2 w-full`} placeholder="z. B. Season 02" />
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {softResetConfirming && <button onClick={() => { setSoftResetConfirming(false); setActionMessage(null); }} disabled={softResetLoading} className="min-h-12 rounded-2xl border border-white/10 px-4 text-xs font-black uppercase tracking-[0.1em] text-zinc-300 transition hover:bg-white/10">Abbrechen</button>}
+              <button onClick={() => void executeSoftEloReset()} disabled={softResetLoading || profiles.length === 0} className={`min-h-12 rounded-2xl px-5 text-xs font-black uppercase tracking-[0.1em] transition disabled:opacity-50 ${softResetConfirming ? 'bg-gradient-to-r from-amber-300 to-orange-400 text-black shadow-[0_0_30px_rgba(251,191,36,0.18)]' : 'border border-cyan-300/25 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/15'}`}>
+                {softResetLoading ? 'Wird ausgeführt …' : softResetConfirming ? 'Soft Reset endgültig bestätigen' : 'Soft Reset vorbereiten'}
+              </button>
+            </div>
+          </div>
+
+          {softResetResult && (
+            <div className="mt-5 rounded-[1.5rem] border border-emerald-300/20 bg-emerald-400/[0.07] p-4 sm:p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div><p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-200">Reset erfolgreich gesichert</p><p className="mt-1 text-sm text-zinc-300">{softResetResult.changed_count} von {softResetResult.player_count} Ratings geändert · {softResetResult.minimum_before}–{softResetResult.maximum_before} → {softResetResult.minimum_after}–{softResetResult.maximum_after} Elo</p></div>
+                <button onClick={() => void rollbackSoftEloReset()} disabled={softResetLoading} className="min-h-11 shrink-0 rounded-xl border border-rose-300/20 bg-rose-400/10 px-4 text-xs font-black uppercase tracking-[0.1em] text-rose-100 transition hover:bg-rose-400/15 disabled:opacity-50">{softResetRollbackConfirming ? 'Rollback endgültig bestätigen' : 'Reset zurückrollen'}</button>
+              </div>
+            </div>
+          )}
+          <p className="mt-4 flex items-center gap-2 text-[11px] text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-cyan-300" /> Vor der Änderung wird jeder Elo-Wert gespeichert. Bei laufenden Ranked-Matches blockiert die Datenbank den Reset automatisch.</p>
+        </section>
+
         <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
