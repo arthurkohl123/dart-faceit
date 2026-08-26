@@ -70,7 +70,7 @@ begin
   insert into public.premium_grant_audit(admin_id, admin_username, profile_id, username, action, valid_until, reason)
   values (auth.uid(), v_admin_username, p_profile_id, coalesce(v_target.username, 'Unbekannt'), case when p_active then 'granted' else 'revoked' end, p_until, v_reason);
 
-  insert into public.notifications(user_id, type, title, message, href)
+  insert into public.notifications(user_id, type, title, body, href)
   values (
     v_target."supabaseId"::uuid,
     'premium',
