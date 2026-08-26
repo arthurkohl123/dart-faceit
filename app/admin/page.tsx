@@ -200,6 +200,14 @@ type AdminTournament = {
   max_players: number; best_of: number; premium_only: boolean; max_average: number | null; min_average: number | null;
   status: 'registration' | 'live' | 'completed' | 'cancelled'; participant_count: number; winner_username: string | null;
   scoring_platform: 'scolia' | 'dartcounter'; requires_access_code: boolean;
+  tournament_format: 'single_elimination' | 'double_elimination' | 'group_stage';
+  check_in_opens_at: string; check_in_closes_at: string; prize_title: string | null; prize_details: string | null;
+  dispute_policy: string; cancellation_reason: string | null; waitlist_count: number; checked_in_count: number;
+};
+
+type TournamentParticipant = {
+  user_id: string; username: string; status: string; checked_in_at: string | null; waitlist_position: number | null;
+  wins: number; losses: number; points: number; removed_reason: string | null;
 };
 
 type TournamentMatch = {
@@ -210,6 +218,8 @@ type TournamentMatch = {
 type TournamentForm = {
   title: string; description: string; startsAt: string; closesAt: string; maxPlayers: string; bestOf: string;
   premiumOnly: boolean; maxAverage: string; minAverage: string; scoringPlatform: 'scolia' | 'dartcounter'; accessCode: string;
+  tournamentFormat: 'single_elimination' | 'double_elimination' | 'group_stage'; checkInMinutes: string;
+  prizeTitle: string; prizeDetails: string; disputePolicy: string;
 };
 
 type ResolveFormState = {
@@ -290,10 +300,14 @@ export default function AdminPanel() {
   const [ticketSending, setTicketSending] = useState(false);
   const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
   const [tournaments, setTournaments] = useState<AdminTournament[]>([]);
-  const [tournamentForm, setTournamentForm] = useState<TournamentForm>({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '' });
+  const [tournamentForm, setTournamentForm] = useState<TournamentForm>({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '', tournamentFormat: 'single_elimination', checkInMinutes: '30', prizeTitle: '', prizeDetails: '', disputePolicy: 'Bei Verbindungsproblemen sofort Screenshots sichern, den Gegner informieren und innerhalb von 15 Minuten ein Support-Ticket öffnen. Bis zur Admin-Entscheidung darf das Match nicht neu gestartet werden.' });
   const [tournamentSaving, setTournamentSaving] = useState(false);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [tournamentBracket, setTournamentBracket] = useState<TournamentMatch[]>([]);
+  const [tournamentParticipants, setTournamentParticipants] = useState<TournamentParticipant[]>([]);
+  const [tournamentReason, setTournamentReason] = useState('');
+  const [tournamentPrizeTitle, setTournamentPrizeTitle] = useState('');
+  const [tournamentPrizeDetails, setTournamentPrizeDetails] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'logs' | 'flagged'>('overview');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
@@ -370,9 +384,13 @@ export default function AdminPanel() {
 
   const loadTournamentBracket = useCallback(async (tournamentId: string) => {
     setSelectedTournamentId(tournamentId);
-    const { data, error } = await supabase.rpc('get_tournament_bracket', { p_tournament_id: tournamentId });
-    if (error) { setActionMessage(`Turnierbaum konnte nicht geladen werden: ${error.message}`); return; }
-    setTournamentBracket((data || []) as TournamentMatch[]);
+    const [bracketResult, participantsResult] = await Promise.all([
+      supabase.rpc('get_tournament_bracket', { p_tournament_id: tournamentId }),
+      supabase.rpc('admin_get_tournament_participants', { p_tournament_id: tournamentId }),
+    ]);
+    if (bracketResult.error) { setActionMessage(`Turnierbaum konnte nicht geladen werden: ${bracketResult.error.message}`); return; }
+    setTournamentBracket((bracketResult.data || []) as TournamentMatch[]);
+    setTournamentParticipants((participantsResult.data || []) as TournamentParticipant[]);
   }, [supabase]);
 
   const createTournament = async () => {
@@ -386,10 +404,13 @@ export default function AdminPanel() {
       p_max_players: Number(tournamentForm.maxPlayers), p_best_of: Number(tournamentForm.bestOf), p_premium_only: tournamentForm.premiumOnly,
       p_max_average: toOptionalNumber(tournamentForm.maxAverage), p_min_average: toOptionalNumber(tournamentForm.minAverage),
       p_scoring_platform: tournamentForm.scoringPlatform, p_access_code: tournamentForm.accessCode.trim() || null,
+      p_tournament_format: tournamentForm.tournamentFormat, p_check_in_minutes: Number(tournamentForm.checkInMinutes),
+      p_prize_title: tournamentForm.prizeTitle.trim() || null, p_prize_details: tournamentForm.prizeDetails.trim() || null,
+      p_dispute_policy: tournamentForm.disputePolicy.trim() || null,
     });
     setTournamentSaving(false);
     if (error) { setActionMessage(`Turnier konnte nicht erstellt werden: ${error.message}`); return; }
-    setTournamentForm({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '' });
+    setTournamentForm({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '', tournamentFormat: 'single_elimination', checkInMinutes: '30', prizeTitle: '', prizeDetails: '', disputePolicy: 'Bei Verbindungsproblemen sofort Screenshots sichern, den Gegner informieren und innerhalb von 15 Minuten ein Support-Ticket öffnen. Bis zur Admin-Entscheidung darf das Match nicht neu gestartet werden.' });
     setActionMessage('Turnier ist veröffentlicht und für Spieler sichtbar.');
     await loadTournaments();
   };
@@ -406,6 +427,26 @@ export default function AdminPanel() {
     if (error) { setActionMessage(`Ergebnis konnte nicht gespeichert werden: ${error.message}`); return; }
     setActionMessage('Ergebnis gespeichert. Der nächste Bracket-Schritt wurde aktualisiert.');
     if (selectedTournamentId) await Promise.all([loadTournaments(), loadTournamentBracket(selectedTournamentId)]);
+  };
+
+  const manageTournamentParticipant = async (tournamentId: string, userId: string, action: 'remove' | 'disqualify') => {
+    const { error } = await supabase.rpc('admin_manage_tournament_participant', { p_tournament_id: tournamentId, p_user_id: userId, p_action: action, p_reason: tournamentReason.trim() || null });
+    if (error) { setActionMessage(`Teilnehmer konnte nicht geändert werden: ${error.message}`); return; }
+    setActionMessage(action === 'disqualify' ? 'Teilnehmer disqualifiziert und benachrichtigt.' : 'Teilnehmer entfernt; ein Wartelistenplatz rückt automatisch nach.');
+    await Promise.all([loadTournaments(), loadTournamentBracket(tournamentId)]);
+  };
+
+  const cancelTournament = async (tournamentId: string) => {
+    if (!tournamentReason.trim()) { setActionMessage('Bitte gib einen Absagegrund ein.'); return; }
+    const { error } = await supabase.rpc('admin_cancel_tournament', { p_tournament_id: tournamentId, p_reason: tournamentReason.trim() });
+    if (error) { setActionMessage(`Turnier konnte nicht abgesagt werden: ${error.message}`); return; }
+    setActionMessage('Turnier abgesagt – alle Teilnehmer wurden benachrichtigt.'); setSelectedTournamentId(null); await loadTournaments();
+  };
+
+  const saveTournamentAwards = async (tournamentId: string) => {
+    const { error } = await supabase.rpc('admin_update_tournament_awards', { p_tournament_id: tournamentId, p_prize_title: tournamentPrizeTitle, p_prize_details: tournamentPrizeDetails, p_winner_id: null });
+    if (error) { setActionMessage(`Preis konnte nicht gespeichert werden: ${error.message}`); return; }
+    setActionMessage('Preis- und Gewinnerinformationen aktualisiert.'); await loadTournaments();
   };
 
   const assignTicket = useCallback(async (ticketId: string, assignedToId: string | null) => {
@@ -1336,15 +1377,21 @@ export default function AdminPanel() {
                   <textarea value={tournamentForm.description} onChange={e => setTournamentForm(f => ({ ...f, description: e.target.value }))} placeholder="Kurze Beschreibung, Regeln oder Streamer-Hinweis" className={`${inputClassName} min-h-24 resize-none md:col-span-2`} />
                   <label className="text-xs font-bold text-zinc-400">Anmeldeschluss<input type="datetime-local" value={tournamentForm.closesAt} onChange={e => setTournamentForm(f => ({ ...f, closesAt: e.target.value }))} className={`${inputClassName} mt-2 w-full`} /></label><label className="text-xs font-bold text-zinc-400">Turnierstart<input type="datetime-local" value={tournamentForm.startsAt} onChange={e => setTournamentForm(f => ({ ...f, startsAt: e.target.value }))} className={`${inputClassName} mt-2 w-full`} /></label>
                   <label className="text-xs font-bold text-zinc-400">Match-Plattform<select value={tournamentForm.scoringPlatform} onChange={e => setTournamentForm(f => ({ ...f, scoringPlatform: e.target.value as 'scolia' | 'dartcounter' }))} className={`${inputClassName} mt-2`}><option className={selectOptionClassName} value="dartcounter">DartCounter</option><option className={selectOptionClassName} value="scolia">Scolia</option></select><span className="mt-1 block text-[10px] font-normal text-zinc-500">Alle Matchrooms dieses Cups werden darauf festgelegt.</span></label>
+                  <label className="text-xs font-bold text-zinc-400">Turnierformat<select value={tournamentForm.tournamentFormat} onChange={e => setTournamentForm(f => ({ ...f, tournamentFormat: e.target.value as TournamentForm['tournamentFormat'] }))} className={`${inputClassName} mt-2`}><option className={selectOptionClassName} value="single_elimination">Single Elimination</option><option className={selectOptionClassName} value="double_elimination">Double Elimination</option><option className={selectOptionClassName} value="group_stage">Gruppenphase</option></select><span className="mt-1 block text-[10px] font-normal text-zinc-500">Double Elimination: Ausscheiden nach der zweiten Niederlage.</span></label>
+                  <label className="text-xs font-bold text-zinc-400">Check-in öffnet<input type="number" min="5" max="180" value={tournamentForm.checkInMinutes} onChange={e => setTournamentForm(f => ({ ...f, checkInMinutes: e.target.value }))} className={`${inputClassName} mt-2`} /><span className="mt-1 block text-[10px] font-normal text-zinc-500">Minuten vor Turnierstart; Pflicht für jeden Startplatz.</span></label>
                   <label className="text-xs font-bold text-zinc-400">Community-Code <span className="font-normal text-zinc-600">(optional)</span><input value={tournamentForm.accessCode} onChange={e => setTournamentForm(f => ({ ...f, accessCode: e.target.value.toUpperCase() }))} placeholder="z. B. STREAM24" className={`${inputClassName} mt-2 uppercase`} /><span className="mt-1 block text-[10px] font-normal text-zinc-500">Nur mit diesem Code kann man dem Turnier beitreten.</span></label>
                   <select value={tournamentForm.bestOf} onChange={e => setTournamentForm(f => ({ ...f, bestOf: e.target.value }))} className={inputClassName}><option className={selectOptionClassName} value="3">Best of 3</option><option className={selectOptionClassName} value="5">Best of 5</option><option className={selectOptionClassName} value="7">Best of 7</option><option className={selectOptionClassName} value="9">Best of 9</option></select><input type="number" min="0" step="0.1" value={tournamentForm.maxAverage} onChange={e => setTournamentForm(f => ({ ...f, maxAverage: e.target.value }))} placeholder="Max. AVG (optional, z. B. 60)" className={inputClassName} /><input type="number" min="0" step="0.1" value={tournamentForm.minAverage} onChange={e => setTournamentForm(f => ({ ...f, minAverage: e.target.value }))} placeholder="Min. AVG (optional)" className={inputClassName} /><label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-bold text-zinc-300"><input type="checkbox" checked={tournamentForm.premiumOnly} onChange={e => setTournamentForm(f => ({ ...f, premiumOnly: e.target.checked }))} className="h-4 w-4 accent-amber-300" /> <Crown className="h-4 w-4 text-amber-300" />Nur für Premium</label>
+                  <input value={tournamentForm.prizeTitle} onChange={e => setTournamentForm(f => ({ ...f, prizeTitle: e.target.value }))} placeholder="Preis, z. B. 50 € + Champion Badge" className={inputClassName} />
+                  <input value={tournamentForm.prizeDetails} onChange={e => setTournamentForm(f => ({ ...f, prizeDetails: e.target.value }))} placeholder="Auszahlung / Einlösung / Sponsor" className={inputClassName} />
+                  <textarea value={tournamentForm.disputePolicy} onChange={e => setTournamentForm(f => ({ ...f, disputePolicy: e.target.value }))} placeholder="Verbindungs- und Streitfallregeln" className={`${inputClassName} min-h-24 resize-none md:col-span-2`} />
                 </div>
                 <button onClick={() => void createTournament()} disabled={tournamentSaving} className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 to-orange-400 px-6 py-3.5 text-sm font-black uppercase tracking-[0.12em] text-black transition hover:-translate-y-0.5 disabled:opacity-60"><Sparkles className="h-4 w-4" />{tournamentSaving ? 'Wird veröffentlicht …' : 'Turnier veröffentlichen'}</button>
               </section>
 
               <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7"><div className="mb-6 flex items-center justify-between"><div><h2 className="text-2xl font-black">Turnier-Übersicht</h2><p className="mt-1 text-sm text-zinc-400">Starte Cups ab zwei Teilnehmern, lose Paarungen aus und trage Ergebnisse ein.</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-zinc-400">{tournaments.length} Events</span></div>
-                {tournaments.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-zinc-500">Noch keine Turniere erstellt.</div> : <div className="grid gap-4 lg:grid-cols-2">{tournaments.map(tournament => { const canStart = [2, 4, 8, 16, 32].includes(Number(tournament.participant_count)); return <article key={tournament.id} className={`rounded-[1.6rem] border p-5 ${selectedTournamentId === tournament.id ? 'border-amber-300/35 bg-amber-300/[0.07]' : 'border-white/10 bg-white/[0.035]'}`}><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-[10px] font-black tracking-[0.14em] text-amber-300">{tournament.status.toUpperCase()}{tournament.premium_only && <><span className="text-zinc-600">·</span><Crown className="h-3.5 w-3.5" />PREMIUM</>}</div><h3 className="mt-2 text-xl font-black">{tournament.title}</h3></div><span className="rounded-full bg-white/[0.07] px-2.5 py-1 text-xs font-bold text-zinc-300">{tournament.participant_count}/{tournament.max_players}</span></div><p className="mt-2 text-sm text-zinc-500">Start: {formatDate(tournament.starts_at)} · Best of {tournament.best_of}{tournament.max_average ? ` · bis ${tournament.max_average} AVG` : ''}</p><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => void loadTournamentBracket(tournament.id)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10">Bracket öffnen</button>{tournament.status === 'registration' && <button onClick={() => void startTournament(tournament.id)} disabled={!canStart} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:cursor-not-allowed disabled:opacity-40">Turnier starten</button>}</div>{tournament.status === 'registration' && !canStart && <p className="mt-3 text-[11px] text-zinc-500">Zum Start werden 2, 4, 8, 16 oder 32 Teilnehmer benötigt.</p>}</article>; })}</div>}
+                {tournaments.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-zinc-500">Noch keine Turniere erstellt.</div> : <div className="grid gap-4 lg:grid-cols-2">{tournaments.map(tournament => { const canStart = tournament.tournament_format === 'group_stage' ? Number(tournament.checked_in_count) >= 2 : [2, 4, 8, 16, 32].includes(Number(tournament.checked_in_count)); return <article key={tournament.id} className={`rounded-[1.6rem] border p-5 ${selectedTournamentId === tournament.id ? 'border-amber-300/35 bg-amber-300/[0.07]' : 'border-white/10 bg-white/[0.035]'}`}><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-[10px] font-black tracking-[0.14em] text-amber-300">{tournament.status.toUpperCase()}{tournament.premium_only && <><span className="text-zinc-600">·</span><Crown className="h-3.5 w-3.5" />PREMIUM</>}</div><h3 className="mt-2 text-xl font-black">{tournament.title}</h3></div><span className="rounded-full bg-white/[0.07] px-2.5 py-1 text-xs font-bold text-zinc-300">{tournament.participant_count}/{tournament.max_players}</span></div><p className="mt-2 text-sm text-zinc-500">Start: {formatDate(tournament.starts_at)} · {tournament.tournament_format.replaceAll('_', ' ')} · Best of {tournament.best_of}</p><div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-200">{tournament.checked_in_count} CHECKED IN</span><span className="rounded-full bg-violet-400/10 px-2.5 py-1 text-violet-200">{tournament.waitlist_count} WARTELISTE</span></div><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => void loadTournamentBracket(tournament.id)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10">Turnier verwalten</button>{tournament.status === 'registration' && <button onClick={() => void startTournament(tournament.id)} disabled={!canStart} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:cursor-not-allowed disabled:opacity-40">Turnier starten</button>}</div>{tournament.status === 'registration' && !canStart && <p className="mt-3 text-[11px] text-zinc-500">Es fehlen ausreichend eingecheckte Teilnehmer.</p>}</article>; })}</div>}
                 {selectedTournamentId && <div className="mt-7 rounded-[1.7rem] border border-white/10 bg-black/25 p-5"><div className="mb-4 flex items-center gap-2"><Swords className="h-5 w-5 text-amber-300" /><h3 className="font-black">Bracket & Ergebnisse</h3></div>{tournamentBracket.length === 0 ? <p className="text-sm text-zinc-500">Noch keine Paarungen – das Turnier kann ab 2, 4, 8, 16 oder 32 Teilnehmern gestartet werden.</p> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{tournamentBracket.map(match => <div key={match.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-3"><div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500">RUNDE {match.round_number} · MATCH {match.match_number}</div><div className="flex items-center justify-between gap-3 text-sm"><span className={match.winner_id === match.player1_id ? 'font-black text-emerald-200' : 'text-zinc-300'}>{match.player1_username || 'Wird ermittelt'}</span>{match.status !== 'completed' && match.player1_id && <button onClick={() => void reportTournamentWinner(match.id, match.player1_id!)} className="text-[10px] font-black text-amber-300">SIEG</button>}</div><div className="my-2 h-px bg-white/10" /><div className="flex items-center justify-between gap-3 text-sm"><span className={match.winner_id === match.player2_id ? 'font-black text-emerald-200' : 'text-zinc-300'}>{match.player2_username || 'Wird ermittelt'}</span>{match.status !== 'completed' && match.player2_id && <button onClick={() => void reportTournamentWinner(match.id, match.player2_id!)} className="text-[10px] font-black text-amber-300">SIEG</button>}</div></div>)}</div>}</div>}
+                {selectedTournamentId && <div className="mt-5 grid gap-5 xl:grid-cols-[1.3fr_.7fr]"><div className="rounded-[1.7rem] border border-white/10 bg-black/25 p-5"><div className="flex items-center justify-between"><div><p className="text-[10px] font-black tracking-[.16em] text-cyan-300">ROSTER CONTROL</p><h3 className="mt-1 text-xl font-black">Teilnehmer & Warteliste</h3></div><span className="text-xs font-bold text-zinc-500">{tournamentParticipants.length} Einträge</span></div><input value={tournamentReason} onChange={e => setTournamentReason(e.target.value)} placeholder="Grund für Entfernung, Disqualifikation oder Absage" className={`${inputClassName} mt-4`} /><div className="mt-4 max-h-80 space-y-2 overflow-y-auto">{tournamentParticipants.map(participant => <div key={participant.user_id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[.03] p-3 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{participant.username}</p><p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{participant.status}{participant.waitlist_position ? ` · Position ${participant.waitlist_position}` : ''} · {participant.wins}W/{participant.losses}L</p></div>{!['removed','disqualified','withdrawn'].includes(participant.status) && <div className="flex gap-2"><button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'remove')} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-black text-zinc-300">ENTFERNEN</button><button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'disqualify')} className="rounded-lg border border-red-300/20 bg-red-500/10 px-2.5 py-1.5 text-[10px] font-black text-red-200">DQ</button></div>}</div>)}</div></div><div className="space-y-4"><div className="rounded-[1.7rem] border border-amber-300/15 bg-amber-300/[.04] p-5"><p className="text-[10px] font-black tracking-[.16em] text-amber-300">PREISVERWALTUNG</p><input value={tournamentPrizeTitle} onChange={e => setTournamentPrizeTitle(e.target.value)} placeholder="Preis / Titel" className={`${inputClassName} mt-3`} /><textarea value={tournamentPrizeDetails} onChange={e => setTournamentPrizeDetails(e.target.value)} placeholder="Auszahlung und Details" className={`${inputClassName} mt-2 min-h-20`} /><button onClick={() => void saveTournamentAwards(selectedTournamentId)} className="mt-3 w-full rounded-xl bg-amber-300 px-3 py-2.5 text-xs font-black text-black">Preis speichern</button></div><button onClick={() => void cancelTournament(selectedTournamentId)} className="w-full rounded-2xl border border-red-300/25 bg-red-500/10 px-4 py-3 text-xs font-black text-red-200">TURNIER ABSAGEN & ALLE BENACHRICHTIGEN</button></div></div>}
               </section>
             </div>
           )}
