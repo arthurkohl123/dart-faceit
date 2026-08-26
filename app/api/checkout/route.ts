@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { consumeRateLimit } from '@/lib/rate-limit.ts/rate-limit';
+import { consumeRateLimit } from '@/lib/rate-limit';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -83,6 +84,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error('Stripe checkout error:', error);
+    await recordMonitoringEvent({
+      source: 'checkout',
+      eventType: 'checkout_session_error',
+      severity: 'critical',
+      message: monitoringErrorMessage(error),
+      fingerprint: 'checkout:session_creation',
+      context: { endpoint: '/api/checkout' },
+    });
     return NextResponse.json(
       { error: 'Der Checkout konnte nicht gestartet werden. Bitte versuche es später erneut.' },
       { status: 500 },
