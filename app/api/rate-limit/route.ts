@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { consumeRateLimit, type RateLimitScope } from '@/lib/rate-limit.ts/rate-limit';
+import { consumeRateLimit, type RateLimitScope } from '@/lib/rate-limit';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 export const runtime = 'nodejs';
@@ -14,7 +14,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null) as { action?: string; email?: string } | null;
     const scope = body?.action ? actions[body.action] : undefined;
-    if (!scope) return NextResponse.json({ error: 'Ungültige Anfrage.' }, { status: 400 });
+
+    if (!scope) {
+      return NextResponse.json({ error: 'Ungültige Anfrage.' }, { status: 400 });
+    }
 
     let identifier: string | undefined;
     if (scope === 'support') {
@@ -27,10 +30,13 @@ export async function POST(request: Request) {
     }
 
     const result = await consumeRateLimit(scope, request, identifier);
-    if (!result.allowed) return NextResponse.json(
-      { error: 'Zu viele Anfragen. Bitte versuche es in einigen Minuten erneut.' },
-      { status: 429, headers: { 'Retry-After': String(result.retryAfterSeconds) } },
-    );
+    if (!result.allowed) {
+      return NextResponse.json(
+        { error: 'Zu viele Anfragen. Bitte versuche es in einigen Minuten erneut.' },
+        { status: 429, headers: { 'Retry-After': String(result.retryAfterSeconds) } },
+      );
+    }
+
     return NextResponse.json({ ok: true, remaining: result.remaining });
   } catch (error) {
     console.error('Rate-limit check failed:', error);
