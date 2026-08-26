@@ -575,7 +575,8 @@ export default function Matchmaking() {
       setPhoneVerified(!smsEnabled || Boolean(profileData?.phone_verified));
       setScoliaUsername(profileData?.scolia_username ?? null);
       setDartcounterUsername(profileData?.dartcounter_username ?? null);
-      if (quotaData) setDailyQuota(quotaData as DailyMatchQuota);
+      const quotaRow = Array.isArray(quotaData) ? quotaData[0] : quotaData;
+      if (quotaRow) setDailyQuota(quotaRow as DailyMatchQuota);
       // Queue-Sperre deaktiviert – kein Wiederherstellen nach Reload
       setCooldownSeconds(0);
       setQueueBanReason(null);
