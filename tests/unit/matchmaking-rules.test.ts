@@ -3,12 +3,12 @@ import test from 'node:test';
 import { getDailyMatchesUsed, getMaxEloDiff, hasReachedDailyMatchLimit } from '../../lib/matchmaking-rules.ts';
 
 test('the Elo search range expands at the configured boundaries', () => {
-  assert.equal(getMaxEloDiff(0), 100);
-  assert.equal(getMaxEloDiff(19), 100);
-  assert.equal(getMaxEloDiff(20), 200);
-  assert.equal(getMaxEloDiff(40), 350);
-  assert.equal(getMaxEloDiff(60), 600);
-  assert.equal(getMaxEloDiff(600), 600);
+  assert.equal(getMaxEloDiff(0), 25);
+  assert.equal(getMaxEloDiff(19), 25);
+  assert.equal(getMaxEloDiff(20), 50);
+  assert.equal(getMaxEloDiff(40), 100);
+  assert.equal(getMaxEloDiff(60), 150);
+  assert.equal(getMaxEloDiff(600), 150);
 });
 
 test('free users stop at four daily matches while premium stays unlimited', () => {

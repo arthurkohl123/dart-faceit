@@ -43,10 +43,10 @@ type MatchmakingQueueSetting = {
 };
 
 const searchSteps = [
-  { time: '0–20s', range: '±100 Elo', label: 'Sehr nahes Skill-Level' },
-  { time: '20–40s', range: '±200 Elo', label: 'Erweiterte Suche' },
-  { time: '40–60s', range: '±350 Elo', label: 'Breiter Spielerpool' },
-  { time: '60s+', range: '±600 Elo', label: 'Maximale Reichweite' },
+  { time: '0–20s', range: '±25 Elo', label: 'Gleiches Skill-Level' },
+  { time: '20–40s', range: '±50 Elo', label: 'Sehr nahes Skill-Level' },
+  { time: '40–60s', range: '±100 Elo', label: 'Kontrolliert erweitert' },
+  { time: '60s+', range: '±150 Elo', label: 'Maximale Nähe' },
 ];
 
 const appConfig = {

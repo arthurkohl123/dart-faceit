@@ -9,10 +9,12 @@ export type DailyMatchQuota = {
 };
 
 export function getMaxEloDiff(seconds: number): number {
-  if (seconds < 20) return 100;
-  if (seconds < 40) return 200;
-  if (seconds < 60) return 350;
-  return 600;
+  // Keep the first minute deliberately tight; the matcher always prefers the
+  // smallest Elo distance inside this radius. Expand slowly only when needed.
+  if (seconds < 20) return 25;
+  if (seconds < 40) return 50;
+  if (seconds < 60) return 100;
+  return 150;
 }
 
 export function getDailyMatchesUsed(quota: DailyMatchQuota | null): number {
