@@ -1,4 +1,5 @@
 import { Clock3, Radio, ShieldCheck, Sparkles, Target, Wrench } from 'lucide-react';
+import Link from 'next/link';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 type MaintenanceSetting = {
@@ -41,6 +42,16 @@ export default async function MaintenancePage() {
             <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-300 opacity-70" /><span className="relative inline-flex h-2 w-2 rounded-full bg-amber-200" /></span>
             Geplante Wartung
           </div>
+        </div>
+
+        <div className="mb-8 flex justify-end sm:mb-10">
+          <Link
+            href="/auth/login?redirectTo=/profile"
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.05] px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-zinc-200 transition hover:border-amber-200/40 hover:bg-amber-300/10 hover:text-amber-100"
+          >
+            <ShieldCheck className="h-3.5 w-3.5 text-amber-200" />
+            Admin-Zugang
+          </Link>
         </div>
 
         <div className="grid items-center gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:gap-20">
