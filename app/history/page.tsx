@@ -361,7 +361,7 @@ export default function MatchHistory() {
           </div>
 
           <div className="overflow-hidden rounded-[2.25rem] border border-emerald-300/15 bg-gradient-to-br from-emerald-400/[0.10] via-[#07100e]/80 to-cyan-400/[0.06] p-6 backdrop-blur-xl sm:p-7">
-            <div className="flex items-start justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Season Snapshot</div><div className="mt-2 text-sm font-bold text-zinc-400">Deine aktuelle Bilanz</div></div><div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10"><Target className="h-5 w-5 text-emerald-200" /></div></div>
+            <div className="flex items-start justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Season Snapshot · Season 01 bis 01.11.2026</div><div className="mt-2 text-sm font-bold text-zinc-400">Deine aktuelle Bilanz</div></div><div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10"><Target className="h-5 w-5 text-emerald-200" /></div></div>
             <div className="mt-7 grid grid-cols-3 gap-3 border-y border-white/[0.08] py-5">
               <div><div className="text-2xl font-black tracking-[-0.06em] text-emerald-200">{totalWins}</div><div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">Wins</div></div>
               <div className="border-x border-white/[0.08] px-3"><div className="text-2xl font-black tracking-[-0.06em] text-red-200">{totalLosses}</div><div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">Losses</div></div>

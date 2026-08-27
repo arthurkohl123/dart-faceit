@@ -29,7 +29,7 @@ const features = [
 const liveFeed = [
   { label: 'Matchmaking geöffnet', detail: 'Suche jederzeit nach einem Gegner', icon: Radar },
   { label: 'Bestätigte Ergebnisse', detail: 'Keine Wertung ohne Gegenprüfung', icon: Target },
-  { label: 'Season 01', detail: 'Die erste RankedDarts-Saison läuft', icon: Trophy },
+  { label: 'Season 01', detail: 'Läuft bis 01.11.2026', icon: Trophy },
 ];
 
 export default function Home() {
@@ -97,7 +97,7 @@ export default function Home() {
             <a href="/tournaments" className="transition hover:text-white">Turniere</a>
             <a href="/updates" className="transition hover:text-white">Updates</a>
             <a href="/premium" className="transition hover:text-white">Premium</a>
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-100"><Flame className="h-3.5 w-3.5" /> Season 01</span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-100"><Flame className="h-3.5 w-3.5" /> Season 01 · bis 01.11.2026</span>
           </div>
 
           <div className="flex items-center gap-3">

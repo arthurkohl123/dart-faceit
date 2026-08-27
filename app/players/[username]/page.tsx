@@ -224,7 +224,7 @@ export default function PlayerProfile() {
               <span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border border-emerald-200/40 bg-emerald-400 text-black shadow-[0_0_20px_rgba(74,222,128,0.7)]"><Zap className="h-4 w-4 fill-current" /></span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80 sm:justify-start"><Sparkles className="h-3.5 w-3.5" /> Verified player card · Season 01</div>
+              <div className="mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80 sm:justify-start"><Sparkles className="h-3.5 w-3.5" /> Verified player card · Season 01 · bis 01.11.2026</div>
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 {profile!.isPremium && <Star className="h-5 w-5 fill-current text-emerald-300" />}
                 <h1 className="text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl">{profile!.username}</h1>
@@ -237,7 +237,7 @@ export default function PlayerProfile() {
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/80 to-transparent" />
               <div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200">Elo Rating</div>
               <div className="mt-1 text-5xl font-black tracking-[-0.07em] text-emerald-300 sm:text-6xl">{elo}</div>
-              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Season 01</div>
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Season 01 · bis 01.11.2026</div>
             </div>
           </div>
         </div>

@@ -175,7 +175,7 @@ export default function Premium() {
           <div>
             <div className="inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-100 shadow-[0_0_30px_rgba(34,197,94,0.12)]">
               <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" /></span>
-              Premium Arena · Season 01
+              Premium Arena · Season 01 · bis 01.11.2026
             </div>
             <h1 className="mt-6 max-w-4xl text-6xl font-black leading-[0.84] tracking-[-0.08em] md:text-8xl xl:text-[6.8rem]">Mehr Zeit<br /><span className="bg-gradient-to-r from-emerald-300 via-lime-200 to-cyan-300 bg-clip-text text-transparent">für deinen Aufstieg.</span></h1>
             <p className="mt-7 max-w-2xl text-lg leading-8 text-zinc-300">Premium ist für Spieler, die nicht auf die nächste Chance warten wollen. Spiele ohne Tageslimit, tritt in Premium-Turnieren an und mach aus jeder Session echten Fortschritt.</p>

@@ -228,7 +228,7 @@ export default function Profile() {
 
             {/* Name + Rang */}
             <div className="flex-1 min-w-0">
-              <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80"><Sparkles className="h-3.5 w-3.5" /> Player card · Season 01</div>
+              <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80"><Sparkles className="h-3.5 w-3.5" /> Player card · Season 01 · bis 01.11.2026</div>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-3xl font-black tracking-[-0.06em] sm:text-4xl md:text-5xl lg:text-6xl truncate">
                   {profile?.username || 'Spieler'}
@@ -563,4 +563,3 @@ export default function Profile() {
     </main>
   );
 }
-

@@ -176,7 +176,7 @@ export default function Leaderboard() {
             <div>
               <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-100">
                 <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" /></span>
-                Global Ranking · Season 01
+                Global Ranking · Season 01 · bis 01.11.2026
               </div>
               <h1 className="max-w-4xl text-5xl font-black leading-[0.86] tracking-[-0.08em] sm:text-6xl md:text-7xl lg:text-8xl">Werfen.<br /><span className="bg-gradient-to-r from-emerald-300 via-lime-200 to-cyan-300 bg-clip-text text-transparent">Gewinnen. Aufsteigen.</span></h1>
               <p className="mt-6 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">Jeder Platz ist verdient: bestätigte Matches, sichtbares Elo und eine Rangliste, die zeigt, wer die Arena gerade beherrscht.</p>
@@ -333,7 +333,7 @@ export default function Leaderboard() {
         )}
 
         <p className="mt-8 text-center text-sm text-zinc-500">
-          Rangliste aktualisiert sich beim Laden · Saison-Preisgeld für die Top 5: 430 €
+          Rangliste aktualisiert sich beim Laden · Season 01 bis 01.11.2026 · Saison-Preisgeld für die Top 5: 430 €
         </p>
       </section>
     </main>

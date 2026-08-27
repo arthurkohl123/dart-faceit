@@ -174,7 +174,7 @@ function LoginForm() {
         </button>
       </form>
 
-      <div className="mt-6 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600"><span>Season 01</span><span className="h-1 w-1 rounded-full bg-zinc-700" /><span>Secure access</span></div>
+      <div className="mt-6 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600"><span>Season 01 · bis 01.11.2026</span><span className="h-1 w-1 rounded-full bg-zinc-700" /><span>Secure access</span></div>
       <p className="mt-4 text-center text-sm text-zinc-400">
         Noch kein Account?{' '}
         <Link href="/auth/register" className="font-bold text-emerald-300 transition hover:text-emerald-200">
