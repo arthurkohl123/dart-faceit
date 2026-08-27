@@ -14,7 +14,9 @@ export function getMaxEloDiff(seconds: number): number {
   if (seconds < 20) return 25;
   if (seconds < 40) return 50;
   if (seconds < 60) return 100;
-  return 150;
+  if (seconds < 180) return 150;
+  if (seconds < 600) return 300;
+  return 500;
 }
 
 export function getDailyMatchesUsed(quota: DailyMatchQuota | null): number {

@@ -46,7 +46,9 @@ const searchSteps = [
   { time: '0–20s', range: '±25 Elo', label: 'Gleiches Skill-Level' },
   { time: '20–40s', range: '±50 Elo', label: 'Sehr nahes Skill-Level' },
   { time: '40–60s', range: '±100 Elo', label: 'Kontrolliert erweitert' },
-  { time: '60s+', range: '±150 Elo', label: 'Maximale Nähe' },
+  { time: '60–180s', range: '±150 Elo', label: 'Langsam erweitert' },
+  { time: '180–600s', range: '±300 Elo', label: 'Großer Spielerpool' },
+  { time: '600s+', range: '±500 Elo', label: 'Maximale Reichweite' },
 ];
 
 const appConfig = {
@@ -1156,7 +1158,7 @@ export default function Matchmaking() {
                 <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-all" style={{ width: `${searchProgress}%` }} />
               </div>
 
-              <div className="mt-8 grid gap-3 sm:grid-cols-4">
+              <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {searchSteps.map((step) => (
                   <div key={step.time} className={`rounded-2xl border p-4 text-left ${currentRange >= Number.parseInt(step.range.replace(/\D/g, ''), 10) ? 'border-emerald-300/25 bg-emerald-400/[0.08]' : 'border-white/10 bg-white/[0.03]'}`}>
                     <div className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">{step.time}</div>

@@ -8,7 +8,11 @@ test('the Elo search range expands at the configured boundaries', () => {
   assert.equal(getMaxEloDiff(20), 50);
   assert.equal(getMaxEloDiff(40), 100);
   assert.equal(getMaxEloDiff(60), 150);
-  assert.equal(getMaxEloDiff(600), 150);
+  assert.equal(getMaxEloDiff(179), 150);
+  assert.equal(getMaxEloDiff(180), 300);
+  assert.equal(getMaxEloDiff(599), 300);
+  assert.equal(getMaxEloDiff(600), 500);
+  assert.equal(getMaxEloDiff(6000), 500);
 });
 
 test('free users stop at four daily matches while premium stays unlimited', () => {
