@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic';
 // These are intentionally the only states exposed in the public live ticker.
 // Finished and cancelled matches never leave the server.
 const LIVE_STATUSES = [
-  'pending_accept',
   'pending_result',
   'awaiting_confirmation',
   'disputed',
