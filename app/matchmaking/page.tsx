@@ -42,6 +42,16 @@ type MatchmakingQueueSetting = {
   message?: string;
 };
 
+function getRpcErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return 'Matchmaking konnte nicht gestartet werden.';
+}
+
 const searchSteps = [
   { time: '0–20s', range: '±25 Elo', label: 'Gleiches Skill-Level' },
   { time: '20–40s', range: '±50 Elo', label: 'Sehr nahes Skill-Level' },
@@ -264,9 +274,7 @@ export default function Matchmaking() {
       }
       // 'waiting' → warte auf Gegner (Realtime-Update kommt)
     } catch (err) {
-      const message = typeof err === 'object' && err !== null && 'message' in err
-        ? String(err.message)
-        : String(err);
+      const message = getRpcErrorMessage(err);
       if (message.includes('DAILY_MATCH_LIMIT')) {
         setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
         setStatus('error');
@@ -448,7 +456,7 @@ export default function Matchmaking() {
       // leitet nach beidseitiger Bestätigung weiter.
     } catch (error) {
       if (statusRef.current === 'searching') {
-        const msg = error instanceof Error ? error.message : 'Matchmaking konnte nicht gestartet werden.';
+        const msg = getRpcErrorMessage(error);
         if (msg.includes('MATCHMAKING_QUEUE_DISABLED')) {
           setMatchmakingEnabled(false);
           setErrorMessage(msg.split('MATCHMAKING_QUEUE_DISABLED:').pop()?.trim() || matchmakingMessage);
