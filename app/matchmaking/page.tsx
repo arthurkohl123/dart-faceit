@@ -37,6 +37,12 @@ type LiveMatch = {
   created_at: string;
 };
 
+type CurrentMatch = {
+  id: string;
+  status: 'matched' | 'pending_accept' | 'pending_result' | 'awaiting_confirmation' | 'disputed';
+  accept_deadline: string | null;
+};
+
 type MatchmakingQueueSetting = {
   enabled?: boolean;
   message?: string;
@@ -434,11 +440,17 @@ export default function Matchmaking() {
     }
   }, []);
 
-  const resumeExistingMatch = useCallback(async (): Promise<boolean> => {
-    const uid = userIdRef.current;
-    if (!uid) return false;
+  const findCurrentMatch = useCallback(async (uid: string): Promise<CurrentMatch | null> => {
+    try {
+      const response = await fetch('/api/matches/current', { cache: 'no-store' });
+      const payload = await response.json().catch(() => null) as { match?: CurrentMatch | null } | null;
+      if (response.ok) return payload?.match ?? null;
+    } catch {
+      // Fallback below keeps the queue usable during a short deployment or
+      // network interruption.
+    }
 
-    const { data: existingMatch } = await supabase
+    const { data } = await supabase
       .from('active_matches')
       .select('id, status, accept_deadline')
       .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
@@ -446,6 +458,14 @@ export default function Matchmaking() {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+    return data as CurrentMatch | null;
+  }, [supabase]);
+
+  const resumeExistingMatch = useCallback(async (): Promise<boolean> => {
+    const uid = userIdRef.current;
+    if (!uid) return false;
+
+    const existingMatch = await findCurrentMatch(uid);
 
     if (!existingMatch?.id) return false;
 
@@ -468,7 +488,7 @@ export default function Matchmaking() {
     setStatus('found');
     redirectToResult(existingMatch.id);
     return true;
-  }, [redirectToResult, startAcceptCountdown, supabase]);
+  }, [findCurrentMatch, redirectToResult, startAcceptCountdown]);
 
   const pollForMatch = useCallback(async (seconds: number) => {
     if (isPollingRef.current || statusRef.current !== 'searching') return;
@@ -618,19 +638,9 @@ export default function Matchmaking() {
       const uid = session.user.id;
       userIdRef.current = uid;
 
-      // Aktives Match prüfen: pending_accept, pending_result oder awaiting_confirmation?
-      const { data: activeMatch } = await supabase
-        .from('active_matches')
-        .select('id, status, accept_deadline')
-        .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
-        .in('status', ['pending_accept', 'pending_result', 'awaiting_confirmation', 'disputed'])
-        // In einer Gruppenphase kann ein Spieler mehrere Turnier-Matchrooms
-        // gleichzeitig haben. Für die Rückkehr reicht der neueste – ohne Limit
-        // würde maybeSingle() bei mehreren Treffern fehlschlagen und danach
-        // fälschlich ACTIVE_MATCH_EXISTS in der Queue erscheinen.
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Open matches are resolved through a server endpoint first. This avoids
+      // surfacing an opaque queue error after a refresh or delayed RLS state.
+      const activeMatch = await findCurrentMatch(uid);
 
       if (!isMounted) return;
 
@@ -693,7 +703,7 @@ export default function Matchmaking() {
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, fetchQueueCounts, fetchLiveMatches, fetchCooldown, fetchMatchmakingStatus, startAcceptCountdown]);
+  }, [supabase, router, fetchQueueCounts, fetchLiveMatches, fetchCooldown, fetchMatchmakingStatus, findCurrentMatch, startAcceptCountdown]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
