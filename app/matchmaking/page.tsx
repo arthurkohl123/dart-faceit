@@ -623,7 +623,13 @@ export default function Matchmaking() {
         .from('active_matches')
         .select('id, status, accept_deadline')
         .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
-        .in('status', ['pending_accept', 'pending_result', 'awaiting_confirmation'])
+        .in('status', ['pending_accept', 'pending_result', 'awaiting_confirmation', 'disputed'])
+        // In einer Gruppenphase kann ein Spieler mehrere Turnier-Matchrooms
+        // gleichzeitig haben. Für die Rückkehr reicht der neueste – ohne Limit
+        // würde maybeSingle() bei mehreren Treffern fehlschlagen und danach
+        // fälschlich ACTIVE_MATCH_EXISTS in der Queue erscheinen.
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (!isMounted) return;
