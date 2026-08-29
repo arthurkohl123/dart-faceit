@@ -12,7 +12,7 @@ where status = 'registration'
 
 create or replace function public.start_tournament_bracket_internal(p_tournament_id uuid)
 returns void language plpgsql security definer set search_path=public as $$
-declare v_t public.tournaments%rowtype; v_count integer; v_match_id uuid;
+declare v_t public.tournaments%rowtype; v_count integer; v_match_id uuid; v_bracket_size integer:=2; v_full_matches integer;
 begin
   select * into v_t from public.tournaments where id=p_tournament_id for update;
   if not found then raise exception 'Turnier nicht gefunden.'; end if;
@@ -57,21 +57,37 @@ begin
       perform public.create_tournament_matchroom(v_match_id);
     end loop;
   else
-    if v_count not in (2,4,8,16,32) then
-      raise exception 'Für K.-o.-Formate werden 2, 4, 8, 16 oder 32 eingecheckte Teilnehmer benötigt.';
-    end if;
+    -- The bracket uses the next power of two. Remaining slots become real
+    -- first-round byes, so an 8-player cup can start with 3, 5, 6 or 7 players.
+    while v_bracket_size<v_count loop v_bracket_size:=v_bracket_size*2; end loop;
+    if v_bracket_size>32 then raise exception 'Maximal 32 Teilnehmer sind möglich.'; end if;
+    v_full_matches:=v_count-(v_bracket_size/2);
+
+    with shuffled as materialized (
+      select user_id,row_number() over(order by seed nulls last,random()) rn
+      from public.tournament_participants where tournament_id=p_tournament_id and status='checked_in'
+    ), slots as (
+      select generate_series(1,v_bracket_size/2) as match_number
+    ), pairings as (
+      select s.match_number,
+        case when s.match_number<=v_full_matches then
+          (select user_id from shuffled where rn=s.match_number*2-1)
+        else (select user_id from shuffled where rn=v_full_matches+s.match_number) end as player1_id,
+        case when s.match_number<=v_full_matches then
+          (select user_id from shuffled where rn=s.match_number*2) end as player2_id
+      from slots s
+    )
+    insert into public.tournament_matches(tournament_id,round_number,match_number,player1_id,player2_id,winner_id,status,bracket_stage)
+    select p_tournament_id,1,match_number,player1_id,player2_id,
+      case when player2_id is null then player1_id else null end,
+      case when player2_id is null then 'completed' else 'ready' end,
+      case when v_t.tournament_format='double_elimination' then 'double' else 'main' end
+    from pairings;
+
     for v_match_id in
-      with shuffled as materialized (
-        select user_id,row_number() over(order by seed nulls last,random()) rn
-        from public.tournament_participants where tournament_id=p_tournament_id and status='checked_in'
-      )
-      insert into public.tournament_matches(tournament_id,round_number,match_number,player1_id,player2_id,status,bracket_stage)
-      select p_tournament_id,1,((p1.rn+1)/2)::integer,p1.user_id,p2.user_id,'ready',
-        case when v_t.tournament_format='double_elimination' then 'double' else 'main' end
-      from shuffled p1 join shuffled p2 on p2.rn=p1.rn+1 where mod(p1.rn,2)=1 returning id
-    loop
-      perform public.create_tournament_matchroom(v_match_id);
-    end loop;
+      select id from public.tournament_matches
+      where tournament_id=p_tournament_id and round_number=1 and status='ready'
+    loop perform public.create_tournament_matchroom(v_match_id); end loop;
   end if;
 
   update public.tournaments set status='live',updated_at=now() where id=p_tournament_id;
