@@ -420,6 +420,42 @@ export default function Matchmaking() {
     if (data) setLiveMatches(data as LiveMatch[]);
   }, [supabase]);
 
+  const resumeExistingMatch = useCallback(async (): Promise<boolean> => {
+    const uid = userIdRef.current;
+    if (!uid) return false;
+
+    const { data: existingMatch } = await supabase
+      .from('active_matches')
+      .select('id, status, accept_deadline')
+      .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
+      .in('status', ['pending_accept', 'pending_result', 'awaiting_confirmation', 'disputed'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingMatch?.id) return false;
+
+    if (existingMatch.status === 'pending_accept') {
+      const deadline = existingMatch.accept_deadline as string | null;
+      const remaining = deadline ? new Date(deadline).getTime() - Date.now() : 0;
+      if (remaining > 0) {
+        setAcceptMatchId(existingMatch.id);
+        setIHaveAccepted(false);
+        iHaveAcceptedRef.current = false;
+        setOpponentAccepted(false);
+        setOpponentDeclined(false);
+        setStatus('accepting');
+        startAcceptCountdown(existingMatch.id, deadline ?? undefined);
+        return true;
+      }
+      return false;
+    }
+
+    setStatus('found');
+    redirectToResult(existingMatch.id);
+    return true;
+  }, [redirectToResult, startAcceptCountdown, supabase]);
+
   const pollForMatch = useCallback(async (seconds: number) => {
     if (isPollingRef.current || statusRef.current !== 'searching') return;
     const app = selectedAppRef.current;
@@ -472,6 +508,10 @@ export default function Matchmaking() {
           // Cooldown serverseitig ignorieren – Queue ist nicht mehr gesperrt
           setCooldownSeconds(0);
           setErrorMessage('');
+        } else if (msg.includes('ACTIVE_MATCH_EXISTS') && await resumeExistingMatch()) {
+          // A previous request already created the match. Resume it instead
+          // of leaving the player on an error screen and polling again.
+          return;
         } else {
           setErrorMessage(msg);
           reportClientError('matchmaking_queue_error', msg, { phase: 'poll', app });
@@ -481,7 +521,7 @@ export default function Matchmaking() {
     } finally {
       isPollingRef.current = false;
     }
-  }, [fetchQueueCounts, matchmakingMessage, playMatchFoundSound, redirectToResult, startAcceptCountdown, supabase]);
+  }, [fetchQueueCounts, matchmakingMessage, playMatchFoundSound, redirectToResult, resumeExistingMatch, startAcceptCountdown, supabase]);
 
   // Ref immer aktuell halten damit der searching-useEffect die neueste Version hat
   // ohne selbst als Dependency aufgeführt zu sein
