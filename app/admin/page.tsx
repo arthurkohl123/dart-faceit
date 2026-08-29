@@ -458,7 +458,14 @@ export default function AdminPanel() {
   const manageTournamentParticipant = async (tournamentId: string, userId: string, action: 'remove' | 'disqualify' | 'checkin') => {
     const { error } = await supabase.rpc('admin_manage_tournament_participant', { p_tournament_id: tournamentId, p_user_id: userId, p_action: action, p_reason: tournamentReason.trim() || null });
     if (error) { setActionMessage(`Teilnehmer konnte nicht geändert werden: ${error.message}`); return; }
-    setActionMessage(action === 'checkin' ? 'Admin-Check-in bestätigt.' : action === 'disqualify' ? 'Teilnehmer disqualifiziert und benachrichtigt.' : 'Teilnehmer entfernt; ein Wartelistenplatz rückt automatisch nach.');
+    const isLiveTournament = tournaments.find((tournament) => tournament.id === tournamentId)?.status === 'live';
+    setActionMessage(action === 'checkin'
+      ? 'Admin-Check-in bestätigt.'
+      : isLiveTournament
+        ? 'Teilnehmer geändert. Offene Paarungen wurden geschlossen und für die jeweiligen Gegner gewertet.'
+        : action === 'disqualify'
+          ? 'Teilnehmer disqualifiziert und benachrichtigt.'
+          : 'Teilnehmer entfernt; ein Wartelistenplatz rückt automatisch nach.');
     await Promise.all([loadTournaments(), loadTournamentBracket(tournamentId)]);
   };
 
