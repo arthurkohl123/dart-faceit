@@ -540,20 +540,26 @@ export default function MatchResult() {
 
   const disputeResult = async () => {
     if (!match) return;
+    const reason = disputeReason.trim();
+    if (reason.length < 10) {
+      setErrorMessage('Bitte beschreibe den Widerspruch mit mindestens 10 Zeichen.');
+      return;
+    }
     setLoading(true); setErrorMessage(''); setInfoMessage('');
     try {
       const screenshotUrl = disputeScreenshot ? await uploadScreenshot(match.id) : null;
       const { data, error } = await supabase.rpc('dispute_match_result', {
         p_match_id: match.id,
-        p_reason: disputeReason || null,
+        p_reason: reason,
         p_screenshot_url: screenshotUrl,
       });
       if (error) throw error;
       const r = Array.isArray(data) ? (data[0] as RpcStatusResponse | undefined) : undefined;
+      if (r?.result_status === 'error') throw new Error(r.result_message || 'Widerspruch konnte nicht gespeichert werden.');
       setInfoMessage(r?.result_message || 'Widerspruch gespeichert. Ein Admin wird das Match prüfen.');
       await loadMatch();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Widerspruch.');
+      setErrorMessage(getActionErrorMessage(err, 'Fehler beim Widerspruch.'));
     } finally {
       setLoading(false);
     }
