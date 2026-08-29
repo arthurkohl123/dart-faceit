@@ -451,9 +451,15 @@ export default function Matchmaking() {
         setStatus('accepting');
         startAcceptCountdown(result.match_id);
       }
-      // Hinweis: 'matched' wird nicht mehr direkt weitergeleitet.
-      // Die DB gibt jetzt immer 'pending_accept' zurück, der Accept-Screen
-      // leitet nach beidseitiger Bestätigung weiter.
+      if (result?.match_status === 'matched' && result.match_id) {
+        // Compatibility with the already-live legacy matcher. It creates an
+        // active match immediately and returns `matched` rather than the
+        // newer accept-state. Continuing to poll would otherwise cause the
+        // next request to fail with ACTIVE_MATCH_EXISTS.
+        playMatchFoundSound(result.match_id);
+        setStatus('found');
+        redirectToResult(result.match_id);
+      }
     } catch (error) {
       if (statusRef.current === 'searching') {
         const msg = getRpcErrorMessage(error);
