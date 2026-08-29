@@ -244,7 +244,10 @@ export default function Matchmaking() {
         acceptExpireCalledRef.current = true;
         clearInterval(acceptIntervalRef.current!);
         try {
-          await supabase.rpc('expire_match_accept', { p_match_id: matchId });
+          await fetch(`/api/matches/${encodeURIComponent(matchId)}/expire`, {
+            method: 'POST',
+            cache: 'no-store',
+          });
         } catch (err) {
           console.error('expire_match_accept fehlgeschlagen:', err);
         }
@@ -255,15 +258,23 @@ export default function Matchmaking() {
         setOpponentDeclined(false);
       }
     }, 500);
-  }, [supabase]);
+  }, []);
 
   const handleAccept = async () => {
     if (!acceptMatchId || acceptDeclineLoading) return;
     setAcceptDeclineLoading(true);
     try {
-      const { data, error } = await supabase.rpc('accept_match', { p_match_id: acceptMatchId });
-      if (error) throw error;
-      const result = data as { status: string; match_id?: string } | null;
+      const response = await fetch(`/api/matches/${encodeURIComponent(acceptMatchId)}/accept`, {
+        method: 'POST',
+        cache: 'no-store',
+      });
+      const result = await response.json().catch(() => null) as { status?: string; match_id?: string; error?: string } | null;
+      if (!response.ok) throw new Error(result?.error || 'Match konnte nicht angenommen werden.');
+      if (result?.status === 'expired') {
+        setErrorMessage('Die Annahmefrist ist abgelaufen. Bitte suche erneut.');
+        setStatus('error');
+        return;
+      }
       setIHaveAccepted(true);
       iHaveAcceptedRef.current = true; // synchron setzen damit Realtime-Handler es sofort sieht
       if (result?.status === 'both_accepted' && result.match_id) {
@@ -281,7 +292,7 @@ export default function Matchmaking() {
       } else {
         console.error('accept_match fehlgeschlagen:', err);
         reportClientError('matchmaking_accept_error', message, { phase: 'accept' });
-        setErrorMessage('Das Match konnte nicht gestartet werden. Bitte versuche es erneut.');
+        setErrorMessage(message || 'Das Match konnte nicht gestartet werden. Bitte versuche es erneut.');
         setStatus('error');
       }
     } finally {
@@ -295,8 +306,11 @@ export default function Matchmaking() {
     if (!acceptMatchId || acceptDeclineLoading) return;
     setAcceptDeclineLoading(true);
     try {
-      const { error } = await supabase.rpc('decline_match', { p_match_id: acceptMatchId });
-      if (error) throw error;
+      const response = await fetch(`/api/matches/${encodeURIComponent(acceptMatchId)}/decline`, {
+        method: 'POST',
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('Match konnte nicht abgelehnt werden.');
     } catch (err) {
       console.error('decline_match fehlgeschlagen:', err);
       reportClientError('matchmaking_decline_error', err instanceof Error ? err.message : String(err), { phase: 'decline' });
@@ -428,7 +442,7 @@ export default function Matchmaking() {
       .from('active_matches')
       .select('id, status, accept_deadline')
       .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
-      .in('status', ['pending_accept', 'pending_result', 'awaiting_confirmation', 'disputed'])
+      .in('status', ['matched', 'pending_accept', 'pending_result', 'awaiting_confirmation', 'disputed'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
