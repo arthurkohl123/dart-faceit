@@ -481,7 +481,7 @@ export default function Matchmaking() {
     } finally {
       isPollingRef.current = false;
     }
-  }, [fetchQueueCounts, matchmakingMessage, playMatchFoundSound, startAcceptCountdown, supabase]);
+  }, [fetchQueueCounts, matchmakingMessage, playMatchFoundSound, redirectToResult, startAcceptCountdown, supabase]);
 
   // Ref immer aktuell halten damit der searching-useEffect die neueste Version hat
   // ohne selbst als Dependency aufgeführt zu sein
