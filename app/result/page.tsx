@@ -61,6 +61,15 @@ type RpcStatusResponse = {
   elo_change?: number;
 };
 
+function getActionErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+}
+
 type ChatMessage = {
   id: string;
   match_id: string;
@@ -467,7 +476,7 @@ export default function MatchResult() {
     }
     setLoading(true); setErrorMessage(''); setInfoMessage('');
     try {
-      const { data, error } = await supabase.rpc('submit_match_result', {
+      const resultPayload = {
         p_match_id: match.id,
         p_my_legs: legsWon,
         p_opponent_legs: legsLost,
@@ -476,13 +485,35 @@ export default function MatchResult() {
         p_highest_checkout: null,
         p_my_180s: myOneEighties ? Number.parseInt(myOneEighties, 10) : 0,
         p_opponent_180s: opponentOneEighties ? Number.parseInt(opponentOneEighties, 10) : 0,
-      });
-      if (error) throw error;
-      const r = Array.isArray(data) ? (data[0] as RpcStatusResponse | undefined) : undefined;
-      setInfoMessage(r?.result_message || 'Ergebnis eingereicht. Warte auf Bestätigung.');
+      };
+      const { data, error } = await supabase.rpc('submit_match_result', resultPayload);
+
+      let result = Array.isArray(data) ? (data[0] as RpcStatusResponse | undefined) : undefined;
+      if (error) {
+        // Compatibility fallback for legacy databases whose stored procedure
+        // still references the missing active_matches.best_of column.
+        const response = await fetch(`/api/matches/${encodeURIComponent(match.id)}/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify({
+            myLegs: legsWon,
+            opponentLegs: legsLost,
+            myAverage: resultPayload.p_my_average,
+            opponentAverage: resultPayload.p_opponent_average,
+            myOneEighties: resultPayload.p_my_180s,
+            opponentOneEighties: resultPayload.p_opponent_180s,
+            bestOf: bestOfLegs,
+          }),
+        });
+        const fallback = await response.json().catch(() => null) as RpcStatusResponse & { error?: string } | null;
+        if (!response.ok) throw new Error(fallback?.error || getActionErrorMessage(error, 'Fehler beim Einreichen.'));
+        result = fallback ?? undefined;
+      }
+      setInfoMessage(result?.result_message || 'Ergebnis eingereicht. Warte auf Bestätigung.');
       await loadMatch();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Einreichen.');
+      setErrorMessage(getActionErrorMessage(err, 'Fehler beim Einreichen.'));
     } finally {
       setLoading(false);
     }
