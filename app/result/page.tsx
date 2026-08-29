@@ -25,7 +25,7 @@ import { BrandLogo } from '@/components/BrandLogo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MatchStatus = 'pending_result' | 'awaiting_confirmation' | 'completed' | 'disputed' | 'cancelled';
+type MatchStatus = 'matched' | 'pending_result' | 'awaiting_confirmation' | 'completed' | 'disputed' | 'cancelled';
 
 type ActiveMatch = {
   id: string;
@@ -343,6 +343,19 @@ export default function MatchResult() {
         setErrorMessage('Du bist kein Teilnehmer dieses Matches.');
         setPageLoading(false);
         return;
+      }
+
+      // Matches created by the former matcher used the legacy `matched`
+      // status. Convert it once before rendering so all current result-room
+      // actions (submit, no-show and chat) use the supported workflow.
+      if (m.status === 'matched' && isParticipant) {
+        const response = await fetch(`/api/matches/${encodeURIComponent(m.id)}/activate`, {
+          method: 'POST',
+          cache: 'no-store',
+        });
+        const payload = await response.json().catch(() => null) as { status?: MatchStatus; error?: string } | null;
+        if (!response.ok) throw new Error(payload?.error || 'Matchroom konnte nicht vorbereitet werden.');
+        m.status = payload?.status ?? 'pending_result';
       }
       // Plattform-Usernamen immer aus Profilen laden (active_matches hat diese Felder ggf. nicht)
       const [{ data: p1Profile }, { data: p2Profile }, { data: p1Stats }, { data: p2Stats }] = await Promise.all([

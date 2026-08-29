@@ -1,0 +1,41 @@
+import { NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase-admin';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// These are intentionally the only states exposed in the public live ticker.
+// Finished and cancelled matches never leave the server.
+const LIVE_STATUSES = [
+  'pending_accept',
+  'pending_result',
+  'awaiting_confirmation',
+  'disputed',
+  // Kept while old matches created by the legacy matcher still exist.
+  'matched',
+];
+
+export async function GET() {
+  try {
+    const { data, error } = await createAdminClient()
+      .from('active_matches')
+      .select('id, player1_username, player2_username, player1_elo, player2_elo, status, app, created_at')
+      .in('status', LIVE_STATUSES)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+
+    return NextResponse.json({ matches: data ?? [] }, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0',
+      },
+    });
+  } catch (error) {
+    console.error('Could not load public live matches:', error);
+    return NextResponse.json(
+      { error: 'Live-Matches konnten nicht geladen werden.' },
+      { status: 503, headers: { 'Cache-Control': 'no-store, max-age=0' } },
+    );
+  }
+}

@@ -411,14 +411,14 @@ export default function Matchmaking() {
   }, [supabase]);
 
   const fetchLiveMatches = useCallback(async () => {
-    const { data } = await supabase
-      .from('active_matches')
-      .select('id, player1_username, player2_username, player1_elo, player2_elo, status, app, created_at')
-      .in('status', ['pending_result', 'awaiting_confirmation'])
-      .order('created_at', { ascending: false })
-      .limit(10);
-    if (data) setLiveMatches(data as LiveMatch[]);
-  }, [supabase]);
+    try {
+      const response = await fetch('/api/matches/live', { cache: 'no-store' });
+      const payload = await response.json().catch(() => null) as { matches?: LiveMatch[] } | null;
+      if (response.ok && Array.isArray(payload?.matches)) setLiveMatches(payload.matches);
+    } catch {
+      // Keep the last known list visible if the short live refresh fails.
+    }
+  }, []);
 
   const resumeExistingMatch = useCallback(async (): Promise<boolean> => {
     const uid = userIdRef.current;
@@ -692,6 +692,13 @@ export default function Matchmaking() {
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [supabase, fetchLiveMatches]);
+
+  // Realtime is best-effort for regular users because row-level security can
+  // suppress table events. Polling keeps the public live ticker reliable.
+  useEffect(() => {
+    const interval = window.setInterval(() => void fetchLiveMatches(), 10_000);
+    return () => window.clearInterval(interval);
+  }, [fetchLiveMatches]);
 
   // Realtime: Queue-Counts live aktualisieren wenn jemand bei- oder austritt.
   // Zusätzlich Polling alle 5s als Fallback, falls Realtime für die Tabelle
