@@ -833,11 +833,16 @@ export default function MatchResult() {
   }, [currentUserId, router, startCountdown, startNoShowCountdown, supabase]);
 
   // Realtime ist die schnellste Aktualisierung. Als belastbarer Fallback fragen
-  // wir während einer offenen Ergebnisbestätigung zusätzlich den aktuellen
-  // Match-Status ab. Damit sieht der Einreicher die Bestätigung auch dann ohne
-  // F5, wenn Realtime im Browser/Netzwerk gerade keine Datenbank-Events liefert.
+  // wir während des laufenden Matches und einer offenen Ergebnisbestätigung
+  // zusätzlich den aktuellen Match-Status ab. Damit sieht auch der Gegner eine
+  // gerade eingereichte Wertung ohne F5, selbst wenn Realtime im Browser/Netzwerk
+  // gerade keine Datenbank-Events liefert.
   useEffect(() => {
-    if (!match?.id || !currentUserId || match.status !== 'awaiting_confirmation') return;
+    if (
+      !match?.id ||
+      !currentUserId ||
+      (match.status !== 'pending_result' && match.status !== 'awaiting_confirmation')
+    ) return;
 
     let active = true;
     let requestInFlight = false;
@@ -876,6 +881,10 @@ export default function MatchResult() {
             player2_scolia_username: previous.player2_scolia_username,
             player2_dartcounter_username: previous.player2_dartcounter_username,
           } : previous);
+          if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at) {
+            autoConfirmCalledRef.current = false;
+            startCountdown(updated.confirmation_requested_at, updated.id);
+          }
         }
       } finally {
         requestInFlight = false;
@@ -888,7 +897,7 @@ export default function MatchResult() {
       active = false;
       clearInterval(interval);
     };
-  }, [currentUserId, match?.id, match?.status, router, supabase]);
+  }, [currentUserId, match?.id, match?.status, router, startCountdown, supabase]);
 
   const reportNoShow = async () => {
     if (!match || noShowLoading) return;
