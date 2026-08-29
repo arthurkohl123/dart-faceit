@@ -620,8 +620,12 @@ export default function MatchResult() {
     }
     setAdminCancelling(true);
     try {
-      const { error } = await supabase.rpc('admin_force_cancel_match', { p_match_id: match.id });
-      if (error) throw error;
+      const response = await fetch(`/api/admin/matches/${encodeURIComponent(match.id)}/cancel`, {
+        method: 'POST',
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(payload?.error || 'Fehler beim Abbrechen.');
       setInfoMessage('Match wurde durch Admin abgebrochen.');
       setAdminPendingAction(null);
     } catch (err) {
