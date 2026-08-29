@@ -234,9 +234,14 @@ export default function MatchResult() {
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
+  const completionRedirectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+
+  useEffect(() => () => {
+    if (completionRedirectRef.current) clearTimeout(completionRedirectRef.current);
+  }, []);
 
   useEffect(() => {
     const bestOf = Number(new URLSearchParams(window.location.search).get('bestOf'));
@@ -826,6 +831,64 @@ export default function MatchResult() {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, [currentUserId, router, startCountdown, startNoShowCountdown, supabase]);
+
+  // Realtime ist die schnellste Aktualisierung. Als belastbarer Fallback fragen
+  // wir während einer offenen Ergebnisbestätigung zusätzlich den aktuellen
+  // Match-Status ab. Damit sieht der Einreicher die Bestätigung auch dann ohne
+  // F5, wenn Realtime im Browser/Netzwerk gerade keine Datenbank-Events liefert.
+  useEffect(() => {
+    if (!match?.id || !currentUserId || match.status !== 'awaiting_confirmation') return;
+
+    let active = true;
+    let requestInFlight = false;
+
+    const refreshConfirmationStatus = async () => {
+      if (requestInFlight) return;
+      requestInFlight = true;
+      try {
+        const { data, error } = await supabase
+          .from('active_matches')
+          .select('*')
+          .eq('id', match.id)
+          .single();
+        if (error || !data || !active) return;
+
+        const updated = data as ActiveMatch;
+        if (updated.status === 'completed') {
+          if (countdownRef.current) clearInterval(countdownRef.current);
+          setCountdown(null);
+          setMatch((previous) => previous ? {
+            ...updated,
+            player1_scolia_username: previous.player1_scolia_username,
+            player1_dartcounter_username: previous.player1_dartcounter_username,
+            player2_scolia_username: previous.player2_scolia_username,
+            player2_dartcounter_username: previous.player2_dartcounter_username,
+          } : previous);
+          setInfoMessage('Ergebnis wurde bestätigt. Die Wertung ist abgeschlossen.');
+          if (!completionRedirectRef.current) {
+            completionRedirectRef.current = setTimeout(() => router.push('/history'), 1800);
+          }
+        } else if (updated.status !== match.status) {
+          setMatch((previous) => previous ? {
+            ...updated,
+            player1_scolia_username: previous.player1_scolia_username,
+            player1_dartcounter_username: previous.player1_dartcounter_username,
+            player2_scolia_username: previous.player2_scolia_username,
+            player2_dartcounter_username: previous.player2_dartcounter_username,
+          } : previous);
+        }
+      } finally {
+        requestInFlight = false;
+      }
+    };
+
+    void refreshConfirmationStatus();
+    const interval = window.setInterval(() => void refreshConfirmationStatus(), 3_000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [currentUserId, match?.id, match?.status, router, supabase]);
 
   const reportNoShow = async () => {
     if (!match || noShowLoading) return;
