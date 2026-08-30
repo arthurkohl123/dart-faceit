@@ -533,13 +533,14 @@ export default function MatchResult() {
       const { data, error } = await supabase.rpc('confirm_match_result', { p_match_id: match.id });
       if (error) throw error;
       const r = Array.isArray(data) ? (data[0] as RpcStatusResponse | undefined) : undefined;
+      if (r?.result_status === 'error') throw new Error(r.result_message || 'Ergebnis konnte nicht bestätigt werden.');
       const eloText = typeof r?.elo_change === 'number'
         ? ` Elo-Änderung: ${r.elo_change > 0 ? '+' : ''}${r.elo_change}`
         : '';
       setInfoMessage(`${r?.result_message || 'Ergebnis bestätigt.'}${eloText}`);
       setTimeout(() => router.push('/history'), 1200);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Bestätigen.');
+      setErrorMessage(getActionErrorMessage(err, 'Fehler beim Bestätigen.'));
     } finally {
       setLoading(false);
     }
