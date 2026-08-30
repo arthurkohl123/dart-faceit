@@ -58,6 +58,23 @@ function getRpcErrorMessage(error: unknown): string {
   return 'Matchmaking konnte nicht gestartet werden.';
 }
 
+// Browser melden kurze Verbindungsabbrüche je nach Engine unterschiedlich
+// (z. B. "Failed to fetch" in Chromium oder "Load failed" in Safari).
+// Das ist kein Fehler der Queue-Funktion und darf die laufende Suche nicht
+// beenden: Der nächste Poll trägt den Spieler bei wiederhergestellter
+// Verbindung wieder zuverlässig ein bzw. findet ein inzwischen erzeugtes Match.
+function isTransientNetworkError(error: unknown): boolean {
+  const message = getRpcErrorMessage(error).toLowerCase();
+  return [
+    'failed to fetch',
+    'load failed',
+    'networkerror',
+    'network request failed',
+    'network connection was lost',
+    'internet connection appears to be offline',
+  ].some((fragment) => message.includes(fragment));
+}
+
 const searchSteps = [
   { time: '0–20s', range: '±25 Elo', label: 'Gleiches Skill-Level' },
   { time: '20–40s', range: '±50 Elo', label: 'Sehr nahes Skill-Level' },
@@ -146,6 +163,7 @@ export default function Matchmaking() {
   const [queueBanReason, setQueueBanReason] = useState<string | null>(null);
   const [queueBannedUntil, setQueueBannedUntil] = useState<string | null>(null);
   const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [queueConnectionRecovering, setQueueConnectionRecovering] = useState(false);
 
   // Toast-Benachrichtigung
   const [toast, setToast] = useState<{ message: string; type: 'warning' | 'info' } | null>(null);
@@ -409,22 +427,34 @@ export default function Matchmaking() {
   }, [cooldownSeconds, queueBanReason, queueBannedUntil]);
 
   const fetchQueueCounts = useCallback(async () => {
-    const { data, error } = await supabase.rpc('get_matchmaking_queue_counts');
-    if (error) {
-      reportClientError('matchmaking_queue_count_error', error.message, { phase: 'queue_counts' });
-      return;
+    try {
+      const { data, error } = await supabase.rpc('get_matchmaking_queue_counts');
+      if (error) {
+        // Die Zähler sind nur eine Anzeige. Ein temporär fehlgeschlagener
+        // Zählerabruf darf niemals eine laufende Queue-Suche stoppen.
+        if (!isTransientNetworkError(error)) {
+          console.warn('Queue-Zähler konnten nicht geladen werden:', error.message);
+        }
+        return;
+      }
+      const counts = new Map(
+        ((data ?? []) as Array<{ app: string; player_count: number | string }>).map((row) => [
+          row.app,
+          Number(row.player_count) || 0,
+        ]),
+      );
+      setQueueCounts({
+        scolia: counts.get('scolia') ?? 0,
+        dartcounter: counts.get('dartcounter') ?? 0,
+        autodarts: counts.get('autodarts') ?? 0,
+      });
+    } catch (error) {
+      // Supabase kann bei einem kurzen Browser-Netzwerkabbruch werfen statt
+      // ein { error }-Objekt zurückzugeben. Die Suchlogik läuft bewusst weiter.
+      if (!isTransientNetworkError(error)) {
+        console.warn('Queue-Zähler konnten nicht geladen werden:', error);
+      }
     }
-    const counts = new Map(
-      ((data ?? []) as Array<{ app: string; player_count: number | string }>).map((row) => [
-        row.app,
-        Number(row.player_count) || 0,
-      ]),
-    );
-    setQueueCounts({
-      scolia: counts.get('scolia') ?? 0,
-      dartcounter: counts.get('dartcounter') ?? 0,
-      autodarts: counts.get('autodarts') ?? 0,
-    });
   }, [supabase]);
 
   const fetchMatchmakingStatus = useCallback(async () => {
@@ -521,6 +551,8 @@ export default function Matchmaking() {
       if (statusRef.current !== 'searching') return;
       if (error) throw error;
 
+      setQueueConnectionRecovering(false);
+
       const result = Array.isArray(data) ? data[0] as MatchmakingResponse | undefined : data as MatchmakingResponse | undefined;
 
       await fetchQueueCounts();
@@ -547,7 +579,13 @@ export default function Matchmaking() {
     } catch (error) {
       if (statusRef.current === 'searching') {
         const msg = getRpcErrorMessage(error);
-        if (msg.includes('MATCHMAKING_QUEUE_DISABLED')) {
+        if (isTransientNetworkError(error)) {
+          // Nicht auf einen Fehler-Screen wechseln: Eine Anfrage kann im
+          // Hintergrund bereits erfolgreich gewesen sein, obwohl der Browser
+          // die Antwort verloren hat. Der nächste Poll löst das sauber auf.
+          setQueueConnectionRecovering(true);
+          return;
+        } else if (msg.includes('MATCHMAKING_QUEUE_DISABLED')) {
           setMatchmakingEnabled(false);
           setErrorMessage(msg.split('MATCHMAKING_QUEUE_DISABLED:').pop()?.trim() || matchmakingMessage);
         } else if (msg.includes('DAILY_MATCH_LIMIT')) {
@@ -580,6 +618,7 @@ export default function Matchmaking() {
   const startSearch = async (app: AppChoice) => {
     setErrorMessage('');
     setOpponent(null);
+    setQueueConnectionRecovering(false);
 
     if (!matchmakingEnabled) {
       setErrorMessage(matchmakingMessage);
@@ -638,6 +677,7 @@ export default function Matchmaking() {
       console.error('Matchmaking-Abbruch fehlgeschlagen:', error);
       reportClientError('matchmaking_cancel_error', error instanceof Error ? error.message : String(error), { phase: 'cancel' });
     } finally {
+      setQueueConnectionRecovering(false);
       setStatus('idle');
       setSelectedApp(null);
       setElapsedSeconds(0);
@@ -1032,8 +1072,12 @@ export default function Matchmaking() {
       try {
         await supabase.rpc('queue_heartbeat');
       } catch (err) {
-        console.error('Heartbeat fehlgeschlagen:', err);
-        reportClientError('matchmaking_heartbeat_error', err instanceof Error ? err.message : String(err), { phase: 'heartbeat' });
+        // Ein einzelner Netzwerkabbruch wird beim nächsten Heartbeat behoben
+        // und soll nicht als Produktionsfehler alarmieren.
+        if (!isTransientNetworkError(err)) {
+          console.error('Heartbeat fehlgeschlagen:', err);
+          reportClientError('matchmaking_heartbeat_error', err instanceof Error ? err.message : String(err), { phase: 'heartbeat' });
+        }
       }
     };
 
@@ -1276,6 +1320,12 @@ export default function Matchmaking() {
 
               <h2 className="mt-4 text-4xl font-black tracking-[-0.05em]">Gegner wird gesucht</h2>
               <p className="mt-3 text-zinc-400">Aktueller Elo-Suchradius: <span className="font-black text-emerald-300">±{currentRange}</span></p>
+              {queueConnectionRecovering && (
+                <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-400/[0.06] px-3 py-1.5 text-xs font-semibold text-amber-100">
+                  <Activity className="h-3.5 w-3.5 animate-pulse" />
+                  Verbindung wird wiederhergestellt – die Suche setzt automatisch fort.
+                </p>
+              )}
 
               <div className="mt-8 h-4 overflow-hidden rounded-full bg-white/10">
                 <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-all" style={{ width: `${searchProgress}%` }} />
