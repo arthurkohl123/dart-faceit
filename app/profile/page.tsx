@@ -29,6 +29,7 @@ type ProfileData = {
   isPremium: boolean;
   scolia_username: string | null;
   dartcounter_username: string | null;
+  autodarts_username: string | null;
 };
 
 export default function Profile() {
@@ -45,6 +46,7 @@ export default function Profile() {
   const [editingPlatforms, setEditingPlatforms] = useState(false);
   const [scoliaInput, setScoliaInput] = useState('');
   const [dartcounterInput, setDartcounterInput] = useState('');
+  const [autodartsInput, setAutodartsInput] = useState('');
   const [savingPlatforms, setSavingPlatforms] = useState(false);
   const [platformSaveMsg, setPlatformSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -70,6 +72,7 @@ export default function Profile() {
       setProfile(profileData ?? null);
       setScoliaInput(profileData?.scolia_username ?? '');
       setDartcounterInput(profileData?.dartcounter_username ?? '');
+      setAutodartsInput(profileData?.autodarts_username ?? '');
       setMatches((matchData || []) as MatchData[]);
       if (statsData) {
         const s = statsData as { avg_average: number; total_180s: number };
@@ -95,12 +98,14 @@ export default function Profile() {
       const { error } = await supabase.rpc('update_platform_usernames', {
         p_scolia_username:      scoliaInput.trim() || null,
         p_dartcounter_username: dartcounterInput.trim() || null,
+        p_autodarts_username:   autodartsInput.trim() || null,
       });
       if (error) throw error;
       setProfile((prev) => prev ? {
         ...prev,
         scolia_username:      scoliaInput.trim() || null,
         dartcounter_username: dartcounterInput.trim() || null,
+        autodarts_username:   autodartsInput.trim() || null,
       } : prev);
       setPlatformSaveMsg({ type: 'success', text: 'Gespeichert!' });
       setEditingPlatforms(false);
@@ -120,12 +125,12 @@ export default function Profile() {
   const nextRank = upcoming ?? currentRank;
   const phoneVerified = Boolean(profile?.phone_verified);
   const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
-  const hasPlatform = Boolean(profile?.scolia_username || profile?.dartcounter_username);
+  const hasPlatform = Boolean(profile?.scolia_username || profile?.dartcounter_username || profile?.autodarts_username);
   const queueReady = phoneVerified && hasPlatform;
   const nextStep = !phoneVerified
     ? { label: 'Telefon verifizieren', detail: 'Noch ein Schritt bis zum Ranked-Zugang.', href: '/auth/verify-phone', icon: ShieldCheck }
     : !hasPlatform
-      ? { label: 'Plattform verbinden', detail: 'Hinterlege Scolia oder DartCounter für die Queue.', href: '#platforms', icon: Target }
+      ? { label: 'Plattform verbinden', detail: 'Hinterlege Scolia, DartCounter oder AutoDarts für die Queue.', href: '#platforms', icon: Target }
       : { label: 'Nächstes Match starten', detail: 'Du bist bereit für die Ranked-Queue.', href: '/matchmaking', icon: Zap };
   const NextStepIcon = nextStep.icon;
 
@@ -420,7 +425,7 @@ export default function Profile() {
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {/* Scolia */}
             <div className={`rounded-2xl border p-5 transition sm:p-6 ${profile?.scolia_username ? 'border-emerald-300/25 bg-emerald-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -480,6 +485,37 @@ export default function Profile() {
                 </div>
               )}
             </div>
+
+            {/* AutoDarts */}
+            <div className={`rounded-2xl border p-5 transition sm:p-6 ${profile?.autodarts_username ? 'border-violet-300/25 bg-violet-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-black uppercase tracking-[0.22em] text-violet-300">AutoDarts</div>
+                  <div className="mt-0.5 text-sm font-bold text-zinc-400">Automatisches Tracking</div>
+                </div>
+                {profile?.autodarts_username
+                  ? <CheckCircle2 size={16} className="shrink-0 text-violet-400" />
+                  : <XCircle size={16} className="shrink-0 text-zinc-600" />
+                }
+              </div>
+              {editingPlatforms ? (
+                <input
+                  type="text"
+                  value={autodartsInput}
+                  onChange={(e) => setAutodartsInput(e.target.value)}
+                  placeholder="Dein AutoDarts-Username"
+                  maxLength={100}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-violet-300/50 focus:bg-white/[0.08]"
+                />
+              ) : (
+                <div className="text-sm font-bold">
+                  {profile?.autodarts_username
+                    ? <span className="text-violet-200">{profile.autodarts_username}</span>
+                    : <span className="text-zinc-600">Nicht hinterlegt</span>
+                  }
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Speichern / Abbrechen */}
@@ -498,6 +534,7 @@ export default function Profile() {
                   setEditingPlatforms(false);
                   setScoliaInput(profile?.scolia_username ?? '');
                   setDartcounterInput(profile?.dartcounter_username ?? '');
+                  setAutodartsInput(profile?.autodarts_username ?? '');
                   setPlatformSaveMsg(null);
                 }}
                 className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-300 transition hover:bg-white/10"
@@ -514,7 +551,7 @@ export default function Profile() {
           )}
 
           {/* Hinweis wenn keine Plattform hinterlegt */}
-          {!profile?.scolia_username && !profile?.dartcounter_username && !editingPlatforms && (
+          {!profile?.scolia_username && !profile?.dartcounter_username && !profile?.autodarts_username && !editingPlatforms && (
             <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-400/[0.06] px-5 py-4 text-sm text-amber-200">
               Hinterlege mindestens einen Plattform-Account, um am Matchmaking teilzunehmen.
             </div>

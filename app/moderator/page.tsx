@@ -891,7 +891,7 @@ export default function ModeratorPanel() {
                               </span>
                               {m.app && (
                                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-zinc-500">
-                                  {m.app === 'scolia' ? '📷 Scolia' : '📱 DartCounter'}
+                                  {m.app === 'scolia' ? '📷 Scolia' : m.app === 'autodarts' ? '🎯 AutoDarts' : '📱 DartCounter'}
                                 </span>
                               )}
                               {isLong && (

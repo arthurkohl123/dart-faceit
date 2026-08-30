@@ -10,7 +10,7 @@ import { getDailyMatchesUsed, getMaxEloDiff, hasReachedDailyMatchLimit, type Dai
 import { reportClientError } from '@/lib/client-monitoring';
 
 type MatchmakingStatus = 'idle' | 'selecting' | 'searching' | 'accepting' | 'found' | 'error';
-type AppChoice = 'scolia' | 'dartcounter';
+type AppChoice = 'scolia' | 'dartcounter' | 'autodarts';
 
 type MatchmakingResponse = {
   match_id: string | null;
@@ -92,6 +92,18 @@ const appConfig = {
     queueLabel: 'text-cyan-300',
     dot: 'bg-cyan-300',
   },
+  autodarts: {
+    label: 'AutoDarts',
+    description: '',
+    color: 'violet',
+    icon: '🎯',
+    borderActive: 'border-violet-300/50 bg-violet-400/[0.10]',
+    borderHover: 'hover:border-violet-300/30 hover:bg-violet-400/[0.06]',
+    badge: 'border-violet-300/25 bg-violet-400/10 text-violet-200',
+    button: 'from-violet-400 via-fuchsia-300 to-violet-400',
+    queueLabel: 'text-violet-300',
+    dot: 'bg-violet-300',
+  },
 } as const;
 
 export default function Matchmaking() {
@@ -99,12 +111,13 @@ export default function Matchmaking() {
   const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [scoliaUsername, setScoliaUsername] = useState<string | null>(null);
   const [dartcounterUsername, setDartcounterUsername] = useState<string | null>(null);
+  const [autodartsUsername, setAutodartsUsername] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [status, setStatus] = useState<MatchmakingStatus>('idle');
   const [selectedApp, setSelectedApp] = useState<AppChoice | null>(null);
   const [opponent, setOpponent] = useState<Opponent | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [queueCounts, setQueueCounts] = useState<Record<AppChoice, number>>({ scolia: 0, dartcounter: 0 });
+  const [queueCounts, setQueueCounts] = useState<Record<AppChoice, number>>({ scolia: 0, dartcounter: 0, autodarts: 0 });
   const [errorMessage, setErrorMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
@@ -165,7 +178,7 @@ export default function Matchmaking() {
   const searchProgress = Math.min((elapsedSeconds / 60) * 100, 100);
   const currentRange = getMaxEloDiff(elapsedSeconds);
   const dailyMatchesUsed = getDailyMatchesUsed(dailyQuota);
-  const totalQueuePlayers = queueCounts.scolia + queueCounts.dartcounter;
+  const totalQueuePlayers = queueCounts.scolia + queueCounts.dartcounter + queueCounts.autodarts;
   // null = Profil noch nicht geladen → Box NICHT anzeigen (kein false-positive beim Status-Wechsel)
   const effectivePhoneVerified = phoneVerified === null ? null : (!smsVerificationEnabled || phoneVerified === true);
 
@@ -410,6 +423,7 @@ export default function Matchmaking() {
     setQueueCounts({
       scolia: counts.get('scolia') ?? 0,
       dartcounter: counts.get('dartcounter') ?? 0,
+      autodarts: counts.get('autodarts') ?? 0,
     });
   }, [supabase]);
 
@@ -538,6 +552,8 @@ export default function Matchmaking() {
           setErrorMessage(msg.split('MATCHMAKING_QUEUE_DISABLED:').pop()?.trim() || matchmakingMessage);
         } else if (msg.includes('DAILY_MATCH_LIMIT')) {
           setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
+        } else if (msg.includes('AUTODARTS_USERNAME_REQUIRED')) {
+          setErrorMessage('Bitte hinterlege zuerst deinen AutoDarts-Nutzernamen im Profil.');
         } else if (msg.includes('COOLDOWN:')) {
           // Cooldown serverseitig ignorieren – Queue ist nicht mehr gesperrt
           setCooldownSeconds(0);
@@ -595,6 +611,11 @@ export default function Matchmaking() {
     }
     if (app === 'dartcounter' && !dartcounterUsername) {
       setErrorMessage('Du musst zuerst deinen DartCounter-Nutzernamen im Profil hinterlegen.');
+      setStatus('error');
+      return;
+    }
+    if (app === 'autodarts' && !autodartsUsername) {
+      setErrorMessage('Du musst zuerst deinen AutoDarts-Nutzernamen im Profil hinterlegen.');
       setStatus('error');
       return;
     }
@@ -681,7 +702,7 @@ export default function Matchmaking() {
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('phone_verified, scolia_username, dartcounter_username, queue_banned_until, queue_ban_reason')
+        .select('phone_verified, scolia_username, dartcounter_username, autodarts_username, queue_banned_until, queue_ban_reason')
         .eq('supabaseId', uid)
         .single();
       const { data: quotaData } = await supabase.rpc('get_ranked_match_daily_quota');
@@ -690,6 +711,7 @@ export default function Matchmaking() {
       setPhoneVerified(!smsEnabled || Boolean(profileData?.phone_verified));
       setScoliaUsername(profileData?.scolia_username ?? null);
       setDartcounterUsername(profileData?.dartcounter_username ?? null);
+      setAutodartsUsername(profileData?.autodarts_username ?? null);
       const quotaRow = Array.isArray(quotaData) ? quotaData[0] : quotaData;
       if (quotaRow) setDailyQuota(quotaRow as DailyMatchQuota);
       // Queue-Sperre deaktiviert – kein Wiederherstellen nach Reload
@@ -1151,7 +1173,7 @@ export default function Matchmaking() {
           )}
 
           {/* Queue-Übersicht */}
-          <div className="mt-7 grid grid-cols-3 gap-2.5 sm:gap-3">
+          <div className="mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-xl">
               <Timer className="h-5 w-5 text-zinc-300" />
               <div className="mt-3 text-2xl font-black tracking-[-0.05em]">{status === 'searching' ? `${elapsedSeconds}s` : '—'}</div>
@@ -1166,6 +1188,11 @@ export default function Matchmaking() {
               <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-cyan-300" /><span className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200">DartCounter</span></div>
               <div className="mt-3 text-2xl font-black tracking-[-0.05em] text-cyan-200">{queueCounts.dartcounter}</div>
               <div className="mt-1 text-[10px] font-bold text-cyan-200/50">in der Queue</div>
+            </div>
+            <div className="rounded-2xl border border-violet-300/15 bg-violet-400/[0.05] p-4 backdrop-blur-xl">
+              <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-violet-300" /><span className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-200">AutoDarts</span></div>
+              <div className="mt-3 text-2xl font-black tracking-[-0.05em] text-violet-200">{queueCounts.autodarts}</div>
+              <div className="mt-1 text-[10px] font-bold text-violet-200/50">in der Queue</div>
             </div>
           </div>
         </div>
@@ -1193,7 +1220,7 @@ export default function Matchmaking() {
               <p className="mx-auto mt-4 max-w-md text-center text-sm leading-6 text-zinc-400">Du wirst nur mit Gegnern auf derselben Plattform und in deinem Elo-Bereich verbunden.</p>
               {dailyQuota && <div className={`mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-[0.13em] ${dailyQuota.is_premium ? 'border-amber-300/25 bg-amber-400/10 text-amber-100' : 'border-white/10 bg-white/[0.04] text-zinc-300'}`}><Zap className="h-3.5 w-3.5" />{dailyQuota.is_premium ? 'Premium · Unbegrenzte Matches' : `Free · ${dailyMatchesUsed}/${dailyQuota.daily_limit ?? 4} Matches heute`}</div>}
 
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {(Object.keys(appConfig) as AppChoice[]).map((app) => {
                   const c = appConfig[app];
                   return (
@@ -1220,6 +1247,11 @@ export default function Matchmaking() {
                       {app === 'dartcounter' && !dartcounterUsername && (
                         <div className="mt-3 flex items-center gap-1.5 text-xs font-bold text-amber-300">
                           <span>⚠</span> DartCounter-Username fehlt
+                        </div>
+                      )}
+                      {app === 'autodarts' && !autodartsUsername && (
+                        <div className="mt-3 flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                          <span>⚠</span> AutoDarts-Username fehlt
                         </div>
                       )}
                       <div className="mt-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500 transition group-hover:text-white">Queue betreten <span className="text-lg leading-none text-emerald-300">→</span></div>
@@ -1417,7 +1449,7 @@ export default function Matchmaking() {
                     <button onClick={() => setStatus('idle')} className="rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.16em] text-black">
                       Erneut versuchen
                     </button>
-                    {(errorMessage.includes('Scolia') || errorMessage.includes('DartCounter')) && (
+                    {(errorMessage.includes('Scolia') || errorMessage.includes('DartCounter') || errorMessage.includes('AutoDarts')) && (
                       <a href="/profile" className="rounded-3xl border border-white/15 px-8 py-4 font-black uppercase tracking-[0.16em] text-zinc-300 transition hover:bg-white/10">
                         Zum Profil
                       </a>
@@ -1461,10 +1493,12 @@ export default function Matchmaking() {
                         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${
                           m.app === 'scolia'
                             ? 'border border-emerald-300/20 bg-emerald-400/10 text-emerald-300'
-                            : 'border border-cyan-300/20 bg-cyan-400/10 text-cyan-300'
+                            : m.app === 'autodarts'
+                              ? 'border border-violet-300/20 bg-violet-400/10 text-violet-300'
+                              : 'border border-cyan-300/20 bg-cyan-400/10 text-cyan-300'
                         }`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${m.app === 'scolia' ? 'bg-emerald-300' : 'bg-cyan-300'}`} />
-                          {m.app === 'scolia' ? 'Scolia' : 'DartCounter'}
+                          <span className={`h-1.5 w-1.5 rounded-full ${m.app === 'scolia' ? 'bg-emerald-300' : m.app === 'autodarts' ? 'bg-violet-300' : 'bg-cyan-300'}`} />
+                          {m.app === 'scolia' ? 'Scolia' : m.app === 'autodarts' ? 'AutoDarts' : 'DartCounter'}
                         </span>
                       )}
                       <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${
@@ -1490,7 +1524,7 @@ export default function Matchmaking() {
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
             <ShieldCheck className="h-7 w-7 text-emerald-300" />
             <h3 className="mt-4 text-xl font-black">App-getrennte Queues</h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Scolia- und DartCounter-Spieler werden in separaten Queues geführt und nur untereinander gematcht.</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Scolia-, DartCounter- und AutoDarts-Spieler werden in getrennten Queues geführt und nur innerhalb derselben Plattform gematcht.</p>
           </div>
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
             <Timer className="h-7 w-7 text-cyan-300" />

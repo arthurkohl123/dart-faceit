@@ -51,8 +51,10 @@ type ActiveMatch = {
   app: string | null;
   player1_scolia_username: string | null;
   player1_dartcounter_username: string | null;
+  player1_autodarts_username: string | null;
   player2_scolia_username: string | null;
   player2_dartcounter_username: string | null;
+  player2_autodarts_username: string | null;
 };
 
 type RpcStatusResponse = {
@@ -372,9 +374,8 @@ export default function MatchResult() {
         m.status = payload?.status ?? 'pending_result';
       }
       // Plattform-Usernamen immer aus Profilen laden (active_matches hat diese Felder ggf. nicht)
-      const [{ data: p1Profile }, { data: p2Profile }, { data: p1Stats }, { data: p2Stats }] = await Promise.all([
-        supabase.from('public_profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player1_id).single(),
-        supabase.from('public_profiles').select('scolia_username, dartcounter_username').eq('supabaseId', m.player2_id).single(),
+      const [{ data: platformNames }, { data: p1Stats }, { data: p2Stats }] = await Promise.all([
+        supabase.rpc('get_match_platform_usernames', { p_match_id: m.id }),
         supabase.from('active_matches')
           .select('submitted_player1_average, submitted_player2_average, player1_id')
           .eq('status', 'completed')
@@ -386,13 +387,14 @@ export default function MatchResult() {
           .or(`player1_id.eq.${m.player2_id},player2_id.eq.${m.player2_id}`)
           .not('submitted_player1_average', 'is', null),
       ]);
-      if (p1Profile) {
-        m.player1_scolia_username = p1Profile.scolia_username ?? null;
-        m.player1_dartcounter_username = p1Profile.dartcounter_username ?? null;
-      }
-      if (p2Profile) {
-        m.player2_scolia_username = p2Profile.scolia_username ?? null;
-        m.player2_dartcounter_username = p2Profile.dartcounter_username ?? null;
+      const platformProfile = Array.isArray(platformNames) ? platformNames[0] : platformNames;
+      if (platformProfile) {
+        m.player1_scolia_username = platformProfile.player1_scolia_username ?? null;
+        m.player1_dartcounter_username = platformProfile.player1_dartcounter_username ?? null;
+        m.player1_autodarts_username = platformProfile.player1_autodarts_username ?? null;
+        m.player2_scolia_username = platformProfile.player2_scolia_username ?? null;
+        m.player2_dartcounter_username = platformProfile.player2_dartcounter_username ?? null;
+        m.player2_autodarts_username = platformProfile.player2_autodarts_username ?? null;
       }
       // Durchschnitts-Average beider Spieler berechnen
       if (p1Stats && p1Stats.length > 0) {
@@ -778,8 +780,10 @@ export default function MatchResult() {
             ...updated,
             player1_scolia_username: updated.player1_scolia_username ?? prev?.player1_scolia_username ?? null,
             player1_dartcounter_username: updated.player1_dartcounter_username ?? prev?.player1_dartcounter_username ?? null,
+            player1_autodarts_username: updated.player1_autodarts_username ?? prev?.player1_autodarts_username ?? null,
             player2_scolia_username: updated.player2_scolia_username ?? prev?.player2_scolia_username ?? null,
             player2_dartcounter_username: updated.player2_dartcounter_username ?? prev?.player2_dartcounter_username ?? null,
+            player2_autodarts_username: updated.player2_autodarts_username ?? prev?.player2_autodarts_username ?? null,
           }));
 
           // No-Show-State aus Realtime-Payload synchronisieren
@@ -866,8 +870,10 @@ export default function MatchResult() {
             ...updated,
             player1_scolia_username: previous.player1_scolia_username,
             player1_dartcounter_username: previous.player1_dartcounter_username,
+            player1_autodarts_username: previous.player1_autodarts_username,
             player2_scolia_username: previous.player2_scolia_username,
             player2_dartcounter_username: previous.player2_dartcounter_username,
+            player2_autodarts_username: previous.player2_autodarts_username,
           } : previous);
           setInfoMessage('Ergebnis wurde bestätigt. Die Wertung ist abgeschlossen.');
           if (!completionRedirectRef.current) {
@@ -878,8 +884,10 @@ export default function MatchResult() {
             ...updated,
             player1_scolia_username: previous.player1_scolia_username,
             player1_dartcounter_username: previous.player1_dartcounter_username,
+            player1_autodarts_username: previous.player1_autodarts_username,
             player2_scolia_username: previous.player2_scolia_username,
             player2_dartcounter_username: previous.player2_dartcounter_username,
+            player2_autodarts_username: previous.player2_autodarts_username,
           } : previous);
           if (updated.status === 'awaiting_confirmation' && updated.confirmation_requested_at) {
             autoConfirmCalledRef.current = false;
@@ -1163,17 +1171,17 @@ export default function MatchResult() {
 
         {/* Match-Header — VS-Banner */}
         {match && (() => {
-          const isScolia = match.app === 'scolia';
+          const platform = match.app === 'autodarts' ? 'autodarts' : match.app === 'scolia' ? 'scolia' : 'dartcounter';
           const primaryIsPlayer1 = iAmParticipant ? iAmPlayer1 : true;
           const myPlatformUsername = primaryIsPlayer1
-            ? (isScolia ? match.player1_scolia_username : match.player1_dartcounter_username)
-            : (isScolia ? match.player2_scolia_username : match.player2_dartcounter_username);
+            ? (platform === 'scolia' ? match.player1_scolia_username : platform === 'autodarts' ? match.player1_autodarts_username : match.player1_dartcounter_username)
+            : (platform === 'scolia' ? match.player2_scolia_username : platform === 'autodarts' ? match.player2_autodarts_username : match.player2_dartcounter_username);
           const oppPlatformUsername = primaryIsPlayer1
-            ? (isScolia ? match.player2_scolia_username : match.player2_dartcounter_username)
-            : (isScolia ? match.player1_scolia_username : match.player1_dartcounter_username);
-          const platformLabel = isScolia ? 'Scolia' : 'DartCounter';
-          const platformColor = isScolia ? 'text-emerald-300' : 'text-cyan-300';
-          const platformBorder = isScolia ? 'border-emerald-300/20 bg-emerald-400/[0.06]' : 'border-cyan-300/20 bg-cyan-400/[0.06]';
+            ? (platform === 'scolia' ? match.player2_scolia_username : platform === 'autodarts' ? match.player2_autodarts_username : match.player2_dartcounter_username)
+            : (platform === 'scolia' ? match.player1_scolia_username : platform === 'autodarts' ? match.player1_autodarts_username : match.player1_dartcounter_username);
+          const platformLabel = platform === 'scolia' ? 'Scolia' : platform === 'autodarts' ? 'AutoDarts' : 'DartCounter';
+          const platformColor = platform === 'scolia' ? 'text-emerald-300' : platform === 'autodarts' ? 'text-violet-300' : 'text-cyan-300';
+          const platformBorder = platform === 'scolia' ? 'border-emerald-300/20 bg-emerald-400/[0.06]' : platform === 'autodarts' ? 'border-violet-300/20 bg-violet-400/[0.06]' : 'border-cyan-300/20 bg-cyan-400/[0.06]';
           const myName = primaryIsPlayer1 ? match.player1_username : match.player2_username;
           const myElo = primaryIsPlayer1 ? match.player1_elo : match.player2_elo;
           const displayedOpponentName = primaryIsPlayer1 ? match.player2_username : match.player1_username;

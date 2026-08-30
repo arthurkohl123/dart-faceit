@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       phone_verified_at: null,
       scolia_username: null,
       dartcounter_username: null,
+      autodarts_username: null,
       isPremium: false,
       stripe_customer_id: null,
       stripe_subscription_id: null,

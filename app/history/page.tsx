@@ -131,7 +131,7 @@ function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
               </span>
               {match.app && (
                 <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-bold text-zinc-500">
-                  {match.app === 'scolia' ? '📷' : '📱'} {match.app === 'scolia' ? 'Scolia' : 'DartCounter'}
+                  {match.app === 'scolia' ? '📷' : match.app === 'autodarts' ? '🎯' : '📱'} {match.app === 'scolia' ? 'Scolia' : match.app === 'autodarts' ? 'AutoDarts' : 'DartCounter'}
                 </span>
               )}
               <span className="text-xs text-zinc-600">{timeAgo(match.created_at)}</span>
