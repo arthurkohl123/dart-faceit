@@ -19,6 +19,7 @@ type MatchmakingResponse = {
   opponent_elo: number | null;
   player_elo: number | null;
   match_status: 'searching' | 'matched' | 'pending_accept' | 'already_in_match';
+  error?: string;
 };
 
 type Opponent = {
@@ -554,6 +555,7 @@ export default function Matchmaking() {
       setQueueConnectionRecovering(false);
 
       const result = Array.isArray(data) ? data[0] as MatchmakingResponse | undefined : data as MatchmakingResponse | undefined;
+      if (result?.error) throw new Error(result.error);
 
       await fetchQueueCounts();
 
