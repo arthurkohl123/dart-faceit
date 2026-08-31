@@ -30,8 +30,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await admin
       .from('matches')
       .select('user_id, my_average, one_eighties')
-      .in('user_id', ids)
-      .eq('status', 'completed');
+      .in('user_id', ids);
     if (error) throw error;
 
     const totals: Record<string, MutablePlayerStats> = {};

@@ -57,7 +57,7 @@ export default function Leaderboard() {
 
           const ids = players.map((p) => p.supabaseId).filter(Boolean) as string[];
           if (ids.length > 0) {
-            const response = await fetch(`/api/public-player-stats?ids=${encodeURIComponent(ids.join(','))}`);
+            const response = await fetch(`/api/public-player-stats?ids=${encodeURIComponent(ids.join(','))}`, { cache: 'no-store' });
             if (response.ok) {
               const payload = await response.json() as { stats?: Record<string, { average: number | null }> };
               const map: PlayerAvgMap = {};

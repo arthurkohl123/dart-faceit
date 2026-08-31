@@ -104,7 +104,7 @@ export default function PlayerProfile() {
       const { data: tournamentRows } = await supabase.rpc('list_player_tournament_history', { p_user_id: p.supabaseId });
       if (isMounted) setTournamentHistory((tournamentRows || []) as TournamentHistory[]);
 
-      const statsResponse = await fetch(`/api/public-player-stats?ids=${encodeURIComponent(p.supabaseId)}`);
+      const statsResponse = await fetch(`/api/public-player-stats?ids=${encodeURIComponent(p.supabaseId)}`, { cache: 'no-store' });
       if (statsResponse.ok) {
         const payload = await statsResponse.json() as { stats?: Record<string, { average: number | null; bestAverage: number | null; total180s: number }> };
         const stats = payload.stats?.[p.supabaseId];

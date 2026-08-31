@@ -65,7 +65,7 @@ export default function Profile() {
       const [{ data: profileData }, { data: matchData }, statsResponse] = await Promise.all([
         supabase.from('profiles').select('*').eq('supabaseId', uid).single(),
         supabase.from('matches').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(5),
-        fetch(`/api/public-player-stats?ids=${encodeURIComponent(uid)}`),
+        fetch(`/api/public-player-stats?ids=${encodeURIComponent(uid)}`, { cache: 'no-store' }),
       ]);
 
       if (!isMounted) return;
