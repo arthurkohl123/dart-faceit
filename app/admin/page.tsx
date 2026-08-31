@@ -119,6 +119,83 @@ type TicketMsg = {
   created_at: string;
 };
 
+type PayoutStatus = 'open' | 'details_requested' | 'ready' | 'paid' | 'on_hold' | 'cancelled';
+
+type Payout = {
+  id: string;
+  recipient_profile_id: string;
+  recipient_username: string;
+  source_type: 'season' | 'tournament' | 'manual';
+  source_id: string;
+  source_label: string;
+  amount_cents: number;
+  currency: 'EUR';
+  status: PayoutStatus;
+  payment_method: 'bank_transfer' | 'paypal' | 'other' | null;
+  payment_reference: string | null;
+  internal_note: string | null;
+  due_at: string | null;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type PayoutCandidate = {
+  source_type: 'season' | 'tournament';
+  source_id: string;
+  source_label: string;
+  recipient_profile_id: string;
+  recipient_username: string;
+  suggested_amount_cents: number | null;
+  already_created: boolean;
+};
+
+type PayoutDraft = {
+  profileId: string;
+  sourceType: 'season' | 'tournament' | 'manual';
+  sourceId: string;
+  sourceLabel: string;
+  recipientUsername: string;
+  amountEuro: string;
+  dueAt: string;
+  internalNote: string;
+};
+
+type PayoutEditor = {
+  status: PayoutStatus;
+  paymentMethod: '' | 'bank_transfer' | 'paypal' | 'other';
+  paymentReference: string;
+  internalNote: string;
+};
+
+const payoutStatusConfig: Record<PayoutStatus, { label: string; className: string }> = {
+  open: { label: 'Offen', className: 'border-amber-300/25 bg-amber-300/10 text-amber-100' },
+  details_requested: { label: 'Daten angefordert', className: 'border-violet-300/25 bg-violet-400/10 text-violet-100' },
+  ready: { label: 'Auszahlungsbereit', className: 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100' },
+  paid: { label: 'Ausgezahlt', className: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' },
+  on_hold: { label: 'Zurückgestellt', className: 'border-rose-300/25 bg-rose-400/10 text-rose-100' },
+  cancelled: { label: 'Storniert', className: 'border-zinc-500/25 bg-zinc-500/10 text-zinc-300' },
+};
+
+const payoutMethodLabels: Record<NonNullable<Payout['payment_method']>, string> = {
+  bank_transfer: 'Überweisung',
+  paypal: 'PayPal',
+  other: 'Sonstiges',
+};
+
+function emptyPayoutDraft(): PayoutDraft {
+  return {
+    profileId: '',
+    sourceType: 'manual',
+    sourceId: `manual:${Date.now()}`,
+    sourceLabel: 'Manuelle Auszahlung',
+    recipientUsername: '',
+    amountEuro: '',
+    dueAt: '',
+    internalNote: '',
+  };
+}
+
 type AdminTicketDetail = {
   ticket: AdminTicket;
   messages: TicketMsg[];
@@ -302,6 +379,13 @@ export default function AdminPanel() {
   const [ticketReply, setTicketReply] = useState('');
   const [ticketSending, setTicketSending] = useState(false);
   const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [payoutCandidates, setPayoutCandidates] = useState<PayoutCandidate[]>([]);
+  const [payoutFilter, setPayoutFilter] = useState<PayoutStatus | 'all'>('all');
+  const [payoutDraft, setPayoutDraft] = useState<PayoutDraft>(() => emptyPayoutDraft());
+  const [payoutEditorId, setPayoutEditorId] = useState<string | null>(null);
+  const [payoutEditor, setPayoutEditor] = useState<PayoutEditor | null>(null);
+  const [payoutSaving, setPayoutSaving] = useState(false);
   const [tournaments, setTournaments] = useState<AdminTournament[]>([]);
   const [tournamentForm, setTournamentForm] = useState<TournamentForm>({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '', tournamentFormat: 'single_elimination', checkInMinutes: '30', prizeTitle: '', prizeDetails: '', disputePolicy: 'Bei Verbindungsproblemen sofort Screenshots sichern, den Gegner informieren und innerhalb von 15 Minuten ein Support-Ticket öffnen. Bis zur Admin-Entscheidung darf das Match nicht neu gestartet werden.' });
   const [tournamentSaving, setTournamentSaving] = useState(false);
@@ -311,7 +395,7 @@ export default function AdminPanel() {
   const [tournamentReason, setTournamentReason] = useState('');
   const [tournamentPrizeTitle, setTournamentPrizeTitle] = useState('');
   const [tournamentPrizeDetails, setTournamentPrizeDetails] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'logs' | 'flagged'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'payouts' | 'logs' | 'flagged'>('overview');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
@@ -401,6 +485,126 @@ export default function AdminPanel() {
     });
     if (data) setTickets(data as AdminTicket[]);
   }, [supabase]);
+
+  const loadPayouts = useCallback(async (status: PayoutStatus | 'all' = 'all') => {
+    const { data, error } = await supabase.rpc('admin_list_payouts', {
+      p_status: status === 'all' ? null : status,
+    });
+    if (error) {
+      setActionMessage(`Auszahlungen konnten nicht geladen werden: ${error.message}`);
+      return;
+    }
+    setPayouts((data || []) as Payout[]);
+  }, [supabase]);
+
+  const loadPayoutCandidates = useCallback(async () => {
+    const { data, error } = await supabase.rpc('admin_get_payout_candidates', { p_season_label: 'Season 01' });
+    if (error) {
+      setActionMessage(`Gewinner-Vorschläge konnten nicht geladen werden: ${error.message}`);
+      return;
+    }
+    setPayoutCandidates((data || []) as PayoutCandidate[]);
+  }, [supabase]);
+
+  const beginPayoutFromCandidate = (candidate: PayoutCandidate) => {
+    setPayoutDraft({
+      profileId: candidate.recipient_profile_id,
+      sourceType: candidate.source_type,
+      sourceId: candidate.source_id,
+      sourceLabel: candidate.source_label,
+      recipientUsername: candidate.recipient_username,
+      amountEuro: candidate.suggested_amount_cents ? (candidate.suggested_amount_cents / 100).toFixed(2).replace('.', ',') : '',
+      dueAt: '',
+      internalNote: '',
+    });
+    setActiveTab('payouts');
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  };
+
+  const createPayout = async () => {
+    const amount = Number(payoutDraft.amountEuro.replace(',', '.'));
+    const amountCents = Math.round(amount * 100);
+    if (!payoutDraft.profileId || !payoutDraft.sourceLabel.trim() || !payoutDraft.sourceId.trim() || !Number.isInteger(amountCents) || amountCents <= 0) {
+      setActionMessage('Bitte wähle einen Empfänger und gib Anlass sowie Betrag korrekt an.');
+      return;
+    }
+
+    setPayoutSaving(true);
+    const { error } = await supabase.rpc('admin_create_payout', {
+      p_profile_id: payoutDraft.profileId,
+      p_source_type: payoutDraft.sourceType,
+      p_source_id: payoutDraft.sourceId.trim(),
+      p_source_label: payoutDraft.sourceLabel.trim(),
+      p_amount_cents: amountCents,
+      p_due_at: payoutDraft.dueAt ? new Date(`${payoutDraft.dueAt}T12:00:00`).toISOString() : null,
+      p_internal_note: payoutDraft.internalNote.trim() || null,
+    });
+    setPayoutSaving(false);
+    if (error) {
+      setActionMessage(error.message.includes('duplicate') ? 'Für diesen Gewinner-Anlass gibt es bereits eine Auszahlung.' : `Auszahlung konnte nicht erstellt werden: ${error.message}`);
+      return;
+    }
+
+    setPayoutDraft(emptyPayoutDraft());
+    setActionMessage('Auszahlung angelegt. Zahlungsdaten bitte separat und sicher beim Gewinner anfordern.');
+    await Promise.all([loadPayouts(payoutFilter), loadPayoutCandidates()]);
+  };
+
+  const openPayoutEditor = (payout: Payout) => {
+    setPayoutEditorId(payout.id);
+    setPayoutEditor({
+      status: payout.status,
+      paymentMethod: payout.payment_method || '',
+      paymentReference: payout.payment_reference || '',
+      internalNote: payout.internal_note || '',
+    });
+  };
+
+  const savePayout = async (payoutId: string) => {
+    if (!payoutEditor) return;
+    setPayoutSaving(true);
+    const { error } = await supabase.rpc('admin_update_payout', {
+      p_payout_id: payoutId,
+      p_status: payoutEditor.status,
+      p_payment_method: payoutEditor.paymentMethod || null,
+      p_payment_reference: payoutEditor.paymentReference.trim() || null,
+      p_internal_note: payoutEditor.internalNote.trim() || null,
+    });
+    setPayoutSaving(false);
+    if (error) {
+      setActionMessage(`Auszahlungsstatus konnte nicht gespeichert werden: ${error.message}`);
+      return;
+    }
+    setPayoutEditorId(null);
+    setPayoutEditor(null);
+    setActionMessage('Auszahlungsstatus wurde gespeichert und im Audit protokolliert.');
+    await loadPayouts(payoutFilter);
+  };
+
+  const exportPayouts = () => {
+    const lines = [
+      ['Empfänger', 'Anlass', 'Betrag', 'Status', 'Zahlungsweg', 'Fällig', 'Ausgezahlt am', 'Referenz', 'Interne Notiz'],
+      ...payouts.map((payout) => [
+        payout.recipient_username,
+        payout.source_label,
+        (payout.amount_cents / 100).toFixed(2).replace('.', ','),
+        payoutStatusConfig[payout.status].label,
+        payout.payment_method ? payoutMethodLabels[payout.payment_method] : '',
+        payout.due_at ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'short' }).format(new Date(payout.due_at)) : '',
+        payout.paid_at ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'short' }).format(new Date(payout.paid_at)) : '',
+        payout.payment_reference || '',
+        payout.internal_note || '',
+      ]),
+    ].map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(';')).join('\n');
+    const blob = new Blob([lines], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `rankeddarts-auszahlungen-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setActionMessage('Auszahlungsliste wurde als CSV exportiert.');
+  };
 
   const loadTournaments = useCallback(async () => {
     const { data, error } = await supabase.rpc('list_tournaments');
@@ -588,7 +792,7 @@ export default function AdminPanel() {
         setTimeout(() => router.push('/'), 1200);
         return;
       }
-      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(null, null), loadTournaments()]);
+      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(null, null), loadPayouts(), loadPayoutCandidates(), loadTournaments()]);
       if (isMounted) {
         setLastRefreshedAt(new Date());
         setLoading(false);
@@ -596,13 +800,13 @@ export default function AdminPanel() {
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs, loadFlaggedPlayers, loadFairnessRiskFlags, loadTickets, loadTournaments]);
+  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs, loadFlaggedPlayers, loadFairnessRiskFlags, loadTickets, loadPayouts, loadPayoutCandidates, loadTournaments]);
 
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
-    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(ticketFilter), loadTournaments()]);
+    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(ticketFilter), loadPayouts(payoutFilter), loadPayoutCandidates(), loadTournaments()]);
     setLastRefreshedAt(new Date());
-  }, [loadAdminLogs, loadDisputedMatches, loadFairnessRiskFlags, loadFlaggedPlayers, loadLiveMatches, loadProfiles, loadTickets, loadTournaments, ticketFilter]);
+  }, [loadAdminLogs, loadDisputedMatches, loadFairnessRiskFlags, loadFlaggedPlayers, loadLiveMatches, loadProfiles, loadTickets, loadPayouts, loadPayoutCandidates, loadTournaments, ticketFilter, payoutFilter]);
 
   useEffect(() => {
     if (!autoRefresh || loading) return;
@@ -937,6 +1141,9 @@ export default function AdminPanel() {
   const ticketsWaitingForUser = tickets.filter((ticket) => ticket.status === 'waiting_for_user').length;
   const unassignedTickets = tickets.filter((ticket) => !ticket.assigned_to_id && !['resolved', 'closed'].includes(ticket.status)).length;
   const urgentTickets = tickets.filter((ticket) => ticket.priority === 'urgent' && !['resolved', 'closed'].includes(ticket.status)).length;
+  const pendingPayouts = payouts.filter((payout) => !['paid', 'cancelled'].includes(payout.status));
+  const pendingPayoutAmount = pendingPayouts.reduce((total, payout) => total + payout.amount_cents, 0);
+  const readyPayouts = payouts.filter((payout) => payout.status === 'ready').length;
   const attentionCount = disputedMatches.length + urgentTickets + flaggedPlayers.length + fairnessRiskFlags.length + unassignedTickets;
   const activeTournamentCount = tournaments.filter((tournament) => tournament.status === 'registration' || tournament.status === 'live').length;
   const healthScore = Math.max(0, 100 - Math.min(100, (disputedMatches.length * 12) + (urgentTickets * 10) + (flaggedPlayers.length * 6) + (fairnessRiskFlags.length * 6) + (unassignedTickets * 5)));
@@ -1010,7 +1217,7 @@ export default function AdminPanel() {
             <section className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/15 bg-[#0d1117] shadow-[0_30px_120px_rgba(0,0,0,0.75)]">
               <div className="flex items-center justify-between border-b border-white/10 px-6 py-5"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-300 text-black"><Command className="h-5 w-5" /></div><div><p className="font-black">Command Center</p><p className="text-xs text-zinc-500">Schnelle Navigation und Operations-Aktionen</p></div></div><button onClick={() => setCommandCenterOpen(false)} className="rounded-xl border border-white/10 p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button></div>
               <div className="grid gap-2 p-4 sm:grid-cols-2">
-                {[['disputes', 'Disputes priorisieren', `${disputedMatches.length} offen`, Gavel, 'text-amber-200'], ['tickets', 'Support Queue öffnen', `${ticketsInQueue} in Bearbeitung`, Headphones, 'text-violet-200'], ['live', 'Live Arena beobachten', `${liveMatches.length} Matches`, Radar, 'text-emerald-200'], ['flagged', 'Fairness Monitor', `${flaggedPlayers.length} Accounts`, TriangleAlert, 'text-orange-200'], ['tournaments', 'Cup Control', `${activeTournamentCount} aktiv`, Trophy, 'text-cyan-200'], ['players', 'Spieler verwalten', `${profiles.length} Profile`, Users, 'text-zinc-100']].map(([id, title, meta, Icon, tone]) => {
+                {[['disputes', 'Disputes priorisieren', `${disputedMatches.length} offen`, Gavel, 'text-amber-200'], ['tickets', 'Support Queue öffnen', `${ticketsInQueue} in Bearbeitung`, Headphones, 'text-violet-200'], ['live', 'Live Arena beobachten', `${liveMatches.length} Matches`, Radar, 'text-emerald-200'], ['flagged', 'Fairness Monitor', `${flaggedPlayers.length} Accounts`, TriangleAlert, 'text-orange-200'], ['tournaments', 'Cup Control', `${activeTournamentCount} aktiv`, Trophy, 'text-cyan-200'], ['payouts', 'Auszahlungen verwalten', `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen`, ClipboardList, 'text-emerald-200'], ['players', 'Spieler verwalten', `${profiles.length} Profile`, Users, 'text-zinc-100']].map(([id, title, meta, Icon, tone]) => {
                   const SectionIcon = Icon as typeof Gavel;
                   return <button key={id as string} onClick={() => goToSection(id as typeof activeTab)} className="flex items-center gap-4 rounded-2xl border border-white/8 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.07]"><SectionIcon className={`h-5 w-5 ${tone as string}`} /><span><span className="block text-sm font-black text-white">{title as string}</span><span className="mt-0.5 block text-xs text-zinc-500">{meta as string}</span></span></button>;
                 })}
@@ -1048,6 +1255,7 @@ export default function AdminPanel() {
             { id: 'tournaments', label: 'Turniere',  icon: <Trophy className="h-4 w-4" />,          badge: tournaments.filter(t => t.status === 'registration' || t.status === 'live').length || null },
             { id: 'players',   label: 'Spieler',     icon: <Users className="h-4 w-4" />,           badge: null },
             { id: 'tickets',   label: 'Tickets',     icon: <Headphones className="h-4 w-4" />,      badge: tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length > 0 ? tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length : null },
+            { id: 'payouts',   label: 'Auszahlung',  icon: <ClipboardList className="h-4 w-4" />,   badge: pendingPayouts.length > 0 ? pendingPayouts.length : null },
             { id: 'flagged',   label: 'Verdächtig',  icon: <TriangleAlert className="h-4 w-4" />,   badge: flaggedPlayers.length > 0 ? flaggedPlayers.length : null },
             { id: 'logs',      label: 'Logs',        icon: <ClipboardList className="h-4 w-4" />,   badge: null },
           ] as const).map((tab) => (
@@ -1474,6 +1682,41 @@ export default function AdminPanel() {
                 {tournaments.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-zinc-500">Noch keine Turniere erstellt.</div> : <div className="grid gap-4 lg:grid-cols-2">{tournaments.map(tournament => { const canStart = Number(tournament.checked_in_count) >= 2; return <article key={tournament.id} className={`rounded-[1.6rem] border p-5 ${selectedTournamentId === tournament.id ? 'border-amber-300/35 bg-amber-300/[0.07]' : 'border-white/10 bg-white/[0.035]'}`}><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-[10px] font-black tracking-[0.14em] text-amber-300">{tournament.status.toUpperCase()}{tournament.premium_only && <><span className="text-zinc-600">·</span><Crown className="h-3.5 w-3.5" />PREMIUM</>}</div><h3 className="mt-2 text-xl font-black">{tournament.title}</h3></div><span className="rounded-full bg-white/[0.07] px-2.5 py-1 text-xs font-bold text-zinc-300">{tournament.participant_count}/{tournament.max_players}</span></div><p className="mt-2 text-sm text-zinc-500">Start: {formatDate(tournament.starts_at)} · {tournament.tournament_format.replaceAll('_', ' ')} · Best of {tournament.best_of}</p><div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-200">{tournament.checked_in_count} CHECKED IN</span><span className="rounded-full bg-violet-400/10 px-2.5 py-1 text-violet-200">{tournament.waitlist_count} WARTELISTE</span></div><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => void loadTournamentBracket(tournament.id)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10">Turnier verwalten</button>{tournament.status === 'registration' && <button onClick={() => void startTournament(tournament.id)} disabled={!canStart} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:cursor-not-allowed disabled:opacity-40">Turnier starten</button>}</div>{tournament.status === 'registration' && !canStart && <p className="mt-3 text-[11px] text-zinc-500">Es werden mindestens zwei eingecheckte Teilnehmer benötigt.</p>}</article>; })}</div>}
                 {selectedTournamentId && <div className="mt-7 rounded-[1.7rem] border border-white/10 bg-black/25 p-5"><div className="mb-4 flex items-center gap-2"><Swords className="h-5 w-5 text-amber-300" /><h3 className="font-black">Bracket & Ergebnisse</h3></div>{tournamentBracket.length === 0 ? <p className="text-sm text-zinc-500">Noch keine Paarungen – das Turnier kann ab zwei eingecheckten Teilnehmern starten. Freilose werden automatisch vergeben.</p> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{tournamentBracket.map(match => <div key={match.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-3"><div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500">RUNDE {match.round_number} · MATCH {match.match_number}</div><div className="flex items-center justify-between gap-3 text-sm"><span className={match.winner_id === match.player1_id ? 'font-black text-emerald-200' : 'text-zinc-300'}>{match.player1_username || 'Wird ermittelt'}</span>{match.status !== 'completed' && match.player1_id && <button onClick={() => void reportTournamentWinner(match.id, match.player1_id!)} className="text-[10px] font-black text-amber-300">SIEG</button>}</div><div className="my-2 h-px bg-white/10" /><div className="flex items-center justify-between gap-3 text-sm"><span className={match.winner_id === match.player2_id ? 'font-black text-emerald-200' : 'text-zinc-300'}>{match.player2_username || 'Wird ermittelt'}</span>{match.status !== 'completed' && match.player2_id && <button onClick={() => void reportTournamentWinner(match.id, match.player2_id!)} className="text-[10px] font-black text-amber-300">SIEG</button>}</div></div>)}</div>}</div>}
                 {selectedTournamentId && <div className="mt-5 grid gap-5 xl:grid-cols-[1.3fr_.7fr]"><div className="rounded-[1.7rem] border border-white/10 bg-black/25 p-5"><div className="flex items-center justify-between"><div><p className="text-[10px] font-black tracking-[.16em] text-cyan-300">ROSTER CONTROL</p><h3 className="mt-1 text-xl font-black">Teilnehmer & Warteliste</h3></div><span className="text-xs font-bold text-zinc-500">{tournamentParticipants.length} Einträge</span></div><input value={tournamentReason} onChange={e => setTournamentReason(e.target.value)} placeholder="Grund für Entfernung, Disqualifikation oder Absage" className={`${inputClassName} mt-4`} /><div className="mt-4 max-h-80 space-y-2 overflow-y-auto">{tournamentParticipants.map(participant => <div key={participant.user_id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[.03] p-3 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{participant.username}</p><p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{participant.status}{participant.waitlist_position ? ` · Position ${participant.waitlist_position}` : ''} · {participant.wins}W/{participant.losses}L</p></div>{!['removed','disqualified','withdrawn'].includes(participant.status) && <div className="flex flex-wrap gap-2">{participant.status === 'registered' && <button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'checkin')} className="rounded-lg border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-black text-emerald-200">CHECK-IN</button>}{tournaments.find(t => t.id === selectedTournamentId)?.status === 'completed' && <button onClick={() => void saveTournamentAwards(selectedTournamentId, participant.user_id)} className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1.5 text-[10px] font-black text-amber-200">GEWINNER</button>}<button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'remove')} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-black text-zinc-300">ENTFERNEN</button><button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'disqualify')} className="rounded-lg border border-red-300/20 bg-red-500/10 px-2.5 py-1.5 text-[10px] font-black text-red-200">DQ</button></div>}</div>)}</div></div><div className="space-y-4"><div className="rounded-[1.7rem] border border-amber-300/15 bg-amber-300/[.04] p-5"><p className="text-[10px] font-black tracking-[.16em] text-amber-300">PREISVERWALTUNG</p><input value={tournamentPrizeTitle} onChange={e => setTournamentPrizeTitle(e.target.value)} placeholder="Preis / Titel" className={`${inputClassName} mt-3`} /><textarea value={tournamentPrizeDetails} onChange={e => setTournamentPrizeDetails(e.target.value)} placeholder="Auszahlung und Details" className={`${inputClassName} mt-2 min-h-20`} /><button onClick={() => void saveTournamentAwards(selectedTournamentId)} className="mt-3 w-full rounded-xl bg-amber-300 px-3 py-2.5 text-xs font-black text-black">Preis speichern</button></div><button onClick={() => void cancelTournament(selectedTournamentId)} className="w-full rounded-2xl border border-red-300/25 bg-red-500/10 px-4 py-3 text-xs font-black text-red-200">TURNIER ABSAGEN & ALLE BENACHRICHTIGEN</button></div></div>}
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'payouts' && (
+            <div className="space-y-6">
+              {actionMessage && (
+                <div className="rounded-[1.7rem] border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm font-semibold leading-6 text-emerald-100 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                  {actionMessage}
+                </div>
+              )}
+
+              <section className="relative overflow-hidden rounded-[2.4rem] border border-emerald-300/15 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.14),transparent_46%),rgba(9,9,11,0.78)] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/70 to-transparent" />
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="max-w-2xl"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Prize operations</p><h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">Auszahlungs-Center</h2><p className="mt-2 text-sm leading-6 text-zinc-400">Verwalte Preisgelder für Season und Turniere nachvollziehbar bis zur manuellen Überweisung oder PayPal-Zahlung.</p></div>
+                  <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[25rem]"><div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.06] p-3"><span className="block text-lg font-black text-amber-100">{pendingPayouts.length}</span><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-500">Offen</span></div><div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.06] p-3"><span className="block text-lg font-black text-cyan-100">{readyPayouts}</span><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-500">Bereit</span></div><div className="rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.06] p-3"><span className="block text-lg font-black text-emerald-100">{(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} €</span><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-500">Ausstehend</span></div></div>
+                </div>
+                <p className="mt-5 flex items-start gap-2 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-xs leading-5 text-zinc-400"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />Zahlungsdaten bitte ausschließlich über einen sicheren, separaten Kontaktweg anfordern. In diesem Bereich werden nur Status, Zahlungsweg und Transaktionsreferenz dokumentiert.</p>
+              </section>
+
+              <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">Automatische Vorschläge</p><h3 className="mt-1 text-2xl font-black">Gewinner übernehmen</h3><p className="mt-2 text-sm text-zinc-400">Season-Top-5 und abgeschlossene Turniersieger werden ohne doppelte Auszahlung vorgeschlagen.</p></div><button onClick={() => void loadPayoutCandidates()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black text-zinc-200 transition hover:bg-white/10"><RefreshCw className="h-3.5 w-3.5" />Vorschläge aktualisieren</button></div>
+                {payoutCandidates.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-white/15 p-7 text-center text-sm text-zinc-500">Noch keine Gewinner-Vorschläge vorhanden.</div> : <div className="mt-5 grid gap-3 lg:grid-cols-2">{payoutCandidates.map((candidate) => <article key={`${candidate.source_type}:${candidate.source_id}`} className={`rounded-2xl border p-4 ${candidate.already_created ? 'border-white/8 bg-white/[0.02] opacity-70' : 'border-amber-300/15 bg-amber-300/[0.04]'}`}><div className="flex items-start justify-between gap-3"><div><div className="flex flex-wrap gap-2"><span className="rounded-full bg-black/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">{candidate.source_type === 'season' ? 'Season' : 'Turnier'}</span>{candidate.already_created && <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100">Bereits angelegt</span>}</div><p className="mt-3 font-black text-white">{candidate.recipient_username}</p><p className="mt-1 text-xs text-zinc-500">{candidate.source_label}</p></div><div className="text-right"><p className="text-lg font-black text-amber-100">{candidate.suggested_amount_cents ? `${(candidate.suggested_amount_cents / 100).toFixed(2).replace('.', ',')} €` : 'Betrag offen'}</p>{!candidate.already_created && <button onClick={() => beginPayoutFromCandidate(candidate)} className="mt-3 rounded-xl bg-amber-300 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-black">Übernehmen</button>}</div></div></article>)}</div>}
+              </section>
+
+              <section className="rounded-[2.4rem] border border-cyan-300/15 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300">Neue Buchung</p><h3 className="mt-1 text-2xl font-black">Auszahlung anlegen</h3><p className="mt-2 text-sm text-zinc-400">Für Sonderpreise oder einen übernommenen Gewinner.</p></div><button onClick={() => setPayoutDraft(emptyPayoutDraft())} className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black text-zinc-300 transition hover:bg-white/10">Formular leeren</button></div>
+                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3"><label className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Empfänger<select value={payoutDraft.profileId} onChange={(event) => { const profile = profiles.find((item) => item.id === event.target.value); setPayoutDraft((current) => ({ ...current, profileId: event.target.value, recipientUsername: profile?.username || '', sourceId: current.sourceType === 'manual' ? `manual:${event.target.value}:${Date.now()}` : current.sourceId })); }} className={`${inputClassName} mt-2 [color-scheme:dark]`}><option className={selectOptionClassName} value="">Spieler auswählen</option>{profiles.filter((profile) => !profile.is_banned).map((profile) => <option className={selectOptionClassName} key={profile.id} value={profile.id}>{profile.username || 'Unbekannt'} · {profile.elo ?? 1000} Elo</option>)}</select></label><label className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Anlass<select value={payoutDraft.sourceType} onChange={(event) => setPayoutDraft((current) => ({ ...current, sourceType: event.target.value as PayoutDraft['sourceType'], sourceId: event.target.value === 'manual' ? `manual:${current.profileId || 'unknown'}:${Date.now()}` : current.sourceId }))} className={`${inputClassName} mt-2 [color-scheme:dark]`}><option className={selectOptionClassName} value="season">Season</option><option className={selectOptionClassName} value="tournament">Turnier</option><option className={selectOptionClassName} value="manual">Sonderpreis</option></select></label><label className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Betrag in €<input value={payoutDraft.amountEuro} onChange={(event) => setPayoutDraft((current) => ({ ...current, amountEuro: event.target.value }))} inputMode="decimal" placeholder="z. B. 175,00" className={`${inputClassName} mt-2`} /></label><label className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500 md:col-span-2">Beschreibung / Rang / Turnier<input value={payoutDraft.sourceLabel} onChange={(event) => setPayoutDraft((current) => ({ ...current, sourceLabel: event.target.value }))} placeholder="z. B. Season 01 · Platz 1" className={`${inputClassName} mt-2`} /></label><label className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Fällig bis<input type="date" value={payoutDraft.dueAt} onChange={(event) => setPayoutDraft((current) => ({ ...current, dueAt: event.target.value }))} className={`${inputClassName} mt-2 [color-scheme:dark]`} /></label><label className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500 md:col-span-2 xl:col-span-3">Interne Notiz<textarea value={payoutDraft.internalNote} onChange={(event) => setPayoutDraft((current) => ({ ...current, internalNote: event.target.value }))} placeholder="Keine Bankdaten oder PayPal-Adresse hier eintragen." className={`${inputClassName} mt-2 min-h-20 resize-none`} /></label></div>
+                <button onClick={() => void createPayout()} disabled={payoutSaving} className="mt-5 rounded-2xl bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-black transition hover:-translate-y-0.5 disabled:opacity-50">{payoutSaving ? 'Wird angelegt …' : 'Auszahlung anlegen'}</button>
+              </section>
+
+              <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Auszahlungsjournal</p><h3 className="mt-1 text-2xl font-black">Status & Nachverfolgung</h3></div><div className="flex flex-wrap gap-2"><select value={payoutFilter} onChange={(event) => { const status = event.target.value as PayoutStatus | 'all'; setPayoutFilter(status); void loadPayouts(status); }} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2.5 text-xs font-bold text-zinc-200 outline-none [color-scheme:dark]"><option className={selectOptionClassName} value="all">Alle Status</option>{Object.entries(payoutStatusConfig).map(([status, config]) => <option className={selectOptionClassName} key={status} value={status}>{config.label}</option>)}</select><button onClick={exportPayouts} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black text-zinc-200 transition hover:bg-white/10"><Download className="h-3.5 w-3.5" />CSV exportieren</button></div></div>
+                {payouts.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-white/15 p-9 text-center text-sm text-zinc-500">Für diesen Status gibt es keine Auszahlungen.</div> : <div className="mt-5 space-y-3">{payouts.map((payout) => { const status = payoutStatusConfig[payout.status]; const isEditing = payoutEditorId === payout.id && payoutEditor; return <article key={payout.id} className="rounded-[1.5rem] border border-white/10 bg-black/25 p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-black text-white">{payout.recipient_username}</p><span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${status.className}`}>{status.label}</span></div><p className="mt-2 text-sm text-zinc-300">{payout.source_label}</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500"><span>{payout.due_at ? `Fällig: ${formatDate(payout.due_at)}` : 'Ohne festes Fälligkeitsdatum'}</span>{payout.paid_at && <span>Ausgezahlt: {formatDate(payout.paid_at)}</span>}{payout.payment_method && <span>{payoutMethodLabels[payout.payment_method]}</span>}{payout.payment_reference && <span>Ref.: {payout.payment_reference}</span>}</div>{payout.internal_note && <p className="mt-3 max-w-3xl rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2 text-xs leading-5 text-zinc-400">{payout.internal_note}</p>}</div><div className="flex shrink-0 items-center gap-3"><strong className="text-2xl font-black text-emerald-100">{(payout.amount_cents / 100).toFixed(2).replace('.', ',')} €</strong><button onClick={() => isEditing ? (setPayoutEditorId(null), setPayoutEditor(null)) : openPayoutEditor(payout)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 transition hover:bg-white/10">{isEditing ? 'Schließen' : 'Bearbeiten'}</button></div></div>{isEditing && <div className="mt-5 grid gap-3 border-t border-white/10 pt-5 md:grid-cols-2 xl:grid-cols-4"><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500">Status<select value={payoutEditor.status} onChange={(event) => setPayoutEditor((current) => current ? { ...current, status: event.target.value as PayoutStatus } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`}>{Object.entries(payoutStatusConfig).map(([value, config]) => <option className={selectOptionClassName} key={value} value={value}>{config.label}</option>)}</select></label><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500">Zahlungsweg<select value={payoutEditor.paymentMethod} onChange={(event) => setPayoutEditor((current) => current ? { ...current, paymentMethod: event.target.value as PayoutEditor['paymentMethod'] } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`}><option className={selectOptionClassName} value="">Noch nicht festgelegt</option><option className={selectOptionClassName} value="bank_transfer">Überweisung</option><option className={selectOptionClassName} value="paypal">PayPal</option><option className={selectOptionClassName} value="other">Sonstiges</option></select></label><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500 xl:col-span-2">Transaktionsreferenz<input value={payoutEditor.paymentReference} onChange={(event) => setPayoutEditor((current) => current ? { ...current, paymentReference: event.target.value } : current)} placeholder="z. B. Bankreferenz oder PayPal-Transaktions-ID" className={`${inputClassName} mt-2`} /></label><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500 md:col-span-2 xl:col-span-3">Interne Notiz<textarea value={payoutEditor.internalNote} onChange={(event) => setPayoutEditor((current) => current ? { ...current, internalNote: event.target.value } : current)} className={`${inputClassName} mt-2 min-h-20 resize-none`} /></label><div className="flex items-end"><button onClick={() => void savePayout(payout.id)} disabled={payoutSaving} className="w-full rounded-xl bg-emerald-300 px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-black disabled:opacity-50">{payoutSaving ? 'Speichert …' : 'Status speichern'}</button></div></div>}</article>; })}</div>}
               </section>
             </div>
           )}
