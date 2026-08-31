@@ -8,6 +8,13 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { ResultRoomPreview } from '@/components/ResultRoomPreview';
 import { getRankRangeLabel, RANK_TIERS } from '@/lib/ranks';
 
+type CommunityStats = {
+  players: number;
+  matches: number;
+  cups: number;
+  liveCups: number;
+};
+
 const features = [
   {
     eyebrow: 'Ranking',
@@ -36,7 +43,7 @@ export default function Home() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [communityStats, setCommunityStats] = useState({ players: 0, matches: 0, cups: 0, liveCups: 0 });
+  const [communityStats, setCommunityStats] = useState<CommunityStats | null>(null);
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
@@ -53,22 +60,26 @@ export default function Home() {
 
   useEffect(() => {
     async function loadCommunityStats() {
-      const [{ count: players }, { count: matches }, { count: cups }, { count: liveCups }] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('active_matches').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
-        supabase.from('tournaments').select('*', { count: 'exact', head: true }),
-        supabase.from('tournaments').select('*', { count: 'exact', head: true }).eq('status', 'live'),
-      ]);
-      setCommunityStats({ players: players ?? 0, matches: matches ?? 0, cups: cups ?? 0, liveCups: liveCups ?? 0 });
+      try {
+        const response = await fetch('/api/community-stats');
+        if (!response.ok) throw new Error(`Community stats request failed: ${response.status}`);
+
+        const stats: CommunityStats = await response.json();
+        if ([stats.players, stats.matches, stats.cups, stats.liveCups].every((value) => Number.isInteger(value) && value >= 0)) {
+          setCommunityStats(stats);
+        }
+      } catch (error) {
+        console.warn('Community stats could not be loaded', error);
+      }
     }
     void loadCommunityStats();
-  }, [supabase]);
+  }, []);
 
   const stats = [
-    { value: String(communityStats.players), label: 'Spieler', detail: 'Mit RankedDarts-Profil' },
-    { value: String(communityStats.matches), label: 'Matches', detail: 'Abgeschlossen und bestätigt' },
-    { value: String(communityStats.cups), label: 'Turniere', detail: 'Bisher auf der Plattform' },
-    { value: communityStats.liveCups > 0 ? String(communityStats.liveCups) : '0', label: 'Turniere live', detail: communityStats.liveCups > 0 ? 'Werden gerade gespielt' : 'Aktuell läuft keines' },
+    { value: communityStats ? String(communityStats.players) : '–', label: 'Spieler', detail: 'Mit RankedDarts-Profil' },
+    { value: communityStats ? String(communityStats.matches) : '–', label: 'Matches', detail: 'Abgeschlossen und bestätigt' },
+    { value: communityStats ? String(communityStats.cups) : '–', label: 'Turniere', detail: 'Bisher auf der Plattform' },
+    { value: communityStats ? String(communityStats.liveCups) : '–', label: 'Turniere live', detail: communityStats && communityStats.liveCups > 0 ? 'Werden gerade gespielt' : 'Aktuell läuft keines' },
   ];
 
   return (
