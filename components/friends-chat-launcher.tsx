@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { FriendChat } from '@/components/friend-chat';
+import { createClient } from '@/lib/supabase';
 
 type ChatFriend = {
   user_id: string;
@@ -10,9 +11,30 @@ type ChatFriend = {
   is_online: boolean;
 };
 
-export function FriendsChatLauncher({ friends }: { friends: ChatFriend[] }) {
+export function FriendsChatLauncher() {
+  const supabase = useMemo(() => createClient(), []);
+  const [friends, setFriends] = useState<ChatFriend[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [chatFriend, setChatFriend] = useState<ChatFriend | null>(null);
+
+  const load = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setFriends([]);
+      return;
+    }
+    const { data } = await supabase.rpc('list_my_friends');
+    setFriends((data ?? []) as ChatFriend[]);
+  }, [supabase]);
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => { void load(); }, 0);
+    const interval = window.setInterval(() => { void load(); }, 20_000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
+  }, [load]);
 
   if (friends.length === 0) return null;
 
