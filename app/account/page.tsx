@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Download, Loader2, ShieldAlert, Trash2 } from 'lucide-react';
+import { Download, Loader2, ShieldAlert, Trash2, WalletCards } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
 export default function AccountPage() {
@@ -31,6 +31,11 @@ export default function AccountPage() {
         <Download className="text-emerald-300" /><h2 className="mt-4 text-xl font-black">Datenexport</h2>
         <p className="mt-2 text-sm leading-6 text-zinc-400">Der Export enthält Profil, Matchhistorie, Benachrichtigungen, Turnierteilnahmen und Support-Tickets als JSON-Datei.</p>
         <a href="/api/account/export" className="mt-5 inline-flex rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-black">Daten herunterladen</a>
+      </section>
+      <section className="mt-5 rounded-3xl border border-emerald-300/15 bg-emerald-400/[.05] p-6">
+        <WalletCards className="text-emerald-300" /><h2 className="mt-4 text-xl font-black">Auszahlungen</h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">Wenn du ein Preisgeld gewonnen hast, hinterlegst du deinen Zahlungsweg ausschließlich im geschützten Auszahlungsbereich.</p>
+        <Link href="/account/payouts" className="mt-5 inline-flex rounded-xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-100">Auszahlungen öffnen</Link>
       </section>
       <section className="mt-5 rounded-3xl border border-red-300/20 bg-red-500/[.06] p-6">
         <ShieldAlert className="text-red-300" /><h2 className="mt-4 text-xl font-black">Account endgültig löschen</h2>

@@ -168,6 +168,16 @@ type PayoutEditor = {
   internalNote: string;
 };
 
+type PayoutPaymentDetails = {
+  payment_method: 'bank_transfer' | 'paypal';
+  account_holder: string | null;
+  iban: string | null;
+  paypal_email: string | null;
+  age_confirmed_at: string;
+  submitted_at: string;
+  purge_after: string | null;
+};
+
 const payoutStatusConfig: Record<PayoutStatus, { label: string; className: string }> = {
   open: { label: 'Offen', className: 'border-amber-300/25 bg-amber-300/10 text-amber-100' },
   details_requested: { label: 'Daten angefordert', className: 'border-violet-300/25 bg-violet-400/10 text-violet-100' },
@@ -386,6 +396,9 @@ export default function AdminPanel() {
   const [payoutEditorId, setPayoutEditorId] = useState<string | null>(null);
   const [payoutEditor, setPayoutEditor] = useState<PayoutEditor | null>(null);
   const [payoutSaving, setPayoutSaving] = useState(false);
+  const [payoutPaymentDetails, setPayoutPaymentDetails] = useState<PayoutPaymentDetails | null>(null);
+  const [payoutPaymentDetailsId, setPayoutPaymentDetailsId] = useState<string | null>(null);
+  const [pendingPayoutDetailsDeleteId, setPendingPayoutDetailsDeleteId] = useState<string | null>(null);
   const [tournaments, setTournaments] = useState<AdminTournament[]>([]);
   const [tournamentForm, setTournamentForm] = useState<TournamentForm>({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '', tournamentFormat: 'single_elimination', checkInMinutes: '30', prizeTitle: '', prizeDetails: '', disputePolicy: 'Bei Verbindungsproblemen sofort Screenshots sichern, den Gegner informieren und innerhalb von 15 Minuten ein Support-Ticket öffnen. Bis zur Admin-Entscheidung darf das Match nicht neu gestartet werden.' });
   const [tournamentSaving, setTournamentSaving] = useState(false);
@@ -579,6 +592,48 @@ export default function AdminPanel() {
     setPayoutEditor(null);
     setActionMessage('Auszahlungsstatus wurde gespeichert und im Audit protokolliert.');
     await loadPayouts(payoutFilter);
+  };
+
+  const requestPayoutDetails = async (payoutId: string) => {
+    const { error } = await supabase.rpc('admin_request_payout_details', { p_payout_id: payoutId });
+    if (error) {
+      setActionMessage(`Auszahlungsanfrage konnte nicht gesendet werden: ${error.message}`);
+      return;
+    }
+    setActionMessage('Der Gewinner wurde benachrichtigt und kann die Zahlungsdaten sicher im Konto hinterlegen.');
+    await loadPayouts(payoutFilter);
+  };
+
+  const showPayoutPaymentDetails = async (payoutId: string) => {
+    const { data, error } = await supabase.rpc('admin_get_payout_payment_details', { p_payout_id: payoutId });
+    if (error) {
+      setActionMessage(`Zahlungsdaten konnten nicht geöffnet werden: ${error.message}`);
+      return;
+    }
+    const details = (Array.isArray(data) ? data[0] : data) as PayoutPaymentDetails | null;
+    if (!details) {
+      setActionMessage('Für diese Auszahlung wurden noch keine Zahlungsdaten hinterlegt.');
+      return;
+    }
+    setPayoutPaymentDetailsId(payoutId);
+    setPayoutPaymentDetails(details);
+  };
+
+  const deletePayoutPaymentDetails = async (payoutId: string) => {
+    if (pendingPayoutDetailsDeleteId !== payoutId) {
+      setPendingPayoutDetailsDeleteId(payoutId);
+      setActionMessage('Bitte bestätige das endgültige Löschen der Zahlungsdaten direkt in der Auszahlungs-Karte. Der Zahlungsnachweis bleibt erhalten.');
+      return;
+    }
+    const { error } = await supabase.rpc('admin_delete_payout_payment_details', { p_payout_id: payoutId });
+    if (error) {
+      setActionMessage(`Zahlungsdaten konnten nicht gelöscht werden: ${error.message}`);
+      return;
+    }
+    setPendingPayoutDetailsDeleteId(null);
+    setPayoutPaymentDetailsId(null);
+    setPayoutPaymentDetails(null);
+    setActionMessage('Die Zahlungsdaten wurden gelöscht. Betrag, Status und Transaktionsreferenz bleiben im Auszahlungsjournal erhalten.');
   };
 
   const exportPayouts = () => {
@@ -1716,7 +1771,7 @@ export default function AdminPanel() {
 
               <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Auszahlungsjournal</p><h3 className="mt-1 text-2xl font-black">Status & Nachverfolgung</h3></div><div className="flex flex-wrap gap-2"><select value={payoutFilter} onChange={(event) => { const status = event.target.value as PayoutStatus | 'all'; setPayoutFilter(status); void loadPayouts(status); }} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2.5 text-xs font-bold text-zinc-200 outline-none [color-scheme:dark]"><option className={selectOptionClassName} value="all">Alle Status</option>{Object.entries(payoutStatusConfig).map(([status, config]) => <option className={selectOptionClassName} key={status} value={status}>{config.label}</option>)}</select><button onClick={exportPayouts} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black text-zinc-200 transition hover:bg-white/10"><Download className="h-3.5 w-3.5" />CSV exportieren</button></div></div>
-                {payouts.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-white/15 p-9 text-center text-sm text-zinc-500">Für diesen Status gibt es keine Auszahlungen.</div> : <div className="mt-5 space-y-3">{payouts.map((payout) => { const status = payoutStatusConfig[payout.status]; const isEditing = payoutEditorId === payout.id && payoutEditor; return <article key={payout.id} className="rounded-[1.5rem] border border-white/10 bg-black/25 p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-black text-white">{payout.recipient_username}</p><span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${status.className}`}>{status.label}</span></div><p className="mt-2 text-sm text-zinc-300">{payout.source_label}</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500"><span>{payout.due_at ? `Fällig: ${formatDate(payout.due_at)}` : 'Ohne festes Fälligkeitsdatum'}</span>{payout.paid_at && <span>Ausgezahlt: {formatDate(payout.paid_at)}</span>}{payout.payment_method && <span>{payoutMethodLabels[payout.payment_method]}</span>}{payout.payment_reference && <span>Ref.: {payout.payment_reference}</span>}</div>{payout.internal_note && <p className="mt-3 max-w-3xl rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2 text-xs leading-5 text-zinc-400">{payout.internal_note}</p>}</div><div className="flex shrink-0 items-center gap-3"><strong className="text-2xl font-black text-emerald-100">{(payout.amount_cents / 100).toFixed(2).replace('.', ',')} €</strong><button onClick={() => isEditing ? (setPayoutEditorId(null), setPayoutEditor(null)) : openPayoutEditor(payout)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 transition hover:bg-white/10">{isEditing ? 'Schließen' : 'Bearbeiten'}</button></div></div>{isEditing && <div className="mt-5 grid gap-3 border-t border-white/10 pt-5 md:grid-cols-2 xl:grid-cols-4"><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500">Status<select value={payoutEditor.status} onChange={(event) => setPayoutEditor((current) => current ? { ...current, status: event.target.value as PayoutStatus } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`}>{Object.entries(payoutStatusConfig).map(([value, config]) => <option className={selectOptionClassName} key={value} value={value}>{config.label}</option>)}</select></label><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500">Zahlungsweg<select value={payoutEditor.paymentMethod} onChange={(event) => setPayoutEditor((current) => current ? { ...current, paymentMethod: event.target.value as PayoutEditor['paymentMethod'] } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`}><option className={selectOptionClassName} value="">Noch nicht festgelegt</option><option className={selectOptionClassName} value="bank_transfer">Überweisung</option><option className={selectOptionClassName} value="paypal">PayPal</option><option className={selectOptionClassName} value="other">Sonstiges</option></select></label><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500 xl:col-span-2">Transaktionsreferenz<input value={payoutEditor.paymentReference} onChange={(event) => setPayoutEditor((current) => current ? { ...current, paymentReference: event.target.value } : current)} placeholder="z. B. Bankreferenz oder PayPal-Transaktions-ID" className={`${inputClassName} mt-2`} /></label><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500 md:col-span-2 xl:col-span-3">Interne Notiz<textarea value={payoutEditor.internalNote} onChange={(event) => setPayoutEditor((current) => current ? { ...current, internalNote: event.target.value } : current)} className={`${inputClassName} mt-2 min-h-20 resize-none`} /></label><div className="flex items-end"><button onClick={() => void savePayout(payout.id)} disabled={payoutSaving} className="w-full rounded-xl bg-emerald-300 px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-black disabled:opacity-50">{payoutSaving ? 'Speichert …' : 'Status speichern'}</button></div></div>}</article>; })}</div>}
+                {payouts.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-white/15 p-9 text-center text-sm text-zinc-500">Für diesen Status gibt es keine Auszahlungen.</div> : <div className="mt-5 space-y-3">{payouts.map((payout) => { const status = payoutStatusConfig[payout.status]; const isEditing = payoutEditorId === payout.id && payoutEditor; const canRequestDetails = !['paid', 'cancelled'].includes(payout.status) && payout.status !== 'ready'; const canOpenDetails = payout.status === 'ready' || payout.status === 'paid'; const isDetailsOpen = payoutPaymentDetailsId === payout.id && payoutPaymentDetails; return <article key={payout.id} className="rounded-[1.5rem] border border-white/10 bg-black/25 p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-black text-white">{payout.recipient_username}</p><span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${status.className}`}>{status.label}</span></div><p className="mt-2 text-sm text-zinc-300">{payout.source_label}</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500"><span>{payout.due_at ? `Fällig: ${formatDate(payout.due_at)}` : 'Ohne festes Fälligkeitsdatum'}</span>{payout.paid_at && <span>Ausgezahlt: {formatDate(payout.paid_at)}</span>}{payout.payment_method && <span>{payoutMethodLabels[payout.payment_method]}</span>}{payout.payment_reference && <span>Ref.: {payout.payment_reference}</span>}</div>{payout.internal_note && <p className="mt-3 max-w-3xl rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2 text-xs leading-5 text-zinc-400">{payout.internal_note}</p>}</div><div className="flex shrink-0 flex-wrap items-center justify-end gap-2"><strong className="mr-1 text-2xl font-black text-emerald-100">{(payout.amount_cents / 100).toFixed(2).replace('.', ',')} €</strong>{canRequestDetails && <button onClick={() => void requestPayoutDetails(payout.id)} className="rounded-xl border border-violet-300/25 bg-violet-400/10 px-3 py-2 text-xs font-black text-violet-100 transition hover:bg-violet-400/20">Daten anfordern</button>}{canOpenDetails && <button onClick={() => void showPayoutPaymentDetails(payout.id)} className="rounded-xl border border-cyan-300/25 bg-cyan-400/10 px-3 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-400/20">Zahlungsdaten</button>}<button onClick={() => isEditing ? (setPayoutEditorId(null), setPayoutEditor(null)) : openPayoutEditor(payout)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 transition hover:bg-white/10">{isEditing ? 'Schließen' : 'Bearbeiten'}</button></div></div>{isDetailsOpen && <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.06] p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200">Vertrauliche Zahlungsdaten · Abruf protokolliert</p><p className="mt-2 text-sm text-zinc-300">{payoutPaymentDetails.payment_method === 'bank_transfer' ? `Kontoinhaber: ${payoutPaymentDetails.account_holder} · IBAN: ${payoutPaymentDetails.iban}` : `PayPal: ${payoutPaymentDetails.paypal_email}`}</p><p className="mt-2 text-xs text-zinc-500">18+ bestätigt am {formatDate(payoutPaymentDetails.age_confirmed_at)} · eingereicht am {formatDate(payoutPaymentDetails.submitted_at)}{payoutPaymentDetails.purge_after ? ` · automatische Löschung ${formatDate(payoutPaymentDetails.purge_after)}` : ''}</p></div><button onClick={() => { setPayoutPaymentDetailsId(null); setPayoutPaymentDetails(null); }} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300">Schließen</button></div>{['paid', 'cancelled'].includes(payout.status) && <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => void deletePayoutPaymentDetails(payout.id)} className="rounded-xl border border-rose-300/25 bg-rose-400/10 px-3 py-2 text-xs font-black text-rose-100">{pendingPayoutDetailsDeleteId === payout.id ? 'Löschen endgültig bestätigen' : 'Zahlungsdaten jetzt löschen'}</button>{pendingPayoutDetailsDeleteId === payout.id && <button onClick={() => setPendingPayoutDetailsDeleteId(null)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300">Abbrechen</button>}</div>}</div>}{isEditing && <div className="mt-5 grid gap-3 border-t border-white/10 pt-5 md:grid-cols-2 xl:grid-cols-4"><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500">Status<select value={payoutEditor.status} onChange={(event) => setPayoutEditor((current) => current ? { ...current, status: event.target.value as PayoutStatus } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`}>{Object.entries(payoutStatusConfig).map(([value, config]) => <option className={selectOptionClassName} key={value} value={value}>{config.label}</option>)}</select></label><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500">Zahlungsweg<select value={payoutEditor.paymentMethod} onChange={(event) => setPayoutEditor((current) => current ? { ...current, paymentMethod: event.target.value as PayoutEditor['paymentMethod'] } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`}><option className={selectOptionClassName} value="">Noch nicht festgelegt</option><option className={selectOptionClassName} value="bank_transfer">Überweisung</option><option className={selectOptionClassName} value="paypal">PayPal</option><option className={selectOptionClassName} value="other">Sonstiges</option></select></label><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500 xl:col-span-2">Transaktionsreferenz<input value={payoutEditor.paymentReference} onChange={(event) => setPayoutEditor((current) => current ? { ...current, paymentReference: event.target.value } : current)} placeholder="z. B. Bankreferenz oder PayPal-Transaktions-ID" className={`${inputClassName} mt-2`} /></label><label className="text-xs font-black uppercase tracking-[0.1em] text-zinc-500 md:col-span-2 xl:col-span-3">Interne Notiz<textarea value={payoutEditor.internalNote} onChange={(event) => setPayoutEditor((current) => current ? { ...current, internalNote: event.target.value } : current)} className={`${inputClassName} mt-2 min-h-20 resize-none`} /></label><div className="flex items-end"><button onClick={() => void savePayout(payout.id)} disabled={payoutSaving} className="w-full rounded-xl bg-emerald-300 px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-black disabled:opacity-50">{payoutSaving ? 'Speichert …' : 'Status speichern'}</button></div></div>}</article>; })}</div>}
               </section>
             </div>
           )}
