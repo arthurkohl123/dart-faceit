@@ -62,10 +62,10 @@ export default function Profile() {
 
       const uid = session.user.id;
 
-      const [{ data: profileData }, { data: matchData }, statsResponse] = await Promise.all([
+      const [{ data: profileData }, { data: matchData }, { data: statisticRows, error: statisticsError }] = await Promise.all([
         supabase.from('profiles').select('*').eq('supabaseId', uid).single(),
         supabase.from('matches').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(5),
-        fetch(`/api/public-player-stats?ids=${encodeURIComponent(uid)}`, { cache: 'no-store' }),
+        supabase.rpc('get_public_player_statistics', { p_user_ids: [uid] }),
       ]);
 
       if (!isMounted) return;
@@ -74,11 +74,12 @@ export default function Profile() {
       setDartcounterInput(profileData?.dartcounter_username ?? '');
       setAutodartsInput(profileData?.autodarts_username ?? '');
       setMatches((matchData || []) as MatchData[]);
-      if (statsResponse.ok) {
-        const payload = await statsResponse.json() as { stats?: Record<string, { average: number | null; total180s: number }> };
-        const stats = payload.stats?.[uid];
+      if (!statisticsError) {
+        const stats = (statisticRows as { average: number | null; total_180s: number }[] | null)?.[0];
         setAvgAverage(stats?.average ?? 0);
-        setTotal180s(stats?.total180s ?? 0);
+        setTotal180s(stats?.total_180s ?? 0);
+      } else {
+        console.error('Profil-Statistiken konnten nicht geladen werden:', statisticsError);
       }
       setLoading(false);
     }

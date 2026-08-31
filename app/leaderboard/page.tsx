@@ -57,14 +57,15 @@ export default function Leaderboard() {
 
           const ids = players.map((p) => p.supabaseId).filter(Boolean) as string[];
           if (ids.length > 0) {
-            const response = await fetch(`/api/public-player-stats?ids=${encodeURIComponent(ids.join(','))}`, { cache: 'no-store' });
-            if (response.ok) {
-              const payload = await response.json() as { stats?: Record<string, { average: number | null }> };
+            const { data: statisticRows, error: statisticsError } = await supabase.rpc('get_public_player_statistics', { p_user_ids: ids });
+            if (!statisticsError) {
               const map: PlayerAvgMap = {};
-              for (const [id, stat] of Object.entries(payload.stats ?? {})) {
-                if (stat.average !== null && Number.isFinite(stat.average)) map[id] = stat.average;
+              for (const stat of (statisticRows ?? []) as { user_id: string; average: number | null }[]) {
+                if (stat.average !== null && Number.isFinite(stat.average)) map[stat.user_id] = stat.average;
               }
               if (isMounted) setAvgMap(map);
+            } else {
+              console.error('Leaderboard-Statistiken konnten nicht geladen werden:', statisticsError);
             }
           }
         }

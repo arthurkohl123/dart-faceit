@@ -104,13 +104,14 @@ export default function PlayerProfile() {
       const { data: tournamentRows } = await supabase.rpc('list_player_tournament_history', { p_user_id: p.supabaseId });
       if (isMounted) setTournamentHistory((tournamentRows || []) as TournamentHistory[]);
 
-      const statsResponse = await fetch(`/api/public-player-stats?ids=${encodeURIComponent(p.supabaseId)}`, { cache: 'no-store' });
-      if (statsResponse.ok) {
-        const payload = await statsResponse.json() as { stats?: Record<string, { average: number | null; bestAverage: number | null; total180s: number }> };
-        const stats = payload.stats?.[p.supabaseId];
+      const { data: statisticRows, error: statisticsError } = await supabase.rpc('get_public_player_statistics', { p_user_ids: [p.supabaseId] });
+      if (!statisticsError) {
+        const stats = (statisticRows as { average: number | null; best_average: number | null; total_180s: number }[] | null)?.[0];
         setAvgAverage(stats?.average ?? null);
-        setBestAverage(stats?.bestAverage ?? null);
-        setTotal180s(stats?.total180s ?? 0);
+        setBestAverage(stats?.best_average ?? null);
+        setTotal180s(stats?.total_180s ?? 0);
+      } else {
+        console.error('Öffentliche Spielerstatistiken konnten nicht geladen werden:', statisticsError);
       }
 
       setLoading(false);
