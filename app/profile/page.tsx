@@ -9,7 +9,7 @@ import { getRankProgress } from '@/lib/ranks';
 import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
 import { PayoutAlert } from '@/components/payout-alert';
-import { ArrowUpRight, CheckCircle2, Crosshair, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, WalletCards, X, XCircle, Zap } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Crosshair, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
 
 type MatchData = {
   id: string | number;
@@ -17,6 +17,7 @@ type MatchData = {
   opponent_name?: string;
   is_win?: boolean;
   result?: string;
+  match_mode?: 'ranked' | 'private' | null;
 };
 
 type ProfileData = {
@@ -169,6 +170,7 @@ export default function Profile() {
             <Link href="/tournaments" className="inline-flex items-center gap-1.5 transition hover:text-white"><Trophy size={14} />Turniere</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
             <Link href="/support" className="inline-flex items-center gap-1.5 transition hover:text-white"><Headphones size={14} />Support</Link>
+            <Link href="/friends" className="inline-flex items-center gap-1.5 transition hover:text-white"><UsersRound size={14} />Freunde</Link>
             <Link href="/account" className="inline-flex items-center gap-1.5 transition hover:text-white"><WalletCards size={14} />Konto</Link>
             <Link href="/premium" className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-200 transition hover:bg-emerald-400/20">Premium</Link>
           </div>
@@ -196,6 +198,7 @@ export default function Profile() {
               <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
                <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Headphones size={15} />Support</Link>
+               <Link href="/friends" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><UsersRound size={15} />Freunde & Duelle</Link>
                <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><WalletCards size={15} />Konto & Auszahlungen</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
               <div className="mt-2 border-t border-white/10 pt-2">
@@ -347,6 +350,16 @@ export default function Profile() {
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-300 to-cyan-300" style={{ width: `${Math.max(winrate, 8)}%` }} /></div>
           </div>
         </section>
+
+        <Link
+          href="/friends"
+          className="group relative mt-5 flex overflow-hidden rounded-[1.75rem] border border-cyan-300/20 bg-gradient-to-r from-cyan-400/[0.1] via-zinc-950/85 to-emerald-400/[0.08] p-6 transition hover:-translate-y-0.5 hover:border-cyan-300/35 sm:p-7"
+        >
+          <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-cyan-300/15 blur-3xl transition group-hover:bg-cyan-300/25" />
+          <div className="relative grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-cyan-300/25 bg-cyan-400/10 text-cyan-100"><UsersRound className="h-6 w-6" /></div>
+          <div className="relative ml-5 min-w-0 flex-1"><div className="text-[10px] font-black uppercase tracking-[0.26em] text-cyan-200">Social Arena</div><h2 className="mt-1 text-xl font-black tracking-[-0.04em] sm:text-2xl">Freunde herausfordern</h2><p className="mt-1 text-sm text-zinc-400">Sieh, wer online ist, und starte private Best-of-Duelle ohne Elo-Wertung.</p></div>
+          <ArrowUpRight className="relative ml-4 mt-1 h-6 w-6 shrink-0 text-cyan-100 transition group-hover:-translate-y-1 group-hover:translate-x-1" />
+        </Link>
 
         {/* ── Fortschritt + Verifizierung ─────────────────────────────────── */}
         <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
@@ -583,7 +596,7 @@ export default function Profile() {
             <div className="space-y-3">
               {matches.map((match) => (
                 <div key={match.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
-                  <div className="text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div>
+                  <div className="flex min-w-0 items-center gap-2"><div className="truncate text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div>{match.match_mode === 'private' && <span className="shrink-0 rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-200">Privat</span>}</div>
                   <div className={`rounded-full px-3 py-1 text-xs font-black ${match.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
                     {match.is_win ? 'SIEG' : 'NIEDERLAGE'}
                   </div>

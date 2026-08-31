@@ -184,6 +184,32 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
   }, [supabase, fetchProfile]);
 
+  // A small, short-lived presence signal powers the friends page. It is kept
+  // outside the Auth callback so it can never contend with Supabase's auth
+  // navigator lock during token refreshes.
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const heartbeat = () => {
+      void supabase.rpc('heartbeat_user_presence').then(({ error }) => {
+        if (error) console.debug('Presence heartbeat could not be refreshed:', error.message);
+      });
+    };
+
+    heartbeat();
+    const interval = window.setInterval(heartbeat, 60_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') heartbeat();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [session?.user?.id, supabase]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,

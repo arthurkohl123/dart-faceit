@@ -16,12 +16,20 @@ const LIVE_STATUSES = [
 
 export async function GET() {
   try {
-    const { data, error } = await createAdminClient()
+    const admin = createAdminClient();
+    const baseQuery = () => admin
       .from('active_matches')
       .select('id, player1_username, player2_username, player1_elo, player2_elo, status, app, created_at')
       .in('status', LIVE_STATUSES)
       .order('created_at', { ascending: false })
       .limit(10);
+
+    let { data, error } = await baseQuery().eq('match_mode', 'ranked');
+
+    // A deployment can reach Vercel a few seconds before its accompanying
+    // database migration is executed. Keep the public ticker available during
+    // that short window; once match_mode exists, private duels are excluded.
+    if (error?.code === '42703') ({ data, error } = await baseQuery());
 
     if (error) throw error;
 

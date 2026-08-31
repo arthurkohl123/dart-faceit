@@ -37,6 +37,7 @@ type MatchEntry = {
   elo_change: number;
   one_eighties?: number | null;
   app?: string | null;
+  match_mode?: 'ranked' | 'private' | null;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -134,6 +135,11 @@ function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
                   {match.app === 'scolia' ? '📷' : match.app === 'autodarts' ? '🎯' : '📱'} {match.app === 'scolia' ? 'Scolia' : match.app === 'autodarts' ? 'AutoDarts' : 'DartCounter'}
                 </span>
               )}
+              {match.match_mode === 'private' && (
+                <span className="inline-flex items-center rounded-full border border-violet-300/20 bg-violet-400/10 px-2.5 py-1 text-[10px] font-black text-violet-200">
+                  Privates Duell
+                </span>
+              )}
               <span className="text-xs text-zinc-600">{timeAgo(match.created_at)}</span>
             </div>
 
@@ -168,12 +174,12 @@ function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
             }`}>
               <div className={`text-[10px] font-black uppercase tracking-[0.18em] mb-1 ${
                 match.elo_change > 0 ? 'text-emerald-400' : match.elo_change < 0 ? 'text-red-400' : 'text-zinc-500'
-              }`}>Elo</div>
+              }`}>{match.match_mode === 'private' ? 'Wertung' : 'Elo'}</div>
               <div className={`flex items-center gap-1 text-xl font-black tracking-[-0.04em] ${
                 match.elo_change > 0 ? 'text-emerald-300' : match.elo_change < 0 ? 'text-red-300' : 'text-zinc-400'
               }`}>
-                {match.elo_change > 0 ? <TrendingUp size={14} /> : match.elo_change < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
-                {match.elo_change > 0 ? '+' : ''}{match.elo_change}
+                {match.match_mode === 'private' ? <Minus size={14} /> : match.elo_change > 0 ? <TrendingUp size={14} /> : match.elo_change < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
+                {match.match_mode === 'private' ? 'Privat' : <>{match.elo_change > 0 ? '+' : ''}{match.elo_change}</>}
               </div>
             </div>
           </div>
@@ -271,20 +277,21 @@ export default function MatchHistory() {
     return true;
   });
 
-  const totalWins    = matches.filter(m => m.is_win).length;
-  const totalLosses  = matches.filter(m => !m.is_win).length;
-  const winrate      = matches.length > 0 ? Math.round((totalWins / matches.length) * 100) : 0;
-  const totalElo     = matches.reduce((s, m) => s + (m.elo_change || 0), 0);
+  const rankedMatches = matches.filter((match) => match.match_mode !== 'private');
+  const totalWins    = rankedMatches.filter(m => m.is_win).length;
+  const totalLosses  = rankedMatches.filter(m => !m.is_win).length;
+  const winrate      = rankedMatches.length > 0 ? Math.round((totalWins / rankedMatches.length) * 100) : 0;
+  const totalElo     = rankedMatches.reduce((s, m) => s + (m.elo_change || 0), 0);
   const avgAvg       = (() => {
-    const withAvg = matches.filter(m => m.my_average != null);
+    const withAvg = rankedMatches.filter(m => m.my_average != null);
     if (!withAvg.length) return null;
     return (withAvg.reduce((s, m) => s + Number(m.my_average), 0) / withAvg.length).toFixed(1);
   })();
-  const total180s    = matches.reduce((s, m) => s + (m.one_eighties ?? 0), 0);
+  const total180s    = rankedMatches.reduce((s, m) => s + (m.one_eighties ?? 0), 0);
 
   // Aktueller Win-Streak
   let currentStreak = 0;
-  for (const m of matches) {
+  for (const m of rankedMatches) {
     if (m.is_win) currentStreak++;
     else break;
   }
@@ -384,7 +391,7 @@ export default function MatchHistory() {
             <Trophy className="absolute right-5 top-5 h-8 w-8 text-emerald-300/20" />
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-400 mb-2">Siege</div>
             <div className="text-5xl font-black tracking-[-0.07em] text-emerald-300">{totalWins}</div>
-            <div className="mt-2 text-xs text-zinc-600">von {matches.length} Matches</div>
+            <div className="mt-2 text-xs text-zinc-600">von {rankedMatches.length} Ranked Matches</div>
           </div>
 
           {/* Niederlagen */}
@@ -392,7 +399,7 @@ export default function MatchHistory() {
             <TrendingDown className="absolute right-5 top-5 h-8 w-8 text-red-400/20" />
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-red-400 mb-2">Niederlagen</div>
             <div className="text-5xl font-black tracking-[-0.07em] text-red-300">{totalLosses}</div>
-            <div className="mt-2 text-xs text-zinc-600">von {matches.length} Matches</div>
+            <div className="mt-2 text-xs text-zinc-600">von {rankedMatches.length} Ranked Matches</div>
           </div>
 
           {/* Elo Gesamt */}

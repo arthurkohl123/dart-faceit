@@ -49,6 +49,8 @@ type ActiveMatch = {
   dispute_screenshot_url: string | null;
   confirmation_requested_at: string | null;
   app: string | null;
+  best_of?: number | null;
+  match_mode?: 'ranked' | 'private' | null;
   player1_scolia_username: string | null;
   player1_dartcounter_username: string | null;
   player1_autodarts_username: string | null;
@@ -411,6 +413,7 @@ export default function MatchResult() {
       }
 
       setMatch(m);
+      if ([3, 5, 7, 9].includes(Number(m.best_of))) setBestOfLegs(Number(m.best_of));
       if (adminFlag && m.player1_id) setAdminWinnerId(m.player1_id);
       if (m.status === 'awaiting_confirmation' && m.confirmation_requested_at) {
         startCountdown(m.confirmation_requested_at, m.id);
@@ -534,7 +537,7 @@ export default function MatchResult() {
       if (error) throw error;
       const r = Array.isArray(data) ? (data[0] as RpcStatusResponse | undefined) : undefined;
       if (r?.result_status === 'error') throw new Error(r.result_message || 'Ergebnis konnte nicht bestätigt werden.');
-      const eloText = typeof r?.elo_change === 'number'
+      const eloText = match.match_mode !== 'private' && typeof r?.elo_change === 'number'
         ? ` Elo-Änderung: ${r.elo_change > 0 ? '+' : ''}${r.elo_change}`
         : '';
       setInfoMessage(`${r?.result_message || 'Ergebnis bestätigt.'}${eloText}`);
@@ -741,9 +744,11 @@ export default function MatchResult() {
         clearInterval(noShowCountdownRef.current!);
         try {
           const { data } = await supabase.rpc('resolve_no_show', { p_match_id: matchId });
-          const result = data as { status: string; message: string } | null;
+          const result = data as { status: string; message: string; private_match?: boolean } | null;
           if (result?.status === 'resolved') {
-            setNoShowMessage('Gegner nicht erschienen. Match wurde abgebrochen und Sperre vergeben.');
+            setNoShowMessage(result.private_match
+              ? 'Gegner nicht erschienen. Das private Duell wurde abgebrochen.'
+              : 'Gegner nicht erschienen. Match wurde abgebrochen und Sperre vergeben.');
             setNoShowResolved(true);
             setNoShowCountdown(0);
             setMatch((prev) => prev ? { ...prev, status: 'cancelled' } : prev);
@@ -1083,7 +1088,9 @@ export default function MatchResult() {
                 <div>
                   <p className="text-sm font-black text-red-200">Gegner ist nicht erschienen.</p>
                   <p className="mt-0.5 text-xs font-bold text-red-200/80">
-                    Das Match wurde abgebrochen und eine Queue-Sperre wurde vergeben.
+                    {match?.match_mode === 'private'
+                      ? 'Das private Duell wurde abgebrochen. Es gibt keine Elo- oder Queue-Sperre.'
+                      : 'Das Match wurde abgebrochen und eine Queue-Sperre wurde vergeben.'}
                   </p>
                 </div>
               </div>
@@ -1205,7 +1212,7 @@ export default function MatchResult() {
               <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.025] px-4 py-3 sm:px-6">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]" />
-                  Ranked Match
+                  {match.match_mode === 'private' ? 'Privates Duell · nicht gewertet' : 'Ranked Match'}
                 </div>
                 <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-300">
                   {statusLabel}
