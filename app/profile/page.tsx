@@ -8,7 +8,8 @@ import { AdminBadge } from '@/components/AdminBadge';
 import { getRankProgress } from '@/lib/ranks';
 import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
-import { ArrowUpRight, CheckCircle2, Crosshair, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, X, XCircle, Zap } from 'lucide-react';
+import { PayoutAlert } from '@/components/payout-alert';
+import { ArrowUpRight, CheckCircle2, Crosshair, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, WalletCards, X, XCircle, Zap } from 'lucide-react';
 
 type MatchData = {
   id: string | number;
@@ -168,6 +169,7 @@ export default function Profile() {
             <Link href="/tournaments" className="inline-flex items-center gap-1.5 transition hover:text-white"><Trophy size={14} />Turniere</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
             <Link href="/support" className="inline-flex items-center gap-1.5 transition hover:text-white"><Headphones size={14} />Support</Link>
+            <Link href="/account" className="inline-flex items-center gap-1.5 transition hover:text-white"><WalletCards size={14} />Konto</Link>
             <Link href="/premium" className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-200 transition hover:bg-emerald-400/20">Premium</Link>
           </div>
 
@@ -193,7 +195,8 @@ export default function Profile() {
               <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Trophy size={15} />Turniere</Link>
               <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
-              <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Headphones size={15} />Support</Link>
+               <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Headphones size={15} />Support</Link>
+               <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><WalletCards size={15} />Konto & Auszahlungen</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
               <div className="mt-2 border-t border-white/10 pt-2">
                 <button onClick={logout} className="w-full rounded-2xl px-4 py-3 text-left text-sm font-bold text-zinc-400 transition hover:bg-white/10 hover:text-white">Logout</button>
@@ -205,8 +208,10 @@ export default function Profile() {
 
       <section className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
 
+        <PayoutAlert />
+
         {/* ── Hero-Profil-Banner ──────────────────────────────────────────── */}
-        <div className={`relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} p-7 shadow-2xl shadow-black/60 sm:p-10 md:p-12`}>
+        <div className={`relative ${profile ? 'mt-5' : ''} overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} p-7 shadow-2xl shadow-black/60 sm:p-10 md:p-12`}>
           {/* Hintergrund-Glow */}
           <div
             className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full blur-3xl opacity-30"
@@ -596,7 +601,7 @@ export default function Profile() {
           </div>
         )}
         <div className="mt-6 text-center">
-          <Link href="/account" className="text-xs font-bold text-zinc-600 transition hover:text-zinc-300">Account verwalten & Daten exportieren</Link>
+          <Link href="/account" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.035] px-5 py-3 text-sm font-black text-zinc-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/10"><WalletCards className="h-4 w-4 text-emerald-300" />Konto & Auszahlungen</Link>
         </div>
       </section>
     </main>

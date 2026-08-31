@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Download, Loader2, ShieldAlert, Trash2, WalletCards } from 'lucide-react';
+import { ArrowUpRight, Download, Loader2, ShieldAlert, Trash2, WalletCards } from 'lucide-react';
+import { PayoutAlert } from '@/components/payout-alert';
 import { createClient } from '@/lib/supabase';
 
 export default function AccountPage() {
@@ -25,17 +26,17 @@ export default function AccountPage() {
   return <main className="min-h-screen bg-[#050607] px-5 py-12 text-white">
     <div className="mx-auto max-w-3xl">
       <Link href="/profile" className="text-sm font-bold text-zinc-500 hover:text-white">← Profil</Link>
-      <h1 className="mt-6 text-4xl font-black tracking-[-.05em]">Account & Daten</h1>
-      <p className="mt-3 text-zinc-400">Exportiere deine gespeicherten Daten oder lösche deinen RankedDarts-Account.</p>
-      <section className="mt-8 rounded-3xl border border-white/10 bg-white/[.04] p-6">
-        <Download className="text-emerald-300" /><h2 className="mt-4 text-xl font-black">Datenexport</h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">Der Export enthält Profil, Matchhistorie, Benachrichtigungen, Turnierteilnahmen und Support-Tickets als JSON-Datei.</p>
-        <a href="/api/account/export" className="mt-5 inline-flex rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-black">Daten herunterladen</a>
-      </section>
-      <section className="mt-5 rounded-3xl border border-emerald-300/15 bg-emerald-400/[.05] p-6">
-        <WalletCards className="text-emerald-300" /><h2 className="mt-4 text-xl font-black">Auszahlungen</h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">Wenn du ein Preisgeld gewonnen hast, hinterlegst du deinen Zahlungsweg ausschließlich im geschützten Auszahlungsbereich.</p>
+      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[.22em] text-emerald-300">Konto-Zentrale</p><h1 className="mt-2 text-4xl font-black tracking-[-.05em]">Konto & Auszahlungen</h1><p className="mt-3 text-zinc-400">Verwalte Preisgelder, deine Kontodaten und Datenschutz-Einstellungen an einem Ort.</p></div><Link href="/account/payouts" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-black">Auszahlungen <ArrowUpRight className="h-4 w-4" /></Link></div>
+      <div className="mt-6"><PayoutAlert /></div>
+      <section className="mt-6 rounded-3xl border border-emerald-300/15 bg-emerald-400/[.05] p-6">
+        <WalletCards className="text-emerald-300" /><h2 className="mt-4 text-xl font-black">Auszahlungen & Preisgeld</h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">Wenn dir Preisgeld zugeordnet wurde, erscheint es im geschützten Auszahlungsbereich. Dort hinterlegst du PayPal oder IBAN – niemals per E-Mail oder Ticket.</p>
         <Link href="/account/payouts" className="mt-5 inline-flex rounded-xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-100">Auszahlungen öffnen</Link>
+      </section>
+      <section className="mt-5 rounded-3xl border border-white/10 bg-white/[.04] p-6">
+        <Download className="text-emerald-300" /><h2 className="mt-4 text-xl font-black">Datenexport</h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">Für Datenschutz und persönliche Unterlagen: Der Export enthält Profil, Matchhistorie, Benachrichtigungen, Turnierteilnahmen und Support-Tickets als JSON-Datei.</p>
+        <a href="/api/account/export" className="mt-5 inline-flex rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-black">Daten herunterladen</a>
       </section>
       <section className="mt-5 rounded-3xl border border-red-300/20 bg-red-500/[.06] p-6">
         <ShieldAlert className="text-red-300" /><h2 className="mt-4 text-xl font-black">Account endgültig löschen</h2>
