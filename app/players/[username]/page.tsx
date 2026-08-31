@@ -21,17 +21,12 @@ type PublicProfile = {
 type MatchHistory = {
   id: string;
   created_at: string;
-  player1_username: string;
-  player2_username: string;
-  player1_id: string;
-  player2_id: string;
-  submitted_winner_id: string | null;
-  submitted_player1_average: number | null;
-  submitted_player2_average: number | null;
-  submitted_player1_180s: number | null;
-  submitted_player2_180s: number | null;
-  submitted_player1_legs: number | null;
-  submitted_player2_legs: number | null;
+  opponent_name: string;
+  is_win: boolean;
+  legs_won: number;
+  legs_lost: number;
+  my_average: number | null;
+  one_eighties: number;
 };
 
 type TournamentHistory = {
@@ -88,19 +83,16 @@ export default function PlayerProfile() {
       };
       setProfile(p);
 
-      // Letzte 20 Matches aus active_matches laden
-      const { data: matchData } = await supabase
-        .from('active_matches')
-        .select('id, created_at, player1_id, player2_id, player1_username, player2_username, submitted_winner_id, submitted_player1_average, submitted_player2_average, submitted_player1_180s, submitted_player2_180s, submitted_player1_legs, submitted_player2_legs')
-        .eq('status', 'completed')
-        .or(`player1_id.eq.${p.supabaseId},player2_id.eq.${p.supabaseId}`)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      const { data: matchData, error: matchHistoryError } = await supabase.rpc('get_public_player_match_history', {
+        p_user_id: p.supabaseId,
+        p_limit: 20,
+      });
 
       if (!isMounted) return;
 
       const history = (matchData || []) as MatchHistory[];
       setMatches(history);
+      if (matchHistoryError) console.error('Öffentliche Match-Historie konnte nicht geladen werden:', matchHistoryError);
       const { data: tournamentRows } = await supabase.rpc('list_player_tournament_history', { p_user_id: p.supabaseId });
       if (isMounted) setTournamentHistory((tournamentRows || []) as TournamentHistory[]);
 
@@ -308,30 +300,23 @@ export default function PlayerProfile() {
           ) : (
             <div className="relative mt-5 space-y-2">
               {matches.map((m) => {
-                const isPlayer1 = m.player1_id === profile!.supabaseId;
-                const isWin = m.submitted_winner_id === profile!.supabaseId;
-                const opponentName = isPlayer1 ? m.player2_username : m.player1_username;
-                const myAvg = isPlayer1 ? m.submitted_player1_average : m.submitted_player2_average;
-                const myLegs = isPlayer1 ? m.submitted_player1_legs : m.submitted_player2_legs;
-                const oppLegs = isPlayer1 ? m.submitted_player2_legs : m.submitted_player1_legs;
-                const my180s = isPlayer1 ? m.submitted_player1_180s : m.submitted_player2_180s;
                 return (
                   <div key={m.id} className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.04]">
-                    <div className={`shrink-0 rounded-xl px-2.5 py-1 text-xs font-black uppercase tracking-[0.1em] ${isWin ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
-                      {isWin ? 'SIEG' : 'NL'}
+                    <div className={`shrink-0 rounded-xl px-2.5 py-1 text-xs font-black uppercase tracking-[0.1em] ${m.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
+                      {m.is_win ? 'SIEG' : 'NL'}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold text-zinc-200">vs {opponentName}</div>
-                      {(myLegs !== null && oppLegs !== null) && (
-                        <div className="text-xs text-zinc-500">{myLegs} : {oppLegs} Legs</div>
+                      <div className="truncate text-sm font-bold text-zinc-200">vs {m.opponent_name}</div>
+                      {(
+                        <div className="text-xs text-zinc-500">{m.legs_won} : {m.legs_lost} Legs</div>
                       )}
                     </div>
                     <div className="shrink-0 text-right">
-                      {myAvg !== null && (
-                        <div className="text-sm font-black text-violet-300">Ø {myAvg.toFixed(1)}</div>
+                      {m.my_average !== null && (
+                        <div className="text-sm font-black text-violet-300">Ø {m.my_average.toFixed(1)}</div>
                       )}
-                      {(my180s !== null && my180s > 0) && (
-                        <div className="text-xs font-bold text-amber-300">{my180s}× 180</div>
+                      {m.one_eighties > 0 && (
+                        <div className="text-xs font-bold text-amber-300">{m.one_eighties}× 180</div>
                       )}
                     </div>
                     <ArrowUpRight className="hidden h-4 w-4 text-emerald-300/0 transition group-hover:text-emerald-300 sm:block" />
