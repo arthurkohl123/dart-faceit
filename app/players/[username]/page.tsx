@@ -104,20 +104,14 @@ export default function PlayerProfile() {
       const { data: tournamentRows } = await supabase.rpc('list_player_tournament_history', { p_user_id: p.supabaseId });
       if (isMounted) setTournamentHistory((tournamentRows || []) as TournamentHistory[]);
 
-      // Stats berechnen
-      const avgs = history
-        .map((m) => m.player1_id === p.supabaseId ? m.submitted_player1_average : m.submitted_player2_average)
-        .filter((v): v is number => v !== null && v > 0);
-      if (avgs.length > 0) {
-        setAvgAverage(avgs.reduce((a, b) => a + b, 0) / avgs.length);
-        setBestAverage(Math.max(...avgs));
+      const statsResponse = await fetch(`/api/public-player-stats?ids=${encodeURIComponent(p.supabaseId)}`);
+      if (statsResponse.ok) {
+        const payload = await statsResponse.json() as { stats?: Record<string, { average: number | null; bestAverage: number | null; total180s: number }> };
+        const stats = payload.stats?.[p.supabaseId];
+        setAvgAverage(stats?.average ?? null);
+        setBestAverage(stats?.bestAverage ?? null);
+        setTotal180s(stats?.total180s ?? 0);
       }
-
-      const s180s = history.reduce((sum, m) => {
-        const v = m.player1_id === p.supabaseId ? m.submitted_player1_180s : m.submitted_player2_180s;
-        return sum + (v ?? 0);
-      }, 0);
-      setTotal180s(s180s);
 
       setLoading(false);
     }

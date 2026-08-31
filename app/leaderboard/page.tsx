@@ -55,30 +55,14 @@ export default function Leaderboard() {
           }));
           setPlayers(players);
 
-          // Average für jeden Spieler aus active_matches berechnen
           const ids = players.map((p) => p.supabaseId).filter(Boolean) as string[];
           if (ids.length > 0) {
-            const { data: matchData } = await supabase
-              .from('active_matches')
-              .select('player1_id, player2_id, submitted_player1_average, submitted_player2_average')
-              .eq('status', 'completed')
-              .or(ids.map((id) => `player1_id.eq.${id},player2_id.eq.${id}`).join(','));
-
-            if (matchData) {
-              const sums: Record<string, { total: number; count: number }> = {};
-              for (const m of matchData) {
-                const addAvg = (id: string, avg: number | null) => {
-                  if (!avg) return;
-                  if (!sums[id]) sums[id] = { total: 0, count: 0 };
-                  sums[id].total += avg;
-                  sums[id].count += 1;
-                };
-                addAvg(m.player1_id, m.submitted_player1_average);
-                addAvg(m.player2_id, m.submitted_player2_average);
-              }
+            const response = await fetch(`/api/public-player-stats?ids=${encodeURIComponent(ids.join(','))}`);
+            if (response.ok) {
+              const payload = await response.json() as { stats?: Record<string, { average: number | null }> };
               const map: PlayerAvgMap = {};
-              for (const [id, { total, count }] of Object.entries(sums)) {
-                map[id] = total / count;
+              for (const [id, stat] of Object.entries(payload.stats ?? {})) {
+                if (stat.average !== null && Number.isFinite(stat.average)) map[id] = stat.average;
               }
               if (isMounted) setAvgMap(map);
             }
