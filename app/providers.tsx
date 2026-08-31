@@ -12,6 +12,7 @@ import {
 import type { Session, User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { FriendRequestPopup } from '@/components/friend-request-popup';
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -221,5 +222,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
     [session, profile, loading, refreshProfile]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}<FriendRequestPopup userId={session?.user?.id} /></AuthContext.Provider>;
 }
