@@ -38,6 +38,7 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
+import { LiveSupportAdmin } from '@/components/live-support-admin';
 
 type Profile = {
   id: string;
@@ -1298,8 +1299,7 @@ export default function AdminPanel() {
           <div className="relative grid border-t border-white/10 bg-black/20 sm:grid-cols-3"><button onClick={() => goToSection('flagged')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-orange-400/[0.06] sm:border-b-0 sm:border-r"><TriangleAlert className="h-4 w-4 text-orange-300" /><span><span className="block text-xs font-black text-white">Fairness monitor</span><span className="text-[11px] text-zinc-500">{flaggedPlayers.length ? `${flaggedPlayers.length} Accounts brauchen Prüfung` : 'Keine auffälligen Signale'}</span></span></button><button onClick={() => goToSection('tickets')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-violet-400/[0.06] sm:border-b-0 sm:border-r"><MessageCircle className="h-4 w-4 text-violet-300" /><span><span className="block text-xs font-black text-white">Support routing</span><span className="text-[11px] text-zinc-500">{unassignedTickets ? `${unassignedTickets} Tickets nicht zugewiesen` : 'Jedes Ticket hat einen Owner'}</span></span></button><button onClick={exportOperationsSnapshot} className="flex items-center gap-3 px-5 py-4 text-left transition hover:bg-emerald-400/[0.06]"><Download className="h-4 w-4 text-emerald-300" /><span><span className="block text-xs font-black text-white">Operations snapshot</span><span className="text-[11px] text-zinc-500">CSV-Bericht für deinen Team-Stand</span></span></button></div>
         </section>
 
-
-
+        <LiveSupportAdmin />
 
         {/* ── Tab-Navigation ── */}
         <div className="sticky top-3 z-30 mt-8 flex flex-wrap gap-2 rounded-[1.6rem] border border-white/10 bg-zinc-950/80 p-2 shadow-2xl shadow-black/30 backdrop-blur-2xl">
