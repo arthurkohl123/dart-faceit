@@ -16,6 +16,14 @@ const updates: Array<{
   label: string;
 }> = [
   {
+    date: '01. September 2026',
+    title: 'Live Support: klarer, schneller, direkter',
+    category: 'Experience',
+    content: 'Der Live Support ist jetzt direkt über den Chat erreichbar. Ist gerade niemand im Dienst, siehst du sofort „Live Support offline“. Im Gespräch sind Admin-Nachrichten klar markiert, und wenn ein Chat beendet wird, erhältst du direkt eine eindeutige Abschlussmeldung. So weißt du jederzeit, woran du bist.',
+    highlight: true,
+    label: 'LIVE SUPPORT',
+  },
+  {
     date: '26. August 2026',
     title: 'Ranked Arena: Matchmaking neu gedacht',
     category: 'Experience',
