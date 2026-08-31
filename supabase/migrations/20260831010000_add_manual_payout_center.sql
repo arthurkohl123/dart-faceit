@@ -104,7 +104,7 @@ as $$
     select p.id as profile_id, coalesce(p.username, 'Unbekannt') as username,
            row_number() over (order by coalesce(p.elo, 1000) desc, p.id) as placement
     from public.profiles p
-    where coalesce(p.gamesPlayed, 0) > 0 and coalesce(p.is_banned, false) = false
+    where coalesce(p."gamesPlayed", 0) > 0 and coalesce(p.is_banned, false) = false
   ), season_candidates as (
     select
       'season'::text as source_type,
