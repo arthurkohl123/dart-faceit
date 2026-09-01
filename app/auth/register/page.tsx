@@ -162,6 +162,19 @@ export default function Register() {
         setFormMessage({ type: 'error', text: captcha.error || 'Sicherheitsprüfung fehlgeschlagen.' });
         return;
       }
+
+      // This gives immediate feedback in the normal case. The database's
+      // case-insensitive unique index remains the authoritative race-safe
+      // protection when two people submit the same name at once.
+      const { data: usernameAvailable, error: usernameAvailabilityError } = await supabase.rpc(
+        'is_username_available',
+        { p_username: trimmedUsername },
+      );
+      if (!usernameAvailabilityError && !usernameAvailable) {
+        setFormMessage({ type: 'error', text: 'Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.' });
+        return;
+      }
+
       const emailRedirectTo = typeof window !== 'undefined'
         ? `${window.location.origin}/auth/login?confirmed=1`
         : undefined;
