@@ -16,9 +16,10 @@ type FriendChatProps = {
   friendId: string;
   friendUsername: string;
   onClose: () => void;
+  onMessagesRead?: () => void;
 };
 
-export function FriendChat({ friendId, friendUsername, onClose }: FriendChatProps) {
+export function FriendChat({ friendId, friendUsername, onClose, onMessagesRead }: FriendChatProps) {
   const supabase = useMemo(() => createClient(), []);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -39,9 +40,17 @@ export function FriendChat({ friendId, friendUsername, onClose }: FriendChatProp
     else {
       setError(null);
       setMessages([...(data ?? []) as ChatMessage[]].reverse());
+
+      const { data: markedCount, error: markError } = await supabase.rpc('mark_friend_messages_read', {
+        p_friend_id: friendId,
+      });
+
+      if (!markError && Number(markedCount ?? 0) > 0) {
+        onMessagesRead?.();
+      }
     }
     if (showLoader) setLoading(false);
-  }, [friendId, supabase]);
+  }, [friendId, onMessagesRead, supabase]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => { void load(true); }, 0);

@@ -24,6 +24,7 @@ export function FriendsChatLauncher() {
   const supabase = useMemo(() => createClient(), []);
   const [friends, setFriends] = useState<ChatFriend[]>([]);
   const [support, setSupport] = useState<SupportState | null>(null);
+  const [unreadFriendMessages, setUnreadFriendMessages] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [chatFriend, setChatFriend] = useState<ChatFriend | null>(null);
   const [supportConversationId, setSupportConversationId] = useState<string | null>(null);
@@ -38,15 +39,23 @@ export function FriendsChatLauncher() {
     if (!session) {
       setFriends([]);
       setSupport(null);
+      setUnreadFriendMessages(0);
       return;
     }
 
-    const [friendsResult, supportResult] = await Promise.all([
+    const [friendsResult, supportResult, unreadResult] = await Promise.all([
       supabase.rpc('list_my_friends'),
       supabase.rpc('live_support_get_user_state'),
+      supabase.rpc('get_my_friend_unread_count'),
     ]);
 
     setFriends((friendsResult.data ?? []) as ChatFriend[]);
+    if (!unreadResult.error) {
+      const unreadCount = Number(unreadResult.data ?? 0);
+      setUnreadFriendMessages(Number.isFinite(unreadCount) ? Math.max(0, unreadCount) : 0);
+    } else {
+      setUnreadFriendMessages(0);
+    }
     if (!supportResult.error) {
       setSupport(((supportResult.data ?? []) as SupportState[])[0] ?? null);
     }
@@ -95,6 +104,10 @@ export function FriendsChatLauncher() {
   };
 
   const canOpenSupport = Boolean(support?.is_available || support?.conversation_id);
+  const unreadBadge = unreadFriendMessages > 99 ? '99+' : unreadFriendMessages;
+  const refreshUnreadFriendMessages = useCallback(() => {
+    void load();
+  }, [load]);
 
   if (friends.length === 0 && support === null) return null;
 
@@ -208,10 +221,16 @@ export function FriendsChatLauncher() {
         <button
           type="button"
           onClick={() => setPickerOpen((open) => !open)}
-          className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300 px-4 py-3 text-sm font-black text-black shadow-xl shadow-cyan-400/15 transition hover:bg-cyan-200"
+          aria-label={unreadFriendMessages > 0 ? `Chat, ${unreadFriendMessages} ungelesene Freundesnachricht${unreadFriendMessages === 1 ? '' : 'en'}` : 'Chat'}
+          className="relative inline-flex items-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300 px-4 py-3 text-sm font-black text-black shadow-xl shadow-cyan-400/15 transition hover:bg-cyan-200"
         >
           <MessageCircle className="h-4 w-4" />
           Chat
+          {unreadFriendMessages > 0 && (
+            <span className="absolute -right-2 -top-2 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-[#030506] bg-violet-300 px-1 text-[10px] font-black leading-none text-black shadow-[0_0_16px_rgba(196,181,253,0.8)]">
+              {unreadBadge}
+            </span>
+          )}
         </button>
       </div>
 
@@ -220,6 +239,7 @@ export function FriendsChatLauncher() {
           friendId={chatFriend.user_id}
           friendUsername={chatFriend.username}
           onClose={() => setChatFriend(null)}
+          onMessagesRead={refreshUnreadFriendMessages}
         />
       )}
       {supportConversationId && (
