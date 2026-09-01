@@ -5,15 +5,47 @@ const PROTECTED_ROUTES = ['/matchmaking', '/result', '/history', '/profile', '/a
 const ADMIN_ROUTES = ['/admin'];
 const DEVELOPER_ROUTES = ['/developer'];
 const AUTH_ROUTES = ['/auth/login', '/auth/register'];
+// These endpoints are deliberately public and perform their own validation.
+// Keeping them out of the session refresh path prevents a stale browser token
+// from blocking the home page ticker or health checks for minutes.
+const PUBLIC_API_ROUTES = [
+  '/api/health',
+  '/api/stripe/webhook',
+  '/api/matches/live',
+  '/api/community-stats',
+  '/api/security/captcha',
+];
 // Stripe must be able to deliver subscription events while the public site is
 // in maintenance mode. The route verifies Stripe's signed payload itself.
 const MAINTENANCE_ALLOWED_ROUTES = ['/maintenance', '/auth/login', '/auth/register', '/auth/mfa', '/auth/banned', '/api/stripe/webhook', '/api/health'];
+const SUPABASE_PROXY_TIMEOUT_MS = 2_500;
 
 type MiddlewareProfile = {
   is_banned: boolean | null;
   is_admin: boolean | null;
   is_developer: boolean | null;
 };
+
+function createTimeoutFetch() {
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SUPABASE_PROXY_TIMEOUT_MS);
+    const upstreamSignal = init?.signal;
+    const abortFromUpstream = () => controller.abort();
+
+    if (upstreamSignal) {
+      if (upstreamSignal.aborted) controller.abort();
+      else upstreamSignal.addEventListener('abort', abortFromUpstream, { once: true });
+    }
+
+    try {
+      return await fetch(input, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+      upstreamSignal?.removeEventListener('abort', abortFromUpstream);
+    }
+  };
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
@@ -25,6 +57,10 @@ export async function proxy(request: NextRequest) {
     const developerUrl = request.nextUrl.clone();
     developerUrl.pathname = pathname.replace(/^\/Developer/, '/developer');
     return NextResponse.redirect(developerUrl);
+  }
+
+  if (PUBLIC_API_ROUTES.includes(pathname)) {
+    return NextResponse.next({ request });
   }
 
   let response = NextResponse.next({ request });
@@ -43,19 +79,59 @@ export async function proxy(request: NextRequest) {
           );
         },
       },
+      global: {
+        // Supabase Auth retries token refreshes internally. Without an abort
+        // signal an expired browser session can hold a Vercel function open
+        // for more than a minute and make the whole site appear to load forever.
+        fetch: createTimeoutFetch(),
+      },
     }
   );
-
-  // Never trust the user embedded in a cookie session for access control.
-  // getUser() verifies the access token with Supabase Auth before we use it
-  // for bans, role checks or protected routes.
-  const { data: { user } } = await supabase.auth.getUser();
 
   const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
   const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
   const isAdminRoute = ADMIN_ROUTES.some((r) => pathname.startsWith(r));
   const isDeveloperRoute = DEVELOPER_ROUTES.some((r) => pathname.startsWith(r));
   const isMaintenanceAllowedRoute = MAINTENANCE_ALLOWED_ROUTES.some((r) => pathname.startsWith(r));
+
+  // Check the lightweight maintenance setting before asking Auth to refresh a
+  // user token. On normal public pages no verified identity is needed at all.
+  let maintenanceEnabled = false;
+  if (!isMaintenanceAllowedRoute) {
+    try {
+      const { data: maintenanceSetting } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'maintenance_mode')
+        .maybeSingle();
+
+      maintenanceEnabled = Boolean((maintenanceSetting?.value as { enabled?: boolean } | null)?.enabled);
+    } catch (error) {
+      console.error('Could not read maintenance status in proxy:', error);
+    }
+  }
+
+  // Protected pages, authentication pages and maintenance bypasses still need
+  // a verified identity. Public traffic must never wait for a token refresh.
+  if (!isProtected && !isAuthRoute && !maintenanceEnabled) {
+    return response;
+  }
+
+  // Never trust the user embedded in a cookie session for access control.
+  // getUser() verifies the access token with Supabase Auth before we use it.
+  // A failed or timed-out refresh is treated as signed out instead of making
+  // the request wait indefinitely.
+  let user = null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.warn('Supabase session verification failed in proxy:', error.message);
+    } else {
+      user = data.user;
+    }
+  } catch (error) {
+    console.error('Supabase session verification crashed in proxy:', error);
+  }
 
   let profile: MiddlewareProfile | null = null;
 
@@ -71,17 +147,10 @@ export async function proxy(request: NextRequest) {
 
   // Wartungsmodus: blockiert die öffentliche Website, lässt Login und die Wartungsseite offen.
   // Developer/Admins dürfen die Website weiterhin benutzen, damit du den Modus wieder deaktivieren kannst.
-  if (!isMaintenanceAllowedRoute) {
-    const { data: maintenanceSetting } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', 'maintenance_mode')
-      .maybeSingle();
-
-    const maintenanceEnabled = Boolean((maintenanceSetting?.value as { enabled?: boolean } | null)?.enabled);
+  if (maintenanceEnabled) {
     const mayBypassMaintenance = Boolean(profile?.is_developer || profile?.is_admin);
 
-    if (maintenanceEnabled && !mayBypassMaintenance) {
+    if (!mayBypassMaintenance) {
       const maintenanceUrl = request.nextUrl.clone();
       maintenanceUrl.pathname = '/maintenance';
       maintenanceUrl.search = '';
@@ -147,4 +216,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
-
