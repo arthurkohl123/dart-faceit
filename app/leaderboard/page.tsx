@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { getRankForElo } from '@/lib/ranks';
-import { ArrowUpRight, Crown, Crosshair, Flame, Gem, Medal, Radar, Search, ShieldCheck, Swords, Trophy, Users, Menu, X } from 'lucide-react';
+import { ArrowUpRight, Crown, Crosshair, Flame, Medal, Radar, Search, ShieldCheck, Swords, Trophy, Users, Menu, X } from 'lucide-react';
 
 type Player = {
   username: string;
@@ -17,18 +17,7 @@ type Player = {
 };
 
 type PlayerAvgMap = Record<string, number>;
-
-function PremiumEmblem({ compact = false }: { compact?: boolean }) {
-  return (
-    <span
-      title="RankedDarts Premium"
-      aria-label="RankedDarts Premium"
-      className={`inline-flex shrink-0 items-center justify-center rounded-full border border-cyan-200/30 bg-gradient-to-br from-cyan-200/25 via-emerald-300/20 to-violet-300/20 text-cyan-100 shadow-[0_0_18px_rgba(103,232,249,0.24)] ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
-    >
-      <Gem className={compact ? 'h-3 w-3 fill-current' : 'h-3.5 w-3.5 fill-current'} />
-    </span>
-  );
-}
+const premiumNameStyle = 'bg-gradient-to-r from-cyan-100 via-emerald-200 to-violet-200 bg-[length:180%_100%] bg-clip-text text-transparent drop-shadow-[0_0_9px_rgba(103,232,249,0.38)]';
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -212,9 +201,11 @@ export default function Leaderboard() {
                   {isGold && <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-yellow-200/15 blur-2xl" />}
                   <div className={`relative mx-auto grid h-14 w-14 place-items-center rounded-2xl border text-2xl shadow-xl ${isGold ? 'border-yellow-200/40 bg-yellow-300 text-black shadow-yellow-300/20' : 'border-white/15 bg-black/30'}`}>{isGold ? <Crown className="h-7 w-7" /> : medals[idx]}</div>
                   <div className="relative mt-4 text-[10px] font-black uppercase tracking-[0.26em] text-zinc-500">Platz {idx + 1}</div>
-                  <div className="relative mt-1 flex items-center justify-center gap-2">
-                    <span className="truncate text-xl font-black tracking-[-0.05em]">{player.username}</span>
-                    {player.isPremium && <PremiumEmblem />}
+                  <div className="relative mt-1 flex items-center justify-center">
+                    <span className={`truncate text-xl font-black tracking-[-0.05em] ${player.isPremium ? premiumNameStyle : ''}`}>
+                      {player.isPremium && <span className="sr-only">Premium </span>}
+                      {player.username}
+                    </span>
                   </div>
                   <div className={`relative mt-1 text-xs font-black uppercase tracking-[0.18em] ${rank.color}`}>L{rank.level} · {rank.name}</div>
                   <div className="relative mt-4 text-4xl font-black tracking-[-0.07em] text-emerald-300">{player.elo}</div>
@@ -266,8 +257,10 @@ export default function Leaderboard() {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      {player.isPremium && <PremiumEmblem compact />}
-                      <span className="truncate text-sm font-black sm:text-base">{player.username}</span>
+                      <span className={`truncate text-sm font-black sm:text-base ${player.isPremium ? premiumNameStyle : ''}`}>
+                        {player.isPremium && <span className="sr-only">Premium </span>}
+                        {player.username}
+                      </span>
                       {isTop3 && <Flame className="h-3.5 w-3.5 shrink-0 text-cyan-300" />}
                     </div>
                     <div className={`text-xs font-bold ${rank.color}`}>L{rank.level} · {rank.name}</div>
