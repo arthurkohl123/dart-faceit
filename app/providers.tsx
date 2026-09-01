@@ -213,6 +213,31 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
   }, [session?.user?.id, supabase]);
 
+  // The support opt-in is stored in Supabase. Once an admin has deliberately
+  // enabled it in the Admin Panel, keep its short-lived availability signal
+  // alive globally – not only while the admin page itself is mounted.
+  useEffect(() => {
+    if (!session?.user?.id || !profile?.is_admin) return;
+
+    const heartbeat = () => {
+      void supabase.rpc('live_support_agent_heartbeat').then(({ error }) => {
+        if (error) console.debug('Live support heartbeat could not be refreshed:', error.message);
+      });
+    };
+
+    heartbeat();
+    const interval = window.setInterval(heartbeat, 45_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') heartbeat();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [profile?.is_admin, session?.user?.id, supabase]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
