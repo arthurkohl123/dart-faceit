@@ -4,9 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
-import { AdminBadge } from '@/components/AdminBadge';
 import { getRankForElo } from '@/lib/ranks';
-import { ArrowUpRight, Crown, Crosshair, Flame, Medal, Radar, Search, ShieldCheck, Star, Swords, Trophy, Users, Menu, X } from 'lucide-react';
+import { ArrowUpRight, Crown, Crosshair, Flame, Gem, Medal, Radar, Search, ShieldCheck, Swords, Trophy, Users, Menu, X } from 'lucide-react';
 
 type Player = {
   username: string;
@@ -14,11 +13,22 @@ type Player = {
   gamesPlayed: number;
   wins: number;
   isPremium?: boolean;
-  isAdmin?: boolean;
   supabaseId?: string;
 };
 
 type PlayerAvgMap = Record<string, number>;
+
+function PremiumEmblem({ compact = false }: { compact?: boolean }) {
+  return (
+    <span
+      title="RankedDarts Premium"
+      aria-label="RankedDarts Premium"
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border border-cyan-200/30 bg-gradient-to-br from-cyan-200/25 via-emerald-300/20 to-violet-300/20 text-cyan-100 shadow-[0_0_18px_rgba(103,232,249,0.24)] ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
+    >
+      <Gem className={compact ? 'h-3 w-3 fill-current' : 'h-3.5 w-3.5 fill-current'} />
+    </span>
+  );
+}
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -33,26 +43,16 @@ export default function Leaderboard() {
 
     async function fetchLeaderboard() {
       try {
-        const [{ data, error }, { data: adminRows, error: adminError }] = await Promise.all([
-          supabase
-            .from('public_profiles')
-            .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
-            .gte('gamesPlayed', 1)
-            .order('elo', { ascending: false })
-            .limit(100),
-          supabase.rpc('get_public_admin_profile_ids'),
-        ]);
+        const { data, error } = await supabase
+          .from('public_profiles')
+          .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
+          .gte('gamesPlayed', 1)
+          .order('elo', { ascending: false })
+          .limit(100);
 
         if (error) { console.error(error); }
         else if (isMounted) {
-          if (adminError) console.error('Admin-Badges konnten nicht geladen werden:', adminError);
-          const adminIds = new Set(
-            (adminRows || []).map((row: { profile_id: string }) => row.profile_id)
-          );
-          const players = ((data || []) as Player[]).map((player) => ({
-            ...player,
-            isAdmin: Boolean(player.supabaseId && adminIds.has(player.supabaseId)),
-          }));
+          const players = (data || []) as Player[];
           setPlayers(players);
 
           const ids = players.map((p) => p.supabaseId).filter(Boolean) as string[];
@@ -212,8 +212,10 @@ export default function Leaderboard() {
                   {isGold && <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-yellow-200/15 blur-2xl" />}
                   <div className={`relative mx-auto grid h-14 w-14 place-items-center rounded-2xl border text-2xl shadow-xl ${isGold ? 'border-yellow-200/40 bg-yellow-300 text-black shadow-yellow-300/20' : 'border-white/15 bg-black/30'}`}>{isGold ? <Crown className="h-7 w-7" /> : medals[idx]}</div>
                   <div className="relative mt-4 text-[10px] font-black uppercase tracking-[0.26em] text-zinc-500">Platz {idx + 1}</div>
-                  <div className="relative mt-1 truncate text-xl font-black tracking-[-0.05em]">{player.username}</div>
-                  {player.isAdmin && <AdminBadge compact className="relative mt-2" />}
+                  <div className="relative mt-1 flex items-center justify-center gap-2">
+                    <span className="truncate text-xl font-black tracking-[-0.05em]">{player.username}</span>
+                    {player.isPremium && <PremiumEmblem />}
+                  </div>
                   <div className={`relative mt-1 text-xs font-black uppercase tracking-[0.18em] ${rank.color}`}>L{rank.level} · {rank.name}</div>
                   <div className="relative mt-4 text-4xl font-black tracking-[-0.07em] text-emerald-300">{player.elo}</div>
                   <div className="relative mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Elo Rating</div>
@@ -264,9 +266,8 @@ export default function Leaderboard() {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      {player.isPremium && <Star className="h-3.5 w-3.5 shrink-0 fill-current text-emerald-300" />}
+                      {player.isPremium && <PremiumEmblem compact />}
                       <span className="truncate text-sm font-black sm:text-base">{player.username}</span>
-                      {player.isAdmin && <AdminBadge compact />}
                       {isTop3 && <Flame className="h-3.5 w-3.5 shrink-0 text-cyan-300" />}
                     </div>
                     <div className={`text-xs font-bold ${rank.color}`}>L{rank.level} · {rank.name}</div>
