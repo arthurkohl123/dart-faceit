@@ -17,7 +17,7 @@ type Player = {
 };
 
 type PlayerAvgMap = Record<string, number>;
-const premiumNameStyle = 'bg-gradient-to-r from-cyan-100 via-emerald-200 to-violet-200 bg-[length:180%_100%] bg-clip-text text-transparent drop-shadow-[0_0_9px_rgba(103,232,249,0.38)]';
+const premiumNameStyle = 'inline-flex max-w-full items-center rounded-lg border border-cyan-200/45 bg-[linear-gradient(115deg,rgba(34,211,238,0.25),rgba(52,211,153,0.21),rgba(167,139,250,0.26))] px-2 py-0.5 text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.3)] ring-1 ring-cyan-100/10';
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
