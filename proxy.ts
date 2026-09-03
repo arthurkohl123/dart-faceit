@@ -59,6 +59,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(developerUrl);
   }
 
+  // Lokale Design-Vorschau ohne Zugang zu Produktivdaten. Diese Ausnahme ist
+  // ausschließlich im Entwicklungsmodus wirksam und muss zusätzlich explizit
+  // über die lokale Umgebungsvariable aktiviert werden.
+  if (process.env.NODE_ENV === 'development' && process.env.RANKEDDARTS_LOCAL_UI_PREVIEW === '1') {
+    return NextResponse.next({ request });
+  }
+
   if (PUBLIC_API_ROUTES.includes(pathname)) {
     return NextResponse.next({ request });
   }

@@ -2,59 +2,30 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowUpRight, CalendarDays, Crosshair, Flame, Menu, Radar, ShieldCheck, Sparkles, Target, Trophy, X, Zap } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, CircleDot, Menu, Swords, Trophy, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { ResultRoomPreview } from '@/components/ResultRoomPreview';
 import { getRankRangeLabel, RANK_TIERS } from '@/lib/ranks';
 
-type CommunityStats = {
-  players: number;
-  matches: number;
-  cups: number;
-  liveCups: number;
-};
+type CommunityStats = { players: number; matches: number; cups: number; liveCups: number; };
 
-const features = [
-  {
-    eyebrow: 'Ranking',
-    title: 'Ein Rating, das jedes Match zählt.',
-    text: 'Nach einem bestätigten Ergebnis wird deine Elo aktualisiert. Gegen stärkere Gegner kannst du mehr Punkte gewinnen.',
-  },
-  {
-    eyebrow: 'Matchmaking',
-    title: 'Passende Gegner statt Zufall.',
-    text: 'Die Suche beginnt in deiner Elo-Nähe und erweitert den Bereich nur, wenn gerade niemand Passendes verfügbar ist.',
-  },
-  {
-    eyebrow: 'Ergebnisse',
-    title: 'Erst bestätigen, dann werten.',
-    text: 'Dein Gegner bestätigt das eingetragene Resultat. Wenn etwas nicht stimmt, landet der Fall mit Nachweisen beim Admin-Team.',
-  },
-];
-
-const liveFeed = [
-  { label: 'Matchmaking geöffnet', detail: 'Suche jederzeit nach einem Gegner', icon: Radar },
-  { label: 'Bestätigte Ergebnisse', detail: 'Keine Wertung ohne Gegenprüfung', icon: Target },
-  { label: 'Season 01', detail: 'Läuft bis 01.11.2026', icon: Trophy },
+const principles = [
+  ['01', 'Gegner auf deinem Level', 'Die Suche startet eng bei deiner Elo. Erst mit der Zeit wird der Bereich erweitert.'],
+  ['02', 'Ein Ergebnis, zwei Bestätigungen', 'Elo und Statistiken zählen erst, wenn das Resultat von beiden Seiten bestätigt wurde.'],
+  ['03', 'Eine Saison mit Ziel', 'Season 01 läuft bis zum 01.11.2026. Jede Platzierung wird durch gespielte Matches verdient.'],
 ];
 
 export default function Home() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [communityStats, setCommunityStats] = useState<CommunityStats | null>(null);
-  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    // Sofort Session prüfen
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setIsLoggedIn(true);
-    });
-    // Auch auf Auth-Änderungen reagieren (z.B. nach Login)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session);
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => setIsLoggedIn(Boolean(session)));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setIsLoggedIn(Boolean(session)));
     return () => subscription.unsubscribe();
   }, [supabase]);
 
@@ -62,407 +33,83 @@ export default function Home() {
     async function loadCommunityStats() {
       try {
         const response = await fetch('/api/community-stats');
-        if (!response.ok) throw new Error(`Community stats request failed: ${response.status}`);
-
-        const stats: CommunityStats = await response.json();
-        if ([stats.players, stats.matches, stats.cups, stats.liveCups].every((value) => Number.isInteger(value) && value >= 0)) {
-          setCommunityStats(stats);
-        }
-      } catch (error) {
-        console.warn('Community stats could not be loaded', error);
+        if (!response.ok) throw new Error('Community stats request failed');
+        const data: CommunityStats = await response.json();
+        if ([data.players, data.matches, data.cups, data.liveCups].every((value) => Number.isInteger(value) && value >= 0)) setCommunityStats(data);
+      } catch {
+        // Die Startseite bleibt auch bei einer kurzzeitig nicht erreichbaren Statistik nutzbar.
       }
     }
     void loadCommunityStats();
   }, []);
 
   const stats = [
-    { value: communityStats ? String(communityStats.players) : '–', label: 'Spieler', detail: 'Mit RankedDarts-Profil' },
-    { value: communityStats ? String(communityStats.matches) : '–', label: 'Matches', detail: 'Abgeschlossen und bestätigt' },
-    { value: communityStats ? String(communityStats.cups) : '–', label: 'Turniere', detail: 'Bisher auf der Plattform' },
-    { value: communityStats ? String(communityStats.liveCups) : '–', label: 'Turniere live', detail: communityStats && communityStats.liveCups > 0 ? 'Werden gerade gespielt' : 'Aktuell läuft keines' },
+    [communityStats ? String(communityStats.players) : '–', 'Spieler'],
+    [communityStats ? String(communityStats.matches) : '–', 'Bestätigte Matches'],
+    [communityStats ? String(communityStats.cups) : '–', 'Turniere'],
+    [communityStats ? String(communityStats.liveCups) : '–', 'Turniere live'],
   ];
+  const primaryTarget = isLoggedIn ? '/matchmaking' : '/auth/register';
+  const primaryLabel = isLoggedIn ? 'Match suchen' : 'Kostenlos starten';
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#050607] text-white">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(6,182,212,0.16),transparent_28%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
-        <div className="absolute left-1/2 top-0 h-[760px] w-[760px] -translate-x-1/2 rounded-full border border-emerald-400/10 bg-emerald-400/[0.03] blur-3xl" />
-        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
-        <div className="absolute left-[7%] top-44 h-40 w-40 rounded-full bg-cyan-400/15 blur-3xl ranked-float" />
-        <div className="absolute right-[7%] top-[30rem] h-52 w-52 rounded-full bg-lime-300/10 blur-3xl ranked-float-delayed" />
-      </div>
+    <main className="min-h-screen overflow-hidden bg-[#0a0d0d] text-[#f5f3ee]">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 sport-grid opacity-35" />
+      <div aria-hidden className="pointer-events-none fixed -right-48 top-24 -z-10 h-[34rem] w-[34rem] sport-dartboard opacity-20" />
 
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
+      <nav className="border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
-          <button onClick={() => router.push('/')} className="group flex items-center gap-3" aria-label="Zur Startseite">
-            <BrandLogo className="h-11 w-11" />
-            <div className="text-left">
-              <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Competitive Darts</div>
-            </div>
+          <button onClick={() => router.push('/')} className="flex items-center gap-3 text-left" aria-label="Zur Startseite">
+            <BrandLogo className="h-10 w-10 rounded-lg" />
+            <span><span className="block text-lg font-black tracking-[-0.05em]">RANKEDDARTS</span><span className="block text-[9px] font-bold uppercase tracking-[0.25em] text-emerald-300">Competitive darts</span></span>
           </button>
-
-          <div className="hidden items-center gap-8 text-sm font-medium text-zinc-300 lg:flex">
-            <a href="/leaderboard" className="transition hover:text-white">Leaderboard</a>
-            <a href="/matchmaking" className="transition hover:text-white">Matchmaking</a>
-            <a href="/tournaments" className="transition hover:text-white">Turniere</a>
-            <a href="/updates" className="transition hover:text-white">Updates</a>
-            <a href="/premium" className="transition hover:text-white">Premium</a>
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-100"><Flame className="h-3.5 w-3.5" /> Season 01 · bis 01.11.2026</span>
+          <div className="hidden items-center gap-6 text-[13px] font-semibold text-zinc-300 lg:flex">
+            <a href="/leaderboard" className="hover:text-white">Rangliste</a><a href="/matchmaking" className="hover:text-white">Matchmaking</a><a href="/tournaments" className="hover:text-white">Turniere</a><a href="/updates" className="hover:text-white">Updates</a>
+            <span className="border-l border-white/15 pl-6 text-[11px] font-bold uppercase tracking-[.12em] text-zinc-500">Saison 01 · bis 01.11.2026</span>
           </div>
-
-          <div className="flex items-center gap-3">
-            {isLoggedIn ? (
-              <button
-                onClick={() => router.push('/profile')}
-                className="hidden rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-5 py-2.5 text-sm font-black text-black shadow-[0_0_28px_rgba(34,197,94,0.25)] transition hover:scale-[1.03] sm:block md:px-6"
-              >
-                Zum Profil
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => router.push('/auth/login')}
-                  className="hidden rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10 sm:block"
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => router.push('/auth/register')}
-                  className="hidden rounded-full bg-white px-5 py-2.5 text-sm font-black text-black shadow-[0_0_28px_rgba(255,255,255,0.16)] transition hover:scale-[1.03] hover:bg-emerald-200 sm:block md:px-6"
-                >
-                  Kostenlos starten
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
-            >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+          <div className="flex items-center gap-2">
+            {isLoggedIn ? <button onClick={() => router.push('/profile')} className="hidden border border-emerald-300 bg-emerald-300 px-4 py-2 text-sm font-black text-[#07100b] transition hover:bg-emerald-200 sm:block">Mein Profil</button> : <><button onClick={() => router.push('/auth/login')} className="hidden px-4 py-2 text-sm font-bold text-zinc-300 hover:text-white sm:block">Login</button><button onClick={() => router.push('/auth/register')} className="hidden border border-emerald-300 bg-emerald-300 px-4 py-2 text-sm font-black text-[#07100b] transition hover:bg-emerald-200 sm:block">Mitspielen</button></>}
+            <button onClick={() => setMobileMenuOpen((open) => !open)} className="grid h-9 w-9 place-items-center border border-white/15 text-zinc-200 lg:hidden" aria-label="Menü öffnen">{mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}</button>
           </div>
         </div>
-
-        {mobileMenuOpen && (
-          <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
-            <div className="flex flex-col gap-1">
-              <a href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</a>
-              <a href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</a>
-              <a href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Turniere</a>
-              <a href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</a>
-              <a href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Premium</a>
-              <div className="mt-2 border-t border-white/10 pt-2 flex flex-col gap-1">
-                {isLoggedIn ? (
-                  <a href="/profile" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/25">Zum Profil →</a>
-                ) : (
-                  <>
-                    <a href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Login</a>
-                    <a href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl bg-emerald-400/15 px-4 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-400/25">Kostenlos starten →</a>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {mobileMenuOpen && <div className="border-t border-white/10 px-5 py-3 lg:hidden"><div className="mx-auto grid max-w-7xl gap-1 text-sm font-bold text-zinc-300">{['Rangliste|/leaderboard', 'Matchmaking|/matchmaking', 'Turniere|/tournaments', 'Updates|/updates', 'Premium|/premium'].map((entry) => { const [label, href] = entry.split('|'); return <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="border-b border-white/5 py-3 hover:text-emerald-200">{label}</a>; })}</div></div>}
       </nav>
 
-      <section className="relative z-10 mx-auto grid min-h-screen max-w-7xl items-center gap-14 px-5 pb-20 pt-32 md:px-8 lg:grid-cols-[1.04fr_0.96fr] lg:pt-28">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-10 -z-10 h-[80%] overflow-hidden rounded-[3.5rem]">
-          <div className="absolute inset-0 bg-[url('/rankeddarts-arena-hero.png')] bg-cover bg-[70%_center] opacity-55 [mask-image:linear-gradient(90deg,transparent_0%,black_35%,black_100%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,#050607_0%,rgba(5,6,7,0.88)_32%,rgba(5,6,7,0.22)_75%,#050607_100%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,#050607_0%,transparent_25%,#050607_96%)]" />
+      <section className="relative mx-auto grid max-w-7xl gap-12 overflow-hidden px-5 pb-16 pt-14 md:px-8 lg:grid-cols-[.92fr_1.08fr] lg:items-center lg:py-24">
+        <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+          <div className="absolute inset-0 bg-[url('/rankeddarts-darts-club-hero-v2.png')] bg-cover bg-[72%_center] opacity-35" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,#0a0d0d_0%,rgba(10,13,13,.94)_40%,rgba(10,13,13,.55)_72%,#0a0d0d_100%)]" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0a0d0d] to-transparent" />
         </div>
-        <div>
-          <div className="mb-7 inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-[0_0_30px_rgba(34,197,94,0.12)]">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" />
-            </span>
-            MATCHMAKING IST GEÖFFNET
-          </div>
-
-          <h1 className="max-w-5xl text-5xl font-black leading-[0.9] tracking-[-0.08em] text-white sm:text-6xl md:text-8xl xl:text-[9.5rem]">
-            Dein Wurf.<br />
-            <span className="bg-gradient-to-r from-emerald-300 via-lime-200 to-cyan-300 bg-clip-text text-transparent">Dein Rang.</span>
-          </h1>
-
-          <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-300 md:text-2xl md:leading-10">
-            Finde Gegner in deiner Spielstärke, trage das Ergebnis gemeinsam ein und arbeite dich Match für Match im Ranking nach oben.
-          </p>
-
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            {isLoggedIn ? (
-              <>
-                <button
-                  onClick={() => router.push('/matchmaking')}
-                  className="group rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-5 text-base font-black uppercase tracking-[0.18em] text-black shadow-[0_24px_80px_rgba(34,197,94,0.28)] transition hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(34,197,94,0.42)]"
-                >
-                  Matchmaking starten
-                  <span className="ml-3 inline-block transition group-hover:translate-x-1">→</span>
-                </button>
-                <button
-                  onClick={() => router.push('/profile')}
-                  className="rounded-3xl border border-white/15 bg-white/[0.04] px-8 py-5 text-base font-bold text-white backdrop-blur transition hover:-translate-y-1 hover:border-white/35 hover:bg-white/[0.08]"
-                >
-                  Mein Profil
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => router.push('/auth/register')}
-                  className="group rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-5 text-base font-black uppercase tracking-[0.18em] text-black shadow-[0_24px_80px_rgba(34,197,94,0.28)] transition hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(34,197,94,0.42)]"
-                >
-                  Jetzt einsteigen
-                  <ArrowUpRight className="ml-3 inline-block h-5 w-5 transition group-hover:translate-x-1 group-hover:-translate-y-1" />
-                </button>
-                <button
-                  onClick={() => router.push('/leaderboard')}
-                  className="rounded-3xl border border-white/15 bg-white/[0.04] px-8 py-5 text-base font-bold text-white backdrop-blur transition hover:-translate-y-1 hover:border-white/35 hover:bg-white/[0.08]"
-                >
-                  Leaderboard ansehen
-                </button>
-              </>
-            )}
-          </div>
-
-          <div className="mt-8 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
-            <span className="h-px w-10 bg-emerald-300/60" />
-            Vier Ranked-Matches pro Tag kostenlos. Mit Premium ohne Tageslimit.
-          </div>
-
-          <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 text-sm text-zinc-400">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-2xl font-black text-white">Elo</div>
-              <div className="mt-1">Skillbasiertes Ranking</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-2xl font-black text-white">1v1</div>
-              <div className="mt-1">Direkte Duelle</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-2xl font-black text-white">Fair</div>
-              <div className="mt-1">Bestätigte Ergebnisse</div>
-            </div>
-          </div>
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 border-l-2 border-emerald-300 pl-3 text-[11px] font-black uppercase tracking-[.19em] text-emerald-200"><span className="h-2 w-2 rounded-full bg-emerald-300" /> Matchmaking geöffnet</div>
+          <h1 className="mt-7 max-w-3xl text-[3.3rem] font-black leading-[.9] tracking-[-.075em] text-[#f5f3ee] sm:text-7xl xl:text-[6.2rem]">Kein Zufall.<br /><span className="text-emerald-300">Nur dein nächstes Match.</span></h1>
+          <p className="mt-7 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">RankedDarts bringt faire 1v1-Duelle, klare Ergebnisse und eine Rangliste zusammen. Du spielst gegen Leute in deiner Nähe – nicht gegen den Zufall.</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row"><button onClick={() => router.push(primaryTarget)} className="group inline-flex items-center justify-center gap-3 border border-emerald-300 bg-emerald-300 px-6 py-4 text-sm font-black uppercase tracking-[.12em] text-[#07100b] transition hover:bg-emerald-200">{primaryLabel} <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></button><button onClick={() => router.push('/leaderboard')} className="border border-white/15 px-6 py-4 text-sm font-bold text-white transition hover:border-white/40 hover:bg-white/[.04]">Rangliste ansehen</button></div>
+          <p className="mt-5 text-xs leading-5 text-zinc-500">Kostenlos: 4 Ranked-Matches pro Tag. Premium: ohne Tageslimit und mit Zugang zu Premium-Turnieren.</p>
         </div>
+        <div className="relative z-10"><div className="mb-3 flex items-center justify-between border-y border-white/10 py-3 text-[10px] font-black uppercase tracking-[.16em] text-zinc-500"><span className="inline-flex items-center gap-2"><CircleDot className="h-3.5 w-3.5 text-emerald-300" /> So sieht ein Result Room aus</span><span>Beispielansicht</span></div><ResultRoomPreview onOpen={() => router.push('/matchmaking')} /></div>
+      </section>
 
-        <div>
-          <ResultRoomPreview onOpen={() => router.push('/matchmaking')} />
-        </div>
+      <section className="border-y border-white/10 bg-[#0d1110]"><div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-y divide-white/10 md:grid-cols-4 md:divide-y-0">{stats.map(([value, label]) => <div key={label} className="px-5 py-6 md:px-8 md:py-8"><div className="text-3xl font-black tracking-[-.06em] text-white md:text-4xl">{value}</div><div className="mt-1 text-xs font-bold uppercase tracking-[.12em] text-zinc-500">{label}</div></div>)}</div></section>
 
-        <div className="hidden">
-          <div className="absolute -inset-8 rounded-[3rem] bg-emerald-400/10 blur-3xl" />
-          <div className="pointer-events-none absolute -right-5 -top-5 hidden h-48 w-48 items-center justify-center md:flex">
-            <div className="absolute inset-0 rounded-full border border-emerald-300/15" />
-            <div className="absolute inset-7 rounded-full border border-cyan-300/15" />
-            <div className="absolute inset-[3.6rem] rounded-full border border-emerald-300/25" />
-            <div className="ranked-orbit absolute left-1/2 top-1/2 h-3 w-3 rounded-full bg-lime-200 shadow-[0_0_22px_rgba(190,242,100,0.95)]" />
-            <Crosshair className="h-8 w-8 text-emerald-200/60" />
-          </div>
-          <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/80 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl">
-            <div className="ranked-scan pointer-events-none absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-emerald-300/0 via-emerald-300/[0.07] to-transparent" />
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent ranked-shine" />
-            <div className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-zinc-900 via-black to-zinc-950 p-6 md:p-8">
-              <div className="flex items-center justify-between border-b border-white/10 pb-5">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.24em] text-emerald-300"><Radar className="h-4 w-4" /> Match Radar</div>
-                  <div className="mt-1 text-2xl font-black tracking-tight">Dein nächstes Duell</div>
-                </div>
-                <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">LIVE · 0:14</div>
-              </div>
-
-              <div className="mt-7 grid gap-4">
-                <div className="rounded-3xl border border-emerald-400/25 bg-emerald-400/[0.06] p-5">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-sm text-zinc-400">DU</div>
-                      <div className="mt-1 text-3xl font-black tracking-tight">CheckoutKing</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-zinc-400">Elo</div>
-                      <div className="mt-1 text-3xl font-black text-emerald-300">1284</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-center gap-3 py-1">
-                  <div className="h-px flex-1 bg-white/10" />
-                  <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-zinc-400">versus</div>
-                  <div className="h-px flex-1 bg-white/10" />
-                </div>
-
-                <div className="rounded-3xl border border-cyan-400/25 bg-cyan-400/[0.05] p-5">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-sm text-zinc-400">GEGNER GEFUNDEN</div>
-                      <div className="mt-1 text-3xl font-black tracking-tight">TripleTwenty</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-zinc-400">Elo</div>
-                      <div className="mt-1 text-3xl font-black text-cyan-300">1271</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-7 rounded-3xl border border-white/10 bg-black/45 p-5">
-                <div className="mb-4 flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2 font-bold text-zinc-300"><Sparkles className="h-4 w-4 text-emerald-300" /> Matchqualität</span>
-                  <span className="font-black text-emerald-300">98%</span>
-                </div>
-                <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-[98%] rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" />
-                </div>
-                <div className="mt-4 grid grid-cols-3 gap-3 text-center text-xs text-zinc-400">
-                  <div className="rounded-2xl bg-white/[0.04] p-3"><span className="block text-lg font-black text-white">13</span>Elo Abstand</div>
-                  <div className="rounded-2xl bg-white/[0.04] p-3"><span className="block text-lg font-black text-white">EU</span>Region</div>
-                  <div className="rounded-2xl bg-white/[0.04] p-3"><span className="block text-lg font-black text-white">Live</span>Bereit</div>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <button onClick={() => router.push('/tournaments')} className="group rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-left transition hover:border-amber-300/45 hover:bg-amber-300/[0.12]">
-                  <div className="flex items-center justify-between text-amber-200"><CalendarDays className="h-4 w-4" /><ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></div>
-                  <div className="mt-4 text-sm font-black text-white">Turniere</div>
-                  <div className="mt-1 text-xs text-zinc-500">Offene und Premium-Cups</div>
-                </button>
-                <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.05] p-4">
-                  <div className="flex items-center justify-between text-cyan-200"><ShieldCheck className="h-4 w-4" /><span className="text-[10px] font-black tracking-widest">FAIR PLAY</span></div>
-                  <div className="mt-4 text-sm font-black text-white">Ergebnisprüfung</div>
-                  <div className="mt-1 text-xs text-zinc-500">Beide Spieler bestätigen</div>
-                </div>
-              </div>
-            </div>
+      <section className="mx-auto max-w-7xl px-5 pt-20 md:px-8 md:pt-28">
+        <div className="grid overflow-hidden border border-white/15 bg-[#0d1110] md:grid-cols-[1.15fr_.85fr]">
+          <div className="min-h-72 bg-[url('/rankeddarts-darts-club-hero-v2.png')] bg-cover bg-[68%_center] md:min-h-[25rem]" />
+          <div className="flex flex-col justify-between p-7 md:p-10">
+            <div><p className="text-[11px] font-black uppercase tracking-[.2em] text-emerald-300">Competitive darts, ohne Theater</p><h2 className="mt-4 text-3xl font-black tracking-[-.055em] md:text-5xl">Dein Spiel. Klar gewertet.</h2><p className="mt-5 max-w-md leading-7 text-zinc-400">Du spielst über deine gewählte Plattform, reichst dein Ergebnis ein und dein Gegner bestätigt es. Erst dann zählt das Match für deine Saison.</p></div>
+            <a href="/matchmaking" className="mt-9 inline-flex items-center gap-2 text-sm font-black text-emerald-200 hover:text-emerald-100">So funktioniert Matchmaking <ChevronRight className="h-4 w-4" /></a>
           </div>
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto -mt-8 max-w-7xl px-5 md:px-8">
-        <div className="grid overflow-hidden rounded-[2rem] border border-white/10 bg-black/50 shadow-2xl shadow-black/30 backdrop-blur-xl md:grid-cols-3">
-          {liveFeed.map((item, index) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.label} className={`group flex items-center gap-4 px-5 py-5 ${index < liveFeed.length - 1 ? 'border-b border-white/10 md:border-b-0 md:border-r' : ''}`}>
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-emerald-200 transition group-hover:scale-110 group-hover:bg-emerald-400/20">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-black text-white">{item.label}</div>
-                  <div className="mt-0.5 text-xs text-zinc-500">{item.detail}</div>
-                </div>
-                <Zap className="ml-auto h-4 w-4 text-emerald-300/0 transition group-hover:text-emerald-300" />
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <section className="mx-auto max-w-7xl px-5 py-20 md:px-8 md:py-28"><div className="max-w-2xl"><p className="text-[11px] font-black uppercase tracking-[.2em] text-emerald-300">Wie RankedDarts funktioniert</p><h2 className="mt-4 text-4xl font-black tracking-[-.06em] md:text-6xl">Ein System, das man versteht.</h2></div><div className="mt-12 grid border-t border-white/15 lg:grid-cols-3">{principles.map(([number, title, text], index) => <article key={number} className={`py-8 lg:px-8 ${index !== 0 ? 'lg:border-l lg:border-white/15' : 'lg:pr-8'}`}><span className="text-sm font-black text-emerald-300">{number}</span><h3 className="mt-7 text-2xl font-black tracking-[-.04em]">{title}</h3><p className="mt-3 max-w-sm leading-7 text-zinc-400">{text}</p></article>)}</div></section>
 
-      <section className="relative z-10 border-y border-white/10 bg-white/[0.025] py-8">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-5 md:grid-cols-4 md:px-8">
-          {stats.map((item) => (
-            <div key={item.label} className="group rounded-3xl border border-white/10 bg-black/25 p-5 text-center backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-emerald-300/30 hover:bg-emerald-400/[0.04]">
-              <div className="text-4xl font-black tracking-[-0.05em] text-white md:text-5xl">{item.value}</div>
-              <div className="mt-2 font-bold text-emerald-300">{item.label}</div>
-              <div className="mt-1 text-sm text-zinc-500">{item.detail}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <section className="mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-28"><div className="grid border border-white/15 bg-[#0d1110] lg:grid-cols-[.72fr_1.28fr]"><div className="border-b border-white/15 p-7 lg:border-b-0 lg:border-r lg:p-10"><div className="flex h-11 w-11 items-center justify-center border border-emerald-300/40 text-emerald-300"><Trophy className="h-5 w-5" /></div><p className="mt-7 text-[11px] font-black uppercase tracking-[.2em] text-zinc-500">Dein Ranking</p><h2 className="mt-3 text-3xl font-black tracking-[-.05em]">Level 1 bis Level 10.</h2><p className="mt-4 leading-7 text-zinc-400">Level 10 beginnt bei 2.000 Elo. Deine Platzierung richtet sich nach bestätigten Ranked-Matches.</p><button onClick={() => router.push('/matchmaking')} className="mt-7 inline-flex items-center gap-2 text-sm font-black text-emerald-200 hover:text-emerald-100">Zum Matchmaking <ChevronRight className="h-4 w-4" /></button></div><div className="grid sm:grid-cols-2">{RANK_TIERS.map((rank) => <div key={rank.level} className="border-b border-white/10 p-5 last:border-b-0 sm:[&:nth-child(odd)]:border-r sm:p-6"><div className="flex items-baseline justify-between"><span className="text-xs font-black uppercase tracking-[.14em] text-zinc-500">Level {rank.level}</span><span className="text-xs font-black text-emerald-300">{getRankRangeLabel(rank)} Elo</span></div><div className="mt-3 text-2xl font-black tracking-[-.05em] text-white">{rank.name}</div></div>)}</div></div></section>
 
-      <section className="relative z-10 mx-auto max-w-7xl px-5 py-24 md:px-8">
-        <div className="mb-14 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-          <div>
-            <div className="text-sm font-black uppercase tracking-[0.3em] text-emerald-300">So funktioniert es</div>
-            <h2 className="mt-4 max-w-3xl text-5xl font-black tracking-[-0.06em] md:text-7xl">Darts spielen. Ergebnis bestätigen. Aufsteigen.</h2>
-          </div>
-          <p className="max-w-md text-lg leading-8 text-zinc-400">RankedDarts verbindet Matchmaking, Ergebnisse, Statistiken und Turniere an einem Ort.</p>
-        </div>
+      <section className="border-t border-white/10 bg-[#0d1110] px-5 py-16 text-center md:px-8 md:py-20"><Swords className="mx-auto h-6 w-6 text-emerald-300" /><h2 className="mx-auto mt-5 max-w-3xl text-4xl font-black tracking-[-.06em] md:text-6xl">Bereit für das nächste Leg?</h2><p className="mx-auto mt-4 max-w-xl leading-7 text-zinc-400">Erstelle dein Profil, hinterlege deine Plattform und finde deinen nächsten Gegner.</p><button onClick={() => router.push(primaryTarget)} className="mt-8 border border-emerald-300 bg-emerald-300 px-7 py-4 text-sm font-black uppercase tracking-[.12em] text-[#07100b] transition hover:bg-emerald-200">{primaryLabel}</button></section>
 
-        <div className="grid gap-5 lg:grid-cols-3">
-          {features.map((feature, index) => (
-            <article key={feature.title} className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/80 p-7 transition hover:-translate-y-2 hover:border-emerald-300/35">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/70 to-transparent opacity-0 transition group-hover:opacity-100" />
-              <div className="mb-10 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xl font-black text-emerald-300">0{index + 1}</div>
-              <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300/80">{feature.eyebrow}</div>
-              <h3 className="mt-4 text-3xl font-black tracking-[-0.04em]">{feature.title}</h3>
-              <p className="mt-5 leading-7 text-zinc-400">{feature.text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="relative z-10 mx-auto max-w-7xl px-5 pb-24 md:px-8">
-        <div className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-zinc-950 via-black to-zinc-950 p-6 md:p-10">
-          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-            <div>
-              <div className="text-sm font-black uppercase tracking-[0.3em] text-cyan-300">Ränge & Elo</div>
-              <h2 className="mt-4 text-4xl font-black tracking-[-0.05em] md:text-6xl">Von Level 1 bis Level 10.</h2>
-              <p className="mt-6 text-lg leading-8 text-zinc-400">Deine Elo entscheidet über deinen Rang und die Gegner, die du in der Suche triffst. Level 10 beginnt bei 2.000 Elo.</p>
-              <button
-                onClick={() => router.push('/matchmaking')}
-                className="mt-8 rounded-3xl border border-emerald-300/30 bg-emerald-400/10 px-7 py-4 font-black text-emerald-100 transition hover:bg-emerald-400/20"
-              >
-                Matchmaking öffnen
-              </button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {RANK_TIERS.map((rank) => (
-                <div key={rank.level} className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br ${rank.accent} p-5 transition hover:-translate-y-1 hover:border-white/20 sm:p-6`}>
-                  <div className="absolute right-4 top-3 text-5xl font-black tracking-[-0.08em] text-white/[0.04]">{rank.badge}</div>
-                  <div className={`text-xs font-black uppercase tracking-[0.24em] ${rank.color}`}>Level {rank.level}</div>
-                  <div className="relative mt-3 text-3xl font-black tracking-[-0.06em] sm:text-4xl">{rank.name}</div>
-                  <div className="mt-2 text-sm font-medium text-zinc-400">{getRankRangeLabel(rank)} Elo</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative z-10 mx-auto max-w-7xl px-5 pb-24 md:px-8">
-        <div className="relative overflow-hidden rounded-[2.5rem] border border-emerald-300/20 bg-emerald-400/[0.08] p-8 text-center md:p-14">
-          <div className="absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 rounded-full bg-emerald-300/20 blur-3xl" />
-          <div className="relative">
-            <div className="text-sm font-black uppercase tracking-[0.35em] text-emerald-200">Lust auf ein Match?</div>
-            <h2 className="mx-auto mt-5 max-w-4xl text-5xl font-black tracking-[-0.06em] md:text-7xl">Account erstellen und Gegner suchen.</h2>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Die Registrierung ist kostenlos. Danach kannst du direkt dein Profil einrichten und ins Matchmaking gehen.</p>
-            <div className="mt-9 flex flex-col justify-center gap-4 sm:flex-row">
-              <button
-                onClick={() => router.push('/auth/register')}
-                className="rounded-3xl bg-white px-9 py-5 font-black uppercase tracking-[0.16em] text-black transition hover:scale-[1.03] hover:bg-emerald-100"
-              >
-                Kostenlos registrieren
-              </button>
-              <button
-                onClick={() => router.push('/auth/login')}
-                className="rounded-3xl border border-white/15 px-9 py-5 font-bold text-white transition hover:border-white/35 hover:bg-white/10"
-              >
-                Ich habe bereits ein Konto
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <footer className="relative z-10 border-t border-white/10 bg-black/40 px-5 py-10 text-center text-sm text-zinc-500 md:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
-          <div className="font-bold text-zinc-300">RANKEDDARTS</div>
-          <div>© 2026 RankedDarts. Das Matchmaking für Dartspieler.</div>
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
-            <a href="/leaderboard" className="transition hover:text-white">Leaderboard</a>
-            <a href="/updates" className="transition hover:text-white">Updates</a>
-            <a href="/impressum" className="transition hover:text-white">Impressum</a>
-            <a href="/datenschutz" className="transition hover:text-white">Datenschutz</a>
-            <a href="/agb" className="transition hover:text-white">AGB</a>
-            <a href="/turnierregeln" className="transition hover:text-white">Turnierregeln</a>
-            <a href="/premium/kuendigung" className="transition hover:text-white">Premium kündigen</a>
-          </div>
-        </div>
-      </footer>
+      <footer className="border-t border-white/10 px-5 py-8 text-xs text-zinc-500 md:px-8"><div className="mx-auto flex max-w-7xl flex-col gap-5 md:flex-row md:items-center md:justify-between"><span className="font-bold text-zinc-300">RANKEDDARTS · COMPETITIVE DARTS</span><div className="flex flex-wrap gap-x-5 gap-y-2"><a href="/impressum" className="hover:text-white">Impressum</a><a href="/datenschutz" className="hover:text-white">Datenschutz</a><a href="/agb" className="hover:text-white">AGB</a><a href="/turnierregeln" className="hover:text-white">Turnierregeln</a><a href="/premium/kuendigung" className="hover:text-white">Premium kündigen</a></div></div></footer>
     </main>
   );
 }
-
