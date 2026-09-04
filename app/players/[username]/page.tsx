@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { AdminBadge } from '@/components/AdminBadge';
 import { getRankProgress } from '@/lib/ranks';
-import { ArrowUpRight, Crosshair, Medal, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
+import { ArrowUpRight, Medal, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
 type PublicProfile = {
   username: string;
@@ -115,7 +115,7 @@ export default function PlayerProfile() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-8 py-6 text-lg font-bold text-emerald-200 backdrop-blur-xl">
+        <div className="border border-white/15 bg-[#0d1110] px-6 py-4 text-lg font-bold text-emerald-200">
           Profil wird geladen...
         </div>
       </main>
@@ -125,13 +125,13 @@ export default function PlayerProfile() {
   if (notFound) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#050607] text-white">
-        <div className="rounded-[2rem] border border-white/10 bg-zinc-950/85 px-10 py-10 text-center backdrop-blur-xl">
+        <div className="border border-white/15 bg-[#0d1110] px-10 py-10 text-center">
           <Trophy className="mx-auto h-12 w-12 text-zinc-600" />
           <h1 className="mt-5 text-3xl font-black">Spieler nicht gefunden</h1>
           <p className="mt-3 text-zinc-400">Der Spieler <strong className="text-white">{username}</strong> existiert nicht.</p>
           <button
             onClick={() => router.back()}
-            className="mt-7 rounded-3xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-7 py-3.5 font-black uppercase tracking-[0.14em] text-black"
+            className="mt-7 border border-emerald-300 bg-emerald-300 px-7 py-3.5 font-black uppercase tracking-[0.14em] text-black"
           >
             Zurück
           </button>
@@ -150,17 +150,14 @@ export default function PlayerProfile() {
   const nextRank = upcoming ?? currentRank;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.18),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(6,182,212,0.12),transparent_28%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_78%)]" />
-        <div className="absolute inset-0 opacity-[0.07] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
-      </div>
+    <main className="relative min-h-screen overflow-hidden bg-[#0a0d0d] text-white">
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 sport-grid opacity-30" />
 
       {/* Nav */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-lg font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
+            <div className="grid h-10 w-10 place-items-center border border-emerald-300/30 bg-emerald-300 text-lg font-black text-black">R</div>
             <div>
               <div className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Spielerprofil</div>
@@ -173,13 +170,13 @@ export default function PlayerProfile() {
           </div>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden"
+            className="grid h-10 w-10 place-items-center border border-white/15 text-zinc-200 transition hover:bg-white/[0.05] lg:hidden"
           >
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
         {mobileMenuOpen && (
-          <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
+          <div className="border-t border-white/10 bg-[#0a0d0d] px-5 py-4 lg:hidden">
             <div className="flex flex-col gap-1">
               <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
               <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
@@ -192,58 +189,46 @@ export default function PlayerProfile() {
       <section className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32">
 
         {/* Profil-Header */}
-        <div className={`relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br ${currentRank.accent} p-7 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-10 md:p-12`}>
-          <div
-            className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full blur-3xl opacity-25"
-            style={{ background: `radial-gradient(circle, ${currentRank.glowColor}, transparent 70%)` }}
-          />
-          <div className="pointer-events-none absolute -right-20 top-1/2 hidden h-72 w-72 -translate-y-1/2 items-center justify-center opacity-55 lg:flex">
-            <div className="absolute inset-0 rounded-full border border-white/10" />
-            <div className="absolute inset-10 rounded-full border border-white/15" />
-            <div className="absolute inset-20 rounded-full border border-emerald-300/20" />
-            <div className="ranked-orbit absolute left-1/2 top-1/2 h-3 w-3 rounded-full bg-lime-200 shadow-[0_0_22px_rgba(190,242,100,0.95)]" />
-            <Crosshair className={`h-14 w-14 ${currentRank.color} opacity-70`} />
-          </div>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent ranked-shine" />
+        <div className="relative overflow-hidden border border-white/15 bg-[#0d1110] p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12">
+          <div className={`absolute inset-x-0 top-0 h-[2px] ${currentRank.level >= 8 ? 'bg-amber-300' : 'bg-emerald-300'}`} />
           <div className="relative z-10 flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-7 sm:text-left">
-            <div className="relative grid h-24 w-24 shrink-0 place-items-center rounded-[1.75rem] border border-white/20 bg-black/35 text-2xl font-black shadow-xl sm:h-28 sm:w-28 sm:text-3xl">
+            <div className="relative grid h-24 w-24 shrink-0 place-items-center border border-white/20 bg-black/35 text-2xl font-black sm:h-28 sm:w-28 sm:text-3xl">
               {currentRank.badge}
-              <span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border border-emerald-200/40 bg-emerald-400 text-black shadow-[0_0_20px_rgba(74,222,128,0.7)]"><Zap className="h-4 w-4 fill-current" /></span>
+              <span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center border border-emerald-200/40 bg-emerald-400 text-black"><Zap className="h-4 w-4 fill-current" /></span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80 sm:justify-start"><Sparkles className="h-3.5 w-3.5" /> Verified player card · Season 01 · bis 01.11.2026</div>
+              <div className="mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80 sm:justify-start"><Sparkles className="h-3.5 w-3.5" /> Spielerprofil · Season 01 · bis 01.11.2026</div>
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 {profile!.isPremium && <Star className="h-5 w-5 fill-current text-emerald-300" />}
                 <h1 className="text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl">{profile!.username}</h1>
                 {profile!.isAdmin && <AdminBadge />}
               </div>
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">PREMIUM</span>}</div>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className="border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">PREMIUM</span>}</div>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-zinc-400 sm:justify-start"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Bestätigte Ranked-Stats</span><span className="hidden h-3 w-px bg-white/15 sm:block" /><span>{gamesPlayed} Matches gespielt</span></div>
             </div>
-            <div className="relative shrink-0 overflow-hidden rounded-[1.75rem] border border-emerald-300/25 bg-[#07120e]/95 px-7 py-5 text-center shadow-[0_0_35px_rgba(34,197,94,0.15)]">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/80 to-transparent" />
+            <div className="relative shrink-0 overflow-hidden border border-emerald-300/25 bg-[#07120e]/95 px-7 py-5 text-center">
               <div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200">Elo Rating</div>
               <div className="mt-1 text-5xl font-black tracking-[-0.07em] text-emerald-300 sm:text-6xl">{elo}</div>
-              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Season 01 · bis 01.11.2026</div>
+              <div className="mt-2 inline-flex items-center gap-1.5 border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Season 01 · bis 01.11.2026</div>
             </div>
           </div>
         </div>
 
         {/* Kern-Stats: 4er Grid */}
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-          <div className="rounded-[1.5rem] border border-white/10 bg-zinc-950/80 p-5 text-center backdrop-blur-xl">
+          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
             <div className="text-2xl font-black text-emerald-300 sm:text-3xl">{wins}</div>
             <div className="mt-1 text-xs text-zinc-500">Siege</div>
           </div>
-          <div className="rounded-[1.5rem] border border-white/10 bg-zinc-950/80 p-5 text-center backdrop-blur-xl">
+          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
             <div className="text-2xl font-black text-red-300 sm:text-3xl">{losses}</div>
             <div className="mt-1 text-xs text-zinc-500">Niederlagen</div>
           </div>
-          <div className="rounded-[1.5rem] border border-cyan-300/15 bg-cyan-400/[0.04] p-5 text-center backdrop-blur-xl">
+          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
             <div className="text-2xl font-black text-cyan-300 sm:text-3xl">{winrate}%</div>
             <div className="mt-1 text-xs text-zinc-500">Winrate</div>
           </div>
-          <div className="rounded-[1.5rem] border border-white/10 bg-zinc-950/80 p-5 text-center backdrop-blur-xl">
+          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
             <div className="text-2xl font-black text-white sm:text-3xl">{gamesPlayed}</div>
             <div className="mt-1 text-xs text-zinc-500">Spiele</div>
           </div>
@@ -253,21 +238,21 @@ export default function PlayerProfile() {
           <div className="space-y-5">
         {/* Performance-Stats */}
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <div className="rounded-[1.5rem] border border-violet-300/15 bg-violet-400/[0.04] p-5 text-center backdrop-blur-xl">
+          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
             <Target className="mx-auto h-5 w-5 text-violet-300 mb-2" />
             <div className="text-2xl font-black text-violet-300 sm:text-3xl">
               {avgAverage !== null ? avgAverage.toFixed(1) : '—'}
             </div>
             <div className="mt-1 text-xs text-zinc-500">Ø Average</div>
           </div>
-          <div className="rounded-[1.5rem] border border-emerald-300/15 bg-emerald-400/[0.04] p-5 text-center backdrop-blur-xl">
+          <div className="border border-emerald-300/20 bg-emerald-400/[0.04] p-5 text-center">
             <Zap className="mx-auto h-5 w-5 text-emerald-300 mb-2" />
             <div className="text-2xl font-black text-emerald-300 sm:text-3xl">
               {bestAverage !== null ? bestAverage.toFixed(1) : '—'}
             </div>
             <div className="mt-1 text-xs text-zinc-500">Best Average</div>
           </div>
-          <div className="rounded-[1.5rem] border border-amber-300/15 bg-amber-400/[0.04] p-5 text-center backdrop-blur-xl">
+          <div className="border border-amber-300/20 bg-amber-400/[0.04] p-5 text-center">
             <div className="mx-auto mb-2 text-lg font-black text-amber-300">180</div>
             <div className="text-2xl font-black text-amber-300 sm:text-3xl">{total180s}</div>
             <div className="mt-1 text-xs text-zinc-500">180er gesamt</div>
@@ -275,7 +260,7 @@ export default function PlayerProfile() {
         </div>
 
         {/* Rang-Fortschritt */}
-        <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-7">
+        <div className="border border-white/10 bg-[#0d1110] p-6 sm:p-7">
           <div className="flex items-end justify-between gap-4">
             <div>
               <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Nächster Rang</div>
@@ -284,25 +269,24 @@ export default function PlayerProfile() {
             </div>
             <div className="text-right text-2xl font-black text-emerald-300">{Math.round(progress)}%</div>
           </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" style={{ width: `${progress}%` }} />
+          <div className="mt-4 h-2 overflow-hidden bg-white/10">
+            <div className="h-full bg-emerald-300" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-5 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-zinc-400"><span className="inline-flex items-center gap-2"><Medal className="h-4 w-4 text-emerald-300" /> Level {currentRank.level} · {currentRank.name}</span><span className="font-black text-white">{elo} Elo</span></div>
+          <div className="mt-5 flex items-center justify-between border border-white/10 bg-black/20 px-4 py-3 text-xs text-zinc-400"><span className="inline-flex items-center gap-2"><Medal className="h-4 w-4 text-emerald-300" /> Level {currentRank.level} · {currentRank.name}</span><span className="font-black text-white">{elo} Elo</span></div>
         </div>
           </div>
 
         {/* Match-Verlauf */}
-        <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/80 p-6 backdrop-blur-xl sm:p-7">
-          <div className="pointer-events-none absolute right-0 top-0 h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" />
-          <div className="relative flex items-end justify-between gap-4"><div><div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Match history</div><h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em]">Letzte Matches</h2></div><span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black text-zinc-300">{matches.length} gespielt</span></div>
+        <div className="overflow-hidden border border-white/10 bg-[#0d1110] p-6 sm:p-7">
+          <div className="flex items-end justify-between gap-4"><div><div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Match history</div><h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em]">Letzte Matches</h2></div><span className="border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black text-zinc-300">{matches.length} gespielt</span></div>
           {matches.length === 0 ? (
-            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">Noch keine Matches gespielt.</div>
+            <div className="mt-5 border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">Noch keine Matches gespielt.</div>
           ) : (
-            <div className="relative mt-5 space-y-2">
+            <div className="mt-5 space-y-2">
               {matches.map((m) => {
                 return (
-                  <div key={m.id} className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.04]">
-                    <div className={`shrink-0 rounded-xl px-2.5 py-1 text-xs font-black uppercase tracking-[0.1em] ${m.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
+                  <div key={m.id} className="group flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-3.5 transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.04]">
+                    <div className={`shrink-0 border px-2.5 py-1 text-xs font-black uppercase tracking-[0.1em] ${m.is_win ? 'border-emerald-300/20 bg-emerald-400/15 text-emerald-300' : 'border-red-400/20 bg-red-400/15 text-red-300'}`}>
                       {m.is_win ? 'SIEG' : 'NL'}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -328,9 +312,9 @@ export default function PlayerProfile() {
         </div>
         </div>
 
-        <div className="mt-5 rounded-[1.75rem] border border-amber-300/15 bg-amber-300/[0.035] p-6 backdrop-blur-xl sm:p-7">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><div className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">Tournament record</div><h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em]">Öffentliche Turnier-Historie</h2></div><span className="rounded-full border border-amber-300/15 bg-amber-300/10 px-3 py-1.5 text-xs font-black text-amber-100">{tournamentHistory.length} Events</span></div>
-          {tournamentHistory.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-zinc-500">Noch keine öffentlichen Turnierergebnisse.</div> : <div className="mt-5 grid gap-3 md:grid-cols-2">{tournamentHistory.map(event => <Link href="/tournaments" key={event.tournament_id} className="group rounded-2xl border border-white/10 bg-black/25 p-4 transition hover:border-amber-300/25 hover:bg-amber-300/[0.05]"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-zinc-100">{event.title}</p><p className="mt-1 text-xs text-zinc-500">{new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(event.starts_at))} · {event.tournament_format.replaceAll('_', ' ')}</p></div>{event.is_winner && <span className="rounded-full bg-amber-300 px-2.5 py-1 text-[10px] font-black text-black"><Trophy className="mr-1 inline h-3 w-3" />CHAMPION</span>}</div><div className="mt-4 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wider"><span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-200">{event.wins} Siege</span><span className="rounded-full bg-red-400/10 px-2.5 py-1 text-red-200">{event.losses} Niederlagen</span><span className="rounded-full bg-white/5 px-2.5 py-1 text-zinc-400">{event.scoring_platform}</span>{event.prize_title && <span className="rounded-full bg-amber-300/10 px-2.5 py-1 text-amber-200">{event.prize_title}</span>}</div></Link>)}</div>}
+        <div className="mt-5 border border-amber-300/15 bg-amber-300/[0.035] p-6 sm:p-7">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><div className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">Tournament record</div><h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em]">Öffentliche Turnier-Historie</h2></div><span className="border border-amber-300/15 bg-amber-300/10 px-3 py-1.5 text-xs font-black text-amber-100">{tournamentHistory.length} Events</span></div>
+          {tournamentHistory.length === 0 ? <div className="mt-5 border border-dashed border-white/10 p-8 text-center text-sm text-zinc-500">Noch keine öffentlichen Turnierergebnisse.</div> : <div className="mt-5 grid gap-3 md:grid-cols-2">{tournamentHistory.map(event => <Link href="/tournaments" key={event.tournament_id} className="group border border-white/10 bg-black/25 p-4 transition hover:border-amber-300/25 hover:bg-amber-300/[0.05]"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-zinc-100">{event.title}</p><p className="mt-1 text-xs text-zinc-500">{new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(event.starts_at))} · {event.tournament_format.replaceAll('_', ' ')}</p></div>{event.is_winner && <span className="border border-amber-200 bg-amber-300 px-2.5 py-1 text-[10px] font-black text-black"><Trophy className="mr-1 inline h-3 w-3" />CHAMPION</span>}</div><div className="mt-4 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wider"><span className="border border-emerald-300/15 bg-emerald-400/10 px-2.5 py-1 text-emerald-200">{event.wins} Siege</span><span className="border border-red-300/15 bg-red-400/10 px-2.5 py-1 text-red-200">{event.losses} Niederlagen</span><span className="border border-white/10 bg-white/5 px-2.5 py-1 text-zinc-400">{event.scoring_platform}</span>{event.prize_title && <span className="border border-amber-300/15 bg-amber-300/10 px-2.5 py-1 text-amber-200">{event.prize_title}</span>}</div></Link>)}</div>}
         </div>
 
       </section>

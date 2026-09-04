@@ -83,24 +83,19 @@ export default function Updates() {
   );
 
   return (
-    <main className="relative min-h-screen isolate overflow-hidden bg-[#030506] text-white">
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_82%_50%_at_50%_-10%,rgba(52,211,153,.22),transparent_70%),radial-gradient(circle_at_4%_38%,rgba(6,182,212,.15),transparent_25%),radial-gradient(circle_at_94%_26%,rgba(168,85,247,.11),transparent_25%),linear-gradient(180deg,#07100d_0%,#030506_56%,#030506_100%)]" />
-        <div className="absolute left-1/2 top-[-31rem] h-[67rem] w-[67rem] -translate-x-1/2 rounded-full border border-emerald-300/[0.07] shadow-[0_0_0_8rem_rgba(110,231,183,.012),0_0_160px_rgba(16,185,129,.10)]" />
-        <div className="absolute inset-0 opacity-[0.075] [background-image:linear-gradient(rgba(255,255,255,.7)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.7)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_86%)]" />
-      </div>
+    <main className="sport-grid min-h-screen isolate overflow-hidden bg-[#0a0d0d] text-white">
 
-      <nav className="relative z-10 border-b border-white/10 bg-black/45 backdrop-blur-2xl">
+      <nav className="relative z-10 border-b border-white/10 bg-[#0a0d0d]/95">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-xl font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
+            <div className="grid h-11 w-11 place-items-center border border-emerald-300/30 bg-emerald-300 text-xl font-black text-black">R</div>
             <div>
               <div className="text-xl font-black tracking-[-0.04em] md:text-2xl">RANKEDDARTS</div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Updates</div>
             </div>
           </Link>
 
-          <button onClick={() => router.push('/profile')} className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10">
+          <button onClick={() => router.push('/profile')} className="inline-flex items-center gap-2 border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10">
             <BellRing className="h-4 w-4 text-emerald-300" /> Zurück zum Profil
           </button>
         </div>
@@ -109,25 +104,24 @@ export default function Updates() {
       <section className="relative z-10 mx-auto max-w-6xl px-5 py-14 md:px-8">
         <div className="mb-10 grid gap-5 lg:grid-cols-[1fr_0.72fr] lg:items-stretch">
           <div>
-            <div className="relative h-full overflow-hidden rounded-[2.25rem] border border-white/[0.10] bg-black/20 p-6 backdrop-blur-xl sm:p-8">
-              <div className="absolute -right-14 -top-14 h-48 w-48 rounded-full bg-emerald-400/15 blur-3xl" />
-              <div className="relative inline-flex items-center gap-3 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-100">
+            <div className="h-full overflow-hidden border border-white/[0.10] border-l-2 border-l-emerald-300 bg-[#0d1110] p-6 sm:p-8">
+              <div className="inline-flex items-center gap-3 border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-100">
                 <Sparkles className="h-3.5 w-3.5" /> Product feed
               </div>
-              <div className="relative mt-7 flex items-end gap-4"><div className="font-mono text-[10px] font-bold tracking-[0.28em] text-emerald-300/70">RANKEDDARTS // RELEASE NOTES</div><div className="mb-1 h-px flex-1 bg-gradient-to-r from-emerald-300/45 to-transparent" /></div>
-              <h1 className="relative mt-3 text-5xl font-black leading-[0.84] tracking-[-0.075em] md:text-7xl">Was ist<br /><span className="bg-gradient-to-r from-emerald-200 via-lime-200 to-cyan-200 bg-clip-text text-transparent">neu?</span></h1>
-              <p className="relative mt-5 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">Neue Features, sichtbare Verbesserungen und wichtige System-Updates aus der RankedDarts Arena.</p>
+              <div className="mt-7 flex items-end gap-4"><div className="font-mono text-[10px] font-bold tracking-[0.28em] text-emerald-300/70">RANKEDDARTS // RELEASE NOTES</div><div className="mb-1 h-px flex-1 bg-emerald-300/45" /></div>
+              <h1 className="mt-3 text-5xl font-black leading-[0.84] tracking-[-0.075em] md:text-7xl">WAS IST<br /><span className="text-emerald-300">NEU?</span></h1>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">Neue Features, sichtbare Verbesserungen und wichtige System-Updates aus der RankedDarts Arena.</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-[2rem] border border-white/10 bg-black/25 p-6 backdrop-blur-xl">
+            <div className="border border-white/10 bg-[#0d1110] p-6">
               <Rocket className="h-5 w-5 text-cyan-200" />
               <div className="mt-5 text-5xl font-black tracking-[-0.07em]">{updates.length}</div>
               <div className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">Releases</div>
               <div className="mt-1 text-xs text-zinc-500">im Product Feed</div>
             </div>
-            <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/[0.08] p-6 backdrop-blur-xl">
+            <div className="border border-emerald-300/20 bg-emerald-400/[0.08] p-6">
               <CheckCircle2 className="h-5 w-5 text-emerald-200" />
               <div className="mt-5 text-5xl font-black tracking-[-0.07em]">{highlightedUpdates}</div>
               <div className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Highlights</div>
@@ -136,16 +130,14 @@ export default function Updates() {
           </div>
         </div>
 
-        <article className="group relative mb-12 overflow-hidden rounded-[2.5rem] border border-emerald-300/25 bg-gradient-to-br from-emerald-400/[0.12] via-[#07100e]/90 to-cyan-400/[0.06] p-6 shadow-[0_30px_80px_rgba(0,0,0,.32)] backdrop-blur-xl sm:p-8 md:p-10">
-          <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full border border-emerald-200/15 bg-emerald-300/[0.04]" />
-          <div className="absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-emerald-200/70 to-transparent" />
+        <article className="group relative mb-12 overflow-hidden border border-emerald-300/25 border-t-2 border-t-emerald-300 bg-[#0d1110] p-6 sm:p-8 md:p-10">
           <div className="relative grid gap-8 lg:grid-cols-[1fr_.48fr] lg:items-end">
             <div>
               <div className="flex flex-wrap items-center gap-3"><span className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">Latest release</span><span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${categoryStyles[latestUpdate.category]}`}>{latestUpdate.category}</span></div>
               <h2 className="mt-6 max-w-3xl text-4xl font-black leading-[0.94] tracking-[-0.06em] sm:text-5xl">{latestUpdate.title}</h2>
               <p className="mt-5 max-w-3xl text-base leading-7 text-zinc-300">{latestUpdate.content}</p>
             </div>
-            <div className="rounded-[1.8rem] border border-white/[0.10] bg-black/20 p-5 backdrop-blur-xl"><div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Release status</div><div className="mt-3 flex items-center gap-2 text-lg font-black text-emerald-100"><span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_16px_rgba(110,231,183,.9)]" />{latestUpdate.label}</div><div className="mt-5 border-t border-white/[0.08] pt-4 text-sm font-bold text-zinc-400">{latestUpdate.date}</div><Link href="/matchmaking" className="mt-5 inline-flex items-center gap-2 text-sm font-black text-emerald-200 transition hover:text-white">Zur Ranked Arena <ArrowUpRight className="h-4 w-4" /></Link></div>
+            <div className="border border-white/[0.10] bg-black/20 p-5"><div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Release status</div><div className="mt-3 flex items-center gap-2 text-lg font-black text-emerald-100"><span className="h-2.5 w-2.5 bg-emerald-300" />{latestUpdate.label}</div><div className="mt-5 border-t border-white/[0.08] pt-4 text-sm font-bold text-zinc-400">{latestUpdate.date}</div><Link href="/matchmaking" className="mt-5 inline-flex items-center gap-2 text-sm font-black text-emerald-200 transition hover:text-white">Zur Ranked Arena <ArrowUpRight className="h-4 w-4" /></Link></div>
           </div>
         </article>
 
