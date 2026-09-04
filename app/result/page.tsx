@@ -213,7 +213,10 @@ export default function MatchResult() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatSending, setChatSending] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatListRef = useRef<HTMLDivElement>(null);
+  const chatHasLoadedRef = useRef(false);
+  const previousChatMessageIdsRef = useRef<string[]>([]);
+  const chatNearBottomRef = useRef(true);
 
   // No-Show state
   const [noShowReportedAt, setNoShowReportedAt] = useState<string | null>(null);
@@ -227,6 +230,12 @@ export default function MatchResult() {
 
   // Admin state
   const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    chatHasLoadedRef.current = false;
+    previousChatMessageIdsRef.current = [];
+    chatNearBottomRef.current = true;
+  }, [match?.id]);
 
   // Average-Stats beider Spieler (aus bisherigen Matches berechnet)
   const [player1AvgAverage, setPlayer1AvgAverage] = useState<number | null>(null);
@@ -598,7 +607,14 @@ export default function MatchResult() {
           .order('created_at', { ascending: true });
         data = result.data;
       }
-      if (data) setChatMessages(data as ChatMessage[]);
+      if (data) {
+        const nextMessages = data as ChatMessage[];
+        setChatMessages((previous) => (
+          previous.length === nextMessages.length && previous.every((message, index) => message.id === nextMessages[index]?.id)
+            ? previous
+            : nextMessages
+        ));
+      }
     };
     void fetchMessages();
   }, [match?.id, match?.player1_id, match?.player2_id, currentUserId, isAdmin, supabase]);
@@ -614,7 +630,14 @@ export default function MatchResult() {
       // (einfachste Lösung die keine zusätzliche DB-Konfiguration braucht)
       const pollInterval = setInterval(async () => {
         const { data } = await supabase.rpc('admin_get_match_messages', { p_match_id: match.id });
-        if (data) setChatMessages(data as ChatMessage[]);
+        if (data) {
+          const nextMessages = data as ChatMessage[];
+          setChatMessages((previous) => (
+            previous.length === nextMessages.length && previous.every((message, index) => message.id === nextMessages[index]?.id)
+              ? previous
+              : nextMessages
+          ));
+        }
       }, 3000);
       return () => clearInterval(pollInterval);
     }
@@ -633,10 +656,31 @@ export default function MatchResult() {
     return () => { void supabase.removeChannel(channel); };
   }, [match?.id, match?.player1_id, match?.player2_id, currentUserId, isAdmin, supabase]);
 
-  // Automatisch nach unten scrollen wenn neue Nachrichten ankommen
+  // Nur bei wirklich neuen Nachrichten innerhalb des Chatfensters scrollen.
+  // Die Admin-Ansicht lädt Nachrichten regelmäßig nach und darf dadurch weder
+  // den Seiten- noch den Chat-Scroll des Admins verändern.
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
+    const currentIds = chatMessages.map((message) => message.id);
+    const previousIds = previousChatMessageIdsRef.current;
+    const hasNewMessage = currentIds.some((id) => !previousIds.includes(id));
+    const latestMessage = chatMessages[chatMessages.length - 1];
+    const isSpectatingAdmin = isAdmin && currentUserId !== match?.player1_id && currentUserId !== match?.player2_id;
+
+    previousChatMessageIdsRef.current = currentIds;
+    if (!chatHasLoadedRef.current) {
+      chatHasLoadedRef.current = true;
+      return;
+    }
+
+    if (!hasNewMessage || isSpectatingAdmin || (!chatNearBottomRef.current && latestMessage?.user_id !== currentUserId)) return;
+    const chatList = chatListRef.current;
+    if (chatList) chatList.scrollTo({ top: chatList.scrollHeight, behavior: 'smooth' });
+  }, [chatMessages, currentUserId, isAdmin, match?.player1_id, match?.player2_id]);
+
+  const handleChatScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const chatList = event.currentTarget;
+    chatNearBottomRef.current = chatList.scrollHeight - chatList.scrollTop - chatList.clientHeight < 72;
+  };
 
   const sendChatMessage = async () => {
     const content = chatInput.trim();
@@ -1717,7 +1761,7 @@ export default function MatchResult() {
             </div>
 
             {/* Nachrichtenliste */}
-            <div className="flex h-72 flex-col gap-2 overflow-y-auto px-4 py-4 sm:h-80 lg:h-[27rem] lg:px-5">
+            <div ref={chatListRef} onScroll={handleChatScroll} className="flex h-72 flex-col gap-2 overflow-y-auto px-4 py-4 sm:h-80 lg:h-[27rem] lg:px-5">
               {chatMessages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
                   <MessageCircle className="h-8 w-8 text-zinc-700" />
@@ -1756,7 +1800,6 @@ export default function MatchResult() {
                   );
                 })
               )}
-              <div ref={chatEndRef} />
             </div>
 
             {/* Eingabefeld */}
