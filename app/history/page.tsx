@@ -26,6 +26,7 @@ import {
 type MatchEntry = {
   id: string;
   created_at: string;
+  completed_at?: string | null;
   opponent_name: string;
   opponent_elo: number;
   is_win: boolean;
@@ -98,6 +99,7 @@ function WinrateArc({ winrate }: { winrate: number }) {
 
 function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
   const [expanded, setExpanded] = useState(false);
+  const finishedAt = match.completed_at ?? match.created_at;
 
   const legsDisplay = match.legs_won != null
     ? `${match.legs_won} : ${match.legs_lost}`
@@ -140,7 +142,7 @@ function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
                   Privates Duell
                 </span>
               )}
-              <span className="text-xs text-zinc-600">{timeAgo(match.created_at)}</span>
+              <span className="text-xs text-zinc-600">beendet {timeAgo(finishedAt)}</span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -220,8 +222,8 @@ function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
           <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1">Datum</div>
-                <div className="text-sm font-bold text-zinc-300">{formatDate(match.created_at)}</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1">Beendet am</div>
+                <div className="text-sm font-bold text-zinc-300">{formatDate(finishedAt)}</div>
               </div>
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1">Gegner-Elo</div>

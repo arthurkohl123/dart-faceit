@@ -21,6 +21,7 @@ type PublicProfile = {
 type MatchHistory = {
   id: string;
   created_at: string;
+  completed_at?: string | null;
   opponent_name: string;
   is_win: boolean;
   legs_won: number;
@@ -52,6 +53,10 @@ export default function PlayerProfile() {
   const [avgAverage, setAvgAverage] = useState<number | null>(null);
   const [total180s, setTotal180s] = useState<number>(0);
   const [bestAverage, setBestAverage] = useState<number | null>(null);
+
+  const formatCompletion = (match: MatchHistory) => new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(match.completed_at ?? match.created_at));
 
   useEffect(() => {
     let isMounted = true;
@@ -292,7 +297,7 @@ export default function PlayerProfile() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-bold text-zinc-200">vs {m.opponent_name}</div>
                       {(
-                        <div className="text-xs text-zinc-500">{m.legs_won} : {m.legs_lost} Legs</div>
+                        <div className="text-xs text-zinc-500">{m.legs_won} : {m.legs_lost} Legs · beendet {formatCompletion(m)}</div>
                       )}
                     </div>
                     <div className="shrink-0 text-right">

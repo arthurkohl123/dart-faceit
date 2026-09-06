@@ -14,6 +14,7 @@ import { ArrowUpRight, CheckCircle2, Flame, Headphones, Menu, Pencil, Save, Shie
 type MatchData = {
   id: string | number;
   created_at: string;
+  completed_at?: string | null;
   opponent_name?: string;
   is_win?: boolean;
   result?: string;
@@ -94,6 +95,10 @@ export default function Profile() {
     await supabase.auth.signOut();
     router.push('/auth/login');
   };
+
+  const formatCompletion = (match: MatchData) => new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(match.completed_at ?? match.created_at));
 
   const savePlatformUsernames = async () => {
     setSavingPlatforms(true);
@@ -578,7 +583,7 @@ export default function Profile() {
             <div className="space-y-3">
               {matches.map((match) => (
                 <div key={match.id} className="flex items-center justify-between border border-white/10 bg-white/[0.03] px-5 py-4">
-                  <div className="flex min-w-0 items-center gap-2"><div className="truncate text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div>{match.match_mode === 'private' && <span className="shrink-0 rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-200">Privat</span>}</div>
+                  <div className="min-w-0"><div className="flex items-center gap-2"><div className="truncate text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div>{match.match_mode === 'private' && <span className="shrink-0 rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-200">Privat</span>}</div><div className="mt-1 text-[11px] font-medium text-zinc-500">Beendet: {formatCompletion(match)}</div></div>
                   <div className={`rounded-full px-3 py-1 text-xs font-black ${match.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
                     {match.is_win ? 'SIEG' : 'NIEDERLAGE'}
                   </div>
