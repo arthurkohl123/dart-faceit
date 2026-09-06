@@ -30,7 +30,9 @@ for each row execute function public.set_match_completed_at();
 create index if not exists matches_completed_at_idx
   on public.matches (user_id, completed_at desc);
 
-create or replace function public.get_public_player_match_history(
+drop function if exists public.get_public_player_match_history(uuid, integer);
+
+create function public.get_public_player_match_history(
   p_user_id uuid,
   p_limit integer default 20
 )
