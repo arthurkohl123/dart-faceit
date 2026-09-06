@@ -58,7 +58,7 @@ export default function PlayerProfile() {
     async function load() {
       const [{ data: profileData }, { data: adminRows, error: adminError }] = await Promise.all([
         supabase
-          .from('public_profiles')
+          .from('public_visible_profiles')
           .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
           .eq('username', username)
           .maybeSingle(),

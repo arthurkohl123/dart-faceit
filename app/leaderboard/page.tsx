@@ -23,7 +23,7 @@ export default function Leaderboard() {
     let isMounted = true;
     async function fetchLeaderboard() {
       try {
-        const { data, error } = await supabase.from('public_profiles').select('username, elo, gamesPlayed, wins, isPremium, supabaseId').gte('gamesPlayed', 1).order('elo', { ascending: false }).limit(100);
+        const { data, error } = await supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, supabaseId').gte('gamesPlayed', 1).order('elo', { ascending: false }).limit(100);
         if (error) throw error;
         const rankedPlayers = (data || []) as Player[];
         if (!isMounted) return;
