@@ -9,13 +9,14 @@ export type DailyMatchQuota = {
 };
 
 export function getMaxEloDiff(seconds: number): number {
-  // Keep the first minute deliberately tight; the matcher always prefers the
-  // smallest Elo distance inside this radius. Expand slowly only when needed.
-  if (seconds < 20) return 25;
-  if (seconds < 40) return 50;
-  if (seconds < 60) return 100;
-  if (seconds < 180) return 150;
-  if (seconds < 600) return 300;
+  // Start with a fair, close-Elo search, but expand promptly for the current
+  // smaller player base. The database matcher still picks the closest valid
+  // opponent, so a wider window never replaces a nearer opponent.
+  if (seconds < 15) return 50;
+  if (seconds < 30) return 100;
+  if (seconds < 60) return 200;
+  if (seconds < 90) return 300;
+  if (seconds < 120) return 400;
   return 500;
 }
 
