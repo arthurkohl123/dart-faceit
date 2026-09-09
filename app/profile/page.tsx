@@ -9,6 +9,7 @@ import { getRankProgress } from '@/lib/ranks';
 import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
 import { PayoutAlert } from '@/components/payout-alert';
+import { type DartsPlatform, type PlatformStatistic, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
 import { ArrowUpRight, CheckCircle2, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
 
 type MatchData = {
@@ -44,6 +45,7 @@ export default function Profile() {
   // Performance-Stats
   const [avgAverage, setAvgAverage] = useState<number>(0);
   const [total180s, setTotal180s] = useState<number>(0);
+  const [platformStatistics, setPlatformStatistics] = useState<PlatformStatistic[]>([]);
 
   // Plattform-Usernamen Bearbeitungsstatus
   const [editingPlatforms, setEditingPlatforms] = useState(false);
@@ -65,10 +67,11 @@ export default function Profile() {
 
       const uid = session.user.id;
 
-      const [{ data: profileData }, { data: matchData }, { data: statisticRows, error: statisticsError }] = await Promise.all([
+      const [{ data: profileData }, { data: matchData }, { data: statisticRows, error: statisticsError }, { data: platformRows, error: platformStatisticsError }] = await Promise.all([
         supabase.from('profiles').select('*').eq('supabaseId', uid).single(),
         supabase.from('matches').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(5),
         supabase.rpc('get_public_player_statistics', { p_user_ids: [uid] }),
+        supabase.rpc('get_public_player_platform_statistics', { p_user_ids: [uid] }),
       ]);
 
       if (!isMounted) return;
@@ -83,6 +86,11 @@ export default function Profile() {
         setTotal180s(stats?.total_180s ?? 0);
       } else {
         console.error('Profil-Statistiken konnten nicht geladen werden:', statisticsError);
+      }
+      if (!platformStatisticsError) {
+        setPlatformStatistics((platformRows || []) as PlatformStatistic[]);
+      } else {
+        console.error('Plattform-Statistiken konnten nicht geladen werden:', platformStatisticsError);
       }
       setLoading(false);
     }
@@ -135,6 +143,11 @@ export default function Profile() {
   const phoneVerified = Boolean(profile?.phone_verified);
   const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
   const hasPlatform = Boolean(profile?.scolia_username || profile?.dartcounter_username || profile?.autodarts_username);
+  const connectedApps = (['scolia', 'dartcounter', 'autodarts'] as DartsPlatform[]).filter((app) => {
+    if (app === 'scolia') return Boolean(profile?.scolia_username);
+    if (app === 'dartcounter') return Boolean(profile?.dartcounter_username);
+    return Boolean(profile?.autodarts_username);
+  });
   const queueReady = phoneVerified && hasPlatform;
   const nextStep = !phoneVerified
     ? { label: 'Telefon verifizieren', detail: 'Noch ein Schritt bis zum Ranked-Zugang.', href: '/auth/verify-phone', icon: ShieldCheck }
@@ -564,6 +577,10 @@ export default function Profile() {
             </div>
           )}
         </section>
+
+        <div className="mt-5">
+          <UnifiedDartsProfile statistics={platformStatistics} connectedApps={connectedApps} />
+        </div>
 
         {/* ── Match History ──────────────────────────────────────────────── */}
         <section className="mt-5 border border-white/10 bg-[#0d1110] p-6 sm:p-8">

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { AdminBadge } from '@/components/AdminBadge';
+import { type PlatformStatistic, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
 import { getRankProgress } from '@/lib/ranks';
 import { ArrowUpRight, Medal, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
@@ -53,6 +54,7 @@ export default function PlayerProfile() {
   const [avgAverage, setAvgAverage] = useState<number | null>(null);
   const [total180s, setTotal180s] = useState<number>(0);
   const [bestAverage, setBestAverage] = useState<number | null>(null);
+  const [platformStatistics, setPlatformStatistics] = useState<PlatformStatistic[]>([]);
 
   const formatCompletion = (match: MatchHistory) => new Intl.DateTimeFormat('de-DE', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -101,7 +103,10 @@ export default function PlayerProfile() {
       const { data: tournamentRows } = await supabase.rpc('list_player_tournament_history', { p_user_id: p.supabaseId });
       if (isMounted) setTournamentHistory((tournamentRows || []) as TournamentHistory[]);
 
-      const { data: statisticRows, error: statisticsError } = await supabase.rpc('get_public_player_statistics', { p_user_ids: [p.supabaseId] });
+      const [{ data: statisticRows, error: statisticsError }, { data: platformRows, error: platformStatisticsError }] = await Promise.all([
+        supabase.rpc('get_public_player_statistics', { p_user_ids: [p.supabaseId] }),
+        supabase.rpc('get_public_player_platform_statistics', { p_user_ids: [p.supabaseId] }),
+      ]);
       if (!statisticsError) {
         const stats = (statisticRows as { average: number | null; best_average: number | null; total_180s: number }[] | null)?.[0];
         setAvgAverage(stats?.average ?? null);
@@ -109,6 +114,11 @@ export default function PlayerProfile() {
         setTotal180s(stats?.total_180s ?? 0);
       } else {
         console.error('Öffentliche Spielerstatistiken konnten nicht geladen werden:', statisticsError);
+      }
+      if (!platformStatisticsError) {
+        setPlatformStatistics((platformRows || []) as PlatformStatistic[]);
+      } else {
+        console.error('Öffentliche Plattform-Statistiken konnten nicht geladen werden:', platformStatisticsError);
       }
 
       setLoading(false);
@@ -315,6 +325,10 @@ export default function PlayerProfile() {
             </div>
           )}
         </div>
+        </div>
+
+        <div className="mt-5">
+          <UnifiedDartsProfile statistics={platformStatistics} />
         </div>
 
         <div className="mt-5 border border-amber-300/15 bg-amber-300/[0.035] p-6 sm:p-7">
