@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { AdminBadge } from '@/components/AdminBadge';
-import { type PlatformStatistic, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
+import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
 import { getRankProgress } from '@/lib/ranks';
 import { ArrowUpRight, Medal, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
@@ -29,6 +29,7 @@ type MatchHistory = {
   legs_lost: number;
   my_average: number | null;
   one_eighties: number;
+  app?: DartsPlatform | null;
 };
 
 type TournamentHistory = {
@@ -90,7 +91,7 @@ export default function PlayerProfile() {
       };
       setProfile(p);
 
-      const { data: matchData, error: matchHistoryError } = await supabase.rpc('get_public_player_match_history', {
+      const { data: matchData, error: matchHistoryError } = await supabase.rpc('get_public_player_match_history_with_platform', {
         p_user_id: p.supabaseId,
         p_limit: 20,
       });
@@ -305,7 +306,7 @@ export default function PlayerProfile() {
                       {m.is_win ? 'SIEG' : 'NL'}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold text-zinc-200">vs {m.opponent_name}</div>
+                      <div className="flex items-center gap-2"><div className="truncate text-sm font-bold text-zinc-200">vs {m.opponent_name}</div><PlatformBadge app={m.app} /></div>
                       {(
                         <div className="text-xs text-zinc-500">{m.legs_won} : {m.legs_lost} Legs · beendet {formatCompletion(m)}</div>
                       )}

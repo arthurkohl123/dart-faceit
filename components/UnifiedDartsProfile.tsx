@@ -34,6 +34,17 @@ function number(value: number | null | undefined) {
   return value && value > 0 ? value.toFixed(1) : '—';
 }
 
+export function PlatformBadge({ app }: { app: DartsPlatform | string | null | undefined }) {
+  const platform = platforms.find((item) => item.app === app);
+  if (!platform) return null;
+
+  return (
+    <span className={`shrink-0 border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] ${platform.surface} ${platform.accent}`}>
+      {platform.label}
+    </span>
+  );
+}
+
 export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = false }: Props) {
   const statsByApp = new Map(statistics.map((stat) => [stat.app, stat]));
   const activePlatforms = statistics.filter((stat) => stat.match_count > 0).length;
@@ -41,6 +52,10 @@ export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = 
   const totalWins = statistics.reduce((sum, stat) => sum + Number(stat.wins || 0), 0);
   const total180s = statistics.reduce((sum, stat) => sum + Number(stat.total_180s || 0), 0);
   const overallWinrate = totalMatches > 0 ? Math.round((totalWins / totalMatches) * 100) : 0;
+  const primaryPlatform = [...statistics].sort((a, b) => b.match_count - a.match_count)[0];
+  const bestPlatform = [...statistics]
+    .filter((stat) => stat.best_average !== null)
+    .sort((a, b) => Number(b.best_average) - Number(a.best_average))[0];
 
   return (
     <section className="overflow-hidden border border-white/10 bg-[#0d1110]">
@@ -59,7 +74,7 @@ export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = 
       </div>
 
       {!compact && (
-        <div className="grid grid-cols-3 border-b border-white/10">
+        <div className="grid grid-cols-2 border-b border-white/10 sm:grid-cols-4">
           <div className="border-r border-white/10 px-4 py-4 text-center sm:px-6">
             <div className="text-xl font-black text-white sm:text-2xl">{overallWinrate}%</div>
             <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Gesamt-Winrate</div>
@@ -71,6 +86,10 @@ export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = 
           <div className="px-4 py-4 text-center sm:px-6">
             <div className="text-xl font-black text-emerald-300 sm:text-2xl">{totalWins}</div>
             <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Siege gesamt</div>
+          </div>
+          <div className="border-l border-t border-white/10 px-4 py-4 text-center sm:border-t-0 sm:px-6">
+            <div className="truncate text-sm font-black text-zinc-100 sm:text-base">{primaryPlatform ? platforms.find((item) => item.app === primaryPlatform.app)?.label : '—'}</div>
+            <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Hauptplattform</div>
           </div>
         </div>
       )}
@@ -111,8 +130,9 @@ export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = 
                 </div>
               </div>
               {hasActivity ? (
-                <div className="mt-4 border-t border-white/10 pt-3 text-[11px] text-zinc-500">
-                  Best: <span className="font-bold text-zinc-300">Ø {number(stat?.best_average)}</span>
+                <div className="mt-4 flex items-center justify-between gap-2 border-t border-white/10 pt-3 text-[11px] text-zinc-500">
+                  <span>Best: <span className="font-bold text-zinc-300">Ø {number(stat?.best_average)}</span></span>
+                  {bestPlatform?.app === platform.app && <span className={`font-black uppercase tracking-wide ${platform.accent}`}>Top</span>}
                 </div>
               ) : isConnected ? (
                 <div className="mt-4 border-t border-white/10 pt-3 text-[11px] text-zinc-500">Bereit für das erste Ranked-Match.</div>

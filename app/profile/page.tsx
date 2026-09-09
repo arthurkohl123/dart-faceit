@@ -9,7 +9,7 @@ import { getRankProgress } from '@/lib/ranks';
 import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
 import { PayoutAlert } from '@/components/payout-alert';
-import { type DartsPlatform, type PlatformStatistic, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
+import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
 import { ArrowUpRight, CheckCircle2, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
 
 type MatchData = {
@@ -20,6 +20,7 @@ type MatchData = {
   is_win?: boolean;
   result?: string;
   match_mode?: 'ranked' | 'private' | null;
+  app?: DartsPlatform | null;
 };
 
 type ProfileData = {
@@ -600,7 +601,7 @@ export default function Profile() {
             <div className="space-y-3">
               {matches.map((match) => (
                 <div key={match.id} className="flex items-center justify-between border border-white/10 bg-white/[0.03] px-5 py-4">
-                  <div className="min-w-0"><div className="flex items-center gap-2"><div className="truncate text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div>{match.match_mode === 'private' && <span className="shrink-0 rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-200">Privat</span>}</div><div className="mt-1 text-[11px] font-medium text-zinc-500">Beendet: {formatCompletion(match)}</div></div>
+                  <div className="min-w-0"><div className="flex items-center gap-2"><div className="truncate text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div><PlatformBadge app={match.app} />{match.match_mode === 'private' && <span className="shrink-0 rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-200">Privat</span>}</div><div className="mt-1 text-[11px] font-medium text-zinc-500">Beendet: {formatCompletion(match)}</div></div>
                   <div className={`rounded-full px-3 py-1 text-xs font-black ${match.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
                     {match.is_win ? 'SIEG' : 'NIEDERLAGE'}
                   </div>
