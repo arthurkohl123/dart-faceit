@@ -25,7 +25,7 @@ export async function GET() {
     const admin = createAdminClient();
     const { data: match, error } = await admin
       .from('active_matches')
-      .select('id, status, accept_deadline')
+      .select('id, status, accept_deadline, app')
       .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
       .in('status', OPEN_MATCH_STATUSES)
       .order('created_at', { ascending: false })

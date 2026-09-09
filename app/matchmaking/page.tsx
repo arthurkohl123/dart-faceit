@@ -43,12 +43,17 @@ type CurrentMatch = {
   id: string;
   status: 'matched' | 'pending_accept' | 'pending_result' | 'awaiting_confirmation' | 'disputed';
   accept_deadline: string | null;
+  app: AppChoice | null;
 };
 
 type MatchmakingQueueSetting = {
   enabled?: boolean;
   message?: string;
 };
+
+function isAppChoice(value: unknown): value is AppChoice {
+  return value === 'scolia' || value === 'dartcounter' || value === 'autodarts';
+}
 
 function getRpcErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
@@ -504,7 +509,7 @@ export default function Matchmaking() {
 
     const { data } = await supabase
       .from('active_matches')
-      .select('id, status, accept_deadline')
+      .select('id, status, accept_deadline, app')
       .or(`player1_id.eq.${uid},player2_id.eq.${uid}`)
       .in('status', ['matched', 'pending_accept', 'pending_result', 'awaiting_confirmation', 'disputed'])
       .order('created_at', { ascending: false })
@@ -520,6 +525,13 @@ export default function Matchmaking() {
     const existingMatch = await findCurrentMatch(uid);
 
     if (!existingMatch?.id) return false;
+
+    if (isAppChoice(existingMatch.app)) {
+      setSelectedApp(existingMatch.app);
+      selectedAppRef.current = existingMatch.app;
+      setSelectedApps([existingMatch.app]);
+      selectedAppsRef.current = [existingMatch.app];
+    }
 
     if (existingMatch.status === 'pending_accept') {
       const deadline = existingMatch.accept_deadline as string | null;
@@ -852,6 +864,10 @@ export default function Matchmaking() {
         const newMatch = payload.new;
         const uid = userIdRef.current;
         if (uid && (newMatch.player1_id === uid || newMatch.player2_id === uid)) {
+          if (isAppChoice(newMatch.app)) {
+            setSelectedApp(newMatch.app);
+            selectedAppRef.current = newMatch.app;
+          }
           if (newMatch.status === 'pending_accept') {
             // Accept-Screen anzeigen
             playMatchFoundSound(newMatch.id);
@@ -878,6 +894,10 @@ export default function Matchmaking() {
         const updatedMatch = payload.new;
         const uid = userIdRef.current;
         if (!uid || !(updatedMatch.player1_id === uid || updatedMatch.player2_id === uid)) return;
+        if (isAppChoice(updatedMatch.app)) {
+          setSelectedApp(updatedMatch.app);
+          selectedAppRef.current = updatedMatch.app;
+        }
         const isPlayer1 = updatedMatch.player1_id === uid;
         // Gegner hat accepted → UI aktualisieren
         if (updatedMatch.status === 'pending_accept') {
