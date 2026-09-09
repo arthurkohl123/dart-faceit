@@ -2,496 +2,193 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import {
-  Activity,
-  CalendarDays,
-  ChevronDown,
-  ChevronUp,
-  Crosshair,
-  Flame,
-  Menu,
-  Minus,
-  TrendingDown,
-  TrendingUp,
-  Trophy,
-  Target,
-  X,
-  Zap,
-} from 'lucide-react';
+import { createClient } from '@/lib/supabase';
+import { BrandLogo } from '@/components/BrandLogo';
+import { Activity, ArrowUpRight, CalendarDays, ChevronDown, CircleDot, Flame, Menu, Search, SlidersHorizontal, Target, TrendingDown, TrendingUp, X, Zap } from 'lucide-react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+type Platform = 'scolia' | 'dartcounter' | 'autodarts';
+type ResultFilter = 'all' | 'wins' | 'losses';
+type ModeFilter = 'all' | 'ranked' | 'private';
 
 type MatchEntry = {
   id: string;
   created_at: string;
   completed_at?: string | null;
-  opponent_name: string;
-  opponent_elo: number;
+  opponent_name: string | null;
+  opponent_elo: number | null;
   is_win: boolean;
-  result: string;
+  result: string | null;
   legs_won: number | null;
   legs_lost: number | null;
   my_average: number | null;
   highest_checkout: number | null;
-  elo_change: number;
+  elo_change: number | null;
   one_eighties?: number | null;
-  app?: string | null;
+  app?: Platform | null;
   match_mode?: 'ranked' | 'private' | null;
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const platformMeta: Record<Platform, { label: string; className: string }> = {
+  scolia: { label: 'Scolia', className: 'border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-200' },
+  dartcounter: { label: 'DartCounter', className: 'border-cyan-300/25 bg-cyan-400/[0.08] text-cyan-200' },
+  autodarts: { label: 'AutoDarts', className: 'border-violet-300/25 bg-violet-400/[0.08] text-violet-200' },
+};
 
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Gerade eben';
-  if (mins < 60) return `vor ${mins} Min.`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `vor ${hours} Std.`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `vor ${days} Tag${days !== 1 ? 'en' : ''}`;
-  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+function finishedAt(match: MatchEntry) { return match.completed_at ?? match.created_at; }
+
+function formatDate(value: string, includeYear = false) {
+  return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short', ...(includeYear ? { year: 'numeric' } : {}), hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('de-DE', {
-    weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+function dateLabel(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const targetStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const days = Math.round((todayStart - targetStart) / 86400000);
+  if (days === 0) return 'Heute';
+  if (days === 1) return 'Gestern';
+  return new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(date);
 }
 
-// ─── Winrate Arc ──────────────────────────────────────────────────────────────
+function PlatformBadge({ app }: { app?: Platform | null }) {
+  if (!app) return <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600">Unbekannt</span>;
+  const meta = platformMeta[app];
+  return <span className={`border px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${meta.className}`}>{meta.label}</span>;
+}
 
-function WinrateArc({ winrate }: { winrate: number }) {
-  const r = 52;
-  const circ = 2 * Math.PI * r;
-  const dash = (winrate / 100) * circ;
+function MatchRow({ match }: { match: MatchEntry }) {
+  const [open, setOpen] = useState(false);
+  const isPrivate = match.match_mode === 'private';
+  const eloChange = Number(match.elo_change ?? 0);
+  const score = match.legs_won !== null && match.legs_lost !== null ? `${match.legs_won} : ${match.legs_lost}` : match.result || '—';
+  const completed = finishedAt(match);
 
   return (
-    <div className="relative flex items-center justify-center">
-      <svg width="140" height="140" className="-rotate-90">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
-        <circle
-          cx="70" cy="70" r={r} fill="none"
-          stroke="url(#winrateGrad)" strokeWidth="10"
-          strokeDasharray={`${dash} ${circ}`}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dasharray 1s ease' }}
-        />
-        <defs>
-          <linearGradient id="winrateGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#34d399" />
-            <stop offset="100%" stopColor="#a3e635" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="absolute text-center">
-        <div className="text-3xl font-black tracking-[-0.06em] text-emerald-300">{winrate}%</div>
-        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Winrate</div>
+    <article className={`border border-white/[0.09] bg-[#0d1110] transition hover:border-white/20 ${match.is_win ? 'border-l-2 border-l-emerald-300' : 'border-l-2 border-l-red-400'}`}>
+      <div className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[88px_minmax(190px,1.35fr)_112px_88px_95px_72px_90px_42px] lg:items-center lg:gap-3">
+        <div className={`w-fit border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${match.is_win ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200' : 'border-red-400/25 bg-red-400/10 text-red-200'}`}>{match.is_win ? 'Sieg' : 'Niederl.'}</div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2"><span className="truncate text-base font-black tracking-[-0.03em] text-zinc-100">vs {match.opponent_name || 'Unbekannter Gegner'}</span>{isPrivate && <span className="border border-violet-300/20 bg-violet-400/[0.08] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-violet-200">Unrated</span>}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500"><span>{formatDate(completed, new Date(completed).getFullYear() !== new Date().getFullYear())}</span>{match.opponent_elo ? <><span className="h-1 w-1 rounded-full bg-zinc-700" /><span>{match.opponent_elo} Gegner-Elo</span></> : null}</div>
+        </div>
+        <div className="lg:justify-self-start"><PlatformBadge app={match.app} /></div>
+        <Metric label="Ergebnis" value={<span className={`text-xl font-black tracking-[-0.05em] ${match.is_win ? 'text-emerald-300' : 'text-red-300'}`}>{score}</span>} />
+        <Metric label="Ø Average" value={<span className="text-base font-black text-zinc-200">{match.my_average !== null ? Number(match.my_average).toFixed(1) : '—'}</span>} />
+        <Metric label="180er" value={<span className="inline-flex items-center gap-1 text-sm font-black text-amber-200"><Zap className="h-3.5 w-3.5 fill-current" />{match.one_eighties ?? 0}</span>} />
+        <Metric label="Elo" value={isPrivate ? <span className="text-xs font-black uppercase tracking-wide text-violet-200">Unrated</span> : <span className={`inline-flex items-center gap-1 text-sm font-black ${eloChange > 0 ? 'text-emerald-300' : eloChange < 0 ? 'text-red-300' : 'text-zinc-400'}`}>{eloChange > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : eloChange < 0 ? <TrendingDown className="h-3.5 w-3.5" /> : null}{eloChange > 0 ? '+' : ''}{eloChange}</span>} />
+        <button onClick={() => setOpen((current) => !current)} aria-label="Matchdetails ein- oder ausblenden" className="hidden h-8 w-8 place-items-center border border-white/10 text-zinc-500 transition hover:border-emerald-300/30 hover:text-emerald-200 lg:grid"><ChevronDown className={`h-4 w-4 transition ${open ? 'rotate-180' : ''}`} /></button>
       </div>
-    </div>
+      <button onClick={() => setOpen((current) => !current)} className="flex w-full items-center justify-between border-t border-white/[0.07] px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500 lg:hidden">Details <ChevronDown className={`h-3.5 w-3.5 transition ${open ? 'rotate-180' : ''}`} /></button>
+      {open && <div className="grid gap-3 border-t border-white/[0.07] bg-black/20 p-4 text-sm sm:grid-cols-3 sm:p-5"><Detail label="Beendet" value={formatDate(completed, true)} /><Detail label="Highest Checkout" value={String(match.highest_checkout ?? '—')} /><Detail label="Format" value={isPrivate ? 'Privates Freundschaftsduell' : 'Bestätigtes Ranked-Match'} /></div>}
+    </article>
   );
 }
 
-// ─── Match-Karte ──────────────────────────────────────────────────────────────
-
-function MatchCard({ match, index }: { match: MatchEntry; index: number }) {
-  const [expanded, setExpanded] = useState(false);
-  const finishedAt = match.completed_at ?? match.created_at;
-
-  const legsDisplay = match.legs_won != null
-    ? `${match.legs_won} : ${match.legs_lost}`
-    : (match.result || '—');
-
-  return (
-    <div
-      className={`group relative overflow-hidden rounded-[2rem] border backdrop-blur-xl transition-all duration-300 ${
-        match.is_win
-          ? 'border-emerald-300/15 bg-gradient-to-br from-emerald-400/[0.05] to-transparent hover:border-emerald-300/25'
-          : 'border-red-400/15 bg-gradient-to-br from-red-400/[0.05] to-transparent hover:border-red-400/25'
-      }`}
-      style={{ animationDelay: `${index * 40}ms` }}
-    >
-      {/* Linker Streifen */}
-      <div className={`absolute left-0 top-4 bottom-4 w-1 rounded-full ${match.is_win ? 'bg-gradient-to-b from-emerald-300 to-emerald-500' : 'bg-gradient-to-b from-red-400 to-red-600'}`} />
-
-      {/* Haupt-Inhalt */}
-      <div className="px-5 py-5 pl-7 sm:px-8 sm:pl-10">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-
-          {/* Links: Gegner + Zeit */}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${
-                match.is_win
-                  ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200'
-                  : 'border-red-400/25 bg-red-400/10 text-red-200'
-              }`}>
-                {match.is_win ? <Trophy size={11} /> : <TrendingDown size={11} />}
-                {match.is_win ? 'Sieg' : 'Niederlage'}
-              </span>
-              {match.app && (
-                <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-bold text-zinc-500">
-                  {match.app === 'scolia' ? '📷' : match.app === 'autodarts' ? '🎯' : '📱'} {match.app === 'scolia' ? 'Scolia' : match.app === 'autodarts' ? 'AutoDarts' : 'DartCounter'}
-                </span>
-              )}
-              {match.match_mode === 'private' && (
-                <span className="inline-flex items-center rounded-full border border-violet-300/20 bg-violet-400/10 px-2.5 py-1 text-[10px] font-black text-violet-200">
-                  Privates Duell
-                </span>
-              )}
-              <span className="text-xs text-zinc-600">beendet {timeAgo(finishedAt)}</span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl border text-xs font-black ${match.is_win ? 'border-emerald-300/20 bg-emerald-400/10 text-emerald-200' : 'border-red-300/20 bg-red-400/10 text-red-200'}`}>
-                {match.opponent_name.slice(0, 2).toUpperCase()}
-              </div>
-              <span className="text-xl font-black tracking-[-0.04em] sm:text-2xl">vs {match.opponent_name}</span>
-              <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs font-bold text-zinc-400">
-                {match.opponent_elo} Elo
-              </span>
-            </div>
-          </div>
-
-          {/* Rechts: Ergebnis + Elo */}
-          <div className="flex items-center gap-4 shrink-0">
-            {/* Legs */}
-            <div className="rounded-2xl border border-white/[0.07] bg-black/20 px-3 py-2.5 text-right sm:px-4">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1">Legs</div>
-              <div className={`text-3xl font-black tracking-[-0.06em] sm:text-4xl ${match.is_win ? 'text-emerald-300' : 'text-red-300'}`}>
-                {legsDisplay}
-              </div>
-            </div>
-
-            {/* Elo-Änderung */}
-            <div className={`flex flex-col items-center justify-center rounded-2xl border px-4 py-3 min-w-[72px] ${
-              match.elo_change > 0
-                ? 'border-emerald-300/20 bg-emerald-400/10'
-                : match.elo_change < 0
-                  ? 'border-red-400/20 bg-red-400/10'
-                  : 'border-white/10 bg-white/[0.04]'
-            }`}>
-              <div className={`text-[10px] font-black uppercase tracking-[0.18em] mb-1 ${
-                match.elo_change > 0 ? 'text-emerald-400' : match.elo_change < 0 ? 'text-red-400' : 'text-zinc-500'
-              }`}>{match.match_mode === 'private' ? 'Wertung' : 'Elo'}</div>
-              <div className={`flex items-center gap-1 text-xl font-black tracking-[-0.04em] ${
-                match.elo_change > 0 ? 'text-emerald-300' : match.elo_change < 0 ? 'text-red-300' : 'text-zinc-400'
-              }`}>
-                {match.match_mode === 'private' ? <Minus size={14} /> : match.elo_change > 0 ? <TrendingUp size={14} /> : match.elo_change < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
-                {match.match_mode === 'private' ? 'Privat' : <>{match.elo_change > 0 ? '+' : ''}{match.elo_change}</>}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats-Zeile */}
-        <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-white/[0.06] pt-4">
-          <div className="flex items-center gap-2">
-            <Activity size={13} className="text-zinc-600" />
-            <span className="text-xs text-zinc-600">Average:</span>
-            <span className={`text-sm font-black ${match.my_average != null ? 'text-white' : 'text-zinc-600'}`}>
-              {match.my_average != null ? Number(match.my_average).toFixed(1) : '—'}
-            </span>
-          </div>
-          {match.one_eighties != null && match.one_eighties > 0 && (
-            <>
-              <div className="h-3 w-px bg-white/10" />
-              <div className="flex items-center gap-2">
-                <Zap size={13} className="text-amber-400" />
-                <span className="text-xs text-zinc-600">180er:</span>
-                <span className="text-sm font-black text-amber-300">{match.one_eighties}×</span>
-              </div>
-            </>
-          )}
-
-          {/* Expand-Button */}
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="ml-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-bold text-zinc-500 transition hover:border-white/20 hover:text-zinc-300"
-          >
-            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-            {expanded ? 'Weniger' : 'Details'}
-          </button>
-        </div>
-
-        {/* Expanded: Datum */}
-        {expanded && (
-          <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1">Beendet am</div>
-                <div className="text-sm font-bold text-zinc-300">{formatDate(finishedAt)}</div>
-              </div>
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1">Gegner-Elo</div>
-                <div className="text-sm font-bold text-zinc-300">{match.opponent_elo}</div>
-              </div>
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1">Legs gewonnen</div>
-                <div className="text-sm font-bold text-zinc-300">{match.legs_won ?? '—'}</div>
-              </div>
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1">Legs verloren</div>
-                <div className="text-sm font-bold text-zinc-300">{match.legs_lost ?? '—'}</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+function Metric({ label, value }: { label: string; value: React.ReactNode }) {
+  return <div className="flex items-center justify-between border-t border-white/[0.07] pt-3 lg:block lg:border-0 lg:p-0"><span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-600 lg:hidden">{label}</span>{value}</div>;
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+function Detail({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-600">{label}</p><p className="mt-1 font-bold text-zinc-300">{value}</p></div>;
+}
 
 export default function MatchHistory() {
   const [matches, setMatches] = useState<MatchEntry[]>([]);
-  const [matchesLoading, setMatchesLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'wins' | 'losses'>('all');
+  const [loading, setLoading] = useState(true);
+  const [resultFilter, setResultFilter] = useState<ResultFilter>('all');
+  const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
+  const [platformFilter, setPlatformFilter] = useState<'all' | Platform>('all');
+  const [search, setSearch] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/auth/login'); return; }
-      const { data, error } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false });
-      if (!isMounted) return;
-      if (!error) setMatches((data || []) as MatchEntry[]);
-      setMatchesLoading(false);
+      const { data, error } = await supabase.from('matches').select('*').eq('user_id', session.user.id).order('completed_at', { ascending: false });
+      if (!mounted) return;
+      if (error) console.error('Match History konnte nicht geladen werden:', error);
+      else setMatches((data || []) as MatchEntry[]);
+      setLoading(false);
     }
     void load();
-    return () => { isMounted = false; };
-  }, [supabase, router]);
+    return () => { mounted = false; };
+  }, [router, supabase]);
 
-  const filtered = matches.filter(m => {
-    if (filter === 'wins') return m.is_win;
-    if (filter === 'losses') return !m.is_win;
-    return true;
+  const ranked = matches.filter((match) => match.match_mode !== 'private');
+  const wins = ranked.filter((match) => match.is_win);
+  const losses = ranked.filter((match) => !match.is_win);
+  const winrate = ranked.length ? Math.round((wins.length / ranked.length) * 100) : 0;
+  const averageMatches = ranked.filter((match) => match.my_average !== null);
+  const average = averageMatches.length ? averageMatches.reduce((total, match) => total + Number(match.my_average), 0) / averageMatches.length : null;
+  const total180s = ranked.reduce((total, match) => total + Number(match.one_eighties ?? 0), 0);
+  const eloDelta = ranked.reduce((total, match) => total + Number(match.elo_change ?? 0), 0);
+  const form = ranked.slice(0, 10).reverse();
+  const activePlatforms = new Set(ranked.map((match) => match.app).filter(Boolean)).size;
+  let streak = 0;
+  for (const match of ranked) { if (!match.is_win) break; streak += 1; }
+
+  const filtered = matches.filter((match) => {
+    if (resultFilter === 'wins' && !match.is_win) return false;
+    if (resultFilter === 'losses' && match.is_win) return false;
+    if (modeFilter !== 'all' && (match.match_mode === 'private' ? 'private' : 'ranked') !== modeFilter) return false;
+    if (platformFilter !== 'all' && match.app !== platformFilter) return false;
+    return !search.trim() || (match.opponent_name || '').toLocaleLowerCase('de-DE').includes(search.trim().toLocaleLowerCase('de-DE'));
   });
 
-  const rankedMatches = matches.filter((match) => match.match_mode !== 'private');
-  const totalWins    = rankedMatches.filter(m => m.is_win).length;
-  const totalLosses  = rankedMatches.filter(m => !m.is_win).length;
-  const winrate      = rankedMatches.length > 0 ? Math.round((totalWins / rankedMatches.length) * 100) : 0;
-  const totalElo     = rankedMatches.reduce((s, m) => s + (m.elo_change || 0), 0);
-  const avgAvg       = (() => {
-    const withAvg = rankedMatches.filter(m => m.my_average != null);
-    if (!withAvg.length) return null;
-    return (withAvg.reduce((s, m) => s + Number(m.my_average), 0) / withAvg.length).toFixed(1);
-  })();
-  const total180s    = rankedMatches.reduce((s, m) => s + (m.one_eighties ?? 0), 0);
+  const groups = filtered.reduce<Array<{ label: string; matches: MatchEntry[] }>>((all, match) => {
+    const label = dateLabel(finishedAt(match));
+    const current = all[all.length - 1];
+    if (current?.label === label) current.matches.push(match);
+    else all.push({ label, matches: [match] });
+    return all;
+  }, []);
 
-  // Aktueller Win-Streak
-  let currentStreak = 0;
-  for (const m of rankedMatches) {
-    if (m.is_win) currentStreak++;
-    else break;
-  }
-
-  if (matchesLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-emerald-400" />
-          <p className="text-sm font-bold text-zinc-600">Match History wird geladen…</p>
-        </div>
-      </main>
-    );
-  }
+  if (loading) return <main className="grid min-h-screen place-items-center bg-[#070909] text-white"><div className="flex items-center gap-3 border border-white/10 bg-[#0d1110] px-5 py-4 text-sm font-black text-zinc-300"><span className="h-2 w-2 animate-pulse bg-emerald-300" />History wird geladen</div></main>;
 
   return (
-    <main className="relative min-h-screen isolate overflow-hidden bg-[#030506] text-white">
-
-      {/* Background */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_78%_48%_at_50%_-8%,rgba(16,185,129,0.22),transparent_70%),radial-gradient(circle_at_5%_42%,rgba(6,182,212,0.12),transparent_24%),radial-gradient(circle_at_92%_55%,rgba(239,68,68,0.08),transparent_23%),linear-gradient(180deg,#07100d_0%,#030506_56%,#030506_100%)]" />
-        <div className="absolute -right-40 top-32 h-[34rem] w-[34rem] rounded-full border border-emerald-300/[0.06] shadow-[0_0_0_5rem_rgba(110,231,183,0.012),0_0_0_10rem_rgba(110,231,183,0.01)]" />
-        <div className="absolute -left-52 top-80 h-[36rem] w-[36rem] rounded-full border border-cyan-200/[0.05]" />
-        <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.7)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.7)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_90%)]" />
-      </div>
-
-      {/* Navbar */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 md:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-lg font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
-            <div>
-              <div className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Match History</div>
-            </div>
-          </Link>
-          <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
-            <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
-            <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
-            <Link href="/profile" className="transition hover:text-white">Profil</Link>
-            <Link href="/updates" className="transition hover:text-white">Updates</Link>
-            <Link href="/premium" className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-200 transition hover:bg-emerald-400/20">Premium</Link>
-          </div>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden">
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+    <main className="min-h-screen bg-[#090c0b] text-white">
+      <div aria-hidden className="pointer-events-none fixed inset-0 sport-grid opacity-25" />
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#090c0b]/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
+          <Link href="/" className="flex items-center gap-3"><BrandLogo className="h-10 w-10" /><div><p className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</p><p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300/80">Match Ledger</p></div></Link>
+          <div className="hidden items-center gap-6 text-sm font-bold text-zinc-400 lg:flex"><Link href="/matchmaking" className="hover:text-white">Matchmaking</Link><Link href="/leaderboard" className="hover:text-white">Leaderboard</Link><Link href="/tournaments" className="hover:text-white">Turniere</Link><Link href="/profile" className="hover:text-white">Mein Profil</Link><Link href="/premium" className="border border-emerald-300/30 px-3 py-1.5 text-emerald-100 hover:bg-emerald-400/10">Premium</Link></div>
+          <button onClick={() => setMobileMenuOpen((open) => !open)} className="grid h-10 w-10 place-items-center border border-white/15 text-zinc-200 lg:hidden">{mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}</button>
         </div>
-        {mobileMenuOpen && (
-          <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
-            <div className="flex flex-col gap-1">
-              {[['Matchmaking', '/matchmaking'], ['Leaderboard', '/leaderboard'], ['Profil', '/profile'], ['Updates', '/updates']].map(([l, h]) => (
-                <Link key={h} href={h} onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">{l}</Link>
-              ))}
-              <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
-            </div>
-          </div>
-        )}
+        {mobileMenuOpen && <div className="border-t border-white/10 px-5 py-3 lg:hidden"><div className="flex flex-col"><Link href="/matchmaking" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Matchmaking</Link><Link href="/leaderboard" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Leaderboard</Link><Link href="/tournaments" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Turniere</Link><Link href="/profile" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Mein Profil</Link></div></div>}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-6xl px-4 pb-24 pt-28 sm:px-5 md:px-8 md:pt-32">
-
-        {/* ── Header ── */}
-        <div className="mb-10 grid gap-5 lg:grid-cols-[1.2fr_.8fr] lg:items-end">
-          <div className="relative overflow-hidden rounded-[2.25rem] border border-white/[0.10] bg-black/20 p-6 backdrop-blur-xl sm:p-8">
-            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl" />
-            <div className="relative">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-100">
-                <CalendarDays size={12} /> Career Archive
-              </div>
-              <div className="mt-7 flex items-end gap-4"><div className="font-mono text-[10px] font-bold tracking-[0.28em] text-emerald-300/70">MATCH HISTORY // {String(matches.length).padStart(2, '0')}</div><div className="mb-1 h-px flex-1 bg-gradient-to-r from-emerald-300/40 to-transparent" /></div>
-              <h1 className="mt-3 text-5xl font-black leading-[0.86] tracking-[-0.075em] sm:text-6xl">Jede Leg.<br /><span className="bg-gradient-to-r from-emerald-200 via-lime-200 to-cyan-200 bg-clip-text text-transparent">Jeder Schritt.</span></h1>
-              <p className="mt-5 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">Dein persönliches Archiv für Ergebnisse, Form und Fortschritt in der Ranked Arena.</p>
-            </div>
+      <section className="relative mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-5 md:px-8 md:pt-12">
+        <header className="overflow-hidden border border-white/10 bg-[#0d1110]">
+          <div className="grid gap-7 p-6 sm:p-8 lg:grid-cols-[1.25fr_.75fr] lg:items-end lg:p-10">
+            <div><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300"><CalendarDays className="h-3.5 w-3.5" /> Persönliches Match-Archiv</div><h1 className="mt-4 text-4xl font-black tracking-[-0.075em] sm:text-6xl">Deine Spiele.<br /><span className="text-emerald-300">Ohne Rauschen.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Alle bestätigten Ergebnisse, sauber nach Plattform und Spielmodus sortiert. Private Duelle bleiben unrated.</p></div>
+            <div className="border-l-2 border-emerald-300 bg-emerald-400/[0.05] p-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Aktuelle Form</p><div className="mt-4 flex min-h-9 items-center gap-1.5">{form.length ? form.map((match) => <span key={match.id} title={match.is_win ? 'Sieg' : 'Niederlage'} className={`h-8 flex-1 border ${match.is_win ? 'border-emerald-300/40 bg-emerald-400/25' : 'border-red-400/35 bg-red-400/20'}`} />) : <span className="text-sm text-zinc-500">Noch keine Ranked-Matches</span>}</div><div className="mt-3 flex items-center justify-between text-xs"><span className="text-zinc-500">Letzte {form.length} Ranked-Matches</span><span className="font-black text-emerald-200">{streak ? `${streak} Winstreak` : 'Neue Serie starten'}</span></div></div>
           </div>
+          <div className="grid grid-cols-2 border-t border-white/10 sm:grid-cols-3 lg:grid-cols-6">{[
+            { label: 'Ranked', value: ranked.length, tone: 'text-white' }, { label: 'Siege', value: wins.length, tone: 'text-emerald-300' }, { label: 'Winrate', value: `${winrate}%`, tone: 'text-cyan-200' }, { label: 'Ø Average', value: average ? average.toFixed(1) : '—', tone: 'text-violet-200' }, { label: '180er', value: total180s, tone: 'text-amber-200' }, { label: 'Elo-Bilanz', value: `${eloDelta > 0 ? '+' : ''}${eloDelta}`, tone: eloDelta >= 0 ? 'text-emerald-300' : 'text-red-300' },
+          ].map((stat) => <div key={stat.label} className="border-b border-r border-white/10 px-5 py-4 last:border-r-0 lg:border-b-0"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">{stat.label}</p><p className={`mt-1 text-2xl font-black tracking-[-0.05em] ${stat.tone}`}>{stat.value}</p></div>)}</div>
+        </header>
 
-          <div className="overflow-hidden rounded-[2.25rem] border border-emerald-300/15 bg-gradient-to-br from-emerald-400/[0.10] via-[#07100e]/80 to-cyan-400/[0.06] p-6 backdrop-blur-xl sm:p-7">
-            <div className="flex items-start justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Season Snapshot · Season 01 bis 01.11.2026</div><div className="mt-2 text-sm font-bold text-zinc-400">Deine aktuelle Bilanz</div></div><div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10"><Target className="h-5 w-5 text-emerald-200" /></div></div>
-            <div className="mt-7 grid grid-cols-3 gap-3 border-y border-white/[0.08] py-5">
-              <div><div className="text-2xl font-black tracking-[-0.06em] text-emerald-200">{totalWins}</div><div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">Wins</div></div>
-              <div className="border-x border-white/[0.08] px-3"><div className="text-2xl font-black tracking-[-0.06em] text-red-200">{totalLosses}</div><div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">Losses</div></div>
-              <div className="text-right"><div className="text-2xl font-black tracking-[-0.06em] text-cyan-200">{winrate}%</div><div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">Winrate</div></div>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-xs"><span className="flex items-center gap-2 font-bold text-zinc-500"><Flame className="h-4 w-4 text-amber-300" />{currentStreak > 0 ? `${currentStreak} Sieg${currentStreak === 1 ? '' : 'e'} in Folge` : 'Nächster Sieg startet deine Streak'}</span><span className="font-black text-emerald-300">LIVE CAREER</span></div>
+        <div className="mt-5 border border-white/10 bg-[#0d1110] p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-zinc-400"><SlidersHorizontal className="h-4 w-4 text-emerald-300" /> Filter <span className="text-zinc-600">·</span> {filtered.length} Treffer</div><label className="flex h-10 items-center gap-2 border border-white/10 bg-black/20 px-3 lg:w-72"><Search className="h-4 w-4 text-zinc-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Gegner suchen" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600" /></label></div>
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.07] pt-4">
+            {([['all', 'Alle'], ['wins', 'Siege'], ['losses', 'Niederlagen']] as const).map(([value, label]) => <button key={value} onClick={() => setResultFilter(value)} className={`border px-3 py-2 text-xs font-black ${resultFilter === value ? 'border-emerald-300 bg-emerald-300 text-black' : 'border-white/10 text-zinc-400 hover:border-white/25'}`}>{label}</button>)}
+            <span className="mx-1 hidden h-8 w-px bg-white/10 sm:block" />
+            {([['all', 'Alle Modi'], ['ranked', 'Ranked'], ['private', 'Unrated']] as const).map(([value, label]) => <button key={value} onClick={() => setModeFilter(value)} className={`border px-3 py-2 text-xs font-black ${modeFilter === value ? 'border-cyan-300/60 bg-cyan-400/10 text-cyan-100' : 'border-white/10 text-zinc-500 hover:border-white/25'}`}>{label}</button>)}
+            <span className="mx-1 hidden h-8 w-px bg-white/10 sm:block" />
+            {(['all', 'scolia', 'dartcounter', 'autodarts'] as const).map((value) => <button key={value} onClick={() => setPlatformFilter(value)} className={`border px-3 py-2 text-xs font-black ${platformFilter === value ? 'border-violet-300/60 bg-violet-400/10 text-violet-100' : 'border-white/10 text-zinc-500 hover:border-white/25'}`}>{value === 'all' ? `Plattformen (${activePlatforms})` : platformMeta[value].label}</button>)}
           </div>
         </div>
 
-        {/* ── Stats-Grid ── */}
-        <div className="mb-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-
-          {/* Winrate Arc */}
-          <div className="col-span-2 sm:col-span-1 flex items-center justify-center rounded-[2rem] border border-white/10 bg-zinc-950/60 p-6 backdrop-blur-xl">
-            <WinrateArc winrate={winrate} />
-          </div>
-
-          {/* Siege */}
-          <div className="relative overflow-hidden rounded-[2rem] border border-emerald-300/15 bg-gradient-to-br from-emerald-400/[0.07] to-transparent p-6 backdrop-blur-xl">
-            <Trophy className="absolute right-5 top-5 h-8 w-8 text-emerald-300/20" />
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-400 mb-2">Siege</div>
-            <div className="text-5xl font-black tracking-[-0.07em] text-emerald-300">{totalWins}</div>
-            <div className="mt-2 text-xs text-zinc-600">von {rankedMatches.length} Ranked Matches</div>
-          </div>
-
-          {/* Niederlagen */}
-          <div className="relative overflow-hidden rounded-[2rem] border border-red-400/15 bg-gradient-to-br from-red-400/[0.07] to-transparent p-6 backdrop-blur-xl">
-            <TrendingDown className="absolute right-5 top-5 h-8 w-8 text-red-400/20" />
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-red-400 mb-2">Niederlagen</div>
-            <div className="text-5xl font-black tracking-[-0.07em] text-red-300">{totalLosses}</div>
-            <div className="mt-2 text-xs text-zinc-600">von {rankedMatches.length} Ranked Matches</div>
-          </div>
-
-          {/* Elo Gesamt */}
-          <div className={`relative overflow-hidden rounded-[2rem] border p-6 backdrop-blur-xl ${
-            totalElo >= 0
-              ? 'border-cyan-300/15 bg-gradient-to-br from-cyan-400/[0.07] to-transparent'
-              : 'border-red-400/15 bg-gradient-to-br from-red-400/[0.07] to-transparent'
-          }`}>
-            {totalElo >= 0
-              ? <TrendingUp className="absolute right-5 top-5 h-8 w-8 text-cyan-300/20" />
-              : <TrendingDown className="absolute right-5 top-5 h-8 w-8 text-red-400/20" />
-            }
-            <div className={`text-[10px] font-black uppercase tracking-[0.22em] mb-2 ${totalElo >= 0 ? 'text-cyan-300' : 'text-red-400'}`}>Elo Gesamt</div>
-            <div className={`text-5xl font-black tracking-[-0.07em] ${totalElo >= 0 ? 'text-cyan-300' : 'text-red-300'}`}>
-              {totalElo > 0 ? '+' : ''}{totalElo}
-            </div>
-            {currentStreak > 1 && (
-              <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-black text-emerald-300">
-                🔥 {currentStreak} Streak
-              </div>
-            )}
-          </div>
-
-          {/* Average + 180er */}
-          <div className="col-span-2 sm:col-span-3 lg:col-span-1 grid grid-cols-2 gap-3 lg:grid-cols-1">
-            <div className="relative overflow-hidden rounded-[2rem] border border-violet-300/15 bg-gradient-to-br from-violet-400/[0.07] to-transparent p-5 backdrop-blur-xl">
-              <Activity className="absolute right-4 top-4 h-6 w-6 text-violet-300/25" />
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300 mb-1">Ø Average</div>
-              <div className="text-3xl font-black tracking-[-0.06em] text-violet-200">{avgAvg ?? '—'}</div>
-            </div>
-            <div className="relative overflow-hidden rounded-[2rem] border border-amber-300/15 bg-gradient-to-br from-amber-400/[0.07] to-transparent p-5 backdrop-blur-xl">
-              <Zap className="absolute right-4 top-4 h-6 w-6 text-amber-300/25" />
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300 mb-1">180er</div>
-              <div className="text-3xl font-black tracking-[-0.06em] text-amber-200">{total180s}</div>
-            </div>
-          </div>
+        <div className="mt-8">
+          <div className="hidden grid-cols-[88px_minmax(190px,1.35fr)_112px_88px_95px_72px_90px_42px] gap-3 border-b border-white/10 px-5 pb-3 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600 lg:grid"><span>Ergebnis</span><span>Gegner / Zeit</span><span>Plattform</span><span>Legs</span><span>Average</span><span>180er</span><span>Elo</span><span /></div>
+          {groups.length ? groups.map((group) => <section key={group.label} className="mt-6 first:mt-0"><div className="mb-3 flex items-center gap-3"><span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">{group.label}</span><span className="h-px flex-1 bg-white/10" /><span className="text-[10px] font-bold text-zinc-600">{group.matches.length} Match{group.matches.length === 1 ? '' : 'es'}</span></div><div className="space-y-2">{group.matches.map((match) => <MatchRow key={match.id} match={match} />)}</div></section>) : <div className="border border-dashed border-white/15 bg-[#0d1110] px-6 py-20 text-center"><CircleDot className="mx-auto h-8 w-8 text-zinc-700" /><h2 className="mt-4 text-xl font-black">Keine passenden Matches</h2><p className="mt-2 text-sm text-zinc-500">Passe die Filter an oder starte ein neues Match.</p><Link href="/matchmaking" className="mt-6 inline-flex items-center gap-2 border border-emerald-300 bg-emerald-300 px-5 py-3 text-sm font-black text-black">Match suchen <ArrowUpRight className="h-4 w-4" /></Link></div>}
         </div>
-
-        {/* ── Filter ── */}
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex gap-2">
-            {([
-              { key: 'all',    label: `Alle (${matches.length})` },
-              { key: 'wins',   label: `Siege (${totalWins})` },
-              { key: 'losses', label: `Niederlagen (${totalLosses})` },
-            ] as const).map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
-                  filter === key
-                    ? 'border border-emerald-300/40 bg-emerald-400/15 text-emerald-200 shadow-[0_0_20px_rgba(34,197,94,0.1)]'
-                    : 'border border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/20 hover:text-white'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-zinc-600">
-            <Crosshair size={13} />
-            {filtered.length} Einträge
-          </div>
-        </div>
-
-        {/* ── Match-Liste ── */}
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-5 rounded-[2.5rem] border border-white/10 bg-zinc-950/60 py-28 text-center backdrop-blur-xl">
-            <div className="grid h-20 w-20 place-items-center rounded-[1.75rem] border border-white/10 bg-white/[0.05] text-4xl">🎯</div>
-            <div>
-              <h3 className="text-2xl font-black tracking-[-0.04em]">
-                {filter === 'all' ? 'Noch keine Matches' : filter === 'wins' ? 'Noch keine Siege' : 'Noch keine Niederlagen'}
-              </h3>
-              <p className="mt-2 text-sm text-zinc-600 max-w-xs mx-auto">
-                {filter === 'all' ? 'Starte dein erstes Match über Matchmaking.' : 'Ändere den Filter um andere Matches zu sehen.'}
-              </p>
-            </div>
-            {filter === 'all' && (
-              <Link href="/matchmaking" className="rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-8 py-3 text-sm font-black text-black transition hover:opacity-90">
-                Match suchen
-              </Link>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filtered.map((match, i) => (
-              <MatchCard key={match.id} match={match} index={i} />
-            ))}
-          </div>
-        )}
       </section>
     </main>
   );
