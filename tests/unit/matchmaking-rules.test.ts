@@ -3,15 +3,17 @@ import test from 'node:test';
 import { getDailyMatchesUsed, getMaxEloDiff, hasReachedDailyMatchLimit } from '../../lib/matchmaking-rules.ts';
 
 test('the Elo search range expands at the configured boundaries', () => {
-  assert.equal(getMaxEloDiff(0), 25);
-  assert.equal(getMaxEloDiff(19), 25);
-  assert.equal(getMaxEloDiff(20), 50);
-  assert.equal(getMaxEloDiff(40), 100);
-  assert.equal(getMaxEloDiff(60), 150);
-  assert.equal(getMaxEloDiff(179), 150);
-  assert.equal(getMaxEloDiff(180), 300);
-  assert.equal(getMaxEloDiff(599), 300);
-  assert.equal(getMaxEloDiff(600), 500);
+  assert.equal(getMaxEloDiff(0), 50);
+  assert.equal(getMaxEloDiff(14), 50);
+  assert.equal(getMaxEloDiff(15), 100);
+  assert.equal(getMaxEloDiff(29), 100);
+  assert.equal(getMaxEloDiff(30), 200);
+  assert.equal(getMaxEloDiff(59), 200);
+  assert.equal(getMaxEloDiff(60), 300);
+  assert.equal(getMaxEloDiff(89), 300);
+  assert.equal(getMaxEloDiff(90), 400);
+  assert.equal(getMaxEloDiff(119), 400);
+  assert.equal(getMaxEloDiff(120), 500);
   assert.equal(getMaxEloDiff(6000), 500);
 });
 

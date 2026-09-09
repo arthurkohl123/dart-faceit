@@ -14,6 +14,7 @@ type AppChoice = 'scolia' | 'dartcounter' | 'autodarts';
 
 type MatchmakingResponse = {
   match_id: string | null;
+  app?: AppChoice | null;
   opponent_user_id: string | null;
   opponent_username: string | null;
   opponent_elo: number | null;
@@ -77,12 +78,12 @@ function isTransientNetworkError(error: unknown): boolean {
 }
 
 const searchSteps = [
-  { time: '0–20s', range: '±25 Elo', label: 'Gleiches Skill-Level' },
-  { time: '20–40s', range: '±50 Elo', label: 'Sehr nahes Skill-Level' },
-  { time: '40–60s', range: '±100 Elo', label: 'Kontrolliert erweitert' },
-  { time: '60–180s', range: '±150 Elo', label: 'Langsam erweitert' },
-  { time: '180–600s', range: '±300 Elo', label: 'Großer Spielerpool' },
-  { time: '600s+', range: '±500 Elo', label: 'Maximale Reichweite' },
+  { time: '0–15s', range: '±50 Elo', label: 'Gleiches Skill-Level' },
+  { time: '15–30s', range: '±100 Elo', label: 'Sehr nahes Skill-Level' },
+  { time: '30–60s', range: '±200 Elo', label: 'Kontrolliert erweitert' },
+  { time: '60–90s', range: '±300 Elo', label: 'Großer Spielerpool' },
+  { time: '90–120s', range: '±400 Elo', label: 'Schnelleres Matching' },
+  { time: '120s+', range: '±500 Elo', label: 'Maximale Reichweite' },
 ];
 
 const appConfig = {
@@ -132,10 +133,12 @@ export default function Matchmaking() {
   const [autodartsUsername, setAutodartsUsername] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [status, setStatus] = useState<MatchmakingStatus>('idle');
+  const [selectedApps, setSelectedApps] = useState<AppChoice[]>([]);
   const [selectedApp, setSelectedApp] = useState<AppChoice | null>(null);
   const [opponent, setOpponent] = useState<Opponent | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [queueCounts, setQueueCounts] = useState<Record<AppChoice, number>>({ scolia: 0, dartcounter: 0, autodarts: 0 });
+  const [uniqueQueuePlayers, setUniqueQueuePlayers] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
@@ -178,6 +181,7 @@ export default function Matchmaking() {
   const isPollingRef = useRef(false);
   const statusRef = useRef<MatchmakingStatus>('idle');
   const selectedAppRef = useRef<AppChoice | null>(null);
+  const selectedAppsRef = useRef<AppChoice[]>([]);
   const userIdRef = useRef<string | null>(null);
   const iHaveAcceptedRef = useRef(false);
   const opponentDeclineHandledRef = useRef(false);
@@ -192,12 +196,13 @@ export default function Matchmaking() {
 
   useEffect(() => { statusRef.current = status; }, [status]);
   useEffect(() => { selectedAppRef.current = selectedApp; }, [selectedApp]);
+  useEffect(() => { selectedAppsRef.current = selectedApps; }, [selectedApps]);
   useEffect(() => { iHaveAcceptedRef.current = iHaveAccepted; }, [iHaveAccepted]);
 
-  const searchProgress = Math.min((elapsedSeconds / 60) * 100, 100);
+  const searchProgress = Math.min((elapsedSeconds / 120) * 100, 100);
   const currentRange = getMaxEloDiff(elapsedSeconds);
   const dailyMatchesUsed = getDailyMatchesUsed(dailyQuota);
-  const totalQueuePlayers = queueCounts.scolia + queueCounts.dartcounter + queueCounts.autodarts;
+  const totalQueuePlayers = uniqueQueuePlayers;
   // null = Profil noch nicht geladen → Box NICHT anzeigen (kein false-positive beim Status-Wechsel)
   const effectivePhoneVerified = phoneVerified === null ? null : (!smsVerificationEnabled || phoneVerified === true);
 
@@ -449,6 +454,7 @@ export default function Matchmaking() {
         dartcounter: counts.get('dartcounter') ?? 0,
         autodarts: counts.get('autodarts') ?? 0,
       });
+      setUniqueQueuePlayers(counts.get('__total__') ?? 0);
     } catch (error) {
       // Supabase kann bei einem kurzen Browser-Netzwerkabbruch werfen statt
       // ein { error }-Objekt zurückzugeben. Die Suchlogik läuft bewusst weiter.
@@ -470,6 +476,7 @@ export default function Matchmaking() {
       await supabase.rpc('cancel_matchmaking');
       statusRef.current = 'idle';
       setStatus('idle');
+      setSelectedApps([]);
       setSelectedApp(null);
       setElapsedSeconds(0);
     }
@@ -537,16 +544,16 @@ export default function Matchmaking() {
 
   const pollForMatch = useCallback(async (seconds: number) => {
     if (isPollingRef.current || statusRef.current !== 'searching') return;
-    const app = selectedAppRef.current;
-    if (!app) return;
+    const apps = selectedAppsRef.current;
+    if (!apps.length) return;
 
     isPollingRef.current = true;
     const maxEloDiff = getMaxEloDiff(seconds);
 
     try {
-      const { data, error } = await supabase.rpc('check_and_join_queue', {
+      const { data, error } = await supabase.rpc('check_and_join_queues', {
         p_max_elo_diff: maxEloDiff,
-        p_app: app,
+        p_apps: apps,
       });
 
       if (statusRef.current !== 'searching') return;
@@ -562,6 +569,9 @@ export default function Matchmaking() {
       if (result?.match_status === 'pending_accept' && result.match_id) {
         // Match gefunden → Accept-Screen anzeigen (kein direkter Redirect!)
         playMatchFoundSound(result.match_id);
+        const matchApp = result.app && apps.includes(result.app) ? result.app : apps[0];
+        setSelectedApp(matchApp);
+        selectedAppRef.current = matchApp;
         setAcceptMatchId(result.match_id);
         setIHaveAccepted(false);
         setOpponentAccepted(false);
@@ -575,6 +585,9 @@ export default function Matchmaking() {
         // newer accept-state. Continuing to poll would otherwise cause the
         // next request to fail with ACTIVE_MATCH_EXISTS.
         playMatchFoundSound(result.match_id);
+        const matchApp = result.app && apps.includes(result.app) ? result.app : apps[0];
+        setSelectedApp(matchApp);
+        selectedAppRef.current = matchApp;
         setStatus('found');
         redirectToResult(result.match_id);
       }
@@ -604,7 +617,7 @@ export default function Matchmaking() {
           return;
         } else {
           setErrorMessage(msg);
-          reportClientError('matchmaking_queue_error', msg, { phase: 'poll', app });
+          reportClientError('matchmaking_queue_error', msg, { phase: 'poll', apps });
         }
         setStatus('error');
       }
@@ -617,7 +630,15 @@ export default function Matchmaking() {
   // ohne selbst als Dependency aufgeführt zu sein
   useEffect(() => { pollForMatchRef.current = pollForMatch; }, [pollForMatch]);
 
-  const startSearch = async (app: AppChoice) => {
+  const toggleSelectedApp = (app: AppChoice) => {
+    setSelectedApps((current) => (
+      current.includes(app)
+        ? current.filter((selected) => selected !== app)
+        : [...current, app]
+    ));
+  };
+
+  const startSearch = async (apps: AppChoice[] = selectedApps) => {
     setErrorMessage('');
     setOpponent(null);
     setQueueConnectionRecovering(false);
@@ -644,27 +665,28 @@ export default function Matchmaking() {
       return;
     }
 
-    // Plattform-Username-Prüfung
-    if (app === 'scolia' && !scoliaUsername) {
-      setErrorMessage('Du musst zuerst deinen Scolia-Nutzernamen im Profil hinterlegen.');
-      setStatus('error');
+    if (!apps.length) {
+      setErrorMessage('Wähle mindestens eine Plattform aus.');
       return;
     }
-    if (app === 'dartcounter' && !dartcounterUsername) {
-      setErrorMessage('Du musst zuerst deinen DartCounter-Nutzernamen im Profil hinterlegen.');
-      setStatus('error');
-      return;
-    }
-    if (app === 'autodarts' && !autodartsUsername) {
-      setErrorMessage('Du musst zuerst deinen AutoDarts-Nutzernamen im Profil hinterlegen.');
+
+    const missingPlatform = apps.find((app) => (
+      (app === 'scolia' && !scoliaUsername)
+      || (app === 'dartcounter' && !dartcounterUsername)
+      || (app === 'autodarts' && !autodartsUsername)
+    ));
+    if (missingPlatform) {
+      setErrorMessage(`Bitte hinterlege zuerst deinen ${appConfig[missingPlatform].label}-Nutzernamen im Profil.`);
       setStatus('error');
       return;
     }
 
     unlockMatchFoundSound();
     lastMatchSoundIdRef.current = null;
-    setSelectedApp(app);
-    selectedAppRef.current = app;
+    setSelectedApps(apps);
+    selectedAppsRef.current = apps;
+    setSelectedApp(apps[0]);
+    selectedAppRef.current = apps[0];
     setElapsedSeconds(0);
     // statusRef synchron setzen damit pollForMatch(0) nicht durch den Guard abbricht
     statusRef.current = 'searching';
@@ -681,6 +703,8 @@ export default function Matchmaking() {
     } finally {
       setQueueConnectionRecovering(false);
       setStatus('idle');
+      setSelectedApps([]);
+      selectedAppsRef.current = [];
       setSelectedApp(null);
       setElapsedSeconds(0);
       // Abbruch-Sperre deaktiviert
@@ -929,14 +953,14 @@ export default function Matchmaking() {
             acceptIntervalRef.current = null;
             acceptExpireCalledRef.current = true; // verhindert späten expire-Aufruf
             const acceptedBeforeCancel = iHaveAcceptedRef.current || Boolean(isPlayer1 ? updated.player1_accepted : updated.player2_accepted);
-            const appBeforeCancel = selectedAppRef.current;
+            const appsBeforeCancel = selectedAppsRef.current;
 
             setAcceptMatchId(null);
             setIHaveAccepted(false);
             iHaveAcceptedRef.current = false;
             setOpponentAccepted(false);
 
-            if (acceptedBeforeCancel && appBeforeCancel) {
+            if (acceptedBeforeCancel && appsBeforeCancel.length) {
               if (opponentDeclineHandledRef.current) return;
               opponentDeclineHandledRef.current = true;
               // "Gegner hat abgelehnt"-Screen anzeigen
@@ -948,8 +972,10 @@ export default function Matchmaking() {
                 setOpponentDeclined(false);
                 setElapsedSeconds(0);
                 isPollingRef.current = false;
-                selectedAppRef.current = appBeforeCancel;
-                setSelectedApp(appBeforeCancel);
+                selectedAppsRef.current = appsBeforeCancel;
+                setSelectedApps(appsBeforeCancel);
+                selectedAppRef.current = appsBeforeCancel[0];
+                setSelectedApp(appsBeforeCancel[0]);
                 // skipCancel VOR setStatus setzen – der searching-useEffect
                 // Cleanup läuft wenn status von 'accepting' zu 'searching' wechselt
                 skipCancelOnSearchingExitRef.current = true;
@@ -980,8 +1006,8 @@ export default function Matchmaking() {
         .maybeSingle();
 
       if (!data) {
-        const appBeforeCancel = selectedAppRef.current;
-        if (iHaveAcceptedRef.current && appBeforeCancel && !opponentDeclineHandledRef.current) {
+        const appsBeforeCancel = selectedAppsRef.current;
+        if (iHaveAcceptedRef.current && appsBeforeCancel.length && !opponentDeclineHandledRef.current) {
           opponentDeclineHandledRef.current = true;
           if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
           acceptIntervalRef.current = null;
@@ -996,8 +1022,10 @@ export default function Matchmaking() {
             setOpponentDeclined(false);
             setElapsedSeconds(0);
             isPollingRef.current = false;
-            selectedAppRef.current = appBeforeCancel;
-            setSelectedApp(appBeforeCancel);
+            selectedAppsRef.current = appsBeforeCancel;
+            setSelectedApps(appsBeforeCancel);
+            selectedAppRef.current = appsBeforeCancel[0];
+            setSelectedApp(appsBeforeCancel[0]);
             skipCancelOnSearchingExitRef.current = true;
             statusRef.current = 'searching';
             setStatus('searching');
@@ -1022,14 +1050,14 @@ export default function Matchmaking() {
         acceptIntervalRef.current = null;
         acceptExpireCalledRef.current = true;
         const acceptedBeforeCancel = iHaveAcceptedRef.current || Boolean(isPlayer1 ? data.player1_accepted : data.player2_accepted);
-        const appBeforeCancel = selectedAppRef.current;
+        const appsBeforeCancel = selectedAppsRef.current;
 
         setAcceptMatchId(null);
         setIHaveAccepted(false);
         iHaveAcceptedRef.current = false;
         setOpponentAccepted(false);
 
-        if (acceptedBeforeCancel && appBeforeCancel) {
+        if (acceptedBeforeCancel && appsBeforeCancel.length) {
           if (opponentDeclineHandledRef.current) return;
           opponentDeclineHandledRef.current = true;
           setOpponentDeclined(true);
@@ -1038,8 +1066,10 @@ export default function Matchmaking() {
             setOpponentDeclined(false);
             setElapsedSeconds(0);
             isPollingRef.current = false;
-            selectedAppRef.current = appBeforeCancel;
-            setSelectedApp(appBeforeCancel);
+            selectedAppsRef.current = appsBeforeCancel;
+            setSelectedApps(appsBeforeCancel);
+            selectedAppRef.current = appsBeforeCancel[0];
+            setSelectedApp(appsBeforeCancel[0]);
             skipCancelOnSearchingExitRef.current = true;
             statusRef.current = 'searching';
             setStatus('searching');
@@ -1171,7 +1201,7 @@ export default function Matchmaking() {
           </div>
           <div className="mt-7 border-t border-white/15 pt-4 font-mono text-[11px] font-bold tracking-[0.22em] text-zinc-500">RANKED / SEASON 01</div>
           <h1 className="mt-4 max-w-3xl text-5xl font-black leading-[0.84] tracking-[-0.075em] sm:text-6xl md:text-7xl lg:text-[5.4rem]">Dein nächstes<br /><span className="text-emerald-300">Duell beginnt</span><br />am Oche.</h1>
-          <p className="mt-7 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">Wähle deine Plattform. Das System findet deinen Gegner nach Elo, Plattform und aktuellem Queue-Status.</p>
+          <p className="mt-7 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">Wähle eine oder mehrere Plattformen. Das System findet deinen Gegner nach Elo, Plattform und aktuellem Queue-Status.</p>
 
           <div className="mt-8 flex items-center gap-5 border border-white/15 bg-[#0d1110] px-5 py-4">
             <div className="grid h-12 w-12 place-items-center border border-emerald-300/30 bg-emerald-400/10 text-emerald-200"><Users className="h-5 w-5" /></div>
@@ -1250,8 +1280,8 @@ export default function Matchmaking() {
               <div className="mx-auto mb-6 grid h-20 w-20 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
                 <Swords className="h-9 w-9" />
               </div>
-              <h2 className="text-center text-4xl font-black leading-none tracking-[-0.06em] md:text-5xl">Wähle deine<br /><span className="text-emerald-300">Plattform.</span></h2>
-              <p className="mx-auto mt-4 max-w-md text-center text-sm leading-6 text-zinc-400">Du wirst nur mit Gegnern auf derselben Plattform und in deinem Elo-Bereich verbunden.</p>
+              <h2 className="text-center text-4xl font-black leading-none tracking-[-0.06em] md:text-5xl">Wähle deine<br /><span className="text-emerald-300">Queues.</span></h2>
+              <p className="mx-auto mt-4 max-w-md text-center text-sm leading-6 text-zinc-400">Du kannst mehrere Plattformen gleichzeitig aktivieren. Sobald irgendwo ein Match gefunden wird, endet die Suche auf allen anderen Plattformen automatisch.</p>
               {dailyQuota && <div className={`mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-[0.13em] ${dailyQuota.is_premium ? 'border-amber-300/25 bg-amber-400/10 text-amber-100' : 'border-white/10 bg-white/[0.04] text-zinc-300'}`}><Zap className="h-3.5 w-3.5" />{dailyQuota.is_premium ? 'Premium · Unbegrenzte Matches' : `Free · ${dailyMatchesUsed}/${dailyQuota.daily_limit ?? 4} Matches heute`}</div>}
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1260,10 +1290,11 @@ export default function Matchmaking() {
                   return (
                     <button
                       key={app}
-                      onClick={() => void startSearch(app)}
+                      onClick={() => toggleSelectedApp(app)}
                       disabled={cooldownSeconds > 0 || !matchmakingEnabled}
                       title={!matchmakingEnabled ? matchmakingMessage : cooldownSeconds > 0 ? getCooldownMessage() : undefined}
-                      className={`group relative overflow-hidden border border-white/10 bg-black/20 p-5 text-left transition-all duration-300 ${cooldownSeconds > 0 || !matchmakingEnabled ? 'cursor-not-allowed opacity-55' : `${c.borderHover} hover:-translate-y-1 hover:bg-white/[0.035]`}`}
+                      aria-pressed={selectedApps.includes(app)}
+                      className={`group relative overflow-hidden border bg-black/20 p-5 text-left transition-all duration-300 ${selectedApps.includes(app) ? c.borderActive : 'border-white/10'} ${cooldownSeconds > 0 || !matchmakingEnabled ? 'cursor-not-allowed opacity-55' : `${c.borderHover} hover:-translate-y-1 hover:bg-white/[0.035]`}`}
                     >
                       <div className="absolute right-4 top-3 text-3xl opacity-70 transition duration-300 group-hover:scale-110 group-hover:opacity-100">{c.icon}</div>
                       <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Plattform</div>
@@ -1288,24 +1319,44 @@ export default function Matchmaking() {
                           <span>⚠</span> AutoDarts-Username fehlt
                         </div>
                       )}
-                      <div className="mt-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500 transition group-hover:text-white">Queue betreten <span className="text-lg leading-none text-emerald-300">→</span></div>
+                      <div className={`mt-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] transition ${selectedApps.includes(app) ? 'text-emerald-200' : 'text-zinc-500 group-hover:text-white'}`}>
+                        {selectedApps.includes(app) ? 'Ausgewählt' : 'Zur Suche hinzufügen'} <span className="text-lg leading-none text-emerald-300">{selectedApps.includes(app) ? '✓' : '→'}</span>
+                      </div>
                     </button>
                   );
                 })}
+              </div>
+              <div className="mt-5 flex flex-col items-center gap-3 border border-white/10 bg-white/[0.025] p-4 sm:flex-row sm:justify-between">
+                <div className="text-center sm:text-left">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Aktive Auswahl</div>
+                  <div className="mt-1 text-sm font-bold text-zinc-200">{selectedApps.length ? selectedApps.map((app) => appConfig[app].label).join(' · ') : 'Noch keine Plattform gewählt'}</div>
+                </div>
+                <button
+                  onClick={() => void startSearch()}
+                  disabled={!selectedApps.length || cooldownSeconds > 0 || !matchmakingEnabled}
+                  className="inline-flex w-full items-center justify-center gap-2 bg-emerald-300 px-5 py-3 text-sm font-black text-black transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                >
+                  <Radar className="h-4 w-4" /> {selectedApps.length > 1 ? `${selectedApps.length} Queues starten` : 'Queue starten'}
+                </button>
               </div>
             </div>
           )}
 
           {/* SEARCHING */}
-          {status === 'searching' && selectedApp && (
+          {status === 'searching' && selectedApps.length > 0 && (
             <div className="relative text-center">
               <div className={`mx-auto grid h-24 w-24 animate-pulse place-items-center border ${cfg.borderActive} bg-[#101714] text-white`}>
                 <Activity className="h-14 w-14" />
               </div>
 
-              <div className={`mt-6 inline-flex items-center gap-2 border px-4 py-2 text-sm font-bold ${cfg.badge}`}>
-                <span className={`h-2 w-2 rounded-full ${cfg.dot} animate-pulse`} />
-                {appConfig[selectedApp].label} Queue
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                {selectedApps.map((app) => {
+                  const appStyle = appConfig[app];
+                  return <div key={app} className={`inline-flex items-center gap-2 border px-4 py-2 text-sm font-bold ${appStyle.badge}`}>
+                    <span className={`h-2 w-2 rounded-full ${appStyle.dot} animate-pulse`} />
+                    {appStyle.label}
+                  </div>;
+                })}
               </div>
 
               <h2 className="mt-4 text-4xl font-black tracking-[-0.05em]">Gegner wird gesucht</h2>
