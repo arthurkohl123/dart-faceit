@@ -47,6 +47,8 @@ type WednesdayShowdownSetting = {
   free_limit_override?: boolean;
 };
 
+type DeveloperSection = 'overview' | 'matchmaking' | 'system' | 'matches';
+
 type DevMatch = {
   id: string;
   created_at: string;
@@ -117,6 +119,7 @@ export default function DeveloperDashboard() {
   const [showdownEnabled, setShowdownEnabled] = useState(true);
   const [showdownFreeLimitOverride, setShowdownFreeLimitOverride] = useState(true);
   const [developerNotice, setDeveloperNotice] = useState('');
+  const [activeSection, setActiveSection] = useState<DeveloperSection>('overview');
   const maintenanceDirtyRef = useRef(false);
 
   // Match-Editor
@@ -478,9 +481,32 @@ export default function DeveloperDashboard() {
           </span>
         </section>
 
-        <DeveloperMonitoring />
+        <nav aria-label="Bereiche im Developer-Tool" className="sticky top-3 z-20 mt-6 overflow-x-auto rounded-2xl border border-white/10 bg-[#0b0d0e]/95 p-2 shadow-2xl shadow-black/30 backdrop-blur">
+          <div className="flex min-w-max gap-2">
+            {([
+              ['overview', 'Übersicht', Activity],
+              ['matchmaking', 'Matchmaking & Showdown', RadioTower],
+              ['system', 'System & Regeln', Wrench],
+              ['matches', 'Match-Verwaltung', Trophy],
+            ] as const).map(([section, label, Icon]) => (
+              <button
+                key={section}
+                type="button"
+                onClick={() => setActiveSection(section)}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition ${activeSection === section ? 'bg-cyan-300 text-cyan-950 shadow-lg shadow-cyan-400/10' : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100'}`}
+              >
+                <Icon className="h-4 w-4" /> {label}
+              </button>
+            ))}
+          </div>
+        </nav>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className={activeSection === 'overview' ? '' : 'hidden'}>
+          <DeveloperMonitoring />
+        </div>
+
+        <div className={`mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] ${activeSection === 'matchmaking' || activeSection === 'system' ? '' : 'hidden'}`}>
+          <div className={activeSection === 'matchmaking' ? 'contents' : 'hidden'}>
           <section className={`relative overflow-hidden rounded-[2rem] border p-6 shadow-2xl shadow-black/30 lg:col-span-2 ${matchmakingEnabled ? 'border-emerald-300/20 bg-emerald-400/[0.055]' : 'border-red-300/25 bg-red-500/[0.07]'}`}>
             <div className={`pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full blur-3xl ${matchmakingEnabled ? 'bg-emerald-400/15' : 'bg-red-500/15'}`} />
             <div className="relative grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-end">
@@ -573,6 +599,9 @@ export default function DeveloperDashboard() {
               </button>
             </div>
           </section>
+
+          </div>
+          <div className={activeSection === 'system' ? 'contents' : 'hidden'}>
 
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30">
             <div className="flex items-start justify-between gap-4">
@@ -670,9 +699,10 @@ export default function DeveloperDashboard() {
               <Save className="h-4 w-4" /> {saving === 'sms_verification' ? 'Speichert…' : 'SMS-Einstellung speichern'}
             </button>
           </section>
+          </div>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className={`mt-6 grid gap-6 lg:grid-cols-2 ${activeSection === 'system' ? '' : 'hidden'}`}>
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-200">
               <AlertTriangle className="h-3.5 w-3.5" /> Developer Notice
@@ -726,7 +756,7 @@ export default function DeveloperDashboard() {
         </div>
 
         {/* Fertig gespielte Matches */}
-        <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30">
+        <section className={`mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30 ${activeSection === 'matches' ? '' : 'hidden'}`}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-sky-200">
@@ -857,4 +887,3 @@ export default function DeveloperDashboard() {
     </main>
   );
 }
-
