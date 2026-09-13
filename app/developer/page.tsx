@@ -42,6 +42,11 @@ type MatchmakingQueueSetting = {
   message?: string;
 };
 
+type WednesdayShowdownSetting = {
+  enabled?: boolean;
+  free_limit_override?: boolean;
+};
+
 type DevMatch = {
   id: string;
   created_at: string;
@@ -109,6 +114,8 @@ export default function DeveloperDashboard() {
   const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [matchmakingEnabled, setMatchmakingEnabled] = useState(true);
   const [matchmakingMessage, setMatchmakingMessage] = useState('Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
+  const [showdownEnabled, setShowdownEnabled] = useState(true);
+  const [showdownFreeLimitOverride, setShowdownFreeLimitOverride] = useState(true);
   const [developerNotice, setDeveloperNotice] = useState('');
   const maintenanceDirtyRef = useRef(false);
 
@@ -161,6 +168,7 @@ export default function DeveloperDashboard() {
     const banMinutes = getObjectSetting<BanMinutesSetting>(settings, 'no_show_queue_ban_minutes');
     const smsVerification = getObjectSetting<SmsVerificationSetting>(settings, 'sms_verification');
     const matchmakingQueue = getObjectSetting<MatchmakingQueueSetting>(settings, 'matchmaking_queue');
+    const showdown = getObjectSetting<WednesdayShowdownSetting>(settings, 'wednesday_showdown');
     const notice = getObjectSetting<DeveloperNoticeSetting>(settings, 'developer_notice');
 
     setStats(payload?.stats ?? {});
@@ -174,6 +182,8 @@ export default function DeveloperDashboard() {
     setSmsVerificationEnabled(smsVerification.enabled !== false);
     setMatchmakingEnabled(matchmakingQueue.enabled !== false);
     setMatchmakingMessage(matchmakingQueue.message ?? 'Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
+    setShowdownEnabled(showdown.enabled !== false);
+    setShowdownFreeLimitOverride(showdown.free_limit_override !== false);
     setDeveloperNotice(notice.message ?? '');
     setLastUpdated(new Date());
     setLoading(false);
@@ -245,6 +255,16 @@ export default function DeveloperDashboard() {
       ? 'Matchmaking-Queue ist wieder geöffnet.'
       : `Matchmaking-Queue pausiert. ${cleared} wartende Einträge wurden entfernt.`);
     void loadDashboard();
+  };
+
+  const saveWednesdayShowdown = async () => {
+    await updateSetting(
+      'wednesday_showdown',
+      { enabled: showdownEnabled, free_limit_override: showdownFreeLimitOverride },
+      showdownEnabled
+        ? `Mittwoch Showdown ist aktiv. Free-Limit: ${showdownFreeLimitOverride ? '18–22 Uhr ausgesetzt.' : 'normal aktiv.'}`
+        : 'Mittwoch Showdown ist deaktiviert.',
+    );
   };
 
   const saveMaintenanceSetting = async () => {
@@ -503,6 +523,53 @@ export default function DeveloperDashboard() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-black transition hover:bg-zinc-200 disabled:opacity-50"
               >
                 <Save className="h-4 w-4" /> {saving === 'matchmaking_queue' ? 'Wird angewendet…' : 'Queue-Status anwenden'}
+              </button>
+            </div>
+          </section>
+
+          <section className={`relative overflow-hidden rounded-[2rem] border p-6 shadow-2xl shadow-black/30 lg:col-span-2 ${showdownEnabled ? 'border-violet-300/25 bg-violet-400/[0.055]' : 'border-zinc-500/25 bg-white/[0.035]'}`}>
+            <div className={`pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full blur-3xl ${showdownEnabled ? 'bg-violet-400/15' : 'bg-zinc-500/10'}`} />
+            <div className="relative grid gap-6 lg:grid-cols-[1fr_0.8fr] lg:items-end">
+              <div>
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${showdownEnabled ? 'border-violet-300/25 bg-violet-400/10 text-violet-200' : 'border-zinc-500/30 bg-zinc-500/10 text-zinc-300'}`}>
+                  <Trophy className="h-3.5 w-3.5" /> Wöchentliches Community-Event
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  <h2 className="text-3xl font-black tracking-[-0.05em]">Mittwoch Showdown</h2>
+                  <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${showdownEnabled ? 'border-violet-300/25 bg-violet-400/10 text-violet-100' : 'border-zinc-500/30 bg-zinc-500/10 text-zinc-300'}`}>
+                    {showdownEnabled ? 'Jeden Mittwoch · 18–22 Uhr' : 'Deaktiviert'}
+                  </span>
+                </div>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">Bestätigte Queue-Matches fließen weiterhin normal in Elo und Saison-Rangliste ein. Im separaten Showdown-Board erscheinen Spieler ab drei Matches. Preise: 1. Platz 15 €, 2. Platz 14 Tage Premium, 3. Platz 7 Tage Premium.</p>
+              </div>
+
+              <div className="grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowdownEnabled((value) => !value)}
+                  className={`rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${showdownEnabled ? 'border-violet-300/25 bg-violet-400/10 text-violet-100 hover:bg-violet-400/15' : 'border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08]'}`}
+                >
+                  {showdownEnabled ? 'Event ist aktiviert' : 'Event aktivieren'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!showdownEnabled}
+                  onClick={() => setShowdownFreeLimitOverride((value) => !value)}
+                  className={`rounded-2xl border px-4 py-3 text-left text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${showdownFreeLimitOverride ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15' : 'border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08]'}`}
+                >
+                  {showdownFreeLimitOverride ? 'Free-Limit 18–22 Uhr ausgesetzt' : 'Free-Limit bleibt aktiv'}
+                </button>
+              </div>
+            </div>
+
+            <div className="relative mt-6 flex justify-end border-t border-white/10 pt-5">
+              <button
+                type="button"
+                disabled={saving === 'wednesday_showdown'}
+                onClick={() => void saveWednesdayShowdown()}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-violet-200 px-5 py-3 text-sm font-black text-violet-950 transition hover:bg-violet-100 disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" /> {saving === 'wednesday_showdown' ? 'Speichert…' : 'Showdown-Einstellung speichern'}
               </button>
             </div>
           </section>
