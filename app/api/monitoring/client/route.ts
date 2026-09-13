@@ -13,6 +13,7 @@ const allowedEvents = new Set([
   'matchmaking_cancel_error',
   'matchmaking_heartbeat_error',
   'client_runtime_error',
+  'client_chunk_load_error',
 ]);
 
 export async function POST(request: Request) {
@@ -34,11 +35,11 @@ export async function POST(request: Request) {
     }
 
     const serializedContext = JSON.stringify(body.context ?? {});
-    const source = body.eventType === 'client_runtime_error' ? 'frontend' : 'matchmaking';
+    const source = body.eventType.startsWith('client_') ? 'frontend' : 'matchmaking';
     await recordMonitoringEvent({
       source,
       eventType: body.eventType,
-      severity: 'error',
+      severity: body.eventType === 'client_chunk_load_error' ? 'warning' : 'error',
       message: monitoringErrorMessage(body.message),
       fingerprint: `${source}:${body.eventType}`,
       context: serializedContext.length <= 2_000 ? body.context : {},
