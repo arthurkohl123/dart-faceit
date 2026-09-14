@@ -39,7 +39,6 @@ import {
   Zap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { LiveSupportAdmin } from '@/components/live-support-admin';
 
 type AdminTab = 'overview' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'payouts' | 'logs' | 'flagged';
 type AdminNavigationItem = {
@@ -1406,8 +1405,6 @@ export default function AdminPanel() {
           <div className="relative grid border-t border-white/10 bg-black/20 sm:grid-cols-3"><button onClick={() => goToSection('flagged')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-orange-400/[0.06] sm:border-b-0 sm:border-r"><TriangleAlert className="h-4 w-4 text-orange-300" /><span><span className="block text-xs font-black text-white">Fairness monitor</span><span className="text-[11px] text-zinc-500">{flaggedPlayers.length ? `${flaggedPlayers.length} Accounts brauchen Prüfung` : 'Keine auffälligen Signale'}</span></span></button><button onClick={() => goToSection('tickets')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-violet-400/[0.06] sm:border-b-0 sm:border-r"><MessageCircle className="h-4 w-4 text-violet-300" /><span><span className="block text-xs font-black text-white">Support routing</span><span className="text-[11px] text-zinc-500">{unassignedTickets ? `${unassignedTickets} Tickets nicht zugewiesen` : 'Jedes Ticket hat einen Owner'}</span></span></button><button onClick={exportOperationsSnapshot} className="flex items-center gap-3 px-5 py-4 text-left transition hover:bg-emerald-400/[0.06]"><Download className="h-4 w-4 text-emerald-300" /><span><span className="block text-xs font-black text-white">Operations snapshot</span><span className="text-[11px] text-zinc-500">CSV-Bericht für deinen Team-Stand</span></span></button></div>
         </section>
 
-        <LiveSupportAdmin />
-
         <div className="relative mt-8 grid gap-6 lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:items-start">
           <aside className="lg:sticky lg:top-5">
             <div className="overflow-hidden rounded-[1.9rem] border border-white/10 bg-[#090d13]/90 shadow-[0_25px_70px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
@@ -1438,6 +1435,7 @@ export default function AdminPanel() {
               </nav>
 
               <div className="border-t border-white/10 bg-black/20 p-3">
+                <button onClick={() => router.push('/admin/support')} className="mb-2 flex w-full items-center justify-between rounded-xl border border-violet-300/20 bg-violet-400/[0.08] px-3 py-3 text-left text-xs font-black text-violet-100 transition hover:border-violet-300/40 hover:bg-violet-400/[0.14]"><span className="inline-flex items-center gap-2"><Headphones className="h-3.5 w-3.5" /> Live Support Desk</span><ExternalLink className="h-3.5 w-3.5" /></button>
                 <button onClick={() => setCommandCenterOpen(true)} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] px-3 py-3 text-left text-xs font-black text-zinc-200 transition hover:border-cyan-300/25 hover:bg-cyan-400/[0.08]"><span className="inline-flex items-center gap-2"><Command className="h-3.5 w-3.5 text-cyan-200" /> Command Center</span><span className="text-[10px] text-zinc-500">⌘K</span></button>
               </div>
             </div>
