@@ -211,6 +211,32 @@ function TabBtn({ active, onClick, icon, label, badge }: {
   );
 }
 
+function MatchSignal({ liveMatches, openCases }: { liveMatches: number; openCases: number }) {
+  const segments = Array.from({ length: 20 }, (_, index) => index);
+  return (
+    <div className="relative mx-auto aspect-square w-full max-w-[230px] select-none">
+      <div className="absolute inset-0 rounded-full border border-white/10 bg-[radial-gradient(circle_at_center,rgba(47,88,213,0.36)_0_18%,transparent_18.5%_31%,rgba(255,255,255,0.075)_31.5%_32.5%,transparent_33%_47%,rgba(232,66,53,0.72)_47.5%_49%,transparent_49.5%_64%,rgba(255,255,255,0.08)_64.5%_65.5%,transparent_66%)]" />
+      <svg viewBox="0 0 240 240" className="absolute inset-0 h-full w-full" aria-hidden="true">
+        {segments.map(index => (
+          <line key={index} x1="120" y1="8" x2="120" y2="48" stroke="rgba(255,255,255,.19)" strokeWidth="1" transform={`rotate(${index * 18} 120 120)`} />
+        ))}
+        <circle cx="120" cy="120" r="105" fill="none" stroke="rgba(255,255,255,.14)" strokeWidth="1" strokeDasharray="3 6" />
+        <circle cx="120" cy="120" r="42" fill="none" stroke="rgba(255,255,255,.24)" strokeWidth="1" />
+        <path d="M120 8 L130 58 L120 44 L110 58 Z" fill="#e84235" />
+      </svg>
+      <div className="absolute inset-[29%] grid place-items-center rounded-full border border-white/20 bg-[#111725] text-center shadow-[0_0_0_8px_rgba(17,23,37,.45)]">
+        <div>
+          <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Live Matches</div>
+          <div className="mt-0.5 text-4xl font-black tracking-[-0.08em] text-white">{liveMatches}</div>
+          <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.13em] text-[#ff8f84]">{openCases} offen</div>
+        </div>
+      </div>
+      <span className="absolute -left-1 top-1/2 -translate-y-1/2 bg-[#2f58d5] px-2 py-1 text-[9px] font-black uppercase tracking-[0.13em] text-white">M.01</span>
+      <span className="absolute -right-2 bottom-8 border border-white/20 bg-[#111725] px-2 py-1 text-[9px] font-black uppercase tracking-[0.13em] text-[#b6c5ff]">Signal</span>
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function ModeratorPanel() {
@@ -562,15 +588,22 @@ export default function ModeratorPanel() {
           <div className="space-y-5">
             <div className="relative overflow-hidden border-2 border-[#151923] bg-[#151923] px-5 py-6 text-white sm:px-7">
               <div className="pointer-events-none absolute -right-5 -top-14 select-none text-[9rem] font-black leading-none tracking-[-0.12em] text-white/[0.045] sm:text-[13rem]">MOD</div>
-              <div className="relative grid gap-6 lg:grid-cols-[1.4fr_0.6fr] lg:items-end">
+              <div className="relative grid gap-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
                 <div>
-                  <div className="mb-3 inline-flex items-center gap-2 bg-[#e84235] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white"><Radio size={12} /> Live Control</div>
-                  <h2 className="max-w-xl text-3xl font-black uppercase leading-[0.9] tracking-[-0.07em] sm:text-5xl">Fair Play<br/><span className="text-[#91a9ff]">unter Kontrolle.</span></h2>
-                  <p className="mt-4 max-w-lg text-sm leading-relaxed text-slate-400">Dein Schiedsrichterraum für Fälle, Entscheidungen und laufende Matches. Erst prüfen, dann handeln.</p>
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-2 bg-[#e84235] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white"><Radio size={12} /> Live Control</span>
+                    <span className="border border-white/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Referee System / 01</span>
+                  </div>
+                  <h2 className="max-w-xl text-4xl font-black uppercase leading-[0.84] tracking-[-0.08em] sm:text-6xl">Fair Play<br/><span className="text-[#91a9ff]">ist kein Zufall.</span></h2>
+                  <p className="mt-5 max-w-lg text-sm leading-relaxed text-slate-400">Fälle einordnen. Spiele schützen. Entscheidungen dokumentieren. Der Raum für Moderation, wenn es darauf ankommt.</p>
+                  <div className="mt-6 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.15em]">
+                    <span className="border border-white/15 px-2.5 py-1.5 text-slate-400">Echtzeit-Daten</span>
+                    <span className="border border-white/15 px-2.5 py-1.5 text-slate-400">Audit-sicher</span>
+                    <span className="border border-white/15 px-2.5 py-1.5 text-slate-400">Spielerfokus</span>
+                  </div>
                 </div>
-                <div className="border-l border-white/15 pl-5 lg:pb-1">
-                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Schichtstatus</div>
-                  <div className="mt-2 flex items-end gap-3"><span className="text-4xl font-black tracking-[-0.06em]">{openTicketCount + disputeCount}</span><span className="mb-1 text-xs font-bold text-slate-400">Vorgänge mit Bedarf</span></div>
+                <div className="relative lg:ml-auto lg:w-full lg:max-w-[260px]">
+                  <MatchSignal liveMatches={liveCount} openCases={openTicketCount + disputeCount} />
                 </div>
               </div>
             </div>
