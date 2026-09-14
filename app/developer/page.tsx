@@ -45,6 +45,14 @@ type MatchmakingQueueSetting = {
 type WednesdayShowdownSetting = {
   enabled?: boolean;
   free_limit_override?: boolean;
+  title?: string;
+  description?: string;
+  starts_at_local?: string;
+  ends_at_local?: string;
+  minimum_matches?: number;
+  prize_first?: string;
+  prize_second?: string;
+  prize_third?: string;
 };
 
 type DeveloperSection = 'overview' | 'matchmaking' | 'system' | 'matches';
@@ -118,6 +126,14 @@ export default function DeveloperDashboard() {
   const [matchmakingMessage, setMatchmakingMessage] = useState('Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
   const [showdownEnabled, setShowdownEnabled] = useState(true);
   const [showdownFreeLimitOverride, setShowdownFreeLimitOverride] = useState(true);
+  const [showdownTitle, setShowdownTitle] = useState('Mittwoch Showdown');
+  const [showdownDescription, setShowdownDescription] = useState('Vier Stunden, eine eigene Wochenwertung. Spiele ganz normal Ranked – deine Elo zählt weiter für die Saison und gleichzeitig für den Showdown.');
+  const [showdownStartsAt, setShowdownStartsAt] = useState('18:00');
+  const [showdownEndsAt, setShowdownEndsAt] = useState('22:00');
+  const [showdownMinimumMatches, setShowdownMinimumMatches] = useState(3);
+  const [showdownPrizeFirst, setShowdownPrizeFirst] = useState('15 €');
+  const [showdownPrizeSecond, setShowdownPrizeSecond] = useState('14 Tage Premium');
+  const [showdownPrizeThird, setShowdownPrizeThird] = useState('7 Tage Premium');
   const [developerNotice, setDeveloperNotice] = useState('');
   const [activeSection, setActiveSection] = useState<DeveloperSection>('overview');
   const maintenanceDirtyRef = useRef(false);
@@ -187,6 +203,14 @@ export default function DeveloperDashboard() {
     setMatchmakingMessage(matchmakingQueue.message ?? 'Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
     setShowdownEnabled(showdown.enabled !== false);
     setShowdownFreeLimitOverride(showdown.free_limit_override !== false);
+    setShowdownTitle(showdown.title ?? 'Mittwoch Showdown');
+    setShowdownDescription(showdown.description ?? 'Vier Stunden, eine eigene Wochenwertung. Spiele ganz normal Ranked – deine Elo zählt weiter für die Saison und gleichzeitig für den Showdown.');
+    setShowdownStartsAt(showdown.starts_at_local ?? '18:00');
+    setShowdownEndsAt(showdown.ends_at_local ?? '22:00');
+    setShowdownMinimumMatches(Math.max(1, Math.min(50, Number(showdown.minimum_matches ?? 3))));
+    setShowdownPrizeFirst(showdown.prize_first ?? '15 €');
+    setShowdownPrizeSecond(showdown.prize_second ?? '14 Tage Premium');
+    setShowdownPrizeThird(showdown.prize_third ?? '7 Tage Premium');
     setDeveloperNotice(notice.message ?? '');
     setLastUpdated(new Date());
     setLoading(false);
@@ -261,9 +285,25 @@ export default function DeveloperDashboard() {
   };
 
   const saveWednesdayShowdown = async () => {
+    if (!showdownStartsAt || !showdownEndsAt || showdownEndsAt <= showdownStartsAt) {
+      setError('Die Endzeit des Showdowns muss nach der Startzeit liegen.');
+      return;
+    }
+
     await updateSetting(
       'wednesday_showdown',
-      { enabled: showdownEnabled, free_limit_override: showdownFreeLimitOverride },
+      {
+        enabled: showdownEnabled,
+        free_limit_override: showdownFreeLimitOverride,
+        title: showdownTitle.trim() || 'Mittwoch Showdown',
+        description: showdownDescription.trim(),
+        starts_at_local: showdownStartsAt,
+        ends_at_local: showdownEndsAt,
+        minimum_matches: Math.max(1, Math.min(50, showdownMinimumMatches)),
+        prize_first: showdownPrizeFirst.trim(),
+        prize_second: showdownPrizeSecond.trim(),
+        prize_third: showdownPrizeThird.trim(),
+      },
       showdownEnabled
         ? `Mittwoch Showdown ist aktiv. Free-Limit: ${showdownFreeLimitOverride ? '18–22 Uhr ausgesetzt.' : 'normal aktiv.'}`
         : 'Mittwoch Showdown ist deaktiviert.',
@@ -561,12 +601,12 @@ export default function DeveloperDashboard() {
                   <Trophy className="h-3.5 w-3.5" /> Wöchentliches Community-Event
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-4">
-                  <h2 className="text-3xl font-black tracking-[-0.05em]">Mittwoch Showdown</h2>
+                  <h2 className="text-3xl font-black tracking-[-0.05em]">{showdownTitle || 'Mittwoch Showdown'}</h2>
                   <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${showdownEnabled ? 'border-violet-300/25 bg-violet-400/10 text-violet-100' : 'border-zinc-500/30 bg-zinc-500/10 text-zinc-300'}`}>
-                    {showdownEnabled ? 'Jeden Mittwoch · 18–22 Uhr' : 'Deaktiviert'}
+                    {showdownEnabled ? `Jeden Mittwoch · ${showdownStartsAt || '18:00'}–${showdownEndsAt || '22:00'} Uhr` : 'Deaktiviert'}
                   </span>
                 </div>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">Bestätigte Queue-Matches fließen weiterhin normal in Elo und Saison-Rangliste ein. Im separaten Showdown-Board erscheinen Spieler ab drei Matches. Preise: 1. Platz 15 €, 2. Platz 14 Tage Premium, 3. Platz 7 Tage Premium.</p>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">{showdownDescription || 'Bestätigte Queue-Matches fließen weiterhin normal in Elo und Saison-Rangliste ein.'}</p>
               </div>
 
               <div className="grid gap-3">
@@ -586,6 +626,33 @@ export default function DeveloperDashboard() {
                   {showdownFreeLimitOverride ? 'Free-Limit 18–22 Uhr ausgesetzt' : 'Free-Limit bleibt aktiv'}
                 </button>
               </div>
+            </div>
+
+            <div className="relative mt-6 grid gap-4 border-t border-white/10 pt-5 md:grid-cols-2 xl:grid-cols-3">
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Event-Titel
+                <input value={showdownTitle} onChange={(event) => setShowdownTitle(event.target.value)} maxLength={80} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-zinc-100 outline-none focus:border-violet-300/40" />
+              </label>
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Startzeit · Mittwoch
+                <input type="time" value={showdownStartsAt} onChange={(event) => setShowdownStartsAt(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-zinc-100 outline-none focus:border-violet-300/40" />
+              </label>
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Endzeit · Mittwoch
+                <input type="time" value={showdownEndsAt} onChange={(event) => setShowdownEndsAt(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-zinc-100 outline-none focus:border-violet-300/40" />
+              </label>
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Mindestmatches für Rangliste
+                <input type="number" min={1} max={50} value={showdownMinimumMatches} onChange={(event) => setShowdownMinimumMatches(Number(event.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-zinc-100 outline-none focus:border-violet-300/40" />
+              </label>
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Preis · 1. Platz
+                <input value={showdownPrizeFirst} onChange={(event) => setShowdownPrizeFirst(event.target.value)} maxLength={80} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-zinc-100 outline-none focus:border-violet-300/40" />
+              </label>
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Preis · 2. Platz
+                <input value={showdownPrizeSecond} onChange={(event) => setShowdownPrizeSecond(event.target.value)} maxLength={80} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-zinc-100 outline-none focus:border-violet-300/40" />
+              </label>
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Preis · 3. Platz
+                <input value={showdownPrizeThird} onChange={(event) => setShowdownPrizeThird(event.target.value)} maxLength={80} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-zinc-100 outline-none focus:border-violet-300/40" />
+              </label>
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500 md:col-span-2 xl:col-span-3">Beschreibung auf der Showdown-Seite
+                <textarea value={showdownDescription} onChange={(event) => setShowdownDescription(event.target.value)} rows={3} maxLength={500} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-medium normal-case tracking-normal text-zinc-100 outline-none focus:border-violet-300/40" />
+              </label>
             </div>
 
             <div className="relative mt-6 flex justify-end border-t border-white/10 pt-5">
