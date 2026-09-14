@@ -8,17 +8,24 @@ import { useRouter } from 'next/navigation';
 import {
   Activity,
   AlertTriangle,
+  ArrowUpRight,
+  BadgeAlert,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   ClipboardList,
+  Command,
+  FileWarning,
   Gavel,
   Headphones,
+  Inbox,
+  LayoutDashboard,
   Loader2,
+  PanelRightOpen,
   RefreshCw,
+  Radio,
   Send,
   Shield,
-  ShieldAlert,
   ShieldCheck,
   Swords,
   Timer,
@@ -166,7 +173,7 @@ const matchStatusCfg: Record<string, { label: string; cls: string }> = {
   disputed:              { label: 'Dispute',      cls: 'border-red-400/25 bg-red-400/10 text-red-200' },
 };
 
-const inputCls = 'w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-violet-300/60 focus:bg-white/[0.075]';
+const inputCls = 'w-full rounded-xl border border-[#2c2d31] bg-[#111214] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#e9a23b]/70 focus:bg-[#171719]';
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -187,17 +194,17 @@ function TabBtn({ active, onClick, icon, label, badge }: {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2.5 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
+      className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-sm font-bold transition-all ${
         active
-          ? 'border border-violet-300/30 bg-violet-400/15 text-violet-200 shadow-[0_0_20px_rgba(167,139,250,0.12)]'
-          : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-zinc-200'
+          ? 'bg-[#25201a] text-[#ffd58e] shadow-[inset_3px_0_0_#e9a23b]'
+          : 'text-zinc-500 hover:bg-white/[0.045] hover:text-zinc-200'
       }`}
     >
-      {icon}
-      <span className="hidden sm:inline">{label}</span>
+      <span className={active ? 'text-[#e9a23b]' : 'text-zinc-600 group-hover:text-zinc-300'}>{icon}</span>
+      <span>{label}</span>
       {badge != null && badge > 0 && (
-        <span className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
-          active ? 'bg-violet-300/25 text-violet-100' : 'bg-white/10 text-zinc-400'
+        <span className={`ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-md px-1.5 text-[10px] font-black ${
+          active ? 'bg-[#e9a23b] text-[#16130f]' : 'bg-white/[0.08] text-zinc-500'
         }`}>{badge}</span>
       )}
     </button>
@@ -211,7 +218,7 @@ export default function ModeratorPanel() {
   const router   = useRouter();
 
   const [loading,  setLoading]  = useState(true);
-  const [tab,      setTab]      = useState<'tickets' | 'disputes' | 'matches' | 'flagged' | 'logs'>('tickets');
+  const [tab,      setTab]      = useState<'desk' | 'tickets' | 'disputes' | 'matches' | 'flagged' | 'logs'>('desk');
   const [toast,    setToast]    = useState<{ msg: string; ok: boolean } | null>(null);
   const [pendingCancelDisputeId, setPendingCancelDisputeId] = useState<string | null>(null);
   const [pendingCancelMatchId, setPendingCancelMatchId] = useState<string | null>(null);
@@ -329,10 +336,15 @@ export default function ModeratorPanel() {
 
   // ── Ticket Actions ────────────────────────────────────────────────────────
 
+  const loadTicketDetail = async (id: string) => {
+    const { data, error } = await supabase.rpc('mod_get_ticket_detail', { p_ticket_id: id });
+    if (error) { showToast('Ticket konnte nicht geladen werden: ' + error.message, false); return; }
+    if (data) { setTicketDetail(data as TicketDetail); setOpenTicketId(id); }
+  };
+
   const openTicket = async (id: string) => {
     if (openTicketId === id) { setOpenTicketId(null); setTicketDetail(null); return; }
-    const { data } = await supabase.rpc('mod_get_ticket_detail', { p_ticket_id: id });
-    if (data) { setTicketDetail(data as TicketDetail); setOpenTicketId(id); }
+    await loadTicketDetail(id);
   };
 
   const sendReply = async (ticketId: string) => {
@@ -342,20 +354,22 @@ export default function ModeratorPanel() {
     setSending(false);
     if (error) { showToast('Fehler beim Senden: ' + error.message, false); return; }
     setReply('');
-    await openTicket(ticketId);
+    await loadTicketDetail(ticketId);
     await loadTickets(ticketFilter);
     showToast('Antwort gesendet.');
   };
 
   const updateStatus = async (ticketId: string, status: string) => {
-    await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_status: status });
+    const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_status: status });
+    if (error) { showToast('Status konnte nicht aktualisiert werden: ' + error.message, false); return; }
     await loadTickets(ticketFilter);
-    if (openTicketId === ticketId) await openTicket(ticketId);
+    if (openTicketId === ticketId) await loadTicketDetail(ticketId);
     showToast('Status aktualisiert.');
   };
 
   const updatePriority = async (ticketId: string, priority: string) => {
-    await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_priority: priority });
+    const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_priority: priority });
+    if (error) { showToast('Priorität konnte nicht aktualisiert werden: ' + error.message, false); return; }
     await loadTickets(ticketFilter);
     showToast('Priorität aktualisiert.');
   };
@@ -445,10 +459,10 @@ export default function ModeratorPanel() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
+      <main className="flex min-h-screen items-center justify-center bg-[#0e0f10] text-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-violet-400" />
-          <p className="text-sm font-bold text-zinc-600">Moderator-Panel wird geladen…</p>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-[#e9a23b]" />
+          <p className="text-sm font-bold text-zinc-500">Leitstand wird vorbereitet…</p>
         </div>
       </main>
     );
@@ -457,17 +471,17 @@ export default function ModeratorPanel() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+    <main className="relative min-h-screen overflow-hidden bg-[#0e0f10] text-white">
 
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(167,139,250,0.14),transparent_38%),radial-gradient(ellipse_at_85%_5%,rgba(6,182,212,0.08),transparent_30%),radial-gradient(ellipse_at_20%_85%,rgba(239,68,68,0.06),transparent_35%)]" />
-        <div className="absolute inset-0 opacity-[0.05] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_2%_0%,rgba(233,162,59,0.11),transparent_32%),radial-gradient(ellipse_at_95%_18%,rgba(210,68,45,0.07),transparent_26%)]" />
+        <div className="absolute inset-0 opacity-[0.035] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:36px_36px]" />
       </div>
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-2xl border px-5 py-3.5 text-sm font-bold shadow-2xl backdrop-blur-xl transition-all ${
+        <div className={`fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-xl border px-5 py-3.5 text-sm font-bold shadow-2xl backdrop-blur-xl transition-all ${
           toast.ok
             ? 'border-emerald-300/25 bg-emerald-400/15 text-emerald-200'
             : 'border-red-400/25 bg-red-400/15 text-red-200'
@@ -477,25 +491,29 @@ export default function ModeratorPanel() {
         </div>
       )}
 
-      {/* Navbar */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
+      {/* Command header */}
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/[0.08] bg-[#101112]/90 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-3.5 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-violet-300/30 bg-gradient-to-br from-violet-500 to-purple-400 text-lg font-black text-white shadow-[0_0_35px_rgba(167,139,250,0.35)]">
+            <div className="grid h-9 w-9 place-items-center rounded-lg border border-[#e9a23b]/40 bg-[#2b2115] text-[#f6bb65] shadow-[0_0_22px_rgba(233,162,59,0.15)]">
               <Shield size={20} />
             </div>
             <div>
-              <div className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-violet-300/80">Moderator Panel</div>
+              <div className="text-sm font-black tracking-[0.08em] text-zinc-100 md:text-base">RANKEDDARTS</div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.24em] text-[#d79845]">Operations Desk</div>
             </div>
           </Link>
-          <div className="flex items-center gap-3">
-            <Link href="/admin" className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-bold text-zinc-400 transition hover:text-white">
-              Admin Panel
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 sm:flex">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" /> System online
+            </div>
+            <Link href="/admin" className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-bold text-zinc-400 transition hover:border-white/20 hover:text-white">
+              Admin
             </Link>
             <button
               onClick={refreshAll}
-              className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-400 transition hover:text-white"
+              className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/[0.035] text-zinc-400 transition hover:border-white/20 hover:text-white"
+              title="Alle Daten aktualisieren"
             >
               <RefreshCw size={16} />
             </button>
@@ -503,42 +521,113 @@ export default function ModeratorPanel() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 pb-24 pt-24 sm:px-5 md:px-8 md:pt-28">
-
-        {/* ── Header ── */}
-        <div className="mb-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-violet-200 mb-4">
-            <Shield size={12} /> Moderator Panel
-          </div>
-          <h1 className="text-4xl font-black tracking-[-0.06em] sm:text-5xl">
-            Moderation <span className="bg-gradient-to-r from-violet-300 via-purple-200 to-fuchsia-300 bg-clip-text text-transparent">Dashboard</span>
-          </h1>
-        </div>
-
-        {/* ── Stats ── */}
-        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { label: 'Offene Tickets', val: openTicketCount, icon: <Headphones size={20} />, cls: 'border-violet-300/15 bg-violet-400/[0.06]', num: 'text-violet-300' },
-            { label: 'Disputes',       val: disputeCount,    icon: <Gavel size={20} />,      cls: 'border-red-400/15 bg-red-400/[0.06]',       num: 'text-red-300' },
-            { label: 'Aktive Matches', val: liveCount,       icon: <Swords size={20} />,     cls: 'border-emerald-300/15 bg-emerald-400/[0.06]',num: 'text-emerald-300' },
-            { label: 'Verdächtige',    val: flaggedCount,    icon: <ShieldAlert size={20} />,cls: 'border-amber-300/15 bg-amber-400/[0.06]',    num: 'text-amber-300' },
-          ].map(({ label, val, icon, cls, num }) => (
-            <div key={label} className={`relative overflow-hidden rounded-[2rem] border p-5 backdrop-blur-xl ${cls}`}>
-              <div className="mb-3 text-zinc-500">{icon}</div>
-              <div className={`text-4xl font-black tracking-[-0.07em] ${num}`}>{val}</div>
-              <div className="mt-1 text-xs font-bold text-zinc-600">{label}</div>
+      <div className="relative z-10 mx-auto grid max-w-[1440px] gap-6 px-4 pb-16 pt-20 sm:px-5 lg:grid-cols-[228px_minmax(0,1fr)] lg:px-8 lg:pt-24">
+        <aside className="lg:sticky lg:top-[84px] lg:h-[calc(100vh-108px)]">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#151617]/80 p-2 shadow-2xl shadow-black/20 backdrop-blur-xl">
+            <div className="border-b border-white/[0.06] px-3 py-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500"><Command size={12} /> Navigation</div>
             </div>
-          ))}
-        </div>
+            <div className="space-y-1 py-2">
+              <TabBtn active={tab === 'desk'}     onClick={() => setTab('desk')}     icon={<LayoutDashboard size={16} />} label="Leitstand" />
+              <TabBtn active={tab === 'tickets'}  onClick={() => setTab('tickets')}  icon={<Inbox size={16} />} label="Fall-Inbox" badge={openTicketCount} />
+              <TabBtn active={tab === 'disputes'} onClick={() => setTab('disputes')} icon={<Gavel size={16} />} label="Disputes" badge={disputeCount} />
+              <TabBtn active={tab === 'matches'}  onClick={() => setTab('matches')}  icon={<Radio size={16} />} label="Live Matches" badge={liveCount} />
+              <TabBtn active={tab === 'flagged'}  onClick={() => setTab('flagged')}  icon={<BadgeAlert size={16} />} label="Auffälligkeiten" badge={flaggedCount} />
+              <TabBtn active={tab === 'logs'}     onClick={() => setTab('logs')}     icon={<ClipboardList size={16} />} label="Audit-Log" />
+            </div>
+            <div className="mx-2 mt-2 border-t border-white/[0.06] px-2 py-4 text-[11px] leading-relaxed text-zinc-600">
+              Entscheidungen werden im Audit-Log dokumentiert. Nutze Eingriffe nur bei eindeutigem Sachverhalt.
+            </div>
+          </div>
+        </aside>
 
-        {/* ── Tabs ── */}
-        <div className="mb-6 flex flex-wrap gap-2">
-          <TabBtn active={tab === 'tickets'}  onClick={() => setTab('tickets')}  icon={<Headphones size={15} />}  label="Tickets"         badge={openTicketCount} />
-          <TabBtn active={tab === 'disputes'} onClick={() => setTab('disputes')} icon={<Gavel size={15} />}       label="Disputes"        badge={disputeCount} />
-          <TabBtn active={tab === 'matches'}  onClick={() => setTab('matches')}  icon={<Swords size={15} />}      label="Aktive Matches"  badge={liveCount} />
-          <TabBtn active={tab === 'flagged'}  onClick={() => setTab('flagged')}  icon={<ShieldAlert size={15} />} label="Verdächtige"     badge={flaggedCount} />
-          <TabBtn active={tab === 'logs'}     onClick={() => setTab('logs')}     icon={<ClipboardList size={15} />} label="Mod-Logs" />
-        </div>
+        <section className="min-w-0">
+          <header className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-6">
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#d79845]"><PanelRightOpen size={13} /> Moderation / Einsatzübersicht</div>
+              <h1 className="text-3xl font-black tracking-[-0.045em] text-[#f3f0ea] sm:text-4xl">
+                {tab === 'desk' ? 'Leitstand' : tab === 'tickets' ? 'Fall-Inbox' : tab === 'disputes' ? 'Dispute-Prüfung' : tab === 'matches' ? 'Live-Match-Übersicht' : tab === 'flagged' ? 'Auffällige Accounts' : 'Audit-Log'}
+              </h1>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500">
+              <span>Zuletzt aktualisiert</span><span className="font-mono text-zinc-300">LIVE</span>
+            </div>
+          </header>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            TAB: LEITSTAND
+        ══════════════════════════════════════════════════════════════════ */}
+        {tab === 'desk' && (
+          <div className="space-y-5">
+            <div className="grid gap-px overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.08] sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                { label: 'Offene Fälle', value: openTicketCount, sub: 'Tickets brauchen Antwort', icon: <Inbox size={17} />, tone: 'text-[#f5be68]' },
+                { label: 'Entscheidungen', value: disputeCount, sub: 'Disputes warten auf Prüfung', icon: <Gavel size={17} />, tone: 'text-red-300' },
+                { label: 'Im Spiel', value: liveCount, sub: 'Live-Matches im Blick', icon: <Radio size={17} />, tone: 'text-emerald-300' },
+                { label: 'Hinweise', value: flaggedCount, sub: 'Accounts zur Einordnung', icon: <FileWarning size={17} />, tone: 'text-amber-300' },
+              ].map(item => (
+                <button key={item.label} onClick={() => setTab(item.label === 'Offene Fälle' ? 'tickets' : item.label === 'Entscheidungen' ? 'disputes' : item.label === 'Im Spiel' ? 'matches' : 'flagged')} className="group bg-[#171819] p-5 text-left transition hover:bg-[#1c1d1e]">
+                  <div className={`mb-5 ${item.tone}`}>{item.icon}</div>
+                  <div className={`text-4xl font-black tracking-[-0.06em] ${item.tone}`}>{item.value}</div>
+                  <div className="mt-1 text-sm font-bold text-zinc-200">{item.label}</div>
+                  <div className="mt-1 text-xs text-zinc-600">{item.sub}</div>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.8fr)]">
+              <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-[#151617]/90 shadow-2xl shadow-black/10">
+                <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4">
+                  <div>
+                    <div className="text-sm font-black text-[#f3f0ea]">Priorisierte Fall-Inbox</div>
+                    <div className="mt-0.5 text-xs text-zinc-600">Neue und hochpriorisierte Meldungen zuerst</div>
+                  </div>
+                  <button onClick={() => setTab('tickets')} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#e9a23b] transition hover:text-[#ffd58e]">Alle Fälle <ArrowUpRight size={14} /></button>
+                </div>
+                {tickets.filter(ticket => ticket.status !== 'closed' && ticket.status !== 'resolved').slice(0, 5).length === 0 ? (
+                  <div className="px-5 py-12 text-center text-sm text-zinc-600">Keine offenen Fälle. Der Leitstand ist ruhig.</div>
+                ) : (
+                  <div className="divide-y divide-white/[0.06]">
+                    {tickets.filter(ticket => ticket.status !== 'closed' && ticket.status !== 'resolved').slice(0, 5).map(ticket => {
+                      const priority = priorityCfg[ticket.priority] ?? priorityCfg.normal;
+                      const status = statusCfg[ticket.status] ?? statusCfg.open;
+                      return (
+                        <button key={ticket.id} onClick={() => { setTab('tickets'); void openTicket(ticket.id); }} className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-white/[0.035]">
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${status.dot}`} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-bold text-zinc-200">{ticket.subject}</span>
+                            <span className="mt-1 block truncate text-xs text-zinc-600">{ticket.username} · {catLabels[ticket.category] ?? ticket.category} · {timeAgo(ticket.created_at)}</span>
+                          </span>
+                          <span className={`shrink-0 text-[10px] font-black uppercase tracking-[0.14em] ${priority.cls}`}>{priority.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-5">
+                <div className="rounded-2xl border border-[#e9a23b]/20 bg-[linear-gradient(135deg,#282016,#171717)] p-5">
+                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.17em] text-[#f5be68]"><Command size={14} /> Schnellzugriff</div>
+                  <div className="space-y-2">
+                    <button onClick={() => setTab('disputes')} className="flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-black/15 px-3.5 py-3 text-left text-sm font-bold text-zinc-200 transition hover:border-[#e9a23b]/35 hover:bg-white/[0.04]"><span>Offene Disputes prüfen</span><span className="font-mono text-[#e9a23b]">{disputeCount}</span></button>
+                    <button onClick={() => setTab('matches')} className="flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-black/15 px-3.5 py-3 text-left text-sm font-bold text-zinc-200 transition hover:border-[#e9a23b]/35 hover:bg-white/[0.04]"><span>Laufende Matches überwachen</span><ArrowUpRight size={15} className="text-zinc-500" /></button>
+                    <button onClick={() => setTab('flagged')} className="flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-black/15 px-3.5 py-3 text-left text-sm font-bold text-zinc-200 transition hover:border-[#e9a23b]/35 hover:bg-white/[0.04]"><span>Account-Hinweise sichten</span><ArrowUpRight size={15} className="text-zinc-500" /></button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/[0.09] bg-[#151617]/90 p-5">
+                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.17em] text-zinc-500"><Activity size={14} /> Letzte Eingriffe</div>
+                  {logs.slice(0, 3).length === 0 ? <p className="text-sm text-zinc-600">Noch keine dokumentierten Eingriffe.</p> : (
+                    <div className="space-y-3">
+                      {logs.slice(0, 3).map(log => <div key={log.id} className="border-l border-[#e9a23b]/35 pl-3"><div className="truncate text-xs font-bold text-zinc-300">{log.action}{log.target_label ? ` · ${log.target_label}` : ''}</div><div className="mt-1 text-[11px] text-zinc-600">{log.mod_username} · {timeAgo(log.created_at)}</div></div>)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════
             TAB: TICKETS
@@ -553,7 +642,7 @@ export default function ModeratorPanel() {
                   onClick={async () => { setTicketFilter(s); await loadTickets(s); }}
                   className={`rounded-full px-4 py-2 text-xs font-bold transition ${
                     ticketFilter === s
-                      ? 'border border-violet-300/40 bg-violet-400/15 text-violet-200'
+                      ? 'border border-[#e9a23b]/35 bg-[#e9a23b]/10 text-[#ffd58e]'
                       : 'border border-white/10 bg-white/[0.04] text-zinc-500 hover:text-zinc-200'
                   }`}
                 >
@@ -563,7 +652,7 @@ export default function ModeratorPanel() {
             </div>
 
             {tickets.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-[2rem] border border-white/10 bg-white/[0.03] py-20 text-center">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] py-20 text-center">
                 <Headphones size={32} className="text-zinc-700" />
                 <p className="text-sm font-bold text-zinc-600">Keine Tickets vorhanden</p>
               </div>
@@ -575,7 +664,7 @@ export default function ModeratorPanel() {
                   const isOpen = openTicketId === t.id;
 
                   return (
-                    <div key={t.id} className="overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/70 backdrop-blur-xl">
+                    <div key={t.id} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/70 backdrop-blur-xl">
                       {/* Ticket-Header */}
                       <button
                         onClick={() => openTicket(t.id)}
@@ -643,18 +732,18 @@ export default function ModeratorPanel() {
                               return (
                               <div key={msg.id} className={`flex gap-3 ${msg.is_staff ? 'flex-row-reverse' : ''}`}>
                                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
-                                  msg.is_staff ? 'bg-violet-400/20 text-violet-300' : 'bg-white/10 text-zinc-300'
+                                  msg.is_staff ? 'bg-[#e9a23b]/20 text-[#f5be68]' : 'bg-white/10 text-zinc-300'
                                 }`}>
                                   {msg.sender_name.slice(0, 2).toUpperCase()}
                                 </div>
                                 <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm ${
                                   msg.is_staff
-                                    ? 'rounded-tr-sm bg-violet-400/15 border border-violet-300/20 text-violet-100'
+                                    ? 'rounded-tr-sm border border-[#e9a23b]/20 bg-[#e9a23b]/10 text-[#fff3d9]'
                                     : 'rounded-tl-sm bg-white/[0.06] border border-white/10 text-zinc-200'
                                 }`}>
                                   <div className="mb-1 flex items-center gap-2">
                                     <span className="text-[10px] font-black text-zinc-500">{msg.sender_name}</span>
-                                    {msg.is_staff && <span className="rounded-full bg-violet-400/20 px-1.5 py-0.5 text-[9px] font-black text-violet-300">MOD</span>}
+                                    {msg.is_staff && <span className="rounded-md bg-[#e9a23b]/20 px-1.5 py-0.5 text-[9px] font-black text-[#f5be68]">MOD</span>}
                                     <span className="text-[10px] text-zinc-700">{timeAgo(msg.created_at)}</span>
                                   </div>
                                   <div className="space-y-3">
@@ -691,7 +780,7 @@ export default function ModeratorPanel() {
                             <button
                               onClick={() => sendReply(t.id)}
                               disabled={sending || !reply.trim()}
-                              className="flex items-center gap-2 self-end rounded-2xl bg-violet-500 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-400 disabled:opacity-40"
+                              className="flex items-center gap-2 self-end rounded-xl bg-[#d68e27] px-5 py-3 text-sm font-black text-[#17120b] transition hover:bg-[#f0b95c] disabled:opacity-40"
                             >
                               {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                               Senden
@@ -713,7 +802,7 @@ export default function ModeratorPanel() {
         {tab === 'disputes' && (
           <div>
             {disputes.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-[2rem] border border-white/10 bg-white/[0.03] py-20 text-center">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] py-20 text-center">
                 <Gavel size={32} className="text-zinc-700" />
                 <p className="text-sm font-bold text-zinc-600">Keine offenen Disputes</p>
               </div>
@@ -724,7 +813,7 @@ export default function ModeratorPanel() {
                   const isOpen = openDispute === m.match_id;
 
                   return (
-                    <div key={m.match_id} className="overflow-hidden rounded-[2rem] border border-red-400/15 bg-red-400/[0.04] backdrop-blur-xl">
+                    <div key={m.match_id} className="overflow-hidden rounded-2xl border border-red-400/15 bg-red-400/[0.04] backdrop-blur-xl">
                       {/* Header */}
                       <button
                         onClick={() => setOpenDispute(isOpen ? null : m.match_id)}
@@ -863,7 +952,7 @@ export default function ModeratorPanel() {
         {tab === 'matches' && (
           <div>
             {liveMatches.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-[2rem] border border-white/10 bg-white/[0.03] py-20 text-center">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] py-20 text-center">
                 <Swords size={32} className="text-zinc-700" />
                 <p className="text-sm font-bold text-zinc-600">Keine aktiven Matches</p>
               </div>
@@ -874,7 +963,7 @@ export default function ModeratorPanel() {
                   const isLong = m.duration_minutes > 60;
 
                   return (
-                    <div key={m.id} className={`overflow-hidden rounded-[2rem] border backdrop-blur-xl ${
+                    <div key={m.id} className={`overflow-hidden rounded-2xl border backdrop-blur-xl ${
                       m.status === 'disputed'
                         ? 'border-red-400/20 bg-red-400/[0.04]'
                         : isLong
@@ -930,7 +1019,7 @@ export default function ModeratorPanel() {
         {tab === 'flagged' && (
           <div>
             {flagged.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-[2rem] border border-white/10 bg-white/[0.03] py-20 text-center">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] py-20 text-center">
                 <ShieldCheck size={32} className="text-zinc-700" />
                 <p className="text-sm font-bold text-zinc-600">Keine verdächtigen Accounts</p>
               </div>
@@ -939,7 +1028,7 @@ export default function ModeratorPanel() {
                 {flagged.map(p => {
                   const isOpen = openFlagged === p.id;
                   return (
-                    <div key={p.id} className="overflow-hidden rounded-[2rem] border border-amber-300/15 bg-amber-400/[0.04] backdrop-blur-xl">
+                    <div key={p.id} className="overflow-hidden rounded-2xl border border-amber-300/15 bg-amber-400/[0.04] backdrop-blur-xl">
                       <button
                         onClick={() => setOpenFlagged(isOpen ? null : p.id)}
                         className="w-full px-6 py-5 text-left transition hover:bg-white/[0.03]"
@@ -1012,22 +1101,22 @@ export default function ModeratorPanel() {
         {tab === 'logs' && (
           <div>
             {logs.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-[2rem] border border-white/10 bg-white/[0.03] py-20 text-center">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] py-20 text-center">
                 <ClipboardList size={32} className="text-zinc-700" />
                 <p className="text-sm font-bold text-zinc-600">Noch keine Mod-Aktionen</p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/70 backdrop-blur-xl">
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/70 backdrop-blur-xl">
                 <div className="divide-y divide-white/[0.05]">
                   {logs.map(log => (
                     <div key={log.id} className="flex items-start gap-4 px-6 py-4">
-                      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-violet-400/10 text-violet-300">
+                      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#e9a23b]/10 text-[#f5be68]">
                         <Activity size={14} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-black text-zinc-200">{log.mod_username}</span>
-                          <span className="rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-0.5 text-[10px] font-black text-violet-300">{log.action}</span>
+                          <span className="rounded-md border border-[#e9a23b]/20 bg-[#e9a23b]/10 px-2 py-0.5 text-[10px] font-black text-[#f5be68]">{log.action}</span>
                           {log.target_label && <span className="text-xs text-zinc-500">→ {log.target_label}</span>}
                         </div>
                         {log.details && <p className="mt-0.5 text-xs text-zinc-600">{log.details}</p>}
@@ -1040,6 +1129,7 @@ export default function ModeratorPanel() {
             )}
           </div>
         )}
+        </section>
       </div>
     </main>
   );
