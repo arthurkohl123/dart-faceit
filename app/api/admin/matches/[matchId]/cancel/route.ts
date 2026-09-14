@@ -40,7 +40,7 @@ export async function POST(
     .from('active_matches')
     .update({ status: 'cancelled', updated_at: new Date().toISOString() })
     .eq('id', matchId)
-    .in('status', ['pending_accept', 'pending_result', 'awaiting_confirmation', 'disputed'])
+    .in('status', ['matched', 'pending_accept', 'pending_result', 'awaiting_confirmation', 'disputed'])
     .select('id')
     .maybeSingle();
 

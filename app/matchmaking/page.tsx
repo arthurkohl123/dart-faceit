@@ -334,7 +334,7 @@ export default function Matchmaking() {
       // 'waiting' → warte auf Gegner (Realtime-Update kommt)
     } catch (err) {
       const message = getRpcErrorMessage(err);
-      if (message.includes('DAILY_MATCH_LIMIT')) {
+      if (message.includes('DAILY_MATCH_LIMIT') || message.includes('Tageslimit')) {
         setErrorMessage('Dein Tageslimit von 4 Ranked Matches ist erreicht. Es wird um 00:00 Uhr zurückgesetzt – mit Premium spielst du unbegrenzt.');
         setStatus('error');
       } else {
@@ -693,6 +693,20 @@ export default function Matchmaking() {
       return;
     }
 
+    // Clear invitations whose deadline elapsed while a browser was closed.
+    // This is best-effort so a short migration/cache delay never prevents a
+    // player from searching for a match.
+    try {
+      const { error } = await supabase.rpc('cleanup_expired_match_acceptances');
+      if (error && !/cleanup_expired_match_acceptances|PGRST202|schema cache/i.test(error.message)) {
+        console.warn('Abgelaufene Match-Anfragen konnten nicht bereinigt werden:', error.message);
+      }
+    } catch (error) {
+      if (!isTransientNetworkError(error)) {
+        console.warn('Bereinigung abgelaufener Match-Anfragen fehlgeschlagen:', error);
+      }
+    }
+
     unlockMatchFoundSound();
     lastMatchSoundIdRef.current = null;
     setSelectedApps(apps);
@@ -972,6 +986,13 @@ export default function Matchmaking() {
             if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
             acceptIntervalRef.current = null;
             acceptExpireCalledRef.current = true; // verhindert späten expire-Aufruf
+            if (updated.cancellation_reason === 'daily_match_limit') {
+              setOpponentDeclined(false);
+              setErrorMessage('Das Match konnte nicht starten, weil ein Teilnehmer sein Tageslimit erreicht hat.');
+              setStatus('idle');
+              return;
+            }
+
             const acceptedBeforeCancel = iHaveAcceptedRef.current || Boolean(isPlayer1 ? updated.player1_accepted : updated.player2_accepted);
             const appsBeforeCancel = selectedAppsRef.current;
 
@@ -1021,7 +1042,7 @@ export default function Matchmaking() {
       if (!acceptMatchId || !uid) return;
       const { data } = await supabase
         .from('active_matches')
-        .select('status, player1_id, player2_id, player1_accepted, player2_accepted')
+        .select('status, player1_id, player2_id, player1_accepted, player2_accepted, cancellation_reason')
         .eq('id', acceptMatchId)
         .maybeSingle();
 
@@ -1069,6 +1090,13 @@ export default function Matchmaking() {
         if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
         acceptIntervalRef.current = null;
         acceptExpireCalledRef.current = true;
+        if (data.cancellation_reason === 'daily_match_limit') {
+          setOpponentDeclined(false);
+          setErrorMessage('Das Match konnte nicht starten, weil ein Teilnehmer sein Tageslimit erreicht hat.');
+          setStatus('idle');
+          return;
+        }
+
         const acceptedBeforeCancel = iHaveAcceptedRef.current || Boolean(isPlayer1 ? data.player1_accepted : data.player2_accepted);
         const appsBeforeCancel = selectedAppsRef.current;
 

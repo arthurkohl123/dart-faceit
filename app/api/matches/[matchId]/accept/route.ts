@@ -12,6 +12,38 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ma
   if (!user) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
 
   try {
+    // One database transaction owns the entire acceptance transition. This is
+    // important when both players accept at the same moment or a browser
+    // retries after a lost network response.
+    const { data, error: invitationError } = await supabase.rpc('accept_match_invitation', { p_match_id: matchId });
+    if (!invitationError) {
+      const result = (Array.isArray(data) ? data[0] : data) as {
+        status?: string;
+        match_id?: string;
+        match_status?: string;
+      } | null;
+
+      if (result?.status === 'not_found') {
+        return NextResponse.json({ error: 'Match wurde nicht gefunden.' }, { status: 404 });
+      }
+      if (result?.status === 'daily_limit') {
+        return NextResponse.json({ error: 'Ein Teilnehmer hat sein Tageslimit für Ranked Matches erreicht.' }, { status: 409 });
+      }
+      if (result?.status === 'already_handled' && result.match_status === 'cancelled') {
+        return NextResponse.json({ status: 'expired', match_id: result.match_id ?? matchId });
+      }
+
+      return NextResponse.json({
+        status: result?.status ?? 'waiting',
+        match_id: result?.match_id ?? matchId,
+      });
+    }
+
+    // During the few seconds of a deployment in which the application is live
+    // before its matching migration, keep the previous safe route available.
+    // Other database errors must be reported instead of being hidden here.
+    if (!/accept_match_invitation|PGRST202|schema cache/i.test(invitationError.message)) throw invitationError;
+
     const admin = createAdminClient();
     const { data: match, error } = await admin
       .from('active_matches')
