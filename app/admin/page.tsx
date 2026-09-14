@@ -312,6 +312,13 @@ type TournamentForm = {
   prizeTitle: string; prizeDetails: string; disputePolicy: string;
 };
 
+type TournamentScheduleDraft = {
+  registrationClosesAt: string;
+  checkInOpensAt: string;
+  checkInClosesAt: string;
+  startsAt: string;
+};
+
 type ResolveFormState = {
   winnerId: string;
   player1Legs: string;
@@ -353,6 +360,21 @@ function formatDate(value: string | null) {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function toDateTimeLocal(value: string) {
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function scheduleDraftFromTournament(tournament: AdminTournament): TournamentScheduleDraft {
+  return {
+    registrationClosesAt: toDateTimeLocal(tournament.registration_closes_at),
+    checkInOpensAt: toDateTimeLocal(tournament.check_in_opens_at),
+    checkInClosesAt: toDateTimeLocal(tournament.check_in_closes_at),
+    startsAt: toDateTimeLocal(tournament.starts_at),
+  };
 }
 
 export default function AdminPanel() {
@@ -409,6 +431,8 @@ export default function AdminPanel() {
   const [tournamentReason, setTournamentReason] = useState('');
   const [tournamentPrizeTitle, setTournamentPrizeTitle] = useState('');
   const [tournamentPrizeDetails, setTournamentPrizeDetails] = useState('');
+  const [tournamentSchedule, setTournamentSchedule] = useState<TournamentScheduleDraft | null>(null);
+  const [tournamentScheduleSaving, setTournamentScheduleSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'payouts' | 'logs' | 'flagged'>('overview');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
@@ -678,6 +702,45 @@ export default function AdminPanel() {
     setTournamentBracket((bracketResult.data || []) as TournamentMatch[]);
     setTournamentParticipants((participantsResult.data || []) as TournamentParticipant[]);
   }, [supabase]);
+
+  const openTournamentManagement = async (tournament: AdminTournament) => {
+    setTournamentSchedule(scheduleDraftFromTournament(tournament));
+    setTournamentPrizeTitle(tournament.prize_title || '');
+    setTournamentPrizeDetails(tournament.prize_details || '');
+    await loadTournamentBracket(tournament.id);
+  };
+
+  const saveTournamentSchedule = async () => {
+    if (!selectedTournamentId || !tournamentSchedule) return;
+    const registrationClosesAt = new Date(tournamentSchedule.registrationClosesAt);
+    const checkInOpensAt = new Date(tournamentSchedule.checkInOpensAt);
+    const checkInClosesAt = new Date(tournamentSchedule.checkInClosesAt);
+    const startsAt = new Date(tournamentSchedule.startsAt);
+    if ([registrationClosesAt, checkInOpensAt, checkInClosesAt, startsAt].some(value => Number.isNaN(value.getTime()))) {
+      setActionMessage('Bitte fülle alle vier Zeitpunkte aus.');
+      return;
+    }
+    if (registrationClosesAt > checkInOpensAt || checkInOpensAt > checkInClosesAt || checkInClosesAt > startsAt) {
+      setActionMessage('Der Zeitplan muss in dieser Reihenfolge liegen: Anmeldung, Check-in-Beginn, Check-in-Ende, Start.');
+      return;
+    }
+
+    setTournamentScheduleSaving(true);
+    const { error } = await supabase.rpc('admin_update_tournament_schedule', {
+      p_tournament_id: selectedTournamentId,
+      p_registration_closes_at: registrationClosesAt.toISOString(),
+      p_check_in_opens_at: checkInOpensAt.toISOString(),
+      p_check_in_closes_at: checkInClosesAt.toISOString(),
+      p_starts_at: startsAt.toISOString(),
+    });
+    setTournamentScheduleSaving(false);
+    if (error) {
+      setActionMessage(`Turnierzeitplan konnte nicht gespeichert werden: ${error.message}`);
+      return;
+    }
+    setActionMessage('Zeitplan gespeichert – angemeldete Spieler wurden in der Benachrichtigungszentrale informiert.');
+    await Promise.all([loadTournaments(), loadTournamentBracket(selectedTournamentId)]);
+  };
 
   const createTournament = async () => {
     if (!tournamentForm.title.trim() || !tournamentForm.startsAt || !tournamentForm.closesAt) {
@@ -1734,7 +1797,8 @@ export default function AdminPanel() {
               </section>
 
               <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7"><div className="mb-6 flex items-center justify-between"><div><h2 className="text-2xl font-black">Turnier-Übersicht</h2><p className="mt-1 text-sm text-zinc-400">Starte Cups ab zwei Teilnehmern, lose Paarungen aus und trage Ergebnisse ein.</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-zinc-400">{tournaments.length} Events</span></div>
-                {tournaments.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-zinc-500">Noch keine Turniere erstellt.</div> : <div className="grid gap-4 lg:grid-cols-2">{tournaments.map(tournament => { const canStart = Number(tournament.checked_in_count) >= 2; return <article key={tournament.id} className={`rounded-[1.6rem] border p-5 ${selectedTournamentId === tournament.id ? 'border-amber-300/35 bg-amber-300/[0.07]' : 'border-white/10 bg-white/[0.035]'}`}><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-[10px] font-black tracking-[0.14em] text-amber-300">{tournament.status.toUpperCase()}{tournament.premium_only && <><span className="text-zinc-600">·</span><Crown className="h-3.5 w-3.5" />PREMIUM</>}</div><h3 className="mt-2 text-xl font-black">{tournament.title}</h3></div><span className="rounded-full bg-white/[0.07] px-2.5 py-1 text-xs font-bold text-zinc-300">{tournament.participant_count}/{tournament.max_players}</span></div><p className="mt-2 text-sm text-zinc-500">Start: {formatDate(tournament.starts_at)} · {tournament.tournament_format.replaceAll('_', ' ')} · Best of {tournament.best_of}</p><div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-200">{tournament.checked_in_count} CHECKED IN</span><span className="rounded-full bg-violet-400/10 px-2.5 py-1 text-violet-200">{tournament.waitlist_count} WARTELISTE</span></div><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => void loadTournamentBracket(tournament.id)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10">Turnier verwalten</button>{tournament.status === 'registration' && <button onClick={() => void startTournament(tournament.id)} disabled={!canStart} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:cursor-not-allowed disabled:opacity-40">Turnier starten</button>}</div>{tournament.status === 'registration' && !canStart && <p className="mt-3 text-[11px] text-zinc-500">Es werden mindestens zwei eingecheckte Teilnehmer benötigt.</p>}</article>; })}</div>}
+                {tournaments.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-zinc-500">Noch keine Turniere erstellt.</div> : <div className="grid gap-4 lg:grid-cols-2">{tournaments.map(tournament => { const canStart = Number(tournament.checked_in_count) >= 2; return <article key={tournament.id} className={`rounded-[1.6rem] border p-5 ${selectedTournamentId === tournament.id ? 'border-amber-300/35 bg-amber-300/[0.07]' : 'border-white/10 bg-white/[0.035]'}`}><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-[10px] font-black tracking-[0.14em] text-amber-300">{tournament.status.toUpperCase()}{tournament.premium_only && <><span className="text-zinc-600">·</span><Crown className="h-3.5 w-3.5" />PREMIUM</>}</div><h3 className="mt-2 text-xl font-black">{tournament.title}</h3></div><span className="rounded-full bg-white/[0.07] px-2.5 py-1 text-xs font-bold text-zinc-300">{tournament.participant_count}/{tournament.max_players}</span></div><p className="mt-2 text-sm text-zinc-500">Start: {formatDate(tournament.starts_at)} · {tournament.tournament_format.replaceAll('_', ' ')} · Best of {tournament.best_of}</p><div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-200">{tournament.checked_in_count} CHECKED IN</span><span className="rounded-full bg-violet-400/10 px-2.5 py-1 text-violet-200">{tournament.waitlist_count} WARTELISTE</span></div><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => void openTournamentManagement(tournament)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10">Turnier verwalten</button>{tournament.status === 'registration' && <button onClick={() => void startTournament(tournament.id)} disabled={!canStart} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:cursor-not-allowed disabled:opacity-40">Turnier starten</button>}</div>{tournament.status === 'registration' && !canStart && <p className="mt-3 text-[11px] text-zinc-500">Es werden mindestens zwei eingecheckte Teilnehmer benötigt.</p>}</article>; })}</div>}
+                {selectedTournamentId && tournamentSchedule && <section className="mt-7 overflow-hidden rounded-[1.7rem] border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,0.09),rgba(255,255,255,0.02))] p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-[10px] font-black tracking-[0.16em] text-cyan-200">ZEITPLAN-STEUERUNG</p><h3 className="mt-1 text-xl font-black">Anmeldung, Check-in & Start</h3><p className="mt-1 max-w-2xl text-xs leading-5 text-zinc-400">Änderungen sind nur vor dem Turnierstart möglich. Angemeldete Spieler bekommen sofort eine In-App-Benachrichtigung; Check-in- und Start-Erinnerungen laufen automatisch.</p></div><Clock className="h-5 w-5 shrink-0 text-cyan-200" /></div><div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4"><label className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">Anmeldung endet<input type="datetime-local" value={tournamentSchedule.registrationClosesAt} onChange={event => setTournamentSchedule(current => current ? { ...current, registrationClosesAt: event.target.value } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`} /></label><label className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">Check-in startet<input type="datetime-local" value={tournamentSchedule.checkInOpensAt} onChange={event => setTournamentSchedule(current => current ? { ...current, checkInOpensAt: event.target.value } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`} /></label><label className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">Check-in endet<input type="datetime-local" value={tournamentSchedule.checkInClosesAt} onChange={event => setTournamentSchedule(current => current ? { ...current, checkInClosesAt: event.target.value } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`} /></label><label className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">Turnierstart<input type="datetime-local" value={tournamentSchedule.startsAt} onChange={event => setTournamentSchedule(current => current ? { ...current, startsAt: event.target.value } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`} /></label></div><button onClick={() => void saveTournamentSchedule()} disabled={tournamentScheduleSaving} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-cyan-200 px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-[#071014] transition hover:bg-cyan-100 disabled:opacity-50"><Clock className="h-3.5 w-3.5" />{tournamentScheduleSaving ? 'Wird gespeichert …' : 'Zeitplan speichern'}</button></section>}
                 {selectedTournamentId && <div className="mt-7 rounded-[1.7rem] border border-white/10 bg-black/25 p-5"><div className="mb-4 flex items-center gap-2"><Swords className="h-5 w-5 text-amber-300" /><h3 className="font-black">Bracket & Ergebnisse</h3></div>{tournamentBracket.length === 0 ? <p className="text-sm text-zinc-500">Noch keine Paarungen – das Turnier kann ab zwei eingecheckten Teilnehmern starten. Freilose werden automatisch vergeben.</p> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{tournamentBracket.map(match => <div key={match.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-3"><div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500">RUNDE {match.round_number} · MATCH {match.match_number}</div><div className="flex items-center justify-between gap-3 text-sm"><span className={match.winner_id === match.player1_id ? 'font-black text-emerald-200' : 'text-zinc-300'}>{match.player1_username || 'Wird ermittelt'}</span>{match.status !== 'completed' && match.player1_id && <button onClick={() => void reportTournamentWinner(match.id, match.player1_id!)} className="text-[10px] font-black text-amber-300">SIEG</button>}</div><div className="my-2 h-px bg-white/10" /><div className="flex items-center justify-between gap-3 text-sm"><span className={match.winner_id === match.player2_id ? 'font-black text-emerald-200' : 'text-zinc-300'}>{match.player2_username || 'Wird ermittelt'}</span>{match.status !== 'completed' && match.player2_id && <button onClick={() => void reportTournamentWinner(match.id, match.player2_id!)} className="text-[10px] font-black text-amber-300">SIEG</button>}</div></div>)}</div>}</div>}
                 {selectedTournamentId && <div className="mt-5 grid gap-5 xl:grid-cols-[1.3fr_.7fr]"><div className="rounded-[1.7rem] border border-white/10 bg-black/25 p-5"><div className="flex items-center justify-between"><div><p className="text-[10px] font-black tracking-[.16em] text-cyan-300">ROSTER CONTROL</p><h3 className="mt-1 text-xl font-black">Teilnehmer & Warteliste</h3></div><span className="text-xs font-bold text-zinc-500">{tournamentParticipants.length} Einträge</span></div><input value={tournamentReason} onChange={e => setTournamentReason(e.target.value)} placeholder="Grund für Entfernung, Disqualifikation oder Absage" className={`${inputClassName} mt-4`} /><div className="mt-4 max-h-80 space-y-2 overflow-y-auto">{tournamentParticipants.map(participant => <div key={participant.user_id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[.03] p-3 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{participant.username}</p><p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{participant.status}{participant.waitlist_position ? ` · Position ${participant.waitlist_position}` : ''} · {participant.wins}W/{participant.losses}L</p></div>{!['removed','disqualified','withdrawn'].includes(participant.status) && <div className="flex flex-wrap gap-2">{participant.status === 'registered' && <button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'checkin')} className="rounded-lg border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-black text-emerald-200">CHECK-IN</button>}{tournaments.find(t => t.id === selectedTournamentId)?.status === 'completed' && <button onClick={() => void saveTournamentAwards(selectedTournamentId, participant.user_id)} className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1.5 text-[10px] font-black text-amber-200">GEWINNER</button>}<button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'remove')} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-black text-zinc-300">ENTFERNEN</button><button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'disqualify')} className="rounded-lg border border-red-300/20 bg-red-500/10 px-2.5 py-1.5 text-[10px] font-black text-red-200">DQ</button></div>}</div>)}</div></div><div className="space-y-4"><div className="rounded-[1.7rem] border border-amber-300/15 bg-amber-300/[.04] p-5"><p className="text-[10px] font-black tracking-[.16em] text-amber-300">PREISVERWALTUNG</p><input value={tournamentPrizeTitle} onChange={e => setTournamentPrizeTitle(e.target.value)} placeholder="Preis / Titel" className={`${inputClassName} mt-3`} /><textarea value={tournamentPrizeDetails} onChange={e => setTournamentPrizeDetails(e.target.value)} placeholder="Auszahlung und Details" className={`${inputClassName} mt-2 min-h-20`} /><button onClick={() => void saveTournamentAwards(selectedTournamentId)} className="mt-3 w-full rounded-xl bg-amber-300 px-3 py-2.5 text-xs font-black text-black">Preis speichern</button></div><button onClick={() => void cancelTournament(selectedTournamentId)} className="w-full rounded-2xl border border-red-300/25 bg-red-500/10 px-4 py-3 text-xs font-black text-red-200">TURNIER ABSAGEN & ALLE BENACHRICHTIGEN</button></div></div>}
               </section>
