@@ -38,7 +38,18 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { LiveSupportAdmin } from '@/components/live-support-admin';
+
+type AdminTab = 'overview' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'payouts' | 'logs' | 'flagged';
+type AdminNavigationItem = {
+  id: AdminTab;
+  label: string;
+  detail: string;
+  icon: LucideIcon;
+  badge: number | null;
+  tone: string;
+};
 
 type Profile = {
   id: string;
@@ -433,7 +444,7 @@ export default function AdminPanel() {
   const [tournamentPrizeDetails, setTournamentPrizeDetails] = useState('');
   const [tournamentSchedule, setTournamentSchedule] = useState<TournamentScheduleDraft | null>(null);
   const [tournamentScheduleSaving, setTournamentScheduleSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'payouts' | 'logs' | 'flagged'>('overview');
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
@@ -1266,7 +1277,7 @@ export default function AdminPanel() {
   const attentionCount = disputedMatches.length + urgentTickets + flaggedPlayers.length + fairnessRiskFlags.length + unassignedTickets;
   const activeTournamentCount = tournaments.filter((tournament) => tournament.status === 'registration' || tournament.status === 'live').length;
   const healthScore = Math.max(0, 100 - Math.min(100, (disputedMatches.length * 12) + (urgentTickets * 10) + (flaggedPlayers.length * 6) + (fairnessRiskFlags.length * 6) + (unassignedTickets * 5)));
-  const primaryAttentionSection: typeof activeTab = disputedMatches.length > 0
+  const primaryAttentionSection: AdminTab = disputedMatches.length > 0
     ? 'disputes'
     : flaggedPlayers.length > 0
       ? 'flagged'
@@ -1276,7 +1287,40 @@ export default function AdminPanel() {
           ? 'live'
           : 'overview';
 
-  const goToSection = (section: typeof activeTab) => {
+  const adminNavigationGroups: { label: string; items: AdminNavigationItem[] }[] = [
+    {
+      label: 'Leitstand',
+      items: [
+        { id: 'overview', label: 'Operations Deck', detail: 'Gesamtlage & Prioritäten', icon: Activity, badge: null, tone: 'text-emerald-200' },
+        { id: 'live', label: 'Live Arena', detail: 'Laufende Matches', icon: Radar, badge: liveMatches.length || null, tone: 'text-cyan-200' },
+        { id: 'disputes', label: 'Entscheidungen', detail: 'Disputes & Ergebnisse', icon: Gavel, badge: disputedMatches.length || null, tone: 'text-amber-200' },
+      ],
+    },
+    {
+      label: 'Community',
+      items: [
+        { id: 'tickets', label: 'Support Queue', detail: unassignedTickets ? `${unassignedTickets} ohne Owner` : 'Tickets & Zuweisungen', icon: Headphones, badge: ticketsInQueue || null, tone: 'text-violet-200' },
+        { id: 'players', label: 'Spielerverwaltung', detail: `${profiles.length} Profile`, icon: Users, badge: null, tone: 'text-zinc-200' },
+        { id: 'flagged', label: 'Fairness Monitor', detail: 'Auffällige Accounts', icon: TriangleAlert, badge: flaggedPlayers.length || null, tone: 'text-orange-200' },
+      ],
+    },
+    {
+      label: 'Wettbewerb',
+      items: [
+        { id: 'tournaments', label: 'Cup Control', detail: 'Turniere & Brackets', icon: Trophy, badge: activeTournamentCount || null, tone: 'text-cyan-200' },
+        { id: 'payouts', label: 'Prize Desk', detail: `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen`, icon: Crown, badge: pendingPayouts.length || null, tone: 'text-lime-200' },
+      ],
+    },
+    {
+      label: 'Nachvollziehbarkeit',
+      items: [
+        { id: 'logs', label: 'Audit Trail', detail: 'Admin-Aktivitäten', icon: ClipboardList, badge: null, tone: 'text-zinc-400' },
+      ],
+    },
+  ];
+  const activeWorkspace = adminNavigationGroups.flatMap((group) => group.items).find((item) => item.id === activeTab);
+
+  const goToSection = (section: AdminTab) => {
     setActiveTab(section);
     setCommandCenterOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1364,43 +1408,49 @@ export default function AdminPanel() {
 
         <LiveSupportAdmin />
 
-        {/* ── Tab-Navigation ── */}
-        <div className="sticky top-3 z-30 mt-8 flex flex-wrap gap-2 rounded-[1.6rem] border border-white/10 bg-zinc-950/80 p-2 shadow-2xl shadow-black/30 backdrop-blur-2xl">
-          {([
-            { id: 'overview',  label: 'Übersicht',   icon: <Trophy className="h-4 w-4" />,         badge: null },
-            { id: 'disputes',  label: 'Disputes',    icon: <Gavel className="h-4 w-4" />,           badge: disputedMatches.length > 0 ? disputedMatches.length : null },
-            { id: 'live',      label: 'Live',        icon: <Swords className="h-4 w-4" />,          badge: liveMatches.length > 0 ? liveMatches.length : null },
-            { id: 'tournaments', label: 'Turniere',  icon: <Trophy className="h-4 w-4" />,          badge: tournaments.filter(t => t.status === 'registration' || t.status === 'live').length || null },
-            { id: 'players',   label: 'Spieler',     icon: <Users className="h-4 w-4" />,           badge: null },
-            { id: 'tickets',   label: 'Tickets',     icon: <Headphones className="h-4 w-4" />,      badge: tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length > 0 ? tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length : null },
-            { id: 'payouts',   label: 'Auszahlung',  icon: <ClipboardList className="h-4 w-4" />,   badge: pendingPayouts.length > 0 ? pendingPayouts.length : null },
-            { id: 'flagged',   label: 'Verdächtig',  icon: <TriangleAlert className="h-4 w-4" />,   badge: flaggedPlayers.length > 0 ? flaggedPlayers.length : null },
-            { id: 'logs',      label: 'Logs',        icon: <ClipboardList className="h-4 w-4" />,   badge: null },
-          ] as const).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-emerald-400/20 to-cyan-400/10 text-white shadow-[0_8px_25px_rgba(34,197,94,0.10)]'
-                  : 'text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-100'
-              }`}
-            >
-              {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
-              {tab.badge !== null && (
-                <span className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
-                  activeTab === tab.id ? 'bg-emerald-400/30 text-emerald-200' : 'bg-white/10 text-zinc-300'
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <div className="relative mt-8 grid gap-6 lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:items-start">
+          <aside className="lg:sticky lg:top-5">
+            <div className="overflow-hidden rounded-[1.9rem] border border-white/10 bg-[#090d13]/90 shadow-[0_25px_70px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
+              <div className="border-b border-white/10 bg-gradient-to-br from-cyan-400/[0.12] via-[#0b1017] to-transparent px-5 py-5">
+                <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-400/10 text-cyan-100"><Command className="h-4 w-4" /></div><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200">Admin shift</p><p className="mt-0.5 text-sm font-black text-white">Control surfaces</p></div></div>
+                <p className="mt-4 text-xs leading-5 text-zinc-500">Prioritäten zuerst bearbeiten. Jede Aktion bleibt im Audit Trail nachvollziehbar.</p>
+              </div>
 
-        {/* ── Tab-Inhalte ── */}
-        <div className="mt-6">
+              <nav className="space-y-5 p-3" aria-label="Admin-Bereiche">
+                {adminNavigationGroups.map((group) => (
+                  <div key={group.label}>
+                    <p className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">{group.label}</p>
+                    <div className="space-y-1">
+                      {group.items.map((item) => {
+                        const ItemIcon = item.icon;
+                        const isActive = activeTab === item.id;
+                        return (
+                          <button key={item.id} onClick={() => goToSection(item.id)} className={`group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${isActive ? 'bg-gradient-to-r from-emerald-400/20 via-emerald-400/[0.09] to-transparent text-white shadow-[0_8px_24px_rgba(34,197,94,0.08)]' : 'text-zinc-400 hover:bg-white/[0.055] hover:text-zinc-100'}`}>
+                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition ${isActive ? 'border-emerald-300/25 bg-emerald-300 text-black' : 'border-white/8 bg-white/[0.035] ' + item.tone}`}><ItemIcon className="h-4 w-4" /></span>
+                            <span className="min-w-0 flex-1"><span className="block text-sm font-black tracking-[-0.02em]">{item.label}</span><span className="mt-0.5 block truncate text-[10px] font-semibold text-zinc-600 group-hover:text-zinc-400">{item.detail}</span></span>
+                            {item.badge !== null && <span className={`grid h-6 min-w-6 place-items-center rounded-lg px-1.5 text-[10px] font-black ${isActive ? 'bg-black/20 text-black' : 'bg-white/10 text-zinc-200'}`}>{item.badge}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </nav>
+
+              <div className="border-t border-white/10 bg-black/20 p-3">
+                <button onClick={() => setCommandCenterOpen(true)} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] px-3 py-3 text-left text-xs font-black text-zinc-200 transition hover:border-cyan-300/25 hover:bg-cyan-400/[0.08]"><span className="inline-flex items-center gap-2"><Command className="h-3.5 w-3.5 text-cyan-200" /> Command Center</span><span className="text-[10px] text-zinc-500">⌘K</span></button>
+              </div>
+            </div>
+          </aside>
+
+          <section className="min-w-0">
+            <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-5">
+              <div><p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" /> Admin workspace / live</p><h2 className="mt-2 text-3xl font-black tracking-[-0.06em] text-white sm:text-4xl">{activeWorkspace?.label ?? 'Operations Deck'}</h2><p className="mt-1 text-sm text-zinc-500">{activeWorkspace?.detail ?? 'Systemlage und tägliche Prioritäten.'}</p></div>
+              <button onClick={() => void refreshAdminData()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-2.5 text-xs font-black text-zinc-200 transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.08]"><RefreshCw className="h-3.5 w-3.5 text-emerald-200" /> Daten aktualisieren</button>
+            </header>
+
+            {/* ── Tab-Inhalte ── */}
+            <div>
           {activeTab === 'overview' && (
             <div>
               {actionMessage && (
@@ -2530,6 +2580,8 @@ export default function AdminPanel() {
 
             </div>
           )}
+            </div>
+          </section>
         </div>
       </div>
     </main>
