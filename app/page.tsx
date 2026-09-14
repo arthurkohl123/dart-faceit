@@ -6,6 +6,7 @@ import { ArrowUpRight, ChevronRight, CircleDot, Menu, MessageCircle, Swords, Tro
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { ResultRoomPreview } from '@/components/ResultRoomPreview';
+import { WednesdayShowdownPromo } from '@/components/WednesdayShowdownPromo';
 import { getRankRangeLabel, RANK_TIERS } from '@/lib/ranks';
 
 type CommunityStats = { players: number; matches: number; cups: number; liveCups: number; };
@@ -94,6 +95,8 @@ export default function Home() {
       </section>
 
       <section className="border-y border-white/10 bg-[#0d1110]"><div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-y divide-white/10 md:grid-cols-4 md:divide-y-0">{stats.map(([value, label]) => <div key={label} className="px-5 py-6 md:px-8 md:py-8"><div className="text-3xl font-black tracking-[-.06em] text-white md:text-4xl">{value}</div><div className="mt-1 text-xs font-bold uppercase tracking-[.12em] text-zinc-500">{label}</div></div>)}</div></section>
+
+      <WednesdayShowdownPromo />
 
       <section className="mx-auto max-w-7xl px-5 pt-20 md:px-8 md:pt-28">
         <div className="grid overflow-hidden border border-white/15 bg-[#0d1110] md:grid-cols-[1.15fr_.85fr]">

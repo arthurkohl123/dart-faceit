@@ -27,6 +27,11 @@ type ShowdownPlayer = {
   elo: number;
 };
 
+type ShowdownRecapPlayer = ShowdownPlayer & {
+  period_start: string;
+  period_end: string;
+};
+
 type ShowdownConfig = {
   description: string;
   prize_first: string;
@@ -57,22 +62,25 @@ export default function ShowdownPage() {
   const [status, setStatus] = useState<ShowdownStatus | null>(null);
   const [config, setConfig] = useState<ShowdownConfig>(defaultConfig);
   const [players, setPlayers] = useState<ShowdownPlayer[]>([]);
+  const [recapPlayers, setRecapPlayers] = useState<ShowdownRecapPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const [statusResult, leaderboardResult, configResult] = await Promise.all([
+      const [statusResult, leaderboardResult, configResult, recapResult] = await Promise.all([
         supabase.rpc('get_wednesday_showdown_status'),
         supabase.rpc('get_wednesday_showdown_leaderboard'),
         supabase.rpc('get_wednesday_showdown_public_config'),
+        supabase.rpc('get_wednesday_showdown_recap'),
       ]);
 
       if (!mounted) return;
       const nextStatus = (statusResult.data?.[0] ?? null) as ShowdownStatus | null;
       setStatus(nextStatus);
       setPlayers((leaderboardResult.data ?? []) as ShowdownPlayer[]);
+      setRecapPlayers((recapResult.data ?? []) as ShowdownRecapPlayer[]);
       setConfig((configResult.data?.[0] ?? defaultConfig) as ShowdownConfig);
       setLoading(false);
     };
@@ -135,6 +143,8 @@ export default function ShowdownPage() {
         </section>
 
         <section className="mt-10 grid gap-4 md:grid-cols-3"><div className="border border-amber-300/20 bg-amber-300/[.06] p-5"><Crown className="h-5 w-5 text-amber-200" /><p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-amber-200">1. Platz</p><p className="mt-2 text-2xl font-black">{config.prize_first}</p></div><div className="border border-violet-300/20 bg-violet-400/[.06] p-5"><Users className="h-5 w-5 text-violet-200" /><p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-violet-200">2. Platz</p><p className="mt-2 text-2xl font-black">{config.prize_second}</p></div><div className="border border-emerald-300/20 bg-emerald-400/[.06] p-5"><Zap className="h-5 w-5 text-emerald-200" /><p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-emerald-200">3. Platz</p><p className="mt-2 text-2xl font-black">{config.prize_third}</p></div></section>
+
+        {recapPlayers.length > 0 && <section className="mt-10 border border-white/15 bg-[#0d1110]"><div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.18em] text-amber-200"><Trophy className="h-4 w-4" /> Letzter Showdown · Rückblick</p><p className="mt-1 text-sm text-zinc-500">{formatEventTime(recapPlayers[0].period_start)}–{formatClock(recapPlayers[0].period_end)} Uhr · Die Top 3 der letzten abgeschlossenen Wertung</p></div><span className="border border-amber-300/25 bg-amber-300/[.07] px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-amber-100">Sieger der Woche</span></div><div className="grid divide-y divide-white/10 md:grid-cols-3 md:divide-x md:divide-y-0">{recapPlayers.map((player, index) => <Link key={player.user_id} href={`/players/${encodeURIComponent(player.username)}`} className="group p-6 transition hover:bg-white/[.025]"><div className="flex items-center justify-between"><span className="grid h-9 w-9 place-items-center bg-amber-300 text-lg text-black">{medals[index]}</span><span className="text-xs font-black text-zinc-500">{player.wins} Siege</span></div><p className="mt-5 truncate text-xl font-black group-hover:text-violet-200">{player.username}</p><p className="mt-2 text-sm text-zinc-400">{player.matches_played} Matches · {player.winrate.toFixed(1)}% Winrate · Ø {player.average?.toFixed(1) ?? '—'}</p></Link>)}</div></section>}
       </section>
     </main>
   );
