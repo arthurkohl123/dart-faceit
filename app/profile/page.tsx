@@ -10,7 +10,9 @@ import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
 import { PayoutAlert } from '@/components/payout-alert';
 import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
-import { ArrowUpRight, CheckCircle2, Flame, Headphones, Menu, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Flame, Headphones, Menu, MessageCircle, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
+
+const DISCORD_INVITE_URL = 'https://discord.gg/V6u29zEhp';
 
 type MatchData = {
   id: string | number;
@@ -132,6 +134,14 @@ export default function Profile() {
     } finally {
       setSavingPlatforms(false);
     }
+  };
+
+  const openPlatformSetup = () => {
+    setEditingPlatforms(true);
+    setPlatformSaveMsg(null);
+    window.setTimeout(() => {
+      document.getElementById('platforms')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
   };
 
   const elo = profile?.elo ?? 1000;
@@ -288,13 +298,86 @@ export default function Profile() {
 
             {/* CTA */}
             <button
-              onClick={() => router.push(phoneVerified ? '/matchmaking' : '/auth/verify-phone')}
+              onClick={() => {
+                if (!phoneVerified) {
+                  router.push('/auth/verify-phone');
+                  return;
+                }
+                if (!hasPlatform) {
+                  openPlatformSetup();
+                  return;
+                }
+                router.push('/matchmaking');
+              }}
               className="shrink-0 border border-emerald-300 bg-emerald-300 px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em] text-black transition hover:bg-emerald-200 sm:px-8 sm:py-4"
             >
-              {phoneVerified ? 'Match suchen' : 'Verifizieren'} <ArrowUpRight className="ml-2 inline-block h-4 w-4" />
+              {!phoneVerified ? 'Verifizieren' : hasPlatform ? 'Match suchen' : 'Plattform einrichten'} <ArrowUpRight className="ml-2 inline-block h-4 w-4" />
             </button>
           </div>
         </div>
+
+        {gamesPlayed === 0 && (
+          <section className="mt-5 overflow-hidden border border-indigo-300/20 bg-[#0d1110] shadow-[0_20px_50px_rgba(0,0,0,.2)]">
+            <div className="flex flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-indigo-400/[0.12] via-[#0d1110] to-emerald-400/[0.07] px-6 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-8">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-200">Dein erster Run</div>
+                <h2 className="mt-2 text-2xl font-black tracking-[-0.045em] text-white sm:text-3xl">In wenigen Schritten startklar.</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Verbinde dein Scoring-System, finde dein erstes Ranked-Match und entdecke die Community rund um RankedDarts.</p>
+              </div>
+              {!phoneVerified && (
+                <Link href="/auth/verify-phone" className="inline-flex w-fit shrink-0 items-center gap-2 border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] text-amber-100 transition hover:bg-amber-300/20">
+                  <ShieldCheck className="h-4 w-4" /> Ranked freischalten
+                </Link>
+              )}
+            </div>
+
+            <div className="grid divide-y divide-white/10 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+              <button onClick={openPlatformSetup} className="group p-6 text-left transition hover:bg-white/[0.035] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="grid h-9 w-9 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-sm font-black text-emerald-100">01</span>
+                  {hasPlatform ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Target className="h-5 w-5 text-zinc-500 transition group-hover:text-emerald-200" />}
+                </div>
+                <h3 className="mt-7 text-lg font-black tracking-[-0.035em] text-white">Plattform verbinden</h3>
+                <p className="mt-2 min-h-10 text-sm leading-5 text-zinc-400">Scolia, DartCounter oder AutoDarts hinterlegen.</p>
+                <span className={`mt-5 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] ${hasPlatform ? 'text-emerald-200' : 'text-zinc-300 group-hover:text-white'}`}>
+                  {hasPlatform ? 'Erledigt' : 'Jetzt einrichten'} <ArrowUpRight className="h-3.5 w-3.5" />
+                </span>
+              </button>
+
+              <Link href={queueReady ? '/matchmaking' : '#platforms'} className="group p-6 transition hover:bg-white/[0.035] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="grid h-9 w-9 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-sm font-black text-emerald-100">02</span>
+                  {queueReady ? <Zap className="h-5 w-5 text-emerald-300" /> : <ShieldCheck className="h-5 w-5 text-zinc-500 transition group-hover:text-emerald-200" />}
+                </div>
+                <h3 className="mt-7 text-lg font-black tracking-[-0.035em] text-white">Erstes Match finden</h3>
+                <p className="mt-2 min-h-10 text-sm leading-5 text-zinc-400">{queueReady ? 'Du bist bereit für die Ranked-Queue.' : 'Noch Plattform und Verifizierung abschließen.'}</p>
+                <span className={`mt-5 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] ${queueReady ? 'text-emerald-200' : 'text-zinc-300 group-hover:text-white'}`}>
+                  {queueReady ? 'Queue öffnen' : 'Voraussetzungen ansehen'} <ArrowUpRight className="h-3.5 w-3.5" />
+                </span>
+              </Link>
+
+              <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="group p-6 transition hover:bg-white/[0.035] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="grid h-9 w-9 place-items-center border border-indigo-300/25 bg-indigo-400/10 text-sm font-black text-indigo-100">03</span>
+                  <MessageCircle className="h-5 w-5 text-indigo-200 transition group-hover:text-white" />
+                </div>
+                <h3 className="mt-7 text-lg font-black tracking-[-0.035em] text-white">Community beitreten</h3>
+                <p className="mt-2 min-h-10 text-sm leading-5 text-zinc-400">Finde Gegner, Updates und Hilfe auf unserem Discord.</p>
+                <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] text-indigo-200 group-hover:text-white">Discord öffnen <ArrowUpRight className="h-3.5 w-3.5" /></span>
+              </a>
+
+              <Link href="/tournaments" className="group p-6 transition hover:bg-white/[0.035] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="grid h-9 w-9 place-items-center border border-yellow-300/25 bg-yellow-400/10 text-sm font-black text-yellow-100">04</span>
+                  <Trophy className="h-5 w-5 text-yellow-200 transition group-hover:text-yellow-100" />
+                </div>
+                <h3 className="mt-7 text-lg font-black tracking-[-0.035em] text-white">Turniere entdecken</h3>
+                <p className="mt-2 min-h-10 text-sm leading-5 text-zinc-400">Melde dich für kommende Cups und K.-o.-Events an.</p>
+                <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] text-yellow-200 group-hover:text-white">Zu den Turnieren <ArrowUpRight className="h-3.5 w-3.5" /></span>
+              </Link>
+            </div>
+          </section>
+        )}
 
         {/* ── Stats-Grid ──────────────────────────────────────────────────── */}
         <div className="mt-5 grid gap-4 grid-cols-2 sm:grid-cols-4">
