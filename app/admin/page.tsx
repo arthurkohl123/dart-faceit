@@ -352,12 +352,12 @@ const emptyForm: ResolveFormState = {
 };
 
 const inputClassName =
-  'w-full rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.075]';
+  'w-full border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-orange-300/60 focus:bg-white/[0.075]';
 
 const selectOptionClassName = 'bg-zinc-950 text-zinc-50';
 
 const statCardClassName =
-  'relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/20 backdrop-blur-xl';
+  'relative overflow-hidden border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/20 backdrop-blur-xl';
 
 function toOptionalNumber(value: string) {
   const trimmed = value.trim();
@@ -1367,13 +1367,12 @@ export default function AdminPanel() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+    <main className="faceit-admin relative min-h-screen overflow-hidden bg-[#121212] text-white">
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(34,197,94,0.24),transparent_32%),radial-gradient(circle_at_88%_10%,rgba(6,182,212,0.14),transparent_30%),radial-gradient(circle_at_50%_74%,rgba(163,230,53,0.1),transparent_36%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_84%)]" />
-        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_0%,rgba(255,85,0,0.12),transparent_27%),linear-gradient(180deg,#151515_0%,#101010_100%)]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-[1600px] px-4 py-5 sm:px-7 sm:py-8 lg:px-10">
+      <div className="relative z-10 mx-auto max-w-[1780px] px-0 py-0">
         {commandCenterOpen && (
           <div className="fixed inset-0 z-50 grid place-items-start bg-[#020304]/85 px-4 py-16 backdrop-blur-xl sm:place-items-center">
             <section className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/15 bg-[#0d1117] shadow-[0_30px_120px_rgba(0,0,0,0.75)]">
@@ -1389,7 +1388,19 @@ export default function AdminPanel() {
           </div>
         )}
 
-        <section className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#090d13]/95 shadow-[0_35px_120px_rgba(0,0,0,0.55)]">
+        <header className="faceit-admin-topbar">
+          <button onClick={() => router.push('/')} className="faceit-admin-brand" aria-label="Zur RankedDarts Startseite">
+            <span className="faceit-admin-mark">RD</span>
+            <span><strong>RANKEDDARTS</strong><small>ADMIN CONSOLE</small></span>
+          </button>
+          <div className="faceit-admin-topbar-status">
+            <span className="faceit-admin-presence"><i /> Sync {autoRefresh ? 'aktiv' : 'pausiert'}</span>
+            <button onClick={() => setAutoRefresh((enabled) => !enabled)} className="faceit-admin-quiet-button">{autoRefresh ? 'Pausieren' : 'Aktivieren'}</button>
+            <button onClick={() => setCommandCenterOpen(true)} className="faceit-admin-command-button"><Command className="h-3.5 w-3.5" /> Aktionen <kbd>⌘K</kbd></button>
+          </div>
+        </header>
+
+        <section className="faceit-legacy-hero relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#090d13]/95 shadow-[0_35px_120px_rgba(0,0,0,0.55)]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(16,185,129,0.21),transparent_31%),radial-gradient(circle_at_88%_15%,rgba(34,211,238,0.16),transparent_28%),linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.025)_48%,transparent_75%)]" />
           <div className="relative border-b border-white/10 px-5 py-4 sm:px-7">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1405,9 +1416,9 @@ export default function AdminPanel() {
           <div className="relative grid border-t border-white/10 bg-black/20 sm:grid-cols-3"><button onClick={() => goToSection('flagged')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-orange-400/[0.06] sm:border-b-0 sm:border-r"><TriangleAlert className="h-4 w-4 text-orange-300" /><span><span className="block text-xs font-black text-white">Fairness monitor</span><span className="text-[11px] text-zinc-500">{flaggedPlayers.length ? `${flaggedPlayers.length} Accounts brauchen Prüfung` : 'Keine auffälligen Signale'}</span></span></button><button onClick={() => goToSection('tickets')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-violet-400/[0.06] sm:border-b-0 sm:border-r"><MessageCircle className="h-4 w-4 text-violet-300" /><span><span className="block text-xs font-black text-white">Support routing</span><span className="text-[11px] text-zinc-500">{unassignedTickets ? `${unassignedTickets} Tickets nicht zugewiesen` : 'Jedes Ticket hat einen Owner'}</span></span></button><button onClick={exportOperationsSnapshot} className="flex items-center gap-3 px-5 py-4 text-left transition hover:bg-emerald-400/[0.06]"><Download className="h-4 w-4 text-emerald-300" /><span><span className="block text-xs font-black text-white">Operations snapshot</span><span className="text-[11px] text-zinc-500">CSV-Bericht für deinen Team-Stand</span></span></button></div>
         </section>
 
-        <div className="relative mt-8 grid gap-6 lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:items-start">
-          <aside className="lg:sticky lg:top-5">
-            <div className="overflow-hidden rounded-[1.9rem] border border-white/10 bg-[#090d13]/90 shadow-[0_25px_70px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
+        <div className="faceit-admin-layout relative grid lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:items-start">
+          <aside className="faceit-admin-sidebar lg:sticky lg:top-0">
+            <div className="overflow-hidden border border-white/10 bg-[#090d13]/90 shadow-[0_25px_70px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
               <div className="border-b border-white/10 bg-gradient-to-br from-cyan-400/[0.12] via-[#0b1017] to-transparent px-5 py-5">
                 <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-400/10 text-cyan-100"><Command className="h-4 w-4" /></div><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200">Admin shift</p><p className="mt-0.5 text-sm font-black text-white">Control surfaces</p></div></div>
                 <p className="mt-4 text-xs leading-5 text-zinc-500">Prioritäten zuerst bearbeiten. Jede Aktion bleibt im Audit Trail nachvollziehbar.</p>
@@ -1441,8 +1452,8 @@ export default function AdminPanel() {
             </div>
           </aside>
 
-          <section className="min-w-0">
-            <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-5">
+          <section className="faceit-admin-workspace min-w-0">
+            <header className="faceit-admin-workspace-header mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-5">
               <div><p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" /> Admin workspace / live</p><h2 className="mt-2 text-3xl font-black tracking-[-0.06em] text-white sm:text-4xl">{activeWorkspace?.label ?? 'Operations Deck'}</h2><p className="mt-1 text-sm text-zinc-500">{activeWorkspace?.detail ?? 'Systemlage und tägliche Prioritäten.'}</p></div>
               <button onClick={() => void refreshAdminData()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-2.5 text-xs font-black text-zinc-200 transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.08]"><RefreshCw className="h-3.5 w-3.5 text-emerald-200" /> Daten aktualisieren</button>
             </header>

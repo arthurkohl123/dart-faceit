@@ -43,3 +43,145 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
+
+/* Admin console: a dense, app-like workspace intentionally separated from the public site. */
+.faceit-admin {
+  --ops-orange: #ff5a1f;
+  --ops-orange-soft: rgba(255, 90, 31, .14);
+  --ops-panel: #1a1a1a;
+  --ops-panel-raised: #222222;
+  --ops-line: rgba(255, 255, 255, .09);
+  --ops-muted: #8f8f8f;
+  background: #121212;
+}
+
+.faceit-admin [class*="rounded-"] { border-radius: 3px !important; }
+
+.faceit-admin-topbar {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--ops-line);
+  background: rgba(18, 18, 18, .96);
+  padding: 0 24px;
+}
+
+.faceit-admin-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: #fff;
+  text-align: left;
+}
+
+.faceit-admin-brand strong,
+.faceit-admin-brand small { display: block; }
+.faceit-admin-brand strong { font-size: 12px; font-weight: 800; letter-spacing: .055em; }
+.faceit-admin-brand small { margin-top: 2px; color: #777; font-size: 8px; font-weight: 700; letter-spacing: .17em; }
+
+.faceit-admin-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  background: var(--ops-orange);
+  color: #151515;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: -.08em;
+}
+
+.faceit-admin-topbar-status { display: flex; align-items: center; gap: 8px; }
+.faceit-admin-presence { display: inline-flex; align-items: center; gap: 7px; color: #a7a7a7; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; }
+.faceit-admin-presence i { width: 6px; height: 6px; border-radius: 99px; background: #69d3a1; box-shadow: 0 0 10px rgba(105,211,161,.6); }
+
+.faceit-admin-quiet-button,
+.faceit-admin-command-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #3a3a3a;
+  background: #1f1f1f;
+  color: #ddd;
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  transition: .15s ease;
+}
+
+.faceit-admin-command-button { border-color: var(--ops-orange); background: var(--ops-orange); color: #161616; }
+.faceit-admin-command-button:hover { background: #ff7544; }
+.faceit-admin-quiet-button:hover { border-color: #777; background: #292929; }
+.faceit-admin-command-button kbd { border: 1px solid rgba(0,0,0,.25); padding: 1px 3px; font-size: 9px; }
+
+.faceit-legacy-hero { display: none; }
+
+.faceit-admin-layout {
+  min-height: calc(100vh - 68px);
+  gap: 0;
+  background: #151515;
+}
+
+.faceit-admin-sidebar { align-self: stretch; background: #191919; }
+.faceit-admin-sidebar > div { min-height: calc(100vh - 68px); border-width: 0 1px 0 0 !important; border-color: var(--ops-line) !important; box-shadow: none !important; }
+.faceit-admin-sidebar [class*="rounded-"] { border-radius: 0 !important; }
+.faceit-admin-sidebar [class*="bg-gradient"] { background: #202020 !important; }
+.faceit-admin-sidebar [class*="from-cyan"],
+.faceit-admin-sidebar [class*="bg-black"] { background: #181818 !important; }
+.faceit-admin-sidebar nav { padding: 18px 12px !important; }
+.faceit-admin-sidebar nav > div { margin-bottom: 20px; }
+.faceit-admin-sidebar nav > div > p { color: #737373 !important; font-size: 9px !important; letter-spacing: .16em !important; }
+.faceit-admin-sidebar nav button { border-left: 2px solid transparent; border-radius: 0 !important; padding: 9px 10px !important; }
+.faceit-admin-sidebar nav button[class*="bg-gradient"] { border-left-color: var(--ops-orange); background: #29211e !important; box-shadow: none !important; }
+.faceit-admin-sidebar nav button[class*="bg-gradient"] [class*="bg-emerald"] { background: var(--ops-orange) !important; border-color: var(--ops-orange) !important; color: #151515 !important; }
+.faceit-admin-sidebar nav button:hover { background: #242424 !important; }
+.faceit-admin-sidebar nav button [class*="rounded"] { background: #252525 !important; border-color: #343434 !important; }
+.faceit-admin-sidebar nav button [class*="text-emerald"] { color: #ff9b79 !important; }
+.faceit-admin-sidebar nav button [class*="text-cyan"] { color: #9db9e7 !important; }
+.faceit-admin-sidebar nav button [class*="text-violet"] { color: #bca9e4 !important; }
+.faceit-admin-sidebar nav button [class*="text-amber"] { color: #e9bd73 !important; }
+.faceit-admin-sidebar nav button [class*="text-orange"] { color: #f38c73 !important; }
+.faceit-admin-sidebar > div > div:last-child { background: #151515 !important; border-color: var(--ops-line) !important; }
+.faceit-admin-sidebar > div > div:last-child button:first-child { border-color: #583b30 !important; background: #261e1b !important; color: #f0b9a5 !important; }
+
+.faceit-admin-workspace { padding: 30px 36px 52px; background: #151515; }
+.faceit-admin-workspace-header { border-color: var(--ops-line) !important; padding-bottom: 20px !important; }
+.faceit-admin-workspace-header p[class*="text-emerald"] { color: #ff936e !important; }
+.faceit-admin-workspace-header h2 { font-size: 28px !important; font-weight: 750 !important; letter-spacing: -.045em !important; }
+.faceit-admin-workspace-header button { border-radius: 3px !important; border-color: #3a3a3a !important; background: #202020 !important; box-shadow: none !important; }
+.faceit-admin-workspace-header button:hover { border-color: var(--ops-orange) !important; background: #29211e !important; }
+.faceit-admin-workspace-header button [class*="text-emerald"] { color: #ff936e !important; }
+
+.faceit-admin .shadow-2xl,
+.faceit-admin [class*="shadow-"] { box-shadow: none !important; }
+.faceit-admin [class*="backdrop-blur"] { backdrop-filter: none !important; }
+.faceit-admin .bg-zinc-950\/75,
+.faceit-admin .bg-zinc-950\/78 { background: #1c1c1c !important; }
+.faceit-admin .bg-white\/\[0\.035\],
+.faceit-admin .bg-white\/\[0\.04\],
+.faceit-admin .bg-white\/\[0\.045\] { background: #202020 !important; }
+.faceit-admin [class*="border-white"] { border-color: var(--ops-line) !important; }
+.faceit-admin input,
+.faceit-admin textarea,
+.faceit-admin select { border-radius: 3px !important; background: #171717 !important; }
+.faceit-admin input:focus,
+.faceit-admin textarea:focus,
+.faceit-admin select:focus { border-color: var(--ops-orange) !important; }
+.faceit-admin .bg-emerald-300 { background: var(--ops-orange) !important; }
+.faceit-admin .text-emerald-300 { color: #ff936e !important; }
+
+@media (max-width: 1023px) {
+  .faceit-admin-sidebar > div { min-height: auto; border-width: 0 0 1px !important; }
+  .faceit-admin-workspace { padding: 24px 18px 40px; }
+}
+
+@media (max-width: 640px) {
+  .faceit-admin-topbar { min-height: 60px; padding: 0 14px; }
+  .faceit-admin-presence,
+  .faceit-admin-quiet-button,
+  .faceit-admin-command-button kbd { display: none; }
+  .faceit-admin-command-button { padding: 8px; }
+}
