@@ -185,3 +185,93 @@ body {
   .faceit-admin-command-button kbd { display: none; }
   .faceit-admin-command-button { padding: 8px; }
 }
+
+/* Developer surface follows the same console layout, with a calmer technical blue accent. */
+.developer-console {
+  --dev-blue: #6b92e9;
+  --dev-blue-soft: rgba(107, 146, 233, .13);
+  --dev-line: rgba(255, 255, 255, .09);
+  background: #121212;
+}
+
+.developer-console [class*="rounded-"] { border-radius: 3px !important; }
+.developer-console-topbar {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--dev-line);
+  background: rgba(18, 18, 18, .96);
+  padding: 0 24px;
+}
+
+.developer-console-brand { display: inline-flex; align-items: center; gap: 11px; color: #fff; text-align: left; }
+.developer-console-brand strong,
+.developer-console-brand small { display: block; }
+.developer-console-brand strong { font-size: 12px; font-weight: 800; letter-spacing: .055em; }
+.developer-console-brand small { margin-top: 2px; color: #777; font-size: 8px; font-weight: 700; letter-spacing: .17em; }
+.developer-console-mark { display: grid; width: 32px; height: 32px; place-items: center; background: var(--dev-blue); color: #101216; font-size: 10px; font-weight: 900; letter-spacing: -.08em; }
+.developer-console-topbar-actions { display: flex; align-items: center; gap: 8px; }
+.developer-console-sync { display: inline-flex; align-items: center; gap: 7px; color: #a7a7a7; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; }
+.developer-console-sync i { width: 6px; height: 6px; border-radius: 999px; background: #6b7373; }
+.developer-console-sync.is-live i { background: #76cfa4; box-shadow: 0 0 10px rgba(118,207,164,.65); }
+.developer-console-quiet-button,
+.developer-console-primary-button,
+.developer-console-admin-link { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #3a3a3a; background: #1f1f1f; color: #ddd; padding: 8px 10px; font-size: 10px; font-weight: 700; letter-spacing: .04em; transition: .15s ease; }
+.developer-console-primary-button { border-color: var(--dev-blue); background: var(--dev-blue); color: #111318; }
+.developer-console-primary-button:hover { background: #87a8f0; }
+.developer-console-quiet-button:hover,
+.developer-console-admin-link:hover { border-color: #777; background: #292929; }
+
+.developer-console-legacy-hero { display: none; }
+.developer-console-metrics { border-bottom: 1px solid var(--dev-line); background: #171717; }
+.developer-console-metrics > div { min-height: 138px; border-right: 1px solid var(--dev-line); border-bottom: 0 !important; background: transparent !important; padding: 24px !important; }
+.developer-console-metrics > div:last-child { border-right: 0; }
+.developer-console-metrics > div:hover { background: #1d1d1d !important; }
+.developer-console-metrics [class*="text-emerald"] { color: #77d3ad !important; }
+.developer-console-metrics [class*="text-cyan"] { color: var(--dev-blue) !important; }
+.developer-console-metrics [class*="text-violet"] { color: #b6a2e5 !important; }
+.developer-console-status { border-width: 0 0 1px !important; border-color: var(--dev-line) !important; background: #141414 !important; border-radius: 0 !important; }
+.developer-console-status [class*="rounded"] { border-radius: 2px !important; }
+
+.developer-console-tabs { border-width: 0 0 1px !important; border-color: var(--dev-line) !important; background: #181818 !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 24px !important; }
+.developer-console-tabs > div { gap: 0 !important; }
+.developer-console-tabs button { position: relative; border-radius: 0 !important; padding: 15px 17px !important; color: #8e8e8e !important; }
+.developer-console-tabs button[class*="bg-cyan"] { background: transparent !important; color: #eff3ff !important; box-shadow: none !important; }
+.developer-console-tabs button[class*="bg-cyan"]::after { position: absolute; right: 12px; bottom: 0; left: 12px; height: 2px; background: var(--dev-blue); content: ''; }
+.developer-console-tabs button:hover { background: #222 !important; color: #eee !important; }
+
+.developer-console-content > :not(.developer-console-topbar):not(.developer-console-legacy-hero):not(.developer-console-metrics):not(.developer-console-status):not(.developer-console-tabs) { margin-left: 36px; margin-right: 36px; }
+.developer-console [class*="shadow-"] { box-shadow: none !important; }
+.developer-console [class*="backdrop-blur"] { backdrop-filter: none !important; }
+.developer-console [class*="border-white"] { border-color: var(--dev-line) !important; }
+.developer-console .bg-white\/\[0\.04\],
+.developer-console .bg-white\/\[0\.05\] { background: #202020 !important; }
+.developer-console .bg-black\/20,
+.developer-console .bg-black\/25,
+.developer-console .bg-black\/30 { background: #171717 !important; }
+.developer-console [class*="bg-emerald"] { background-color: rgba(73, 142, 113, .13); }
+.developer-console input,
+.developer-console textarea,
+.developer-console select { border-radius: 3px !important; background: #151515 !important; }
+.developer-console input:focus,
+.developer-console textarea:focus,
+.developer-console select:focus { border-color: var(--dev-blue) !important; }
+.developer-console button[class*="bg-white"] { background: var(--dev-blue) !important; color: #111318 !important; }
+
+@media (max-width: 1023px) {
+  .developer-console-content > :not(.developer-console-topbar):not(.developer-console-legacy-hero):not(.developer-console-metrics):not(.developer-console-status):not(.developer-console-tabs) { margin-left: 18px; margin-right: 18px; }
+}
+
+@media (max-width: 640px) {
+  .developer-console-topbar { min-height: 60px; padding: 0 14px; }
+  .developer-console-sync,
+  .developer-console-quiet-button,
+  .developer-console-admin-link { display: none; }
+  .developer-console-primary-button { padding: 8px; }
+  .developer-console-primary-button svg { display: none; }
+  .developer-console-tabs { padding: 0 8px !important; }
+  .developer-console-tabs button { padding: 13px 12px !important; font-size: 12px !important; }
+  .developer-console-metrics > div { min-height: 112px; padding: 17px !important; }
+}

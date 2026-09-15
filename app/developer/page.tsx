@@ -441,10 +441,20 @@ export default function DeveloperDashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-[#050507] text-white">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.15),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(251,191,36,0.12),transparent_32%)]" />
-      <section className="relative mx-auto max-w-7xl px-6 py-10">
-        <div className="flex flex-col gap-6 border-b border-white/10 pb-8 lg:flex-row lg:items-end lg:justify-between">
+    <main className="developer-console min-h-screen bg-[#121212] text-white">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_82%_0%,rgba(67,117,229,0.11),transparent_30%),linear-gradient(180deg,#151515_0%,#101010_100%)]" />
+      <section className="developer-console-content relative mx-auto max-w-[1780px] px-0 py-0">
+        <header className="developer-console-topbar">
+          <Link href="/" className="developer-console-brand"><span className="developer-console-mark">RD</span><span><strong>RANKEDDARTS</strong><small>DEVELOPER CONSOLE</small></span></Link>
+          <div className="developer-console-topbar-actions">
+            <span className={`developer-console-sync ${autoRefresh ? 'is-live' : ''}`}><i /> Sync {autoRefresh ? 'aktiv' : 'pausiert'}</span>
+            <button type="button" onClick={() => setAutoRefresh((value) => !value)} className="developer-console-quiet-button">{autoRefresh ? 'Pausieren' : 'Aktivieren'}</button>
+            <button type="button" onClick={() => void loadDashboard()} className="developer-console-primary-button"><RefreshCcw className="h-3.5 w-3.5" /> Aktualisieren</button>
+            <Link href="/admin" className="developer-console-admin-link">Admin</Link>
+          </div>
+        </header>
+
+        <div className="developer-console-legacy-hero flex flex-col gap-6 border-b border-white/10 pb-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-cyan-200">
               <Shield className="h-4 w-4" /> Developer Control Center
@@ -478,7 +488,7 @@ export default function DeveloperDashboard() {
           </div>
         )}
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="developer-console-metrics mt-0 grid gap-0 md:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <Activity className="h-5 w-5 text-emerald-300" />
             <p className="mt-4 text-4xl font-black tracking-[-0.05em]">{stats.profiles ?? 0}</p>
@@ -506,7 +516,7 @@ export default function DeveloperDashboard() {
           </div>
         </div>
 
-        <section className="mt-6 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-black/20 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <section className="developer-console-status mt-0 flex flex-col gap-4 border border-white/10 bg-black/20 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className={`h-3 w-3 rounded-full ${maintenanceEnabled ? 'bg-amber-300' : !matchmakingEnabled || (stats.queue_locked_profiles ?? 0) > 0 ? 'bg-red-400' : 'bg-emerald-400'} ${autoRefresh ? 'animate-pulse' : ''}`} />
             <div>
@@ -521,7 +531,7 @@ export default function DeveloperDashboard() {
           </span>
         </section>
 
-        <nav aria-label="Bereiche im Developer-Tool" className="sticky top-3 z-20 mt-6 overflow-x-auto rounded-2xl border border-white/10 bg-[#0b0d0e]/95 p-2 shadow-2xl shadow-black/30 backdrop-blur">
+        <nav aria-label="Bereiche im Developer-Tool" className="developer-console-tabs sticky top-0 z-20 mt-0 overflow-x-auto border border-white/10 bg-[#0b0d0e]/95 p-2 shadow-2xl shadow-black/30 backdrop-blur">
           <div className="flex min-w-max gap-2">
             {([
               ['overview', 'Übersicht', Activity],
