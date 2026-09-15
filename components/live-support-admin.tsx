@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, Headphones, Loader2, Radio, Send, UserRound } from 'lucide-react';
+import { Check, Headphones, Loader2, MessageCircle, Send, UserRound, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
 type AgentState = { is_available: boolean; agents_online: number; waiting_count: number };
@@ -134,7 +134,7 @@ export function LiveSupportAdmin() {
   };
 
   if (!ready) {
-    return <section className="mt-5 border-2 border-[#141511] bg-[#f7f4ec] p-5 text-sm font-black uppercase tracking-[0.1em] text-[#141511] shadow-[6px_6px_0_#f6c453]"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> Verbindung zum Support-System wird hergestellt …</section>;
+    return <section className="mt-4 border border-[#304047] bg-[#10171b] px-5 py-4 text-xs font-medium tracking-[0.06em] text-[#aebfbb]"><Loader2 className="mr-2 inline h-4 w-4 animate-spin text-[#79d3c4]" /> Support-Verbindung wird aufgebaut …</section>;
   }
   if (!state) return null;
 
@@ -143,106 +143,60 @@ export function LiveSupportAdmin() {
   const active = conversations.filter((conversation) => conversation.status === 'active');
 
   return (
-    <section className="mt-5 border-2 border-[#141511] bg-[#f7f4ec] shadow-[8px_8px_0_#141511]">
-      <div className="grid border-b-2 border-[#141511] lg:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="p-5 sm:p-6">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center bg-[#e44c2e] text-white"><Radio className="h-5 w-5" /></span>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#e44c2e]">Desk status</p>
-              <h2 className="text-2xl font-black uppercase tracking-[-0.055em]">Operator Station</h2>
-            </div>
-          </div>
-          <p className="mt-4 max-w-xl text-sm leading-6 text-[#4b4a44]">Übernimm wartende Spieler, halte Gespräche am Laufen und bleib als Ansprechpartner sichtbar. Die Verfügbarkeit läuft im Hintergrund weiter.</p>
+    <section className="mt-4 overflow-hidden border border-[#304047] bg-[#10171b] shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
+      <div className="flex flex-col justify-between gap-4 border-b border-[#2c393f] px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+        <div className="flex items-center gap-3">
+          <span className={`h-2 w-2 rounded-full ${state.is_available ? 'bg-[#79d3c4] shadow-[0_0_14px_rgba(121,211,196,0.9)]' : 'bg-[#6d7b79]'}`} />
+          <div><p className="text-sm font-semibold text-[#e5eeeb]">Support channel</p><p className="mt-0.5 text-[11px] text-[#748581]">{state.is_available ? 'Du bist für neue Anfragen erreichbar' : 'Aktuell nicht für Spieler sichtbar'}</p></div>
         </div>
-        <div className="flex items-center border-t-2 border-[#141511] bg-[#ddd8cb] p-4 lg:border-l-2 lg:border-t-0 sm:p-5">
-          <button onClick={() => void setAvailability(!state.is_available)} disabled={busy} className={`w-full border-2 border-[#141511] px-5 py-3 text-left text-xs font-black uppercase tracking-[0.1em] transition disabled:cursor-not-allowed disabled:opacity-50 ${state.is_available ? 'bg-[#8cbf8d] text-[#141511] hover:bg-[#a7d4a8]' : 'bg-[#f7f4ec] text-[#141511] hover:bg-[#f6c453]'}`}>
-            <span className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${state.is_available ? 'bg-[#e44c2e] animate-pulse' : 'bg-[#74736c]'}`} />{state.is_available ? 'Support ist online' : 'Schicht starten'}</span><Headphones className="h-4 w-4" /></span>
-          </button>
-        </div>
+        <button onClick={() => void setAvailability(!state.is_available)} disabled={busy} className={`inline-flex min-w-48 items-center justify-center gap-2 border px-4 py-2.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${state.is_available ? 'border-[#3b6d66] bg-[#17302e] text-[#b7eee4] hover:border-[#79d3c4] hover:bg-[#1b3b37]' : 'border-[#3a494d] bg-[#172025] text-[#b2c0bd] hover:border-[#66847e] hover:bg-[#1d292e]'}`}><span className={`h-1.5 w-1.5 rounded-full ${state.is_available ? 'bg-[#79d3c4]' : 'bg-[#7e8e8b]'}`} />{state.is_available ? 'Verfügbarkeit beenden' : 'Für Support anmelden'}</button>
       </div>
 
-      <div className="grid grid-cols-3 border-b-2 border-[#141511] bg-[#141511] text-[#f7f4ec]">
-        <Metric value={state.waiting_count} label="Warten" accent="#f6c453" />
-        <Metric value={state.agents_online} label="Online" accent="#8cbf8d" bordered />
-        <Metric value={active.length} label="Offene Chats" accent="#e78a72" bordered />
+      <div className="grid grid-cols-3 border-b border-[#2c393f] bg-[#0d1316]">
+        <StatusMetric value={state.waiting_count} label="Wartend" tone="text-[#e6b36b]" />
+        <StatusMetric value={state.agents_online} label="Team online" tone="text-[#79d3c4]" divider />
+        <StatusMetric value={active.length} label="Aktive Chats" tone="text-[#9eb8e8]" divider />
       </div>
 
-      <div className="grid min-h-[31rem] lg:grid-cols-[20rem_minmax(0,1fr)]">
-        <aside className="border-b-2 border-[#141511] bg-[#ddd8cb] p-3 lg:border-b-0 lg:border-r-2">
-          <div className="flex items-center justify-between px-2 pb-3 pt-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#504e47]">Warteschlange</p>
-            <span className="border border-[#141511] bg-[#f6c453] px-1.5 py-0.5 text-[10px] font-black">{conversations.length}</span>
-          </div>
-          {conversations.length === 0 ? (
-            <div className="border border-dashed border-[#141511]/35 px-4 py-7 text-center text-sm font-bold text-[#5e5b53]">Der Eingang ist gerade leer.</div>
-          ) : (
-            <div className="space-y-2">
-              {conversations.map((conversation) => {
-                const isSelected = selectedId === conversation.conversation_id;
-                return (
-                  <button key={conversation.conversation_id} onClick={() => { if (conversation.status === 'active') setSelectedId(conversation.conversation_id); }} className={`w-full border border-[#141511] p-3 text-left transition ${isSelected ? 'bg-[#141511] text-[#f7f4ec] shadow-[3px_3px_0_#e44c2e]' : 'bg-[#f7f4ec] hover:-translate-y-0.5 hover:bg-white'}`}>
-                    <span className="flex items-start gap-2.5">
-                      <span className={`grid h-8 w-8 shrink-0 place-items-center border border-current ${conversation.status === 'waiting' ? 'bg-[#f6c453] text-[#141511]' : 'bg-[#e44c2e] text-white'}`}><UserRound className="h-4 w-4" /></span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-black">{conversation.requester_username}</span>{conversation.status === 'waiting' && <span className="bg-[#e44c2e] px-1.5 py-0.5 text-[9px] font-black text-white">NEU</span>}</span>
-                        <span className={`mt-1 block truncate text-[11px] ${isSelected ? 'text-[#f7f4ec]/60' : 'text-[#625f57]'}`}>{conversation.status === 'waiting' ? 'Wartet auf einen Operator' : conversation.last_message ?? 'Unterhaltung aktiv'}</span>
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+      <div className="grid min-h-[32rem] lg:grid-cols-[21rem_minmax(0,1fr)]">
+        <aside className="border-b border-[#2c393f] bg-[#0d1316] lg:border-b-0 lg:border-r">
+          <div className="flex items-center justify-between border-b border-[#253137] px-5 py-4"><div><p className="text-[10px] font-medium uppercase tracking-[0.15em] text-[#71817f]">Inbox</p><p className="mt-1 text-xs text-[#a1afac]">{conversations.length === 1 ? '1 Unterhaltung' : `${conversations.length} Unterhaltungen`}</p></div><MessageCircle className="h-4 w-4 text-[#657572]" /></div>
+          {conversations.length === 0 ? <div className="px-5 py-10 text-center text-sm leading-6 text-[#73817e]">Keine offenen Gespräche.<br />Der Support-Eingang ist ruhig.</div> : <div className="p-2">{conversations.map((conversation) => <ConversationRow key={conversation.conversation_id} conversation={conversation} selected={selectedId === conversation.conversation_id} onSelect={() => { if (conversation.status === 'active') setSelectedId(conversation.conversation_id); }} />)}</div>}
         </aside>
 
-        <section className="min-h-[31rem] bg-[#f7f4ec] p-4 sm:p-6">
-          {selected ? (
-            <div className="flex h-full min-h-[27rem] flex-col">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#141511] pb-4">
-                <div><p className="text-[10px] font-black uppercase tracking-[0.17em] text-[#e44c2e]">Aktive Unterhaltung</p><p className="mt-1 text-xl font-black tracking-[-0.04em]">{selected.requester_username}</p></div>
-                <button onClick={() => void close()} disabled={busy} className="border-2 border-[#141511] bg-[#f7f4ec] px-3 py-2 text-xs font-black uppercase tracking-[0.1em] transition hover:bg-[#e44c2e] hover:text-white disabled:opacity-50">Chat schließen</button>
-              </div>
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-5 pr-1">
-                {messages.length === 0 ? <EmptyConversation /> : messages.map((message) => <MessageBubble key={message.id} message={message} />)}
-              </div>
-              <form onSubmit={(event) => void send(event)} className="flex gap-2 border-t-2 border-[#141511] pt-4">
-                <textarea value={value} onChange={(event) => setValue(event.target.value)} maxLength={1500} rows={1} placeholder="Antwort an Spieler schreiben …" className="min-h-12 flex-1 resize-y border-2 border-[#141511] bg-white px-3 py-3 text-sm font-medium text-[#141511] outline-none placeholder:text-[#77736a] focus:bg-[#fff9df]" />
-                <button type="submit" disabled={!value.trim() || busy} className="grid h-12 w-12 shrink-0 place-items-center border-2 border-[#141511] bg-[#f6c453] text-[#141511] transition hover:bg-[#e44c2e] hover:text-white disabled:opacity-45"><Send className="h-4 w-4" /></button>
-              </form>
-            </div>
-          ) : waiting.length > 0 ? (
-            <div className="grid h-full place-items-center text-center"><div className="max-w-sm"><p className="text-3xl font-black uppercase tracking-[-0.06em]">Neue Anfrage</p><p className="mt-3 text-sm leading-6 text-[#5e5b53]">Ein Spieler wartet in der Warteschlange. Übernimm den Chat unten, sobald du bereit bist.</p></div></div>
-          ) : (
-            <div className="grid h-full place-items-center text-center"><div><Headphones className="mx-auto h-10 w-10 text-[#a19c90]" /><p className="mt-4 text-sm font-black uppercase tracking-[0.12em] text-[#747167]">Keine Unterhaltung ausgewählt</p></div></div>
-          )}
+        <section className="min-h-[32rem] bg-[#121a1e] p-4 sm:p-6">
+          {selected ? <ActiveConversation conversation={selected} messages={messages} value={value} busy={busy} setValue={setValue} close={close} send={send} /> : waiting.length > 0 ? <WaitingState count={waiting.length} /> : <EmptyState />}
         </section>
       </div>
 
-      {waiting.length > 0 && (
-        <div className="border-t-2 border-[#141511] bg-[#f6c453] p-4 sm:p-5">
-          <p className="mb-3 text-[10px] font-black uppercase tracking-[0.17em] text-[#5c4300]">Wartende Spieler übernehmen</p>
-          <div className="flex flex-wrap gap-2">
-            {waiting.map((conversation) => <button key={conversation.conversation_id} onClick={() => void accept(conversation.conversation_id)} disabled={!state.is_available || busy} className="inline-flex items-center gap-2 border-2 border-[#141511] bg-[#141511] px-4 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-[#f7f4ec] transition hover:bg-[#e44c2e] disabled:cursor-not-allowed disabled:opacity-45"><Check className="h-3.5 w-3.5" /> {conversation.requester_username} übernehmen</button>)}
-          </div>
-          {!state.is_available && <p className="mt-3 text-xs font-bold text-[#644700]">Starte zuerst deine Schicht, bevor du eine Anfrage übernimmst.</p>}
-        </div>
-      )}
-
-      {error && <p className="border-t-2 border-[#141511] bg-[#e44c2e] px-5 py-3 text-xs font-black text-white">{error}</p>}
+      {waiting.length > 0 && <div className="border-t border-[#304047] bg-[#141e20] px-5 py-4 sm:px-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold text-[#e1ebe8]">Wartende Anfragen</p><p className="mt-1 text-[11px] text-[#839491]">Übernimm eine Unterhaltung und öffne sie direkt im Arbeitsbereich.</p></div><div className="flex flex-wrap gap-2">{waiting.map((conversation) => <button key={conversation.conversation_id} onClick={() => void accept(conversation.conversation_id)} disabled={!state.is_available || busy} className="inline-flex items-center gap-2 border border-[#3c6761] bg-[#19322f] px-3 py-2 text-xs font-medium text-[#bef0e7] transition hover:border-[#79d3c4] hover:bg-[#21413c] disabled:cursor-not-allowed disabled:opacity-40"><Check className="h-3.5 w-3.5" /> {conversation.requester_username}</button>)}</div></div>{!state.is_available && <p className="mt-3 text-[11px] text-[#e6b36b]">Melde dich zuerst für den Support an, um eine Anfrage zu übernehmen.</p>}</div>}
+      {error && <p className="border-t border-[#704a46] bg-[#2a1b1d] px-5 py-3 text-xs text-[#f2b4aa]">{error}</p>}
     </section>
   );
 }
 
-function Metric({ value, label, accent, bordered = false }: { value: number; label: string; accent: string; bordered?: boolean }) {
-  return <div className={`p-4 text-center sm:p-5 ${bordered ? 'border-l border-[#f7f4ec]/30' : ''}`}><p className="text-2xl font-black tracking-[-0.05em]" style={{ color: accent }}>{value}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#f7f4ec]/55">{label}</p></div>;
+function StatusMetric({ value, label, tone, divider = false }: { value: number; label: string; tone: string; divider?: boolean }) {
+  return <div className={`px-4 py-4 text-center sm:px-5 ${divider ? 'border-l border-[#253137]' : ''}`}><p className={`text-xl font-semibold tracking-[-0.04em] ${tone}`}>{value}</p><p className="mt-1 text-[9px] font-medium uppercase tracking-[0.14em] text-[#61716e]">{label}</p></div>;
 }
 
-function EmptyConversation() {
-  return <p className="grid h-full place-items-center text-center text-sm font-bold text-[#77736a]">Die Unterhaltung hat noch keine Nachrichten.</p>;
+function ConversationRow({ conversation, selected, onSelect }: { conversation: Conversation; selected: boolean; onSelect: () => void }) {
+  const isWaiting = conversation.status === 'waiting';
+  return <button onClick={onSelect} className={`mb-1 flex w-full items-center gap-3 border px-3 py-3 text-left transition ${selected ? 'border-[#517d76] bg-[#172827]' : 'border-transparent hover:border-[#2e4145] hover:bg-[#141e22]'}`}><span className={`grid h-8 w-8 shrink-0 place-items-center border ${isWaiting ? 'border-[#765f3f] bg-[#292317] text-[#e6b36b]' : 'border-[#365b5b] bg-[#172b2c] text-[#79d3c4]'}`}><UserRound className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-medium text-[#dde8e5]">{conversation.requester_username}</span>{isWaiting && <span className="text-[9px] font-medium uppercase tracking-[0.12em] text-[#e6b36b]">Neu</span>}</span><span className="mt-1 block truncate text-[11px] text-[#71817f]">{isWaiting ? 'Wartet auf Übernahme' : conversation.last_message ?? 'Support-Unterhaltung aktiv'}</span></span></button>;
+}
+
+function WaitingState({ count }: { count: number }) {
+  return <div className="grid h-full place-items-center"><div className="max-w-sm text-center"><span className="mx-auto grid h-11 w-11 place-items-center border border-[#705c3d] bg-[#272215] text-[#e6b36b]"><Headphones className="h-5 w-5" /></span><p className="mt-5 text-xl font-semibold tracking-[-0.04em] text-[#e3ece9]">{count} {count === 1 ? 'Spieler wartet' : 'Spieler warten'}</p><p className="mt-2 text-sm leading-6 text-[#788987]">Wähle unten eine Anfrage aus. Nach der Übernahme öffnet sich das Gespräch direkt hier.</p></div></div>;
+}
+
+function EmptyState() {
+  return <div className="grid h-full place-items-center"><div className="text-center"><span className="mx-auto grid h-11 w-11 place-items-center border border-[#304047] text-[#62736f]"><Headphones className="h-5 w-5" /></span><p className="mt-5 text-sm font-medium text-[#9eafac]">Noch kein Gespräch ausgewählt</p><p className="mt-2 text-xs text-[#687976]">Neue Anfragen erscheinen links in deiner Inbox.</p></div></div>;
+}
+
+function ActiveConversation({ conversation, messages, value, busy, setValue, close, send }: { conversation: Conversation; messages: Message[]; value: string; busy: boolean; setValue: (value: string) => void; close: () => void; send: (event: FormEvent<HTMLFormElement>) => Promise<void> }) {
+  return <div className="flex h-full min-h-[28rem] flex-col"><div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#304047] pb-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center border border-[#365b5b] bg-[#172b2c] text-[#79d3c4]"><UserRound className="h-4 w-4" /></span><div><p className="text-sm font-medium text-[#e6efec]">{conversation.requester_username}</p><p className="mt-0.5 text-[11px] text-[#79d3c4]">Live-Unterhaltung aktiv</p></div></div><button onClick={() => void close()} disabled={busy} className="inline-flex items-center gap-1.5 border border-[#465056] px-3 py-2 text-xs font-medium text-[#acbab7] transition hover:border-[#a2635c] hover:bg-[#281d1f] hover:text-[#f2b4aa] disabled:opacity-50"><X className="h-3.5 w-3.5" /> Unterhaltung schließen</button></div><div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-5 pr-1">{messages.length === 0 ? <p className="grid h-full place-items-center text-sm text-[#748581]">Noch keine Nachricht in dieser Unterhaltung.</p> : messages.map((message) => <MessageBubble key={message.id} message={message} />)}</div><form onSubmit={(event) => void send(event)} className="flex gap-2 border-t border-[#304047] pt-4"><textarea value={value} onChange={(event) => setValue(event.target.value)} maxLength={1500} rows={1} placeholder="Antwort formulieren …" className="min-h-12 flex-1 resize-y border border-[#405057] bg-[#0e1519] px-3 py-3 text-sm text-[#e6efec] outline-none placeholder:text-[#657572] focus:border-[#6aa89e] focus:bg-[#101b1e]" /><button type="submit" disabled={!value.trim() || busy} className="grid h-12 w-12 shrink-0 place-items-center border border-[#5a968c] bg-[#1d403c] text-[#aaf0e3] transition hover:bg-[#286157] disabled:cursor-not-allowed disabled:opacity-40"><Send className="h-4 w-4" /></button></form></div>;
 }
 
 function MessageBubble({ message }: { message: Message }) {
   const isAgent = message.sender_role === 'agent';
-  return <div className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[82%] border-2 border-[#141511] px-4 py-3 text-sm shadow-[3px_3px_0_#141511] ${isAgent ? 'bg-[#f6c453] text-[#141511]' : 'bg-white text-[#141511]'}`}><p className="whitespace-pre-wrap break-words leading-6">{message.content}</p><p className="mt-2 border-t border-[#141511]/20 pt-1.5 text-[9px] font-black uppercase tracking-[0.13em] text-[#141511]/55">{isAgent ? 'Support / Du' : message.sender_name}</p></div></div>;
+  return <div className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[82%] border px-4 py-3 text-sm shadow-[0_10px_24px_rgba(0,0,0,0.10)] ${isAgent ? 'border-[#386e66] bg-[#16312e] text-[#e1f4ef]' : 'border-[#3a484e] bg-[#171f24] text-[#dde7e4]'}`}><p className="whitespace-pre-wrap break-words leading-6">{message.content}</p><p className={`mt-2 pt-1.5 text-[9px] font-medium uppercase tracking-[0.12em] ${isAgent ? 'border-t border-[#6aa398]/25 text-[#91c9c0]' : 'border-t border-[#a4b5b1]/15 text-[#839491]'}`}>{isAgent ? 'Support · Du' : message.sender_name}</p></div></div>;
 }

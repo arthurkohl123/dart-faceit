@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Headphones, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { LiveSupportAdmin } from '@/components/live-support-admin';
 
@@ -44,35 +44,37 @@ export default function AdminSupportPage() {
 
   if (loading || accessDenied) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#e7e3d9] px-5 text-[#141511]">
-        <div className="border-2 border-[#141511] bg-[#f7f4ec] px-8 py-7 text-center shadow-[7px_7px_0_#141511]">
-          {accessDenied ? <ShieldCheck className="mx-auto h-9 w-9 text-[#e44c2e]" /> : <Loader2 className="mx-auto h-9 w-9 animate-spin text-[#e44c2e]" />}
-          <p className="mt-4 text-sm font-black uppercase tracking-[0.12em]">{accessDenied ? 'Kein Admin-Zugriff. Weiterleitung …' : 'Support Console wird hochgefahren …'}</p>
+      <main className="grid min-h-screen place-items-center bg-[#0b0f12] px-5 text-[#edf3f1]">
+        <div className="w-full max-w-sm border border-[#324047] bg-[#11181c] px-7 py-8 text-center shadow-[0_24px_80px_rgba(0,0,0,0.42)]">
+          {accessDenied ? <ShieldCheck className="mx-auto h-8 w-8 text-[#f08d79]" /> : <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#79d3c4]" />}
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.17em] text-[#aebbb8]">{accessDenied ? 'Kein Admin-Zugriff. Weiterleitung …' : 'Support-Arbeitsplatz wird geladen …'}</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#e7e3d9] text-[#141511] selection:bg-[#f6c453] selection:text-[#141511]">
-      <div className="min-h-screen bg-[linear-gradient(rgba(20,21,17,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(20,21,17,0.06)_1px,transparent_1px)] bg-[size:26px_26px]">
-        <div className="mx-auto max-w-[1500px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-          <header className="border-2 border-[#141511] bg-[#141511] text-[#f7f4ec] shadow-[8px_8px_0_#e44c2e]">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#f7f4ec]/25 px-4 py-3 sm:px-5">
-              <Link href="/admin" className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.15em] text-[#f7f4ec]/70 transition hover:text-white"><ArrowLeft className="h-3.5 w-3.5" /> Zurück zur Zentrale</Link>
-              <span className="border border-[#f7f4ec]/35 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#f6c453]">Interne Konsole · Admin</span>
+    <main className="min-h-screen bg-[#0b0f12] text-[#edf3f1] selection:bg-[#79d3c4] selection:text-[#0b0f12]">
+      <div className="min-h-screen bg-[radial-gradient(ellipse_at_8%_0%,rgba(59,115,112,0.20),transparent_33%),radial-gradient(ellipse_at_92%_100%,rgba(26,56,69,0.22),transparent_36%)]">
+        <div className="mx-auto max-w-[1640px] px-3 py-3 sm:px-5 sm:py-5 lg:px-7">
+          <header className="border border-[#304047] bg-[#10171b] shadow-[0_18px_70px_rgba(0,0,0,0.25)]">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#2c393f] px-4 py-3 sm:px-5">
+              <Link href="/admin" className="inline-flex items-center gap-2 text-[11px] font-medium tracking-[0.09em] text-[#9cadaa] transition hover:text-[#e4efec]"><ArrowLeft className="h-3.5 w-3.5" /> Operations zurück</Link>
+              <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-[#78918b]"><span className="h-1.5 w-1.5 rounded-full bg-[#79d3c4] shadow-[0_0_12px_rgba(121,211,196,0.8)]" /> Internal service desk</div>
             </div>
-            <div className="grid gap-5 px-5 py-7 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:px-7 sm:py-9">
+            <div className="grid gap-7 px-5 py-7 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:px-7 sm:py-8">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.26em] text-[#f6c453]">RankedDarts / Player care</p>
-                <h1 className="mt-3 text-4xl font-black uppercase leading-[0.84] tracking-[-0.075em] sm:text-6xl">Support<br /><span className="text-[#e44c2e]">Console</span></h1>
-                <p className="mt-5 max-w-2xl text-sm leading-6 text-[#f7f4ec]/65">Ein ruhiger Arbeitsraum für Anfragen, Gespräche und Verfügbarkeit. Kein Dashboard, keine Ablenkung – nur der direkte Draht zu den Spielern.</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#79d3c4]">RankedDarts · Player Experience</p>
+                <h1 className="mt-3 text-3xl font-semibold tracking-[-0.055em] text-[#edf3f1] sm:text-4xl">Support workspace</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#91a19e]">Ein fokussierter Arbeitsplatz für echte Gespräche. Übernimm Anfragen, halte den Status aktuell und löse Probleme, ohne dich durch das Admin-Panel zu arbeiten.</p>
               </div>
-              <div className="flex h-20 w-20 items-center justify-center border-2 border-[#f7f4ec] bg-[#f6c453] text-[#141511] shadow-[5px_5px_0_#e44c2e]"><Headphones className="h-9 w-9" /></div>
+              <div className="hidden border-l border-[#33434a] pl-6 sm:block"><p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#70827f]">Verbindung</p><p className="mt-1 text-sm font-semibold text-[#d4e1de]">Live support channel</p></div>
             </div>
           </header>
 
           <LiveSupportAdmin />
+
+          <footer className="flex items-center justify-between px-1 py-5 text-[10px] font-medium uppercase tracking-[0.13em] text-[#526461]"><span>RankedDarts Support Operations</span><span>Private conversations · Admin access</span></footer>
         </div>
       </div>
     </main>
