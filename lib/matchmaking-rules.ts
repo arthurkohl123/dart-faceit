@@ -28,6 +28,10 @@ export function getDailyMatchesUsed(quota: DailyMatchQuota | null): number {
 }
 
 export function hasReachedDailyMatchLimit(quota: DailyMatchQuota | null): boolean {
-  if (!quota || quota.is_premium) return false;
+  // A null limit is the server's explicit "unlimited" signal. This is used
+  // both for Premium and for the active Wednesday Showdown; never turn it
+  // back into four matches on the client or Free users would be blocked even
+  // though the database correctly allows the match.
+  if (!quota || quota.is_premium || quota.daily_limit === null) return false;
   return getDailyMatchesUsed(quota) >= (quota.daily_limit ?? FREE_DAILY_MATCH_LIMIT);
 }

@@ -21,6 +21,7 @@ test('free users stop at four daily matches while premium stays unlimited', () =
   assert.equal(hasReachedDailyMatchLimit({ is_premium: false, matches_used: 3, daily_limit: 4 }), false);
   assert.equal(hasReachedDailyMatchLimit({ is_premium: false, matches_used: 4, daily_limit: 4 }), true);
   assert.equal(hasReachedDailyMatchLimit({ is_premium: true, matches_used: 999, daily_limit: null }), false);
+  assert.equal(hasReachedDailyMatchLimit({ is_premium: false, matches_used: 999, daily_limit: null }), false);
   assert.equal(hasReachedDailyMatchLimit(null), false);
 });
 

@@ -1330,7 +1330,7 @@ export default function Matchmaking() {
               </div>
               <h2 className="text-center text-4xl font-black leading-none tracking-[-0.06em] md:text-5xl">Wähle deine<br /><span className="text-emerald-300">Queues.</span></h2>
               <p className="mx-auto mt-4 max-w-md text-center text-sm leading-6 text-zinc-400">Du kannst mehrere Plattformen gleichzeitig aktivieren. Sobald irgendwo ein Match gefunden wird, endet die Suche auf allen anderen Plattformen automatisch.</p>
-              {dailyQuota && <div className={`mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-[0.13em] ${dailyQuota.is_premium ? 'border-amber-300/25 bg-amber-400/10 text-amber-100' : 'border-white/10 bg-white/[0.04] text-zinc-300'}`}><Zap className="h-3.5 w-3.5" />{dailyQuota.is_premium ? 'Premium · Unbegrenzte Matches' : `Free · ${dailyMatchesUsed}/${dailyQuota.daily_limit ?? 4} Matches heute`}</div>}
+              {dailyQuota && <div className={`mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-[0.13em] ${dailyQuota.is_premium ? 'border-amber-300/25 bg-amber-400/10 text-amber-100' : dailyQuota.daily_limit === null ? 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-zinc-300'}`}><Zap className="h-3.5 w-3.5" />{dailyQuota.is_premium ? 'Premium · Unbegrenzte Matches' : dailyQuota.daily_limit === null ? 'Mittwoch Showdown · Kein Tageslimit' : `Free · ${dailyMatchesUsed}/${dailyQuota.daily_limit} Matches heute`}</div>}
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {(Object.keys(appConfig) as AppChoice[]).map((app) => {
