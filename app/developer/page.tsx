@@ -53,6 +53,7 @@ type WednesdayShowdownSetting = {
   prize_first?: string;
   prize_second?: string;
   prize_third?: string;
+  included_tournament_ids?: string[];
 };
 
 type DeveloperSection = 'overview' | 'matchmaking' | 'system' | 'matches';
@@ -134,6 +135,7 @@ export default function DeveloperDashboard() {
   const [showdownPrizeFirst, setShowdownPrizeFirst] = useState('15 €');
   const [showdownPrizeSecond, setShowdownPrizeSecond] = useState('14 Tage Premium');
   const [showdownPrizeThird, setShowdownPrizeThird] = useState('7 Tage Premium');
+  const [showdownIncludedTournamentIds, setShowdownIncludedTournamentIds] = useState<string[]>([]);
   const [developerNotice, setDeveloperNotice] = useState('');
   const [activeSection, setActiveSection] = useState<DeveloperSection>('overview');
   const maintenanceDirtyRef = useRef(false);
@@ -211,6 +213,9 @@ export default function DeveloperDashboard() {
     setShowdownPrizeFirst(showdown.prize_first ?? '15 €');
     setShowdownPrizeSecond(showdown.prize_second ?? '14 Tage Premium');
     setShowdownPrizeThird(showdown.prize_third ?? '7 Tage Premium');
+    setShowdownIncludedTournamentIds(Array.isArray(showdown.included_tournament_ids)
+      ? showdown.included_tournament_ids.filter((id): id is string => typeof id === 'string')
+      : []);
     setDeveloperNotice(notice.message ?? '');
     setLastUpdated(new Date());
     setLoading(false);
@@ -303,6 +308,7 @@ export default function DeveloperDashboard() {
         prize_first: showdownPrizeFirst.trim(),
         prize_second: showdownPrizeSecond.trim(),
         prize_third: showdownPrizeThird.trim(),
+        included_tournament_ids: showdownIncludedTournamentIds,
       },
       showdownEnabled
         ? `Mittwoch Showdown ist aktiv. Free-Limit: ${showdownFreeLimitOverride ? '18–22 Uhr ausgesetzt.' : 'normal aktiv.'}`
@@ -663,6 +669,7 @@ export default function DeveloperDashboard() {
               <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500 md:col-span-2 xl:col-span-3">Beschreibung auf der Showdown-Seite
                 <textarea value={showdownDescription} onChange={(event) => setShowdownDescription(event.target.value)} rows={3} maxLength={500} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm font-medium normal-case tracking-normal text-zinc-100 outline-none focus:border-violet-300/40" />
               </label>
+              {showdownIncludedTournamentIds.length > 0 && <div className="border border-amber-300/20 bg-amber-400/[0.06] px-4 py-3 text-xs leading-5 text-amber-100 md:col-span-2 xl:col-span-3"><span className="font-black">Turnier-Ausnahme aktiv:</span> {showdownIncludedTournamentIds.length === 1 ? 'Ein freigegebenes Turnier' : `${showdownIncludedTournamentIds.length} freigegebene Turniere`} zählt zusätzlich für die Showdown-Wertung. Alle übrigen Turniere bleiben ausgeschlossen.</div>}
             </div>
 
             <div className="relative mt-6 flex justify-end border-t border-white/10 pt-5">
