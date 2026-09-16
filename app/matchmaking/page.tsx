@@ -845,7 +845,7 @@ export default function Matchmaking() {
   }, [fetchLiveMatches]);
 
   // Realtime: Queue-Counts live aktualisieren wenn jemand bei- oder austritt.
-  // Zusätzlich Polling alle 5s als Fallback, falls Realtime für die Tabelle
+  // Zusätzlich Polling alle 30s als Fallback, falls Realtime für die Tabelle
   // matchmaking_queue nicht aktiviert ist.
   useEffect(() => {
     const channel = supabase
@@ -857,7 +857,7 @@ export default function Matchmaking() {
 
     const interval = setInterval(() => {
       void fetchQueueCounts();
-    }, 5000);
+    }, 30000);
 
     return () => {
       void supabase.removeChannel(channel);
@@ -930,12 +930,12 @@ export default function Matchmaking() {
 
     const pollingInterval = setInterval(() => {
       setElapsedSeconds((current) => {
-        const next = current + 2;
+        const next = current + 5;
         // pollForMatchRef statt pollForMatch – kein Dependency-Problem
         void pollForMatchRef.current?.(next);
         return next;
       });
-    }, 2000);
+    }, 5000);
 
     return () => {
       supabase.removeChannel(channel);
