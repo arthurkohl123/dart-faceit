@@ -1,0 +1,42 @@
+name: Apply matchmaking polling hotfix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/hotfix-matchmaking-polling.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Reduce matchmaking polling load
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('app/matchmaking/page.tsx')
+          s = p.read_text()
+          old_queue = """    const interval = setInterval(() => {\n      void fetchQueueCounts();\n    }, 5000);"""
+          new_queue = """    const interval = setInterval(() => {\n      void fetchQueueCounts();\n    }, 30000);"""
+          old_match = """        const next = current + 2;\n        // pollForMatchRef statt pollForMatch – kein Dependency-Problem\n        void pollForMatchRef.current?.(next);\n        return next;\n      });\n    }, 2000);"""
+          new_match = """        const next = current + 5;\n        // pollForMatchRef statt pollForMatch – kein Dependency-Problem\n        void pollForMatchRef.current?.(next);\n        return next;\n      });\n    }, 5000);"""
+          if old_queue not in s:
+              raise SystemExit('queue polling pattern not found')
+          if old_match not in s:
+              raise SystemExit('match polling pattern not found')
+          s = s.replace(old_queue, new_queue, 1).replace(old_match, new_match, 1)
+          s = s.replace('Zusätzlich Polling alle 5s als Fallback', 'Zusätzlich Polling alle 30s als Fallback', 1)
+          p.write_text(s)
+      - name: Commit hotfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/matchmaking/page.tsx
+          git commit -m "Reduce matchmaking polling load"
+          git push origin main
