@@ -56,8 +56,9 @@ export function WednesdayShowdownPromo({ compact = false }: { compact?: boolean 
 
   if (status?.event_enabled === false) return null;
   const isLive = Boolean(status?.is_active);
+  const isMakeupRepeat = Boolean(status?.title.includes('Wiederholung'));
   const eventTime = status?.starts_at ? eventDate(status.starts_at) : 'Jeden Mittwoch · 18:00 Uhr';
-  const eyebrow = isLive ? 'Jetzt live · 18–22 Uhr' : `Nächster Showdown · ${eventTime}`;
+  const eyebrow = isLive ? 'Jetzt live · 18–22 Uhr' : isMakeupRepeat ? 'Heute · Wiederholung · 18–22 Uhr' : `Nächster Showdown · ${eventTime}`;
 
   if (compact) {
     return (
