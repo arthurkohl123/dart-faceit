@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { BellRing, CheckCircle2, KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
 type Notice = { type: 'success' | 'error'; text: string } | null;
@@ -19,6 +19,9 @@ export default function AccountSettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [emailNotice, setEmailNotice] = useState<Notice>(null);
   const [passwordNotice, setPasswordNotice] = useState<Notice>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(() => (
+    typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'unsupported'
+  ));
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => {
@@ -26,6 +29,12 @@ export default function AccountSettingsPage() {
       setNewEmail(data.user?.email ?? '');
     });
   }, [supabase]);
+
+  const enableBrowserNotifications = async () => {
+    if (!('Notification' in window)) return;
+    const permission = await window.Notification.requestPermission();
+    setNotificationPermission(permission);
+  };
 
   const updateEmail = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -104,6 +113,14 @@ export default function AccountSettingsPage() {
             <label className="block text-sm font-bold text-zinc-300">Passwort wiederholen<input type="password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" className={inputClassName} required /></label>
             <div className="sm:col-span-2">{passwordNotice && <NoticeBox notice={passwordNotice} />}<button type="submit" disabled={passwordSaving} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-black transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">{passwordSaving && <Loader2 className="h-4 w-4 animate-spin" />}{passwordSaving ? 'Wird gespeichert …' : 'Passwort aktualisieren'}</button></div>
           </form>
+        </section>
+
+        <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 sm:p-7">
+          <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-violet-300/20 bg-violet-400/10 text-violet-200"><BellRing className="h-5 w-5" /></span><div><h2 className="font-black text-white">Browser-Hinweise</h2><p className="mt-1 text-sm leading-5 text-zinc-500">Erhalte neben den In-App-Hinweisen auch einen Browser-Hinweis bei gefundenen Matches, offenen Ergebnissen, Turnier-Updates und Freundschaftsanfragen.</p></div></div>
+          <div className="mt-5 flex flex-wrap items-center gap-3"><span className={`rounded-full border px-3 py-1.5 text-xs font-black ${notificationPermission === 'granted' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : notificationPermission === 'denied' ? 'border-rose-300/25 bg-rose-400/10 text-rose-100' : 'border-white/10 bg-black/20 text-zinc-400'}`}>{notificationPermission === 'granted' ? 'Aktiv' : notificationPermission === 'denied' ? 'Im Browser blockiert' : notificationPermission === 'unsupported' ? 'Nicht verfügbar' : 'Noch nicht aktiviert'}</span>
+            {notificationPermission === 'default' && <button type="button" onClick={() => void enableBrowserNotifications()} className="rounded-xl bg-violet-300 px-4 py-2.5 text-sm font-black text-black transition hover:bg-violet-200">Browser-Hinweise aktivieren</button>}
+          </div>
+          {notificationPermission === 'denied' && <p className="mt-3 text-xs leading-5 text-zinc-500">Du kannst die Berechtigung später in den Website-Einstellungen deines Browsers wieder freigeben.</p>}
         </section>
       </div>
     </main>

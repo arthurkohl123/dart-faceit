@@ -17,6 +17,7 @@ import { FriendsChatLauncher } from '@/components/friends-chat-launcher';
 import { FriendChallengePopup } from '@/components/friend-challenge-popup';
 import { SiteNoticeBanner } from '@/components/site-notice-banner';
 import { AccountMenu } from '@/components/account-menu';
+import { RealtimeNotificationToaster } from '@/components/realtime-notification-toaster';
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,9 @@ type ProfileData = {
   is_banned: boolean;
   ban_reason: string | null;
   isPremium: boolean;
+  scolia_username: string | null;
+  dartcounter_username: string | null;
+  autodarts_username: string | null;
 };
 
 type AuthContextValue = {
@@ -117,6 +121,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         is_banned: false,
         ban_reason: profileRow.ban_reason ?? null,
         isPremium: Boolean(profileRow.isPremium),
+        scolia_username: profileRow.scolia_username ?? null,
+        dartcounter_username: profileRow.dartcounter_username ?? null,
+        autodarts_username: profileRow.autodarts_username ?? null,
       } : null);
     } catch {
       setProfile(null);
@@ -261,5 +268,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   const accountName = profile?.username ?? session?.user?.user_metadata?.username ?? session?.user?.email?.split('@')[0] ?? null;
 
-  return <AuthContext.Provider value={value}>{children}<SiteNoticeBanner />{session?.user && accountName && <AccountMenu username={accountName} email={session.user.email ?? null} isAdmin={Boolean(profile?.is_admin)} onLogout={logout} />}<FriendsChatLauncher /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}<SiteNoticeBanner />{session?.user && accountName && <AccountMenu username={accountName} email={session.user.email ?? null} isAdmin={Boolean(profile?.is_admin)} isNewPlayer={(profile?.gamesPlayed ?? 0) === 0} onLogout={logout} />}<RealtimeNotificationToaster userId={session?.user?.id} /><FriendsChatLauncher /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
 }

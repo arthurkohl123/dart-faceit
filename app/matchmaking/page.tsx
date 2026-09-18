@@ -144,6 +144,7 @@ export default function Matchmaking() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [queueCounts, setQueueCounts] = useState<Record<AppChoice, number>>({ scolia: 0, dartcounter: 0, autodarts: 0 });
   const [uniqueQueuePlayers, setUniqueQueuePlayers] = useState(0);
+  const [queueCountsUpdatedAt, setQueueCountsUpdatedAt] = useState<Date | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
@@ -208,6 +209,10 @@ export default function Matchmaking() {
   const currentRange = getMaxEloDiff(elapsedSeconds);
   const dailyMatchesUsed = getDailyMatchesUsed(dailyQuota);
   const totalQueuePlayers = uniqueQueuePlayers;
+  const selectedQueueSignals = selectedApps.reduce((total, app) => total + queueCounts[app], 0);
+  const queueFreshnessLabel = queueCountsUpdatedAt
+    ? queueCountsUpdatedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : 'wird geladen';
   // null = Profil noch nicht geladen → Box NICHT anzeigen (kein false-positive beim Status-Wechsel)
   const effectivePhoneVerified = phoneVerified === null ? null : (!smsVerificationEnabled || phoneVerified === true);
 
@@ -460,6 +465,7 @@ export default function Matchmaking() {
         autodarts: counts.get('autodarts') ?? 0,
       });
       setUniqueQueuePlayers(counts.get('__total__') ?? 0);
+      setQueueCountsUpdatedAt(new Date());
     } catch (error) {
       // Supabase kann bei einem kurzen Browser-Netzwerkabbruch werfen statt
       // ein { error }-Objekt zurückzugeben. Die Suchlogik läuft bewusst weiter.
@@ -1328,6 +1334,12 @@ export default function Matchmaking() {
               </div>
               <h2 className="text-center text-4xl font-black leading-none tracking-[-0.06em] md:text-5xl">Wähle deine<br /><span className="text-emerald-300">Queues.</span></h2>
               <p className="mx-auto mt-4 max-w-md text-center text-sm leading-6 text-zinc-400">Du kannst mehrere Plattformen gleichzeitig aktivieren. Sobald irgendwo ein Match gefunden wird, endet die Suche auf allen anderen Plattformen automatisch.</p>
+              <div className="mx-auto mt-6 grid max-w-3xl gap-px overflow-hidden border border-white/10 bg-white/10 text-left sm:grid-cols-3">
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Aktiv in der Queue</div><div className="mt-1 text-2xl font-black text-emerald-200">{totalQueuePlayers}</div><p className="mt-1 text-xs leading-5 text-zinc-500">eindeutige Spieler über alle Plattformen</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Deine Auswahl</div><div className="mt-1 text-2xl font-black text-white">{selectedApps.length || '—'}</div><p className="mt-1 text-xs leading-5 text-zinc-500">{selectedApps.length ? `${selectedQueueSignals} Queue-Signale auf deinen Plattformen` : 'Wähle mindestens eine Plattform'}</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Live-Stand</div><div className="mt-1 flex items-center gap-2 text-sm font-black text-cyan-100"><span className="h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />Aktualisiert</div><p className="mt-1 text-xs leading-5 text-zinc-500">{queueFreshnessLabel} · Zähler alle 5 Sekunden</p></div>
+              </div>
+              <p className="mx-auto mt-3 max-w-3xl text-center text-[11px] leading-5 text-zinc-500">Queue-Signale zählen Plattform-Suchen. Derselbe Spieler kann mehrere Plattformen wählen und wird deshalb im Gesamttotal nur einmal gezählt.</p>
               {dailyQuota && <div className={`mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-[0.13em] ${dailyQuota.is_premium ? 'border-amber-300/25 bg-amber-400/10 text-amber-100' : dailyQuota.daily_limit === null ? 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-zinc-300'}`}><Zap className="h-3.5 w-3.5" />{dailyQuota.is_premium ? 'Premium · Unbegrenzte Matches' : dailyQuota.daily_limit === null ? 'Mittwoch Showdown · Kein Tageslimit' : `Free · ${dailyMatchesUsed}/${dailyQuota.daily_limit} Matches heute`}</div>}
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1347,7 +1359,7 @@ export default function Matchmaking() {
                       <div className="mt-2 text-2xl font-black tracking-[-0.05em]">{c.label}</div>
                       <div className={`mt-5 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${c.badge}`}>
                         <span className={`h-2 w-2 rounded-full ${c.dot}`} />
-                        {queueCounts[app]} in Queue
+                        {queueCounts[app]} in Queue · {queueCounts[app] >= 4 ? 'gerade belebt' : queueCounts[app] >= 1 ? 'Gegner aktiv' : 'warte auf Gegner'}
                       </div>
                       {/* Hinweis wenn Plattform-Username fehlt */}
                       {app === 'scolia' && !scoliaUsername && (
@@ -1407,6 +1419,12 @@ export default function Matchmaking() {
 
               <h2 className="mt-4 text-4xl font-black tracking-[-0.05em]">Gegner wird gesucht</h2>
               <p className="mt-3 text-zinc-400">Aktueller Elo-Suchradius: <span className="font-black text-emerald-300">±{currentRange}</span></p>
+              <div className="mx-auto mt-5 grid max-w-2xl gap-px overflow-hidden border border-white/10 bg-white/10 text-left sm:grid-cols-3">
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Deine Queues</div><div className="mt-1 text-lg font-black text-white">{selectedApps.length}</div><p className="mt-1 text-xs leading-5 text-zinc-500">parallel aktiv</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Aktivität</div><div className="mt-1 text-lg font-black text-emerald-200">{selectedQueueSignals}</div><p className="mt-1 text-xs leading-5 text-zinc-500">Queue-Signale auf deiner Auswahl</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Suchlogik</div><div className="mt-1 text-lg font-black text-cyan-100">offen</div><p className="mt-1 text-xs leading-5 text-zinc-500">Radius wächst automatisch weiter</p></div>
+              </div>
+              <p className="mx-auto mt-3 max-w-xl text-center text-xs leading-5 text-zinc-500">Kein künstlicher Timer: Ein Match startet sofort, sobald auf einer deiner Plattformen ein gültiger Gegner im aktuellen Elo-Radius verfügbar ist.</p>
               {queueConnectionRecovering && (
                 <p className="mt-3 inline-flex items-center gap-2 border border-amber-300/20 bg-amber-400/[0.06] px-3 py-1.5 text-xs font-semibold text-amber-100">
                   <Activity className="h-3.5 w-3.5 animate-pulse" />

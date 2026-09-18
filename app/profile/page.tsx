@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
 import { PayoutAlert } from '@/components/payout-alert';
 import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
-import { ArrowUpRight, CheckCircle2, Flame, Headphones, Menu, MessageCircle, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, CircleHelp, Flame, Headphones, Menu, MessageCircle, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
 
 const DISCORD_INVITE_URL = 'https://discord.gg/V6u29zEhp';
 
@@ -318,6 +318,9 @@ export default function Profile() {
                   <ShieldCheck className="h-4 w-4" /> Ranked freischalten
                 </Link>
               )}
+              <Link href="/getting-started" className="inline-flex w-fit shrink-0 items-center gap-2 border border-indigo-300/25 bg-indigo-400/[0.08] px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] text-indigo-100 transition hover:bg-indigo-400/[0.14]">
+                <CircleHelp className="h-4 w-4" /> Ablauf ansehen
+              </Link>
             </div>
 
             <div className="grid divide-y divide-white/10 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">

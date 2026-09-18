@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, LogOut, Settings2, ShieldCheck, UserRound } from 'lucide-react';
+import { ChevronDown, CircleHelp, LogOut, Settings2, ShieldCheck, UserRound } from 'lucide-react';
 
 type AccountMenuProps = {
   username: string;
   email: string | null;
   isAdmin: boolean;
+  isNewPlayer: boolean;
   onLogout: () => Promise<void>;
 };
 
-export function AccountMenu({ username, email, isAdmin, onLogout }: AccountMenuProps) {
+export function AccountMenu({ username, email, isAdmin, isNewPlayer, onLogout }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -69,6 +70,9 @@ export function AccountMenu({ username, email, isAdmin, onLogout }: AccountMenuP
             </Link>
             <Link href="/account/settings" onClick={() => setOpen(false)} role="menuitem" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-zinc-200 transition hover:bg-white/[0.07] hover:text-white">
               <Settings2 className="h-4 w-4 text-cyan-200" /> Einstellungen & Sicherheit
+            </Link>
+            <Link href="/getting-started" onClick={() => setOpen(false)} role="menuitem" className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition hover:text-white ${isNewPlayer ? 'bg-emerald-400/[0.08] text-emerald-100 hover:bg-emerald-400/[0.13]' : 'text-zinc-200 hover:bg-white/[0.07]'}`}>
+              <CircleHelp className="h-4 w-4 text-emerald-200" /> {isNewPlayer ? 'Erste Schritte' : 'Spielablauf & Hilfe'}
             </Link>
             {isAdmin && (
               <Link href="/admin" onClick={() => setOpen(false)} role="menuitem" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-amber-100 transition hover:bg-amber-300/10 hover:text-amber-50">
