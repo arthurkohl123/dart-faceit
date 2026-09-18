@@ -151,7 +151,7 @@ function imageAlt(fileName: string) {
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 
-function Navbar({ onLogout }: { onLogout: () => void }) {
+function Navbar() {
   const [open, setOpen] = useState(false);
   return (
     <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
@@ -166,11 +166,9 @@ function Navbar({ onLogout }: { onLogout: () => void }) {
         <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
           <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
           <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
-          <Link href="/profile" className="transition hover:text-white">Profil</Link>
           <Link href="/history" className="transition hover:text-white">History</Link>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={onLogout} className="hidden rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10 sm:block">Logout</button>
           <button onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.04] text-zinc-200 transition hover:bg-white/10 lg:hidden">
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -179,12 +177,9 @@ function Navbar({ onLogout }: { onLogout: () => void }) {
       {open && (
         <div className="border-t border-white/10 bg-black/80 px-5 py-4 backdrop-blur-2xl lg:hidden">
           <div className="flex flex-col gap-1">
-            {[["Matchmaking", "/matchmaking"], ["Leaderboard", "/leaderboard"], ["Profil", "/profile"], ["History", "/history"]].map(([label, href]) => (
+            {[["Matchmaking", "/matchmaking"], ["Leaderboard", "/leaderboard"], ["History", "/history"]].map(([label, href]) => (
               <Link key={href} href={href} onClick={() => setOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">{label}</Link>
             ))}
-            <div className="mt-2 border-t border-white/10 pt-2">
-              <button onClick={onLogout} className="w-full rounded-2xl px-4 py-3 text-left text-sm font-bold text-zinc-400 transition hover:bg-white/10 hover:text-white">Logout</button>
-            </div>
           </div>
         </div>
       )}
@@ -222,11 +217,6 @@ export default function SupportPage() {
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-
-  const logout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -435,7 +425,7 @@ export default function SupportPage() {
   return (
     <main className="sport-grid min-h-screen overflow-hidden bg-[#0a0d0d] text-white">
 
-      <Navbar onLogout={logout} />
+      <Navbar />
 
       <section className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
         {view === 'list' && (

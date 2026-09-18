@@ -270,7 +270,7 @@ export default function FriendsPage() {
 
       <nav className="sticky top-0 z-30 border-b border-white/10 bg-black/60 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 md:px-8">
-          <Link href="/profile" className="inline-flex items-center gap-2 text-sm font-bold text-zinc-300 transition hover:text-white"><ArrowLeft className="h-4 w-4" /> Profil</Link>
+          <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-zinc-300 transition hover:text-white"><ArrowLeft className="h-4 w-4" /> Startseite</Link>
           <div className="flex items-center gap-3"><Link href="/matchmaking" className="hidden rounded-full border border-white/10 px-4 py-2 text-xs font-black text-zinc-300 transition hover:bg-white/10 sm:block">Matchmaking</Link><NotificationBell /></div>
         </div>
       </nav>

@@ -1076,7 +1076,6 @@ export default function MatchResult() {
           <div className="hidden items-center gap-6 text-sm font-medium text-zinc-300 lg:flex">
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
             <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
-            <Link href="/profile" className="transition hover:text-white">Profil</Link>
           </div>
 
           <button
@@ -1092,7 +1091,6 @@ export default function MatchResult() {
             <div className="flex flex-col gap-1">
               <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
               <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
-              <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Profil</Link>
               <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
             </div>
           </div>

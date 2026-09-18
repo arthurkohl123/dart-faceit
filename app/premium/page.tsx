@@ -154,12 +154,7 @@ export default function Premium() {
             </div>
           </Link>
 
-          <button
-            onClick={() => router.push('/profile')}
-            className="border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10"
-          >
-            Zurück zum Profil
-          </button>
+          <Link href="/" className="border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10">Zur Startseite</Link>
         </div>
       </nav>
 

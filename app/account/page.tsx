@@ -25,7 +25,7 @@ export default function AccountPage() {
 
   return <main className="min-h-screen bg-[#050607] px-5 py-12 text-white">
     <div className="mx-auto max-w-3xl">
-      <Link href="/profile" className="text-sm font-bold text-zinc-500 hover:text-white">← Profil</Link>
+      <Link href="/" className="text-sm font-bold text-zinc-500 hover:text-white">← Zur Startseite</Link>
       <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[.22em] text-emerald-300">Konto-Zentrale</p><h1 className="mt-2 text-4xl font-black tracking-[-.05em]">Konto & Auszahlungen</h1><p className="mt-3 text-zinc-400">Verwalte Preisgelder, deine Kontodaten und Datenschutz-Einstellungen an einem Ort.</p></div><Link href="/account/payouts" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-black">Auszahlungen <ArrowUpRight className="h-4 w-4" /></Link></div>
       <div className="mt-6"><PayoutAlert /></div>
       <section className="mt-6 rounded-3xl border border-emerald-300/15 bg-emerald-400/[.05] p-6">

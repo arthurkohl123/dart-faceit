@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { ArrowUpRight, BellRing, CheckCircle2, Rocket, Sparkles } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Rocket, Sparkles } from 'lucide-react';
 
 type UpdateCategory = 'Feature' | 'System' | 'Experience' | 'Announcement';
 
@@ -73,7 +72,6 @@ const categoryStyles: Record<UpdateCategory, string> = {
 };
 
 export default function Updates() {
-  const router = useRouter();
   const [filter, setFilter] = useState<'All' | UpdateCategory>('All');
   const highlightedUpdates = updates.filter((update) => update.highlight).length;
   const latestUpdate = updates[0];
@@ -95,9 +93,7 @@ export default function Updates() {
             </div>
           </Link>
 
-          <button onClick={() => router.push('/profile')} className="inline-flex items-center gap-2 border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10">
-            <BellRing className="h-4 w-4 text-emerald-300" /> Zurück zum Profil
-          </button>
+          <Link href="/" className="inline-flex items-center gap-2 border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10">Startseite</Link>
         </div>
       </nav>
 

@@ -102,11 +102,6 @@ export default function Profile() {
     return () => { isMounted = false; };
   }, [supabase, router]);
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    router.push('/auth/login');
-  };
-
   const formatCompletion = (match: MatchData) => new Intl.DateTimeFormat('de-DE', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }).format(new Date(match.completed_at ?? match.created_at));
@@ -203,9 +198,6 @@ export default function Profile() {
 
           <div className="flex items-center gap-3">
             <NotificationBell />
-            <button onClick={logout} className="hidden border border-white/15 px-4 py-2 text-sm font-bold text-zinc-200 transition hover:border-white/35 hover:bg-white/10 sm:block">
-              Logout
-            </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="grid h-10 w-10 place-items-center border border-white/15 text-zinc-200 transition hover:bg-white/[0.05] lg:hidden"
@@ -227,9 +219,6 @@ export default function Profile() {
                <Link href="/friends" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><UsersRound size={15} />Freunde & Duelle</Link>
                <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><WalletCards size={15} />Konto & Auszahlungen</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
-              <div className="mt-2 border-t border-white/10 pt-2">
-                <button onClick={logout} className="w-full rounded-2xl px-4 py-3 text-left text-sm font-bold text-zinc-400 transition hover:bg-white/10 hover:text-white">Logout</button>
-              </div>
             </div>
           </div>
         )}

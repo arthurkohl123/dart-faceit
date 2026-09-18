@@ -71,7 +71,7 @@ export default function Home() {
             <span className="border-l border-white/15 pl-6 text-[11px] font-bold uppercase tracking-[.12em] text-zinc-500">Saison 01 · bis 01.11.2026</span>
           </div>
           <div className="flex items-center gap-2">
-            {isLoggedIn ? <button onClick={() => router.push('/profile')} className="hidden border border-emerald-300 bg-emerald-300 px-4 py-2 text-sm font-black text-[#07100b] transition hover:bg-emerald-200 sm:block">Mein Profil</button> : <><button onClick={() => router.push('/auth/login')} className="hidden px-4 py-2 text-sm font-bold text-zinc-300 hover:text-white sm:block">Login</button><button onClick={() => router.push('/auth/register')} className="hidden border border-emerald-300 bg-emerald-300 px-4 py-2 text-sm font-black text-[#07100b] transition hover:bg-emerald-200 sm:block">Mitspielen</button></>}
+            {!isLoggedIn && <><button onClick={() => router.push('/auth/login')} className="hidden px-4 py-2 text-sm font-bold text-zinc-300 hover:text-white sm:block">Login</button><button onClick={() => router.push('/auth/register')} className="hidden border border-emerald-300 bg-emerald-300 px-4 py-2 text-sm font-black text-[#07100b] transition hover:bg-emerald-200 sm:block">Mitspielen</button></>}
             <button onClick={() => setMobileMenuOpen((open) => !open)} className="grid h-9 w-9 place-items-center border border-white/15 text-zinc-200 lg:hidden" aria-label="Menü öffnen">{mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}</button>
           </div>
         </div>

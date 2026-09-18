@@ -38,18 +38,18 @@ export function AccountMenu({ username, email, isAdmin, onLogout }: AccountMenuP
   };
 
   return (
-    <div ref={menuRef} className="fixed right-4 top-4 z-[90] text-white sm:right-6 sm:top-5">
+    <div ref={menuRef} className="fixed right-16 top-0 z-[90] flex h-[72px] items-center text-white sm:right-6">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="group flex max-w-[min(16rem,calc(100vw-2rem))] items-center gap-2 rounded-full border border-white/10 bg-zinc-950/85 py-1.5 pl-2 pr-3 shadow-xl shadow-black/35 backdrop-blur-xl transition hover:border-emerald-300/35 hover:bg-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+        className="group flex h-full max-w-[min(15rem,calc(100vw-5.5rem))] items-center gap-2 border-l border-white/10 py-2 pl-4 pr-1 transition hover:bg-white/[0.035] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-300/70 sm:pl-5"
       >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-emerald-300/25 bg-emerald-400/10 text-emerald-200">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-emerald-300/25 bg-emerald-400/10 text-emerald-200 transition group-hover:border-emerald-300/50 group-hover:bg-emerald-400/15">
           <UserRound className="h-4 w-4" />
         </span>
-        <span className="min-w-0 text-left">
+        <span className="hidden min-w-0 text-left sm:block">
           <span className="block truncate text-xs font-black tracking-tight text-zinc-100">{username}</span>
           <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-emerald-300">Konto</span>
         </span>
@@ -57,7 +57,7 @@ export function AccountMenu({ username, email, isAdmin, onLogout }: AccountMenuP
       </button>
 
       {open && (
-        <div role="menu" aria-label="Kontomenü" className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#101314]/95 p-2 shadow-2xl shadow-black/55 backdrop-blur-2xl">
+        <div role="menu" aria-label="Kontomenü" className="absolute right-0 top-[76px] w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#101314]/[0.98] p-2 shadow-2xl shadow-black/55 backdrop-blur-2xl">
           <div className="border-b border-white/8 px-3 pb-3 pt-2">
             <p className="truncate text-sm font-black text-white">{username}</p>
             {email && <p className="mt-1 truncate text-xs text-zinc-500">{email}</p>}
