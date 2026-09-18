@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, Clock, Database, Pencil, Power, RadioTower, RefreshCcw, Save, Search, Shield, SlidersHorizontal, Swords, Trophy, Wrench, X } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowUpRight, CheckCircle2, Clock, Command, Database, Pencil, Power, RadioTower, RefreshCcw, Save, Search, Shield, SlidersHorizontal, Swords, Trophy, Wrench, X, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { DeveloperMonitoring } from '@/components/DeveloperMonitoring';
@@ -427,6 +427,56 @@ export default function DeveloperDashboard() {
       ? { label: 'Queue-Sperren prüfen', className: 'border-red-300/25 bg-red-500/10 text-red-100' }
       : { label: 'System betriebsbereit', className: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' };
 
+  const sectionMeta: Record<DeveloperSection, { label: string; eyebrow: string; description: string }> = {
+    overview: {
+      label: 'Leitstand',
+      eyebrow: 'Production pulse',
+      description: 'Die wichtigsten Signale, Fehler und Dienste an einem Ort – damit du sofort weißt, ob alles sauber läuft.',
+    },
+    matchmaking: {
+      label: 'Spielbetrieb',
+      eyebrow: 'Queue & event control',
+      description: 'Ranked-Queue und den Mittwoch Showdown sicher steuern, ohne in mehreren Menüs suchen zu müssen.',
+    },
+    system: {
+      label: 'Systemregeln',
+      eyebrow: 'Safety & settings',
+      description: 'Wartung, Verifizierung und No-Show-Regeln. Änderungen hier wirken direkt auf den Live-Betrieb.',
+    },
+    matches: {
+      label: 'Matcharchiv',
+      eyebrow: 'Data correction',
+      description: 'Abgeschlossene Matches nachvollziehen und einzelne Statistiken sauber nachbearbeiten.',
+    },
+  };
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches('input, textarea, select, [contenteditable="true"]') || event.metaKey || event.ctrlKey || event.altKey) return;
+
+      const shortcuts: Record<string, DeveloperSection> = {
+        '1': 'overview',
+        '2': 'matchmaking',
+        '3': 'system',
+        '4': 'matches',
+      };
+
+      if (shortcuts[event.key]) {
+        event.preventDefault();
+        setActiveSection(shortcuts[event.key]);
+      }
+
+      if (event.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        void loadDashboard();
+      }
+    };
+
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, [loadDashboard]);
+
 
 
   if (loading) {
@@ -441,54 +491,83 @@ export default function DeveloperDashboard() {
   }
 
   return (
-    <main className="developer-console min-h-screen bg-[#121212] text-white">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_82%_0%,rgba(67,117,229,0.11),transparent_30%),linear-gradient(180deg,#151515_0%,#101010_100%)]" />
-      <section className="developer-console-content relative mx-auto max-w-[1780px] px-0 py-0">
+    <main className="developer-console min-h-screen text-white">
+      <div className="developer-console-atmosphere pointer-events-none fixed inset-0" />
+      <section className="developer-console-content relative mx-auto max-w-[1720px]">
         <header className="developer-console-topbar">
-          <Link href="/" className="developer-console-brand"><span className="developer-console-mark">RD</span><span><strong>RANKEDDARTS</strong><small>DEVELOPER CONSOLE</small></span></Link>
+          <Link href="/" className="developer-console-brand" aria-label="Zur RankedDarts-Startseite">
+            <span className="developer-console-mark"><Command className="h-4 w-4" /></span>
+            <span><strong>RANKEDDARTS</strong><small>DEVELOPER WORKBENCH</small></span>
+          </Link>
           <div className="developer-console-topbar-actions">
-            <span className={`developer-console-sync ${autoRefresh ? 'is-live' : ''}`}><i /> Sync {autoRefresh ? 'aktiv' : 'pausiert'}</span>
-            <button type="button" onClick={() => setAutoRefresh((value) => !value)} className="developer-console-quiet-button">{autoRefresh ? 'Pausieren' : 'Aktivieren'}</button>
-            <button type="button" onClick={() => void loadDashboard()} className="developer-console-primary-button"><RefreshCcw className="h-3.5 w-3.5" /> Aktualisieren</button>
-            <Link href="/admin" className="developer-console-admin-link">Admin</Link>
+            <span className={`developer-console-sync ${autoRefresh ? 'is-live' : ''}`}><i /> {autoRefresh ? 'Live-Sync' : 'Sync pausiert'}</span>
+            <button type="button" onClick={() => void loadDashboard()} className="developer-console-primary-button"><RefreshCcw className="h-3.5 w-3.5" /> Aktualisieren <kbd>R</kbd></button>
+            <Link href="/admin" className="developer-console-admin-link">Admin <ArrowUpRight className="h-3.5 w-3.5" /></Link>
           </div>
         </header>
 
-        <div className="developer-console-legacy-hero flex flex-col gap-6 border-b border-white/10 pb-8 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-cyan-200">
-              <Shield className="h-4 w-4" /> Developer Control Center
+        <div className="developer-console-workspace">
+          <aside className="developer-console-rail">
+            <div className="developer-console-rail-heading">
+              <span>Arbeitsbereiche</span>
+              <span className="developer-console-rail-version">v1.0</span>
             </div>
-            <h1 className="mt-6 text-5xl font-black tracking-[-0.07em] md:text-7xl">RankedDarts Steuerung</h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-zinc-400">
-              Zentrale Steuerung für Betriebsstatus, Match-Qualität und Queue-Regeln. Änderungen werden direkt dokumentiert und die Kennzahlen bleiben bei aktiver Live-Aktualisierung im Blick.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => setAutoRefresh((value) => !value)}
-              className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${autoRefresh ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15' : 'border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08]'}`}
-            >
-              Live-Update: {autoRefresh ? 'an' : 'aus'}
-            </button>
-            <button type="button" onClick={() => void loadDashboard()} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:bg-white/[0.08]">
-              Jetzt aktualisieren
-            </button>
-            <Link href="/admin" className="rounded-2xl border border-white/10 bg-white px-4 py-3 text-sm font-black text-black transition hover:bg-zinc-200">
-              Admin öffnen
-            </Link>
-          </div>
-        </div>
+            <nav aria-label="Bereiche im Developer-Tool" className="developer-console-rail-nav">
+              {([
+                ['overview', 'Leitstand', 'Live-Signale & Fehler', Activity],
+                ['matchmaking', 'Spielbetrieb', 'Queue & Showdown', RadioTower],
+                ['system', 'Systemregeln', 'Sicherheit & Wartung', Wrench],
+                ['matches', 'Matcharchiv', 'Korrekturen & Daten', Trophy],
+              ] as const).map(([section, label, hint, Icon], index) => (
+                <button
+                  key={section}
+                  type="button"
+                  onClick={() => setActiveSection(section)}
+                  aria-current={activeSection === section ? 'page' : undefined}
+                  className={`developer-console-rail-item ${activeSection === section ? 'is-active' : ''}`}
+                >
+                  <span className="developer-console-rail-icon"><Icon className="h-4 w-4" /></span>
+                  <span><strong>{label}</strong><small>{hint}</small></span>
+                  <kbd>{index + 1}</kbd>
+                </button>
+              ))}
+            </nav>
 
-        {(error || success) && (
-          <div className={`mt-6 flex items-center gap-3 rounded-3xl border px-5 py-4 text-sm font-bold ${error ? 'border-red-400/30 bg-red-500/10 text-red-100' : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100'}`}>
-            {error ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle2 className="h-5 w-5 shrink-0" />}
-            {error || success}
-          </div>
-        )}
+            <div className="developer-console-rail-pulse">
+              <span className={`developer-console-pulse-dot ${maintenanceEnabled ? 'is-warning' : !matchmakingEnabled ? 'is-alert' : ''}`} />
+              <div><small>Systemzustand</small><strong>{operationalStatus.label}</strong></div>
+            </div>
+            <button type="button" onClick={() => setAutoRefresh((value) => !value)} className="developer-console-sync-switch">
+              <span><Zap className="h-3.5 w-3.5" /> Live-Sync</span>
+              <span className={autoRefresh ? 'is-on' : ''}>{autoRefresh ? 'AN' : 'AUS'}</span>
+            </button>
+            <div className="developer-console-rail-note">
+              <span>DEINE NOTIZ</span>
+              <p>{developerNotice.trim() || 'Noch keine Notiz für den heutigen Betrieb hinterlegt.'}</p>
+            </div>
+          </aside>
 
-        <div className="developer-console-metrics mt-0 grid gap-0 md:grid-cols-2 xl:grid-cols-5">
+          <div className="developer-console-stage">
+            <section className="developer-console-intro">
+              <div>
+                <p className="developer-console-eyebrow">{sectionMeta[activeSection].eyebrow}</p>
+                <h1>{sectionMeta[activeSection].label}</h1>
+                <p>{sectionMeta[activeSection].description}</p>
+              </div>
+              <div className="developer-console-intro-status">
+                <span className={`developer-console-status-chip ${operationalStatus.className}`}><i /> {operationalStatus.label}</span>
+                <small>{lastUpdated ? `Datenstand ${lastUpdated.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Datenstand wird geladen'}</small>
+              </div>
+            </section>
+
+            {(error || success) && (
+              <div className={`developer-console-feedback flex items-center gap-3 border px-5 py-4 text-sm font-bold ${error ? 'is-error border-red-400/30 bg-red-500/10 text-red-100' : 'is-success border-emerald-400/30 bg-emerald-500/10 text-emerald-100'}`}>
+                {error ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle2 className="h-5 w-5 shrink-0" />}
+                {error || success}
+              </div>
+            )}
+
+            <div className="developer-console-metrics grid gap-0 md:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <Activity className="h-5 w-5 text-emerald-300" />
             <p className="mt-4 text-4xl font-black tracking-[-0.05em]">{stats.profiles ?? 0}</p>
@@ -516,44 +595,21 @@ export default function DeveloperDashboard() {
           </div>
         </div>
 
-        <section className="developer-console-status mt-0 flex flex-col gap-4 border border-white/10 bg-black/20 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className={`h-3 w-3 rounded-full ${maintenanceEnabled ? 'bg-amber-300' : !matchmakingEnabled || (stats.queue_locked_profiles ?? 0) > 0 ? 'bg-red-400' : 'bg-emerald-400'} ${autoRefresh ? 'animate-pulse' : ''}`} />
-            <div>
-              <p className="text-sm font-black text-zinc-100">Betriebsstatus</p>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                {lastUpdated ? `Zuletzt aktualisiert: ${lastUpdated.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Status wird geladen'}
-              </p>
+            <div className={activeSection === 'overview' ? '' : 'hidden'}>
+              <section className="developer-console-briefing">
+                <div>
+                  <p className="developer-console-eyebrow">Dein nächster Schritt</p>
+                  <h2>{maintenanceEnabled ? 'Wartungsmodus im Blick behalten.' : !matchmakingEnabled ? 'Queue ist pausiert.' : (stats.queue_locked_profiles ?? 0) > 0 ? 'Sperren kontrollieren.' : 'Heute sieht es ruhig aus.'}</h2>
+                  <p>{maintenanceEnabled ? 'Die Plattform ist für normale Nutzer nicht erreichbar. Prüfe nach dem Update zuerst den Live-Status.' : !matchmakingEnabled ? 'Wartende Spieler können aktuell nicht in ein Match kommen. Öffne die Queue erst, wenn der Betrieb bereit ist.' : (stats.queue_locked_profiles ?? 0) > 0 ? 'Es gibt aktive Queue-Sperren. Im Systembereich kannst du abgelaufene Einträge sicher bereinigen.' : 'Nutze die Schnellwege, wenn du in den Spielbetrieb eingreifen oder historische Matches korrigieren möchtest.'}</p>
+                </div>
+                <div className="developer-console-briefing-actions">
+                  <button type="button" onClick={() => setActiveSection('matchmaking')}><RadioTower className="h-4 w-4" /> Spielbetrieb <ArrowUpRight className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => setActiveSection('system')}><Wrench className="h-4 w-4" /> Systemregeln <ArrowUpRight className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => setActiveSection('matches')}><Trophy className="h-4 w-4" /> Matcharchiv <ArrowUpRight className="h-3.5 w-3.5" /></button>
+                </div>
+              </section>
+              <DeveloperMonitoring />
             </div>
-          </div>
-          <span className={`w-fit rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${operationalStatus.className}`}>
-            {operationalStatus.label}
-          </span>
-        </section>
-
-        <nav aria-label="Bereiche im Developer-Tool" className="developer-console-tabs sticky top-0 z-20 mt-0 overflow-x-auto border border-white/10 bg-[#0b0d0e]/95 p-2 shadow-2xl shadow-black/30 backdrop-blur">
-          <div className="flex min-w-max gap-2">
-            {([
-              ['overview', 'Übersicht', Activity],
-              ['matchmaking', 'Matchmaking & Showdown', RadioTower],
-              ['system', 'System & Regeln', Wrench],
-              ['matches', 'Match-Verwaltung', Trophy],
-            ] as const).map(([section, label, Icon]) => (
-              <button
-                key={section}
-                type="button"
-                onClick={() => setActiveSection(section)}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition ${activeSection === section ? 'bg-cyan-300 text-cyan-950 shadow-lg shadow-cyan-400/10' : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100'}`}
-              >
-                <Icon className="h-4 w-4" /> {label}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        <div className={activeSection === 'overview' ? '' : 'hidden'}>
-          <DeveloperMonitoring />
-        </div>
 
         <div className={`mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] ${activeSection === 'matchmaking' || activeSection === 'system' ? '' : 'hidden'}`}>
           <div className={activeSection === 'matchmaking' ? 'contents' : 'hidden'}>
@@ -961,6 +1017,8 @@ export default function DeveloperDashboard() {
           </div>
         </section>
 
+          </div>
+        </div>
       </section>
     </main>
   );
