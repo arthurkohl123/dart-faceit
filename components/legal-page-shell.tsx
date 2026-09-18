@@ -13,6 +13,7 @@ const links = [
   { href: '/impressum', label: 'Impressum' },
   { href: '/datenschutz', label: 'Datenschutz' },
   { href: '/agb', label: 'AGB' },
+  { href: '/fairplay', label: 'Fair Play' },
   { href: '/turnierregeln', label: 'Turnierregeln' },
   { href: '/premium/kuendigung', label: 'Premium kündigen' },
 ];

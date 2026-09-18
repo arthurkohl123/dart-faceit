@@ -270,6 +270,15 @@ type FlaggedPlayer = {
   flags: string[];
 };
 type FairnessRiskFlag = { id: string; player1_id: string; player2_id: string; player1_username: string; player2_username: string; reason: string; severity: string; occurrence_count: number; context: Record<string, unknown>; last_seen_at: string };
+type FairplayReviewAction = { id: string; disposition: 'watchlist' | 'cleared' | 'warning_issued' | 'restriction_recommended'; note: string | null; created_at: string; admin_username: string };
+type FairplayReview = {
+  profile: { profile_id: string; user_id: string; username: string; elo: number; games_played: number; wins: number; created_at: string; phone_verified: boolean; is_banned: boolean; queue_banned_until: string | null; no_show_strikes: number };
+  recent_matches: { completed_at: string | null; opponent_username: string; result: string | null; legs_won: number | null; legs_lost: number | null; my_average: number | null; elo_change: number | null; match_mode: string | null; app: string | null }[];
+  shared_opponents: { opponent_username: string; opponent_user_id: string | null; matches_together: number; wins_against: number; last_match_at: string | null }[];
+  signals: { id: string; reason: string; severity: string; occurrence_count: number; last_seen_at: string; related_username: string }[];
+  actions: FairplayReviewAction[];
+};
+type FairplayDisposition = FairplayReviewAction['disposition'];
 
 type LiveMatch = {
   id: string;
@@ -424,6 +433,11 @@ export default function AdminPanel() {
   const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
   const [flaggedPlayers, setFlaggedPlayers] = useState<FlaggedPlayer[]>([]);
   const [fairnessRiskFlags, setFairnessRiskFlags] = useState<FairnessRiskFlag[]>([]);
+  const [fairplayReview, setFairplayReview] = useState<FairplayReview | null>(null);
+  const [fairplayReviewLoading, setFairplayReviewLoading] = useState(false);
+  const [fairplayReviewSaving, setFairplayReviewSaving] = useState(false);
+  const [fairplayReviewDisposition, setFairplayReviewDisposition] = useState<FairplayDisposition>('watchlist');
+  const [fairplayReviewNote, setFairplayReviewNote] = useState('');
   const [resolveForms, setResolveForms] = useState<Record<string, ResolveFormState>>({});
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -555,6 +569,32 @@ export default function AdminPanel() {
     if (error) { setActionMessage(`Signal konnte nicht erledigt werden: ${error.message}`); return; }
     setFairnessRiskFlags((current) => current.filter((flag) => flag.id !== id));
     setActionMessage('Match-Verhaltenssignal als geprüft markiert.');
+  };
+
+  const openFairplayReview = async (playerId: string) => {
+    setFairplayReviewLoading(true);
+    setFairplayReview(null);
+    setFairplayReviewNote('');
+    setFairplayReviewDisposition('watchlist');
+    const { data, error } = await supabase.rpc('admin_get_fairplay_review', { p_player_id: playerId });
+    setFairplayReviewLoading(false);
+    if (error) { setActionMessage(`Fair-Play-Akte konnte nicht geladen werden: ${error.message}`); return; }
+    setFairplayReview(data as FairplayReview);
+  };
+
+  const saveFairplayReview = async () => {
+    if (!fairplayReview) return;
+    setFairplayReviewSaving(true);
+    const { error } = await supabase.rpc('admin_record_fairplay_review', {
+      p_player_id: fairplayReview.profile.profile_id,
+      p_disposition: fairplayReviewDisposition,
+      p_note: fairplayReviewNote.trim() || null,
+    });
+    setFairplayReviewSaving(false);
+    if (error) { setActionMessage(`Fair-Play-Entscheidung konnte nicht gespeichert werden: ${error.message}`); return; }
+    setActionMessage('Interne Fair-Play-Entscheidung dokumentiert. Der Spieler erhält dadurch keine automatische Benachrichtigung.');
+    await openFairplayReview(fairplayReview.profile.profile_id);
+    await loadAdminLogs();
   };
 
   const loadTickets = useCallback(async (status?: string | null, assignedToId?: string | null) => {
@@ -2501,10 +2541,33 @@ export default function AdminPanel() {
                 </div>
               )}
         {/* Verdächtige Accounts / Anti-Smurf-Flagging */}
+        {(fairplayReviewLoading || fairplayReview) && (
+          <section className="mb-6 overflow-hidden rounded-[2.4rem] border border-violet-300/20 bg-[linear-gradient(135deg,rgba(139,92,246,0.13),rgba(8,11,18,0.82))] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+            {fairplayReviewLoading ? <div className="grid min-h-48 place-items-center text-sm font-bold text-violet-100"><div className="text-center"><Loader2 className="mx-auto mb-3 h-7 w-7 animate-spin" />Prüfakte wird geladen …</div></div> : fairplayReview && <>
+              <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
+                <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-200">Vertrauliche Prüfakte · nur Admins</p><h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-white">{fairplayReview.profile.username}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">Signale sind Hinweise, keine Schuldzuweisung. Diese Ansicht wird nicht im Spielerprofil veröffentlicht und erzeugt keine automatische Nachricht.</p></div>
+                <button onClick={() => setFairplayReview(null)} className="self-start rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition hover:bg-white/10">Akte schließen</button>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                {[[`${fairplayReview.profile.elo}`, 'Elo'], [`${fairplayReview.profile.games_played}`, 'Ranked Games'], [`${fairplayReview.profile.wins}`, 'Siege'], [fairplayReview.profile.phone_verified ? 'Verifiziert' : 'Nicht verifiziert', 'Telefon'], [`${fairplayReview.profile.no_show_strikes}`, 'No-Show-Strikes']].map(([value, label]) => <div key={label} className="rounded-2xl border border-white/10 bg-black/25 p-3"><p className="text-lg font-black text-white">{value}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">{label}</p></div>)}
+              </div>
+              <div className="mt-5 grid gap-5 xl:grid-cols-[.85fr_1.15fr]">
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-violet-300/20 bg-violet-400/[0.06] p-4"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-violet-200">Interne Entscheidung</p><p className="mt-2 text-xs leading-5 text-zinc-400">Watchlist, Prüfung abgeschlossen oder Handlungsempfehlung werden im Audit-Trail festgehalten. Eine Sperre wird ausschließlich über die separate Ban-Aktion gesetzt.</p><label className="mt-4 block text-xs font-black text-zinc-300">Status<select value={fairplayReviewDisposition} onChange={(event) => setFairplayReviewDisposition(event.target.value as FairplayDisposition)} className={`${inputClassName} mt-2 [color-scheme:dark]`}><option className={selectOptionClassName} value="watchlist">Intern beobachten</option><option className={selectOptionClassName} value="cleared">Geprüft · kein Verstoß</option><option className={selectOptionClassName} value="warning_issued">Verwarnung ausgesprochen</option><option className={selectOptionClassName} value="restriction_recommended">Maßnahme empfohlen</option></select></label><label className="mt-3 block text-xs font-black text-zinc-300">Interne Notiz<textarea value={fairplayReviewNote} onChange={(event) => setFairplayReviewNote(event.target.value)} maxLength={1000} placeholder="Begründung, Belege oder nächster Prüfschritt …" className={`${inputClassName} mt-2 min-h-24 resize-y`} /></label><button onClick={() => void saveFairplayReview()} disabled={fairplayReviewSaving} className="mt-3 w-full rounded-xl bg-violet-300 px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-black disabled:opacity-50">{fairplayReviewSaving ? 'Wird dokumentiert …' : 'Interne Entscheidung speichern'}</button></div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-400">Bisherige Entscheidungen</p><div className="mt-3 space-y-2">{fairplayReview.actions.length === 0 ? <p className="text-sm text-zinc-500">Noch keine interne Entscheidung dokumentiert.</p> : fairplayReview.actions.map((action) => <div key={action.id} className="rounded-xl border border-white/8 bg-white/[0.025] p-3"><p className="text-xs font-black text-violet-100">{action.disposition.replaceAll('_', ' ').toUpperCase()}</p><p className="mt-1 text-xs text-zinc-400">{formatDate(action.created_at)} · {action.admin_username}</p>{action.note && <p className="mt-2 text-sm leading-5 text-zinc-300">{action.note}</p>}</div>)}</div></div>
+                </div>
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-400">Letzte bestätigte Matches</p><span className="text-xs font-bold text-zinc-500">{fairplayReview.recent_matches.length} Einträge</span></div><div className="mt-3 max-h-80 space-y-2 overflow-y-auto">{fairplayReview.recent_matches.length === 0 ? <p className="text-sm text-zinc-500">Keine bestätigten Matches vorhanden.</p> : fairplayReview.recent_matches.map((match, index) => <div key={`${match.completed_at}-${index}`} className="grid grid-cols-[1fr_auto] gap-3 rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2.5"><div><p className="text-sm font-bold text-white">vs. {match.opponent_username}</p><p className="mt-1 text-xs text-zinc-500">{formatDate(match.completed_at)} · {match.match_mode || 'ranked'} · {match.app || '—'}</p></div><div className="text-right"><p className="font-mono text-sm font-black text-zinc-100">{match.legs_won ?? '—'}:{match.legs_lost ?? '—'}</p><p className={`mt-1 text-xs font-black ${(match.elo_change || 0) >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>{(match.elo_change || 0) >= 0 ? '+' : ''}{match.elo_change ?? 0} Elo</p></div></div>)}</div></div>
+                  <div className="grid gap-4 lg:grid-cols-2"><div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-200">Wiederkehrende Gegner · 30 Tage</p><div className="mt-3 space-y-2">{fairplayReview.shared_opponents.length === 0 ? <p className="text-sm text-zinc-500">Kein wiederkehrendes Muster.</p> : fairplayReview.shared_opponents.map((opponent) => <div key={`${opponent.opponent_user_id}-${opponent.opponent_username}`} className="rounded-xl border border-white/8 bg-black/20 p-2.5"><p className="text-sm font-bold text-white">{opponent.opponent_username}</p><p className="mt-1 text-xs text-zinc-400">{opponent.matches_together} Matches · {opponent.wins_against} Siege · zuletzt {formatDate(opponent.last_match_at)}</p></div>)}</div></div><div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.04] p-4"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-cyan-200">Verknüpfte Signale</p><div className="mt-3 space-y-2">{fairplayReview.signals.length === 0 ? <p className="text-sm text-zinc-500">Keine Match-Signale vorhanden.</p> : fairplayReview.signals.map((signal) => <div key={signal.id} className="rounded-xl border border-white/8 bg-black/20 p-2.5"><p className="text-sm font-bold text-white">{signal.reason.replaceAll('_', ' ')}</p><p className="mt-1 text-xs text-zinc-400">{signal.occurrence_count}× mit {signal.related_username} · zuletzt {formatDate(signal.last_seen_at)}</p></div>)}</div></div></div>
+                </div>
+              </div>
+            </>}
+          </section>
+        )}
         {fairnessRiskFlags.length > 0 && (
           <section className="mb-6 rounded-[2.4rem] border border-cyan-300/20 bg-cyan-400/[0.04] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
             <div className="mb-5 flex items-center justify-between gap-3"><div><h2 className="text-2xl font-black text-white">Match-Verhaltenssignale</h2><p className="mt-1 text-sm text-zinc-400">Wiederholte Paarungen innerhalb von sieben Tagen – Hinweis zur manuellen Prüfung, kein automatischer Ban.</p></div><span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-black text-cyan-100">{fairnessRiskFlags.length} offen</span></div>
-            <div className="grid gap-3 md:grid-cols-2">{fairnessRiskFlags.map((flag) => <div key={flag.id} className="rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-white">{flag.player1_username} <span className="text-zinc-500">vs.</span> {flag.player2_username}</p><p className="mt-1 text-xs text-zinc-400">{flag.occurrence_count} Matches in 7 Tagen · zuletzt {formatDate(flag.last_seen_at)}</p></div><button onClick={() => void resolveFairnessRiskFlag(flag.id)} className="shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-100 hover:bg-emerald-400/20">Geprüft</button></div></div>)}</div>
+            <div className="grid gap-3 md:grid-cols-2">{fairnessRiskFlags.map((flag) => <div key={flag.id} className="rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-white">{flag.player1_username} <span className="text-zinc-500">vs.</span> {flag.player2_username}</p><p className="mt-1 text-xs text-zinc-400">{flag.occurrence_count} Matches in 7 Tagen · zuletzt {formatDate(flag.last_seen_at)}</p></div><button onClick={() => void resolveFairnessRiskFlag(flag.id)} className="shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-100 hover:bg-emerald-400/20">Geprüft</button></div><div className="mt-3 flex flex-wrap gap-2"><button onClick={() => void openFairplayReview(flag.player1_id)} className="rounded-lg border border-violet-300/20 bg-violet-400/10 px-2.5 py-1.5 text-[10px] font-black text-violet-100">Akte {flag.player1_username}</button><button onClick={() => void openFairplayReview(flag.player2_id)} className="rounded-lg border border-violet-300/20 bg-violet-400/10 px-2.5 py-1.5 text-[10px] font-black text-violet-100">Akte {flag.player2_username}</button></div></div>)}</div>
           </section>
         )}
         {flaggedPlayers.length === 0 ? (
@@ -2588,6 +2651,12 @@ export default function AdminPanel() {
                     </div>
                     {/* Aktionen */}
                     <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => void openFairplayReview(player.id)}
+                        className="rounded-xl border border-violet-300/25 bg-violet-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-violet-100 transition hover:bg-violet-400/20"
+                      >
+                        Prüfakte öffnen
+                      </button>
                       <button
                         onClick={() => void banFlaggedPlayer(player)}
                         className="rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-rose-100 transition hover:bg-rose-400/15"

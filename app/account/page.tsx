@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { ArrowUpRight, Download, Loader2, ShieldAlert, Trash2, WalletCards } from 'lucide-react';
+import { ArrowUpRight, Download, Loader2, ShieldAlert, ShieldCheck, Trash2, WalletCards } from 'lucide-react';
 import { PayoutAlert } from '@/components/payout-alert';
 import { createClient } from '@/lib/supabase';
 
@@ -37,6 +37,11 @@ export default function AccountPage() {
         <Download className="text-emerald-300" /><h2 className="mt-4 text-xl font-black">Datenexport</h2>
         <p className="mt-2 text-sm leading-6 text-zinc-400">Für Datenschutz und persönliche Unterlagen: Der Export enthält Profil, Matchhistorie, Benachrichtigungen, Turnierteilnahmen und Support-Tickets als JSON-Datei.</p>
         <a href="/api/account/export" className="mt-5 inline-flex rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-black">Daten herunterladen</a>
+      </section>
+      <section className="mt-5 rounded-3xl border border-cyan-300/15 bg-cyan-400/[.05] p-6">
+        <ShieldCheck className="text-cyan-200" /><h2 className="mt-4 text-xl font-black">Fair Play & Kontoschutz</h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">Hier findest du klar erklärt, wie wir Mehrfachkonten, Ergebnisabsprachen und andere Wettbewerbsverstöße fair prüfen – und welche Maßnahmen in Frage kommen.</p>
+        <Link href="/fairplay" className="mt-5 inline-flex rounded-xl border border-cyan-300/25 bg-cyan-400/10 px-4 py-3 text-sm font-black text-cyan-100">Fair-Play-Regeln ansehen</Link>
       </section>
       <section className="mt-5 rounded-3xl border border-red-300/20 bg-red-500/[.06] p-6">
         <ShieldAlert className="text-red-300" /><h2 className="mt-4 text-xl font-black">Account endgültig löschen</h2>
