@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   Activity,
+  BarChart3,
   Ban,
   CheckCircle2,
   ChevronDown,
@@ -41,7 +42,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-type AdminTab = 'overview' | 'operations' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'payouts' | 'logs' | 'flagged';
+type AdminTab = 'overview' | 'operations' | 'player_cases' | 'competition_ops' | 'communications' | 'team_analytics' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'payouts' | 'logs' | 'flagged';
 type AdminNavigationItem = {
   id: AdminTab;
   label: string;
@@ -1430,7 +1431,7 @@ export default function AdminPanel() {
       label: 'Leitstand',
       items: [
         { id: 'overview', label: 'Operations Deck', detail: 'Gesamtlage & Prioritäten', icon: Activity, badge: null, tone: 'text-emerald-200' },
-        { id: 'operations', label: 'Operations Hub', detail: 'Inbox, Fälle & Team', icon: Command, badge: attentionCount || null, tone: 'text-cyan-200' },
+        { id: 'operations', label: 'Ops Inbox', detail: 'Prioritäten & Betriebschecks', icon: Command, badge: attentionCount || null, tone: 'text-cyan-200' },
         { id: 'live', label: 'Live Arena', detail: 'Laufende Matches', icon: Radar, badge: liveMatches.length || null, tone: 'text-cyan-200' },
         { id: 'disputes', label: 'Entscheidungen', detail: 'Disputes & Ergebnisse', icon: Gavel, badge: disputedMatches.length || null, tone: 'text-amber-200' },
       ],
@@ -1440,6 +1441,7 @@ export default function AdminPanel() {
       items: [
         { id: 'tickets', label: 'Support Queue', detail: unassignedTickets ? `${unassignedTickets} ohne Owner` : 'Tickets & Zuweisungen', icon: Headphones, badge: ticketsInQueue || null, tone: 'text-violet-200' },
         { id: 'players', label: 'Spielerverwaltung', detail: `${profiles.length} Profile`, icon: Users, badge: null, tone: 'text-zinc-200' },
+        { id: 'player_cases', label: 'Spieler & Fälle', detail: '360°-Akte & Vorgänge', icon: ShieldCheck, badge: null, tone: 'text-violet-200' },
         { id: 'flagged', label: 'Fairness Monitor', detail: 'Auffällige Accounts', icon: TriangleAlert, badge: flaggedPlayers.length || null, tone: 'text-orange-200' },
       ],
     },
@@ -1447,7 +1449,15 @@ export default function AdminPanel() {
       label: 'Wettbewerb',
       items: [
         { id: 'tournaments', label: 'Cup Control', detail: 'Turniere & Brackets', icon: Trophy, badge: activeTournamentCount || null, tone: 'text-cyan-200' },
+        { id: 'competition_ops', label: 'Turnier-Leitstand', detail: 'Aktive Cups im Blick', icon: Radar, badge: activeTournamentCount || null, tone: 'text-cyan-200' },
         { id: 'payouts', label: 'Prize Desk', detail: `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen`, icon: Crown, badge: pendingPayouts.length || null, tone: 'text-lime-200' },
+      ],
+    },
+    {
+      label: 'Kommunikation',
+      items: [
+        { id: 'communications', label: 'Ankündigungen', detail: 'Banner & In-App-Nachrichten', icon: MessageCircle, badge: null, tone: 'text-emerald-200' },
+        { id: 'team_analytics', label: 'Team & Insights', detail: 'Rollen & Kernzahlen', icon: BarChart3, badge: null, tone: 'text-zinc-200' },
       ],
     },
     {
@@ -1651,9 +1661,11 @@ export default function AdminPanel() {
             </div>
           )}
 
-          {activeTab === 'operations' && (
-            <AdminOperationsWorkspace onNavigate={(destination) => goToSection(destination)} />
-          )}
+          {activeTab === 'operations' && <AdminOperationsWorkspace view="inbox" onNavigate={(destination) => goToSection(destination)} />}
+          {activeTab === 'player_cases' && <AdminOperationsWorkspace view="players" onNavigate={(destination) => goToSection(destination)} />}
+          {activeTab === 'competition_ops' && <AdminOperationsWorkspace view="competition" onNavigate={(destination) => goToSection(destination)} />}
+          {activeTab === 'communications' && <AdminOperationsWorkspace view="communications" onNavigate={(destination) => goToSection(destination)} />}
+          {activeTab === 'team_analytics' && <AdminOperationsWorkspace view="team" onNavigate={(destination) => goToSection(destination)} />}
 
           {activeTab === 'disputes' && (
             <div>
