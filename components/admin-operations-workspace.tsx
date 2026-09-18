@@ -14,6 +14,28 @@ type WorkspaceData = {
   tournaments: TournamentPulse[];
   staff: StaffMember[];
 };
+type GrowthFunnel = {
+  window_days: number;
+  generated_at: string;
+  totals: {
+    registered: number;
+    profile_ready: number;
+    first_queue_joined: number;
+    first_match_completed: number;
+    profile_ready_rate: number;
+    queue_rate: number;
+    match_rate: number;
+    overall_match_rate: number;
+    avg_minutes_to_queue: number;
+    avg_minutes_to_match: number;
+  };
+  drop_off: {
+    before_profile_ready: number;
+    before_first_queue: number;
+    before_first_match: number;
+  };
+  daily: { day: string; registered: number; profile_ready: number; first_queue_joined: number; first_match_completed: number }[];
+};
 type Case = { id: string; profile_id: string; username: string; title: string; summary: string; case_type: string; priority: string; status: string; owner_username: string | null; created_at: string; updated_at: string };
 type Notice = { id: string; title: string; body: string; tone: 'info' | 'success' | 'warning' | 'event'; href: string | null; is_active: boolean; starts_at: string; expires_at: string | null; created_at: string };
 type Player360 = {
@@ -43,6 +65,8 @@ export function AdminOperationsWorkspace({ view, onNavigate }: { view: Operation
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null);
   const [cases, setCases] = useState<Case[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [growthFunnel, setGrowthFunnel] = useState<GrowthFunnel | null>(null);
+  const [funnelWindowDays, setFunnelWindowDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [playerSearch, setPlayerSearch] = useState('');
@@ -56,19 +80,21 @@ export function AdminOperationsWorkspace({ view, onNavigate }: { view: Operation
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [workspaceResult, casesResult, noticesResult] = await Promise.all([
+    const [workspaceResult, casesResult, noticesResult, funnelResult] = await Promise.all([
       supabase.rpc('admin_get_operations_workspace'),
       supabase.rpc('admin_list_cases', { p_status: null }),
       supabase.rpc('admin_list_site_notices'),
+      supabase.rpc('admin_get_growth_funnel', { p_days: funnelWindowDays }),
     ]);
-    if (workspaceResult.error || casesResult.error || noticesResult.error) {
-      setMessage(`Operations-Daten konnten nicht vollständig geladen werden: ${workspaceResult.error?.message || casesResult.error?.message || noticesResult.error?.message}`);
+    if (workspaceResult.error || casesResult.error || noticesResult.error || funnelResult.error) {
+      setMessage(`Operations-Daten konnten nicht vollständig geladen werden: ${workspaceResult.error?.message || casesResult.error?.message || noticesResult.error?.message || funnelResult.error?.message}`);
     }
     if (workspaceResult.data) setWorkspace(workspaceResult.data as WorkspaceData);
     if (casesResult.data) setCases(casesResult.data as Case[]);
     if (noticesResult.data) setNotices(noticesResult.data as Notice[]);
+    if (funnelResult.data) setGrowthFunnel(funnelResult.data as GrowthFunnel);
     setLoading(false);
-  }, [supabase]);
+  }, [funnelWindowDays, supabase]);
 
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
 
@@ -150,6 +176,12 @@ export function AdminOperationsWorkspace({ view, onNavigate }: { view: Operation
     { label: 'Ø Abschlusszeit', value: `${metrics?.avg_completion_minutes_7d ?? 0} min`, icon: BarChart3, tone: 'text-amber-200' },
     { label: 'Spieler gesamt', value: metrics?.players_total ?? 0, icon: UsersRound, tone: 'text-zinc-100' },
   ];
+  const funnelStages = growthFunnel ? [
+    { label: 'Registriert', value: growthFunnel.totals.registered, rate: 100, drop: 0, tone: 'text-white' },
+    { label: 'Profil bereit', value: growthFunnel.totals.profile_ready, rate: growthFunnel.totals.profile_ready_rate, drop: growthFunnel.drop_off.before_profile_ready, tone: 'text-cyan-100' },
+    { label: 'Erste Queue', value: growthFunnel.totals.first_queue_joined, rate: growthFunnel.totals.queue_rate, drop: growthFunnel.drop_off.before_first_queue, tone: 'text-amber-100' },
+    { label: 'Erstes Match', value: growthFunnel.totals.first_match_completed, rate: growthFunnel.totals.match_rate, drop: growthFunnel.drop_off.before_first_match, tone: 'text-emerald-100' },
+  ] : [];
 
   return <div className="space-y-6">
     {message && <div className="flex items-start justify-between gap-4 rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.07] px-5 py-4 text-sm font-semibold text-cyan-50"><span>{message}</span><button onClick={() => setMessage(null)} className="text-cyan-200/60 hover:text-white">×</button></div>}
@@ -177,6 +209,18 @@ export function AdminOperationsWorkspace({ view, onNavigate }: { view: Operation
 
       <section className={view === 'team' ? 'rounded-[2rem] border border-white/10 bg-zinc-950/75 p-5 shadow-2xl shadow-black/25 sm:p-6' : 'hidden'}><div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100"><UsersRound className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Team & Berechtigungen</p><h3 className="mt-1 text-xl font-black text-white">Klare Verantwortlichkeiten</h3></div></div><div className="mt-5 grid grid-cols-2 gap-2">{metricCards.slice(0, 4).map((card) => <div key={card.label} className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-lg font-black text-white">{card.value}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-500">{card.label}</p></div>)}</div><div className="mt-5 space-y-2">{workspace?.staff.map((member) => <div key={member.profile_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-3"><div><p className="text-sm font-black text-white">{member.username}</p><p className="mt-0.5 text-xs text-zinc-500">{member.is_admin ? 'Voller Systemzugriff' : member.is_moderator ? 'Moderationskonto' : 'Teamkonto'}</p></div><select value={member.role} onChange={(e) => void setRole(member, e.target.value)} disabled={member.is_admin} className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 text-xs font-bold text-zinc-200 disabled:opacity-60"><option value="unassigned">Nicht zugeordnet</option><option value="support">Support</option><option value="moderator">Moderation</option><option value="tournament_manager">Turnierleitung</option><option value="finance">Finanzen</option><option value="admin">Admin</option></select></div>)}</div><p className="mt-4 text-[11px] leading-5 text-zinc-500">Neue Rollen steuern die Operations-Funktionen. Bestehende Admin-Rechte bleiben unverändert, damit keine aktuelle Berechtigung ungewollt verloren geht.</p></section>
     </div>
+
+    <section className={view === 'team' ? 'overflow-hidden rounded-[2rem] border border-cyan-300/15 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.12),transparent_44%),#0a0e14] shadow-2xl shadow-black/25' : 'hidden'}>
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 p-5 sm:p-6">
+        <div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-400/10 text-cyan-100"><BarChart3 className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">Wachstums-Funnel</p><h3 className="mt-1 text-xl font-black text-white">Wo neue Spieler abspringen</h3><p className="mt-1 text-sm text-zinc-400">Von der Registrierung bis zum ersten gewerteten Queue-Match.</p></div></div>
+        <div className="flex items-center gap-2"><select value={funnelWindowDays} onChange={(event) => setFunnelWindowDays(Number(event.target.value))} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black text-zinc-200"><option value={7}>Letzte 7 Tage</option><option value={30}>Letzte 30 Tage</option><option value={60}>Letzte 60 Tage</option><option value={90}>Letzte 90 Tage</option></select><button onClick={() => void load()} disabled={loading} className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:bg-white/[0.08] disabled:opacity-50" aria-label="Funnel aktualisieren"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></button></div>
+      </div>
+      {growthFunnel ? <div className="p-5 sm:p-6">
+        <div className="grid gap-3 lg:grid-cols-4">{funnelStages.map((stage, index) => <div key={stage.label} className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4"><div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-300/70 via-emerald-300/55 to-transparent" /><p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">{String(index + 1).padStart(2, '0')} · {stage.label}</p><p className={`mt-4 text-4xl font-black tracking-[-0.06em] ${stage.tone}`}>{stage.value}</p>{index > 0 ? <><p className="mt-1 text-xs font-bold text-zinc-400">{stage.rate}% vom vorherigen Schritt</p><p className={`mt-3 text-[11px] font-semibold ${stage.drop > 0 ? 'text-amber-200' : 'text-emerald-200'}`}>{stage.drop > 0 ? `−${stage.drop} vor diesem Schritt` : 'Kein Verlust in diesem Schritt'}</p></> : <p className="mt-1 text-xs font-bold text-zinc-400">Ausgangskohorte</p>}</div>)}</div>
+        <div className="mt-5 grid gap-3 md:grid-cols-3"><div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">Gesamt bis erstes Match</p><p className="mt-2 text-2xl font-black text-emerald-200">{growthFunnel.totals.overall_match_rate}%</p><p className="mt-1 text-xs text-zinc-500">aller Registrierungen im Zeitraum</p></div><div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">Ø bis erste Queue</p><p className="mt-2 text-2xl font-black text-cyan-100">{growthFunnel.totals.avg_minutes_to_queue || '—'}{growthFunnel.totals.avg_minutes_to_queue ? ' min' : ''}</p><p className="mt-1 text-xs text-zinc-500">ab Profil-Erstellung</p></div><div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">Ø bis erstes Match</p><p className="mt-2 text-2xl font-black text-violet-100">{growthFunnel.totals.avg_minutes_to_match || '—'}{growthFunnel.totals.avg_minutes_to_match ? ' min' : ''}</p><p className="mt-1 text-xs text-zinc-500">ab Profil-Erstellung</p></div></div>
+        <p className="mt-5 text-[11px] leading-5 text-zinc-500">Datensparsam: Erfasst werden nur die ersten Queue- und Match-Zeitpunkte eines Kontos. Keine IP-Adressen, Gerätekennungen, E-Mail-Adressen oder Seitenaufrufe. Historische erfolgreiche Queue-Einstiege wurden aus bereits abgeschlossenen Ranked-Queue-Matches rekonstruiert; neue Queue-Einstiege werden ab dieser Migration vollständig erfasst.</p>
+      </div> : <p className="p-6 text-sm text-zinc-500">Funnel-Daten werden geladen …</p>}
+    </section>
   </div>;
 }
 
