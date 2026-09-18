@@ -312,7 +312,22 @@ type TournamentParticipant = {
 
 type TournamentMatch = {
   id: string; round_number: number; match_number: number; player1_id: string | null; player2_id: string | null;
-  player1_username: string | null; player2_username: string | null; winner_id: string | null; status: string;
+  player1_username: string | null; player2_username: string | null; winner_id: string | null; winner_username: string | null;
+  status: string; active_match_id: string | null; player1_legs: number | null; player2_legs: number | null;
+  player1_average: number | null; player2_average: number | null;
+};
+
+type TournamentResultDraft = {
+  winnerId: string;
+  player1Legs: string;
+  player2Legs: string;
+  player1Average: string;
+  player2Average: string;
+  player1Checkout: string;
+  player2Checkout: string;
+  player1OneEighties: string;
+  player2OneEighties: string;
+  noShowReason: string;
 };
 
 type TournamentForm = {
@@ -387,6 +402,21 @@ function scheduleDraftFromTournament(tournament: AdminTournament): TournamentSch
   };
 }
 
+function tournamentResultDraftFromMatch(match: TournamentMatch): TournamentResultDraft {
+  return {
+    winnerId: match.winner_id || '',
+    player1Legs: match.player1_legs?.toString() ?? '',
+    player2Legs: match.player2_legs?.toString() ?? '',
+    player1Average: match.player1_average?.toString() ?? '',
+    player2Average: match.player2_average?.toString() ?? '',
+    player1Checkout: '',
+    player2Checkout: '',
+    player1OneEighties: '0',
+    player2OneEighties: '0',
+    noShowReason: '',
+  };
+}
+
 export default function AdminPanel() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [disputedMatches, setDisputedMatches] = useState<DisputedMatch[]>([]);
@@ -438,6 +468,9 @@ export default function AdminPanel() {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [tournamentBracket, setTournamentBracket] = useState<TournamentMatch[]>([]);
   const [tournamentParticipants, setTournamentParticipants] = useState<TournamentParticipant[]>([]);
+  const [tournamentResultDrafts, setTournamentResultDrafts] = useState<Record<string, TournamentResultDraft>>({});
+  const [tournamentOperationSaving, setTournamentOperationSaving] = useState<string | null>(null);
+  const [tournamentRestartConfirming, setTournamentRestartConfirming] = useState(false);
   const [tournamentReason, setTournamentReason] = useState('');
   const [tournamentPrizeTitle, setTournamentPrizeTitle] = useState('');
   const [tournamentPrizeDetails, setTournamentPrizeDetails] = useState('');
@@ -709,7 +742,9 @@ export default function AdminPanel() {
       supabase.rpc('admin_get_tournament_participants', { p_tournament_id: tournamentId }),
     ]);
     if (bracketResult.error) { setActionMessage(`Turnierbaum konnte nicht geladen werden: ${bracketResult.error.message}`); return; }
-    setTournamentBracket((bracketResult.data || []) as TournamentMatch[]);
+    const bracket = (bracketResult.data || []) as TournamentMatch[];
+    setTournamentBracket(bracket);
+    setTournamentResultDrafts(Object.fromEntries(bracket.map((match) => [match.id, tournamentResultDraftFromMatch(match)])));
     setTournamentParticipants((participantsResult.data || []) as TournamentParticipant[]);
   }, [supabase]);
 
@@ -781,11 +816,74 @@ export default function AdminPanel() {
     await Promise.all([loadTournaments(), loadTournamentBracket(tournamentId)]);
   };
 
-  const reportTournamentWinner = async (matchId: string, winnerId: string) => {
-    const { error } = await supabase.rpc('admin_report_tournament_winner', { p_match_id: matchId, p_winner_id: winnerId });
-    if (error) { setActionMessage(`Ergebnis konnte nicht gespeichert werden: ${error.message}`); return; }
-    setActionMessage('Ergebnis gespeichert. Der nächste Bracket-Schritt wurde aktualisiert.');
+  const updateTournamentResultDraft = (matchId: string, patch: Partial<TournamentResultDraft>) => {
+    setTournamentResultDrafts((current) => ({
+      ...current,
+      [matchId]: {
+        ...(current[matchId] || tournamentResultDraftFromMatch(tournamentBracket.find((match) => match.id === matchId) || {
+          id: matchId, round_number: 0, match_number: 0, player1_id: null, player2_id: null,
+          player1_username: null, player2_username: null, winner_id: null, winner_username: null,
+          status: 'pending', active_match_id: null, player1_legs: null, player2_legs: null,
+          player1_average: null, player2_average: null,
+        })),
+        ...patch,
+      },
+    }));
+  };
+
+  const recordTournamentResult = async (match: TournamentMatch) => {
+    const draft = tournamentResultDrafts[match.id];
+    if (!draft?.winnerId || !draft.player1Legs.trim() || !draft.player2Legs.trim()) {
+      setActionMessage('Für ein Ergebnis werden Sieger und beide Leg-Scores benötigt.');
+      return;
+    }
+    setTournamentOperationSaving(`result:${match.id}`);
+    const { error } = await supabase.rpc('admin_record_tournament_result', {
+      p_tournament_match_id: match.id,
+      p_winner_id: draft.winnerId,
+      p_player1_legs: Number(draft.player1Legs),
+      p_player2_legs: Number(draft.player2Legs),
+      p_player1_average: toOptionalNumber(draft.player1Average),
+      p_player2_average: toOptionalNumber(draft.player2Average),
+      p_player1_checkout: toOptionalNumber(draft.player1Checkout),
+      p_player2_checkout: toOptionalNumber(draft.player2Checkout),
+      p_player1_one_eighties: Number(draft.player1OneEighties || '0'),
+      p_player2_one_eighties: Number(draft.player2OneEighties || '0'),
+    });
+    setTournamentOperationSaving(null);
+    if (error) { setActionMessage(`Turnierergebnis konnte nicht abgeschlossen werden: ${error.message}`); return; }
+    setActionMessage('Ergebnis bestätigt: Bracket, Elo, Match-History und Statistiken wurden aktualisiert.');
     if (selectedTournamentId) await Promise.all([loadTournaments(), loadTournamentBracket(selectedTournamentId)]);
+  };
+
+  const resolveTournamentNoShow = async (match: TournamentMatch) => {
+    const draft = tournamentResultDrafts[match.id];
+    if (!draft?.winnerId) { setActionMessage('Wähle zuerst den Spieler aus, der per No-Show weiterkommt.'); return; }
+    setTournamentOperationSaving(`no-show:${match.id}`);
+    const { error } = await supabase.rpc('admin_resolve_tournament_no_show', {
+      p_tournament_match_id: match.id,
+      p_winner_id: draft.winnerId,
+      p_reason: draft.noShowReason.trim() || null,
+    });
+    setTournamentOperationSaving(null);
+    if (error) { setActionMessage(`No-Show konnte nicht gewertet werden: ${error.message}`); return; }
+    setActionMessage('No-Show gewertet: Der Gegner zieht ohne Elo-Auswirkung weiter.');
+    if (selectedTournamentId) await Promise.all([loadTournaments(), loadTournamentBracket(selectedTournamentId)]);
+  };
+
+  const restartTournament = async () => {
+    if (!selectedTournamentId) return;
+    if (!tournamentRestartConfirming) { setTournamentRestartConfirming(true); return; }
+    setTournamentOperationSaving('restart');
+    const { error } = await supabase.rpc('admin_restart_tournament', {
+      p_tournament_id: selectedTournamentId,
+      p_reason: tournamentReason.trim() || null,
+    });
+    setTournamentOperationSaving(null);
+    setTournamentRestartConfirming(false);
+    if (error) { setActionMessage(`Turnier konnte nicht zurückgesetzt werden: ${error.message}`); return; }
+    setActionMessage('Turnier zurückgesetzt und wieder für Anmeldung/Check-in geöffnet. Bereits gewertete Turniere werden aus Sicherheitsgründen nicht zurückgesetzt.');
+    await Promise.all([loadTournaments(), loadTournamentBracket(selectedTournamentId)]);
   };
 
   const manageTournamentParticipant = async (tournamentId: string, userId: string, action: 'remove' | 'disqualify' | 'checkin') => {
@@ -1858,7 +1956,38 @@ export default function AdminPanel() {
               <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7"><div className="mb-6 flex items-center justify-between"><div><h2 className="text-2xl font-black">Turnier-Übersicht</h2><p className="mt-1 text-sm text-zinc-400">Starte Cups ab zwei Teilnehmern, lose Paarungen aus und trage Ergebnisse ein.</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-zinc-400">{tournaments.length} Events</span></div>
                 {tournaments.length === 0 ? <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-zinc-500">Noch keine Turniere erstellt.</div> : <div className="grid gap-4 lg:grid-cols-2">{tournaments.map(tournament => { const canStart = Number(tournament.checked_in_count) >= 2; return <article key={tournament.id} className={`rounded-[1.6rem] border p-5 ${selectedTournamentId === tournament.id ? 'border-amber-300/35 bg-amber-300/[0.07]' : 'border-white/10 bg-white/[0.035]'}`}><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-[10px] font-black tracking-[0.14em] text-amber-300">{tournament.status.toUpperCase()}{tournament.premium_only && <><span className="text-zinc-600">·</span><Crown className="h-3.5 w-3.5" />PREMIUM</>}</div><h3 className="mt-2 text-xl font-black">{tournament.title}</h3></div><span className="rounded-full bg-white/[0.07] px-2.5 py-1 text-xs font-bold text-zinc-300">{tournament.participant_count}/{tournament.max_players}</span></div><p className="mt-2 text-sm text-zinc-500">Start: {formatDate(tournament.starts_at)} · {tournament.tournament_format.replaceAll('_', ' ')} · Best of {tournament.best_of}</p><div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-200">{tournament.checked_in_count} CHECKED IN</span><span className="rounded-full bg-violet-400/10 px-2.5 py-1 text-violet-200">{tournament.waitlist_count} WARTELISTE</span></div><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => void openTournamentManagement(tournament)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10">Turnier verwalten</button>{tournament.status === 'registration' && <button onClick={() => void startTournament(tournament.id)} disabled={!canStart} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:cursor-not-allowed disabled:opacity-40">Turnier starten</button>}</div>{tournament.status === 'registration' && !canStart && <p className="mt-3 text-[11px] text-zinc-500">Es werden mindestens zwei eingecheckte Teilnehmer benötigt.</p>}</article>; })}</div>}
                 {selectedTournamentId && tournamentSchedule && <section className="mt-7 overflow-hidden rounded-[1.7rem] border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,0.09),rgba(255,255,255,0.02))] p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-[10px] font-black tracking-[0.16em] text-cyan-200">ZEITPLAN-STEUERUNG</p><h3 className="mt-1 text-xl font-black">Anmeldung, Check-in & Start</h3><p className="mt-1 max-w-2xl text-xs leading-5 text-zinc-400">Änderungen sind nur vor dem Turnierstart möglich. Angemeldete Spieler bekommen sofort eine In-App-Benachrichtigung; Check-in- und Start-Erinnerungen laufen automatisch.</p></div><Clock className="h-5 w-5 shrink-0 text-cyan-200" /></div><div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4"><label className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">Anmeldung endet<input type="datetime-local" value={tournamentSchedule.registrationClosesAt} onChange={event => setTournamentSchedule(current => current ? { ...current, registrationClosesAt: event.target.value } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`} /></label><label className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">Check-in startet<input type="datetime-local" value={tournamentSchedule.checkInOpensAt} onChange={event => setTournamentSchedule(current => current ? { ...current, checkInOpensAt: event.target.value } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`} /></label><label className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">Check-in endet<input type="datetime-local" value={tournamentSchedule.checkInClosesAt} onChange={event => setTournamentSchedule(current => current ? { ...current, checkInClosesAt: event.target.value } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`} /></label><label className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">Turnierstart<input type="datetime-local" value={tournamentSchedule.startsAt} onChange={event => setTournamentSchedule(current => current ? { ...current, startsAt: event.target.value } : current)} className={`${inputClassName} mt-2 [color-scheme:dark]`} /></label></div><button onClick={() => void saveTournamentSchedule()} disabled={tournamentScheduleSaving} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-cyan-200 px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-[#071014] transition hover:bg-cyan-100 disabled:opacity-50"><Clock className="h-3.5 w-3.5" />{tournamentScheduleSaving ? 'Wird gespeichert …' : 'Zeitplan speichern'}</button></section>}
-                {selectedTournamentId && <div className="mt-7 rounded-[1.7rem] border border-white/10 bg-black/25 p-5"><div className="mb-4 flex items-center gap-2"><Swords className="h-5 w-5 text-amber-300" /><h3 className="font-black">Bracket & Ergebnisse</h3></div>{tournamentBracket.length === 0 ? <p className="text-sm text-zinc-500">Noch keine Paarungen – das Turnier kann ab zwei eingecheckten Teilnehmern starten. Freilose werden automatisch vergeben.</p> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{tournamentBracket.map(match => <div key={match.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-3"><div className="mb-2 text-[10px] font-black tracking-widest text-zinc-500">RUNDE {match.round_number} · MATCH {match.match_number}</div><div className="flex items-center justify-between gap-3 text-sm"><span className={match.winner_id === match.player1_id ? 'font-black text-emerald-200' : 'text-zinc-300'}>{match.player1_username || 'Wird ermittelt'}</span>{match.status !== 'completed' && match.player1_id && <button onClick={() => void reportTournamentWinner(match.id, match.player1_id!)} className="text-[10px] font-black text-amber-300">SIEG</button>}</div><div className="my-2 h-px bg-white/10" /><div className="flex items-center justify-between gap-3 text-sm"><span className={match.winner_id === match.player2_id ? 'font-black text-emerald-200' : 'text-zinc-300'}>{match.player2_username || 'Wird ermittelt'}</span>{match.status !== 'completed' && match.player2_id && <button onClick={() => void reportTournamentWinner(match.id, match.player2_id!)} className="text-[10px] font-black text-amber-300">SIEG</button>}</div></div>)}</div>}</div>}
+                {selectedTournamentId && <section className="mt-7 rounded-[1.7rem] border border-white/10 bg-black/25 p-5">
+                  <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2"><Swords className="h-5 w-5 text-amber-300" /><p className="text-[10px] font-black tracking-[0.16em] text-amber-300">TURNIERLEITUNG</p></div>
+                      <h3 className="mt-2 text-xl font-black">Bracket & Ergebniszentrale</h3>
+                      <p className="mt-1 max-w-2xl text-xs leading-5 text-zinc-500">Ein regulär eingetragenes Ergebnis erzeugt die Match-History, Elo-Änderung und Profilwerte. Ein No-Show schiebt nur im Bracket weiter – ohne Elo.</p>
+                    </div>
+                    {['registration', 'live', 'cancelled'].includes(tournaments.find((tournament) => tournament.id === selectedTournamentId)?.status || '') && <button onClick={() => void restartTournament()} disabled={tournamentOperationSaving === 'restart'} className={`rounded-xl border px-3 py-2 text-[10px] font-black tracking-[0.08em] transition disabled:opacity-50 ${tournamentRestartConfirming ? 'border-red-300/50 bg-red-500/20 text-red-100' : 'border-white/15 text-zinc-300 hover:border-red-300/35 hover:text-red-200'}`}>{tournamentOperationSaving === 'restart' ? 'WIRD ZURÜCKGESETZT …' : tournamentRestartConfirming ? 'JETZT WIRKLICH ZURÜCKSETZEN' : 'TURNIER ZURÜCKSETZEN'}</button>}
+                  </div>
+                  {tournamentRestartConfirming && <p className="mt-3 rounded-xl border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs text-red-100">Der Reset bricht offene Matchrooms ab und öffnet Anmeldung/Check-in erneut. Bereits für Elo gewertete Turniere sind gesperrt.</p>}
+                  {tournamentBracket.length === 0 ? <p className="py-8 text-sm text-zinc-500">Noch keine Paarungen – das Turnier kann ab zwei eingecheckten Teilnehmern starten. Freilose werden automatisch vergeben.</p> : <div className="mt-5 grid gap-4 lg:grid-cols-2">{tournamentBracket.map((match) => {
+                    const draft = tournamentResultDrafts[match.id] || tournamentResultDraftFromMatch(match);
+                    const isCompleted = match.status === 'completed';
+                    const hasPlayers = Boolean(match.player1_id && match.player2_id);
+                    const isSaving = tournamentOperationSaving === `result:${match.id}` || tournamentOperationSaving === `no-show:${match.id}`;
+                    const playerButtonClass = (playerId: string | null, isWinner: boolean) => `flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition ${isWinner ? 'border-emerald-300/35 bg-emerald-400/10 font-black text-emerald-100' : draft.winnerId === playerId ? 'border-amber-300/50 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/[0.025] text-zinc-300 hover:border-white/25'} disabled:cursor-not-allowed disabled:opacity-70`;
+                    return <article key={match.id} className={`rounded-2xl border p-4 ${isCompleted ? 'border-emerald-300/20 bg-emerald-400/[0.035]' : 'border-white/10 bg-white/[0.025]'}`}>
+                      <div className="mb-3 flex items-center justify-between gap-3"><p className="text-[10px] font-black tracking-[0.14em] text-zinc-500">RUNDE {match.round_number} · MATCH {match.match_number}</p><span className={`rounded-full px-2 py-1 text-[9px] font-black tracking-[0.1em] ${isCompleted ? 'bg-emerald-400/10 text-emerald-200' : match.active_match_id ? 'bg-cyan-400/10 text-cyan-200' : 'bg-white/[0.07] text-zinc-400'}`}>{isCompleted ? 'BEENDET' : match.active_match_id ? 'MATCHROOM' : 'WARTET'}</span></div>
+                      <div className="space-y-2">
+                        <button type="button" disabled={isCompleted || !match.player1_id} onClick={() => match.player1_id && updateTournamentResultDraft(match.id, { winnerId: match.player1_id })} className={playerButtonClass(match.player1_id, match.winner_id === match.player1_id)}><span className="truncate">{match.player1_username || 'Wird ermittelt'}</span><span className="ml-3 shrink-0 font-mono text-xs">{match.player1_legs ?? '—'}{match.player1_average !== null ? ` · ${Number(match.player1_average).toFixed(2)}` : ''}</span></button>
+                        <button type="button" disabled={isCompleted || !match.player2_id} onClick={() => match.player2_id && updateTournamentResultDraft(match.id, { winnerId: match.player2_id })} className={playerButtonClass(match.player2_id, match.winner_id === match.player2_id)}><span className="truncate">{match.player2_username || 'Wird ermittelt'}</span><span className="ml-3 shrink-0 font-mono text-xs">{match.player2_legs ?? '—'}{match.player2_average !== null ? ` · ${Number(match.player2_average).toFixed(2)}` : ''}</span></button>
+                      </div>
+                      {!isCompleted && !hasPlayers && <p className="mt-4 text-xs leading-5 text-zinc-500">Die Paarung wird sichtbar, sobald beide Spieler aus der Vorrunde feststehen.</p>}
+                      {!isCompleted && hasPlayers && <div className="mt-4 border-t border-white/10 pt-4">
+                        <div className="grid grid-cols-2 gap-2"><label className="text-[10px] font-black uppercase tracking-[0.08em] text-zinc-500">Legs Spieler 1<input inputMode="numeric" value={draft.player1Legs} onChange={(event) => updateTournamentResultDraft(match.id, { player1Legs: event.target.value })} placeholder="z. B. 4" className={`${inputClassName} mt-1 px-3 py-2`} /></label><label className="text-[10px] font-black uppercase tracking-[0.08em] text-zinc-500">Legs Spieler 2<input inputMode="numeric" value={draft.player2Legs} onChange={(event) => updateTournamentResultDraft(match.id, { player2Legs: event.target.value })} placeholder="z. B. 2" className={`${inputClassName} mt-1 px-3 py-2`} /></label></div>
+                        <details className="mt-3 rounded-xl border border-white/10 bg-black/10 px-3 py-2"><summary className="cursor-pointer text-[10px] font-black tracking-[0.08em] text-zinc-400">AVERAGES & ZUSATZWERTE</summary><div className="mt-3 grid grid-cols-2 gap-2"><label className="text-[10px] font-bold text-zinc-500">Ø Spieler 1<input inputMode="decimal" value={draft.player1Average} onChange={(event) => updateTournamentResultDraft(match.id, { player1Average: event.target.value })} className={`${inputClassName} mt-1 px-3 py-2`} /></label><label className="text-[10px] font-bold text-zinc-500">Ø Spieler 2<input inputMode="decimal" value={draft.player2Average} onChange={(event) => updateTournamentResultDraft(match.id, { player2Average: event.target.value })} className={`${inputClassName} mt-1 px-3 py-2`} /></label><label className="text-[10px] font-bold text-zinc-500">Höchstes Finish 1<input inputMode="numeric" value={draft.player1Checkout} onChange={(event) => updateTournamentResultDraft(match.id, { player1Checkout: event.target.value })} className={`${inputClassName} mt-1 px-3 py-2`} /></label><label className="text-[10px] font-bold text-zinc-500">Höchstes Finish 2<input inputMode="numeric" value={draft.player2Checkout} onChange={(event) => updateTournamentResultDraft(match.id, { player2Checkout: event.target.value })} className={`${inputClassName} mt-1 px-3 py-2`} /></label><label className="text-[10px] font-bold text-zinc-500">180er Spieler 1<input inputMode="numeric" value={draft.player1OneEighties} onChange={(event) => updateTournamentResultDraft(match.id, { player1OneEighties: event.target.value })} className={`${inputClassName} mt-1 px-3 py-2`} /></label><label className="text-[10px] font-bold text-zinc-500">180er Spieler 2<input inputMode="numeric" value={draft.player2OneEighties} onChange={(event) => updateTournamentResultDraft(match.id, { player2OneEighties: event.target.value })} className={`${inputClassName} mt-1 px-3 py-2`} /></label></div></details>
+                        <button onClick={() => void recordTournamentResult(match)} disabled={isSaving || !draft.winnerId || !match.active_match_id} className="mt-3 w-full rounded-xl bg-emerald-300 px-3 py-2.5 text-[10px] font-black tracking-[0.08em] text-black transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-40">{tournamentOperationSaving === `result:${match.id}` ? 'ERGEBNIS WIRD GEBUCHT …' : !match.active_match_id ? 'MATCHROOM FEHLT' : 'ERGEBNIS MIT ELO ABSCHLIESSEN'}</button>
+                        <div className="mt-3 flex gap-2"><input value={draft.noShowReason} onChange={(event) => updateTournamentResultDraft(match.id, { noShowReason: event.target.value })} placeholder="Grund bei No-Show (optional)" className={`${inputClassName} min-w-0 flex-1 px-3 py-2 text-xs`} /><button onClick={() => void resolveTournamentNoShow(match)} disabled={isSaving || !draft.winnerId} className="shrink-0 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-[10px] font-black text-amber-100 disabled:opacity-40">NO-SHOW</button></div>
+                      </div>}
+                    </article>;
+                  })}</div>}
+                </section>}
                 {selectedTournamentId && <div className="mt-5 grid gap-5 xl:grid-cols-[1.3fr_.7fr]"><div className="rounded-[1.7rem] border border-white/10 bg-black/25 p-5"><div className="flex items-center justify-between"><div><p className="text-[10px] font-black tracking-[.16em] text-cyan-300">ROSTER CONTROL</p><h3 className="mt-1 text-xl font-black">Teilnehmer & Warteliste</h3></div><span className="text-xs font-bold text-zinc-500">{tournamentParticipants.length} Einträge</span></div><input value={tournamentReason} onChange={e => setTournamentReason(e.target.value)} placeholder="Grund für Entfernung, Disqualifikation oder Absage" className={`${inputClassName} mt-4`} /><div className="mt-4 max-h-80 space-y-2 overflow-y-auto">{tournamentParticipants.map(participant => <div key={participant.user_id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[.03] p-3 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{participant.username}</p><p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{participant.status}{participant.waitlist_position ? ` · Position ${participant.waitlist_position}` : ''} · {participant.wins}W/{participant.losses}L</p></div>{!['removed','disqualified','withdrawn'].includes(participant.status) && <div className="flex flex-wrap gap-2">{participant.status === 'registered' && <button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'checkin')} className="rounded-lg border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-black text-emerald-200">CHECK-IN</button>}{tournaments.find(t => t.id === selectedTournamentId)?.status === 'completed' && <button onClick={() => void saveTournamentAwards(selectedTournamentId, participant.user_id)} className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1.5 text-[10px] font-black text-amber-200">GEWINNER</button>}<button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'remove')} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-black text-zinc-300">ENTFERNEN</button><button onClick={() => void manageTournamentParticipant(selectedTournamentId, participant.user_id, 'disqualify')} className="rounded-lg border border-red-300/20 bg-red-500/10 px-2.5 py-1.5 text-[10px] font-black text-red-200">DQ</button></div>}</div>)}</div></div><div className="space-y-4"><div className="rounded-[1.7rem] border border-amber-300/15 bg-amber-300/[.04] p-5"><p className="text-[10px] font-black tracking-[.16em] text-amber-300">PREISVERWALTUNG</p><input value={tournamentPrizeTitle} onChange={e => setTournamentPrizeTitle(e.target.value)} placeholder="Preis / Titel" className={`${inputClassName} mt-3`} /><textarea value={tournamentPrizeDetails} onChange={e => setTournamentPrizeDetails(e.target.value)} placeholder="Auszahlung und Details" className={`${inputClassName} mt-2 min-h-20`} /><button onClick={() => void saveTournamentAwards(selectedTournamentId)} className="mt-3 w-full rounded-xl bg-amber-300 px-3 py-2.5 text-xs font-black text-black">Preis speichern</button></div><button onClick={() => void cancelTournament(selectedTournamentId)} className="w-full rounded-2xl border border-red-300/25 bg-red-500/10 px-4 py-3 text-xs font-black text-red-200">TURNIER ABSAGEN & ALLE BENACHRICHTIGEN</button></div></div>}
               </section>
             </div>
