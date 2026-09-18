@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TurnstileWidget } from '@/components/turnstile-widget';
 import { verifyCaptcha } from '@/lib/captcha-client';
+import { BrandLogo } from '@/components/BrandLogo';
+import { ArrowLeft, ArrowRight, LockKeyhole, Mail } from 'lucide-react';
 
 // ─── Innere Komponente (nutzt useSearchParams) ────────────────────────────────
 // useSearchParams() erfordert ein Suspense-Boundary im App Router.
@@ -109,13 +111,12 @@ function LoginForm() {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl md:p-8">
-      <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-emerald-300/10 blur-3xl" />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
-      <div className="mb-8 text-center">
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" /> Arena-Zugang</div>
-        <h2 className="mt-4 text-4xl font-black tracking-[-0.05em]">Willkommen zurück</h2>
-        <p className="mt-3 text-sm leading-6 text-zinc-400">Logge dich mit deiner E-Mail und deinem Passwort ein.</p>
+    <div className="relative border border-white/10 bg-[#0b0e0e] p-5 shadow-[0_28px_90px_rgba(0,0,0,.48)] sm:p-7">
+      <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-300 to-transparent" />
+      <div className="mb-8 border-b border-white/8 pb-6">
+        <div className="flex items-center justify-between gap-4"><span className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Account access / 01</span><span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Sicher</span></div>
+        <h2 className="mt-5 text-4xl font-black tracking-[-0.07em] text-white">Willkommen<br />zurück.</h2>
+        <p className="mt-3 max-w-sm text-sm leading-6 text-zinc-400">Melde dich an und mach genau dort weiter, wo dein letztes Match aufgehört hat.</p>
       </div>
 
       {formMessage && (
@@ -131,14 +132,14 @@ function LoginForm() {
       <form onSubmit={handleLogin} className="space-y-4">
         <label className="block">
           <span className="mb-2 block text-sm font-bold text-zinc-300">E-Mail</span>
-        <input
+          <span className="relative block"><Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" /><input
             type="email"
             placeholder="name@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"
+            className="w-full border border-white/10 bg-black/25 py-4 pl-11 pr-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-emerald-400/[0.04]"
             required
-          />
+          /></span>
         </label>
 
         <label className="block">
@@ -153,14 +154,14 @@ function LoginForm() {
               {resetLoading ? 'Wird gesendet...' : 'Passwort vergessen?'}
             </button>
           </div>
-          <input
+          <span className="relative block"><LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" /><input
             type="password"
             placeholder="Dein Passwort"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"
-          required
-        />
+            className="w-full border border-white/10 bg-black/25 py-4 pl-11 pr-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-emerald-400/[0.04]"
+            required
+          /></span>
       </label>
 
       <TurnstileWidget action="login" onToken={setCaptchaToken} />
@@ -168,9 +169,9 @@ function LoginForm() {
       <button
           type="submit"
           disabled={loading || resetLoading}
-          className="w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-4 font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_60px_rgba(34,197,94,0.24)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+          className="group flex w-full items-center justify-center gap-2 bg-emerald-300 px-6 py-4 font-black uppercase tracking-[0.18em] text-black transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? 'Einloggen...' : 'Einloggen'}
+          {loading ? 'Einloggen...' : <>Einloggen <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></>}
         </button>
       </form>
 
@@ -188,42 +189,38 @@ function LoginForm() {
 // ─── Seiten-Komponente ────────────────────────────────────────────────────────
 export default function Login() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white">
+    <main className="relative min-h-screen overflow-hidden bg-[#070909] text-white">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.24),transparent_34%),radial-gradient(circle_at_85%_20%,rgba(6,182,212,0.15),transparent_30%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_84%)]" />
-        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_12%_88%,rgba(16,185,129,0.14),transparent_30%),radial-gradient(ellipse_at_84%_10%,rgba(45,212,191,0.09),transparent_24%)]" />
+        <div className="absolute inset-0 opacity-[0.07] bg-[linear-gradient(to_right,#7bf7bf_1px,transparent_1px),linear-gradient(to_bottom,#7bf7bf_1px,transparent_1px)] [background-size:38px_38px]" />
       </div>
 
-      <div className="relative z-10 mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-5 py-12 md:px-8 lg:grid-cols-[0.95fr_1.05fr]">
+      <div className="relative z-10 mx-auto grid min-h-screen max-w-7xl items-center gap-8 px-5 py-6 sm:px-8 lg:grid-cols-[1.12fr_.88fr] lg:gap-14">
         <section className="hidden lg:block">
-          <Link href="/" className="mb-12 inline-flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-400 to-lime-300 text-xl font-black text-black shadow-[0_0_35px_rgba(34,197,94,0.35)]">R</div>
+          <Link href="/" className="mb-16 inline-flex items-center gap-3">
+            <BrandLogo className="h-12 w-12 rounded-xl" />
             <div>
               <div className="text-2xl font-black tracking-[-0.04em]">RANKEDDARTS</div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Competitive Darts</div>
             </div>
           </Link>
 
-          <div className="rounded-[2.5rem] border border-white/10 bg-white/[0.04] p-8 backdrop-blur-xl">
-            <div className="inline-flex rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200">Weiter in deine Season</div>
-            <h1 className="mt-7 text-6xl font-black leading-[0.9] tracking-[-0.07em]">Zurück in die Queue.</h1>
-            <p className="mt-6 text-lg leading-8 text-zinc-300">Melde dich an, prüfe dein Profil, starte ein neues Ranked Match und arbeite weiter an deinem Elo.</p>
-
-            <div className="mt-10 grid gap-4">
-              {['Elo-Fortschritt ansehen', 'Matchmaking direkt starten', 'Leaderboard verfolgen'].map((item) => (
-                <div key={item} className="flex items-center gap-4 rounded-3xl border border-white/10 bg-black/25 p-4">
-                  <div className="h-3 w-3 rounded-full bg-emerald-300 shadow-[0_0_20px_rgba(110,231,183,0.8)]" />
-                  <span className="font-semibold text-zinc-200">{item}</span>
-                </div>
+          <div className="max-w-xl">
+            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-300">Deine Ranked-Zentrale</p>
+            <h1 className="mt-6 text-7xl font-black leading-[.84] tracking-[-0.09em]">Zurück<br /><span className="text-emerald-300">ans Oche.</span></h1>
+            <p className="mt-8 max-w-lg text-lg leading-8 text-zinc-400">Elo, Matches, Turniere und deine nächsten Gegner – alles wartet dort, wo du aufgehört hast.</p>
+            <div className="mt-12 grid grid-cols-[auto_1fr] gap-x-5 gap-y-5 border-l border-emerald-300/25 pl-5">
+              {['Matchmaking öffnet direkt deine zuletzt gewählte Plattform.', 'Offene Ergebnisse und Turnier-Check-ins verpasst du nicht mehr.', 'Dein Profil, Elo und Match-Historie bleiben an einem Ort.'].map((item, index) => (
+                <div key={item} className="contents"><span className="grid h-7 w-7 place-items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 text-xs font-black text-emerald-200">0{index + 1}</span><span className="pt-1 text-sm font-semibold leading-5 text-zinc-300">{item}</span></div>
               ))}
             </div>
           </div>
         </section>
 
         <section className="mx-auto w-full max-w-md">
-          <Link href="/" className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-400 text-xl font-black text-black">R</div>
-            <span className="text-2xl font-black tracking-[-0.04em]">RANKEDDARTS</span>
+          <Link href="/" className="mb-10 flex items-center gap-3 lg:hidden">
+            <ArrowLeft className="h-4 w-4 text-zinc-500" /><BrandLogo className="h-10 w-10 rounded-xl" />
+            <span className="text-xl font-black tracking-[-0.04em]">RANKEDDARTS</span>
           </Link>
 
           {/* Suspense-Boundary für useSearchParams() */}
