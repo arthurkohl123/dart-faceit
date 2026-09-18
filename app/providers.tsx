@@ -31,6 +31,7 @@ type ProfileData = {
   phone_verified_at: string | null;
   phone_number: string | null;
   is_admin: boolean;
+  is_developer: boolean;
   is_banned: boolean;
   ban_reason: string | null;
   isPremium: boolean;
@@ -118,6 +119,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         phone_verified_at: profileRow.phone_verified_at ?? null,
         phone_number: profileRow.phone_number ?? null,
         is_admin: Boolean(profileRow.is_admin),
+        is_developer: Boolean(profileRow.is_developer),
         is_banned: false,
         ban_reason: profileRow.ban_reason ?? null,
         isPremium: Boolean(profileRow.isPremium),
@@ -268,5 +270,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   const accountName = profile?.username ?? session?.user?.user_metadata?.username ?? session?.user?.email?.split('@')[0] ?? null;
 
-  return <AuthContext.Provider value={value}>{children}<SiteNoticeBanner />{session?.user && accountName && <AccountMenu username={accountName} email={session.user.email ?? null} isAdmin={Boolean(profile?.is_admin)} isNewPlayer={(profile?.gamesPlayed ?? 0) === 0} onLogout={logout} />}<RealtimeNotificationToaster userId={session?.user?.id} /><FriendsChatLauncher userId={session?.user?.id} /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}<SiteNoticeBanner />{session?.user && accountName && <AccountMenu username={accountName} email={session.user.email ?? null} isAdmin={Boolean(profile?.is_admin)} isDeveloper={Boolean(profile?.is_developer)} isNewPlayer={(profile?.gamesPlayed ?? 0) === 0} onLogout={logout} />}<RealtimeNotificationToaster userId={session?.user?.id} /><FriendsChatLauncher userId={session?.user?.id} /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
 }
