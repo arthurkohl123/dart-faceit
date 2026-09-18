@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import { FriendRequestPopup } from '@/components/friend-request-popup';
 import { FriendsChatLauncher } from '@/components/friends-chat-launcher';
 import { FriendChallengePopup } from '@/components/friend-challenge-popup';
+import { SiteNoticeBanner } from '@/components/site-notice-banner';
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -249,5 +250,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
     [session, profile, loading, refreshProfile]
   );
 
-  return <AuthContext.Provider value={value}>{children}<FriendsChatLauncher /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}<SiteNoticeBanner /><FriendsChatLauncher /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
 }

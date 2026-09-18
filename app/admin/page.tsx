@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import { AdminOperationsWorkspace } from '@/components/admin-operations-workspace';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
@@ -40,7 +41,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-type AdminTab = 'overview' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'payouts' | 'logs' | 'flagged';
+type AdminTab = 'overview' | 'operations' | 'players' | 'disputes' | 'live' | 'tournaments' | 'tickets' | 'payouts' | 'logs' | 'flagged';
 type AdminNavigationItem = {
   id: AdminTab;
   label: string;
@@ -1429,6 +1430,7 @@ export default function AdminPanel() {
       label: 'Leitstand',
       items: [
         { id: 'overview', label: 'Operations Deck', detail: 'Gesamtlage & Prioritäten', icon: Activity, badge: null, tone: 'text-emerald-200' },
+        { id: 'operations', label: 'Operations Hub', detail: 'Inbox, Fälle & Team', icon: Command, badge: attentionCount || null, tone: 'text-cyan-200' },
         { id: 'live', label: 'Live Arena', detail: 'Laufende Matches', icon: Radar, badge: liveMatches.length || null, tone: 'text-cyan-200' },
         { id: 'disputes', label: 'Entscheidungen', detail: 'Disputes & Ergebnisse', icon: Gavel, badge: disputedMatches.length || null, tone: 'text-amber-200' },
       ],
@@ -1647,6 +1649,10 @@ export default function AdminPanel() {
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === 'operations' && (
+            <AdminOperationsWorkspace onNavigate={(destination) => goToSection(destination)} />
           )}
 
           {activeTab === 'disputes' && (
