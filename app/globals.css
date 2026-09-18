@@ -186,6 +186,181 @@ body {
   .faceit-admin-command-button { padding: 8px; }
 }
 
+/* The admin overview is deliberately a control sheet, not a grid of product cards. */
+.faceit-admin {
+  --ops-ink: #0d1011;
+  --ops-surface: #15191a;
+  --ops-raised: #1a2021;
+  --ops-rule: rgba(222, 235, 230, .12);
+  background:
+    radial-gradient(circle at 88% -10%, rgba(255, 90, 31, .13), transparent 28rem),
+    radial-gradient(circle at 38% 100%, rgba(78, 162, 139, .08), transparent 34rem),
+    #0d1011;
+}
+
+.faceit-admin-layout { background: transparent; }
+.faceit-admin-sidebar { background: rgba(14, 17, 18, .76); }
+.faceit-admin-sidebar > div { background: transparent !important; }
+.faceit-admin-workspace {
+  background-color: transparent;
+  background-image:
+    linear-gradient(rgba(255,255,255,.017) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.017) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.admin-kicker {
+  margin: 0;
+  color: #ff9b79;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.admin-briefing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--ops-rule);
+  border-left: 3px solid var(--ops-orange);
+  background:
+    linear-gradient(100deg, rgba(255,90,31,.08), transparent 38%),
+    rgba(15, 19, 20, .82);
+}
+
+.admin-briefing-copy { padding: 30px 32px; }
+.admin-briefing-copy h3,
+.admin-worklist-heading h3 {
+  margin: 9px 0 0;
+  color: #f8f4ef;
+  font-size: clamp(25px, 3vw, 38px);
+  font-weight: 760;
+  letter-spacing: -.055em;
+  line-height: .98;
+}
+.admin-briefing-copy > p:not(.admin-kicker) {
+  max-width: 750px;
+  margin: 15px 0 0;
+  color: #98a09e;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.admin-briefing-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 24px; }
+.admin-action-primary,
+.admin-action-secondary {
+  border: 1px solid var(--ops-rule);
+  border-radius: 0;
+  padding: 10px 13px;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+.admin-action-primary { border-color: var(--ops-orange); background: var(--ops-orange); color: #1a100d; }
+.admin-action-secondary { background: rgba(255,255,255,.035); color: #dde2df; }
+.admin-action-primary:hover { background: #ff7447; transform: translateY(-1px); }
+.admin-action-secondary:hover { border-color: #8c9893; background: rgba(255,255,255,.085); }
+
+.admin-readiness {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border-left: 1px solid var(--ops-rule);
+  background: rgba(0,0,0,.13);
+}
+.admin-readiness-score { padding: 23px 26px 21px; border-bottom: 1px solid var(--ops-rule); }
+.admin-readiness-score strong { display: block; color: #f7f3ed; font-size: 44px; font-weight: 800; letter-spacing: -.08em; line-height: .9; }
+.admin-readiness-score span { display: block; margin-top: 7px; color: #79827f; font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.admin-readiness dl { margin: 0; padding: 12px 26px; }
+.admin-readiness dl div { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(255,255,255,.06); padding: 12px 0; }
+.admin-readiness dl div:last-child { border-bottom: 0; }
+.admin-readiness dt { color: #8d9692; font-size: 11px; font-weight: 650; }
+.admin-readiness dd { margin: 0; color: #86d9ad; font-size: 10px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
+.admin-readiness dd.is-watch { color: #f2b077; }
+
+.admin-metric-rail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-top: 18px;
+  border: 1px solid var(--ops-rule);
+  background: rgba(17, 21, 22, .74);
+}
+.admin-metric-rail button {
+  display: grid;
+  min-height: 110px;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 8px 11px;
+  border-right: 1px solid var(--ops-rule);
+  padding: 18px;
+  text-align: left;
+  transition: background .16s ease;
+}
+.admin-metric-rail button:last-child { border-right: 0; }
+.admin-metric-rail button:hover { background: rgba(255,255,255,.055); }
+.admin-metric-rail svg { width: 16px; height: 16px; }
+.admin-metric-rail span { align-self: end; min-width: 0; }
+.admin-metric-rail strong { display: block; color: #f6f3ee; font-size: 27px; font-weight: 800; letter-spacing: -.065em; line-height: 1; }
+.admin-metric-rail small { display: block; margin-top: 6px; color: #828b88; font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.admin-metric-rail em { grid-column: 1 / -1; color: #65706c; font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+.admin-worklist { margin-top: 18px; border-top: 1px solid var(--ops-rule); }
+.admin-worklist-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 28px 0 20px; }
+.admin-worklist-heading h3 { font-size: 25px; }
+.admin-worklist-heading > span { color: #84908a; font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.admin-worklist-grid { display: grid; border: 1px solid var(--ops-rule); }
+.admin-worklist-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+  border-bottom: 1px solid var(--ops-rule);
+  background: rgba(14,17,18,.72);
+  padding: 17px 19px;
+  text-align: left;
+  transition: background .16s ease, padding-left .16s ease;
+}
+.admin-worklist-row:last-child { border-bottom: 0; }
+.admin-worklist-row:hover { background: rgba(255,255,255,.05); padding-left: 24px; }
+.admin-row-icon { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid var(--ops-rule); color: #9aa7a0; }
+.admin-row-icon svg { width: 16px; height: 16px; }
+.admin-row-icon.is-warning { border-color: rgba(242,176,119,.38); color: #f2b077; }
+.admin-row-icon.is-ok { border-color: rgba(134,217,173,.32); color: #86d9ad; }
+.admin-worklist-row strong { display: block; color: #f4f2ed; font-size: 13px; font-weight: 800; }
+.admin-worklist-row small { display: block; margin-top: 4px; color: #818b87; font-size: 11px; line-height: 1.45; }
+.admin-worklist-row em { color: #ff9b79; font-size: 9px; font-style: normal; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+
+/* Flatten secondary operation views into sheets and rows as well. */
+.faceit-admin .faceit-admin-workspace > div > .space-y-6 > section,
+.faceit-admin .faceit-admin-workspace > div > .grid > section {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.faceit-admin .faceit-admin-workspace [class*="rounded-2xl"] { border-radius: 0 !important; }
+.faceit-admin .faceit-admin-workspace [class*="rounded-xl"] { border-radius: 0 !important; }
+
+@media (max-width: 1180px) {
+  .admin-metric-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .admin-metric-rail button:nth-child(3) { border-right: 0; }
+  .admin-metric-rail button:nth-child(-n+3) { border-bottom: 1px solid var(--ops-rule); }
+}
+@media (max-width: 760px) {
+  .admin-briefing { grid-template-columns: 1fr; }
+  .admin-briefing-copy { padding: 24px 20px; }
+  .admin-readiness { grid-template-columns: 120px 1fr; grid-template-rows: 1fr; border-top: 1px solid var(--ops-rule); border-left: 0; }
+  .admin-readiness-score { border-right: 1px solid var(--ops-rule); border-bottom: 0; padding: 20px; }
+  .admin-readiness dl { padding: 8px 18px; }
+  .admin-metric-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-metric-rail button { min-height: 102px; }
+  .admin-metric-rail button:nth-child(3) { border-right: 1px solid var(--ops-rule); }
+  .admin-metric-rail button:nth-child(2n) { border-right: 0; }
+  .admin-metric-rail button:nth-child(-n+4) { border-bottom: 1px solid var(--ops-rule); }
+  .admin-worklist-row { grid-template-columns: 34px minmax(0, 1fr); gap: 12px; }
+  .admin-worklist-row em { display: none; }
+}
+
 /* Developer surface follows the same console layout, with a calmer technical blue accent. */
 .developer-console {
   --dev-blue: #6b92e9;

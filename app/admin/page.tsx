@@ -382,9 +382,6 @@ const inputClassName =
 
 const selectOptionClassName = 'bg-zinc-950 text-zinc-50';
 
-const statCardClassName =
-  'relative overflow-hidden border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/20 backdrop-blur-xl';
-
 function toOptionalNumber(value: string) {
   const trimmed = value.trim();
   return trimmed === '' ? null : Number(trimmed);
@@ -1617,47 +1614,45 @@ export default function AdminPanel() {
                   {actionMessage}
                 </div>
               )}
-              <div className="mb-6 grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-                <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/75 p-6 shadow-2xl shadow-black/25"><div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl" /><div className="relative flex items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Next best action</p><h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">{attentionCount > 0 ? 'Die Arena braucht Aufmerksamkeit.' : 'Alles unter Kontrolle.'}</h2><p className="mt-2 max-w-lg text-sm leading-6 text-zinc-400">{attentionCount > 0 ? `${disputedMatches.length} Disputes, ${urgentTickets} dringende Tickets und ${flaggedPlayers.length} verdächtige Accounts warten auf Prüfung.` : 'Keine eskalierten Vorgänge. Nutze die Zeit für Spielerpflege oder den nächsten Cup.'}</p></div><div className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl border ${attentionCount > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-200' : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200'}`}>{attentionCount > 0 ? <AlertTriangle className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}</div></div><div className="relative mt-5 flex flex-wrap gap-2">{disputedMatches.length > 0 && <button onClick={() => setActiveTab('disputes')} className="rounded-xl bg-amber-300 px-4 py-2.5 text-xs font-black text-black transition hover:bg-amber-200">Disputes prüfen</button>}{urgentTickets > 0 && <button onClick={() => setActiveTab('tickets')} className="rounded-xl border border-violet-300/25 bg-violet-400/10 px-4 py-2.5 text-xs font-black text-violet-100 transition hover:bg-violet-400/20">Dringende Tickets</button>}{flaggedPlayers.length > 0 && <button onClick={() => setActiveTab('flagged')} className="rounded-xl border border-orange-300/25 bg-orange-400/10 px-4 py-2.5 text-xs font-black text-orange-100 transition hover:bg-orange-400/20">Accounts prüfen</button>}{attentionCount === 0 && <button onClick={() => setActiveTab('tournaments')} className="rounded-xl bg-emerald-300 px-4 py-2.5 text-xs font-black text-black transition hover:bg-emerald-200">Cup erstellen</button>}</div></section>
-                <section className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-6"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">System Pulse</p><div className="mt-5 space-y-4"><div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-zinc-400"><span className="h-2 w-2 rounded-full bg-emerald-300" />Match-System</span><span className="text-xs font-black text-emerald-200">ONLINE</span></div><div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-zinc-400"><span className={`h-2 w-2 rounded-full ${urgentTickets > 0 ? 'bg-amber-300' : 'bg-emerald-300'}`} />Support-SLA</span><span className={`text-xs font-black ${urgentTickets > 0 ? 'text-amber-200' : 'text-emerald-200'}`}>{urgentTickets > 0 ? 'PRIORITÄT' : 'STABIL'}</span></div><div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-zinc-400"><span className={`h-2 w-2 rounded-full ${flaggedPlayers.length > 0 ? 'bg-orange-300' : 'bg-emerald-300'}`} />Fairness Monitor</span><span className={`text-xs font-black ${flaggedPlayers.length > 0 ? 'text-orange-200' : 'text-emerald-200'}`}>{flaggedPlayers.length > 0 ? 'PRÜFUNG' : 'CLEAR'}</span></div></div></section>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div className={statCardClassName}>
-                  <Users className="h-7 w-7 text-emerald-300" />
-                  <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{profiles.length}</div>
-                  <div className="mt-1 text-sm font-semibold text-zinc-400">Spieler gesamt</div>
-                  <button onClick={() => setActiveTab('players')} className="mt-4 text-xs font-bold text-emerald-300 hover:underline">→ Spieler verwalten</button>
+              <section className="admin-briefing">
+                <div className="admin-briefing-copy">
+                  <p className="admin-kicker">Schichtbriefing · {lastRefreshedAt ? lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : 'jetzt'}</p>
+                  <h3>{attentionCount > 0 ? 'Es gibt Vorgänge, die eine Entscheidung brauchen.' : 'Die Arena läuft sauber.'}</h3>
+                  <p>{attentionCount > 0 ? `${disputedMatches.length} Disputes, ${urgentTickets} dringende Tickets, ${unassignedTickets} offene Zuweisungen und ${flaggedPlayers.length} Fair-Play-Hinweise wurden priorisiert.` : 'Matchsystem, Support und Fair Play zeigen aktuell keine eskalierten Vorgänge.'}</p>
+                  <div className="admin-briefing-actions">
+                    {disputedMatches.length > 0 && <button onClick={() => setActiveTab('disputes')} className="admin-action-primary">Disputes prüfen</button>}
+                    {urgentTickets > 0 && <button onClick={() => setActiveTab('tickets')} className="admin-action-secondary">Support Queue öffnen</button>}
+                    {flaggedPlayers.length > 0 && <button onClick={() => setActiveTab('flagged')} className="admin-action-secondary">Fairness prüfen</button>}
+                    {attentionCount === 0 && <button onClick={() => setActiveTab('tournaments')} className="admin-action-primary">Turnierverwaltung öffnen</button>}
+                  </div>
                 </div>
-                <div className={statCardClassName}>
-                  <ShieldAlert className="h-7 w-7 text-amber-300" />
-                  <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{disputedMatches.length}</div>
-                  <div className="mt-1 text-sm font-semibold text-zinc-400">Offene Disputes</div>
-                  <button onClick={() => setActiveTab('disputes')} className="mt-4 text-xs font-bold text-amber-300 hover:underline">→ Disputes prüfen</button>
+                <div className="admin-readiness" aria-label="Systemstatus">
+                  <div className="admin-readiness-score"><strong>{healthScore}</strong><span>System-Readiness</span></div>
+                  <dl>
+                    <div><dt>Matchsystem</dt><dd>Online</dd></div>
+                    <div><dt>Support-SLA</dt><dd className={urgentTickets > 0 ? 'is-watch' : ''}>{urgentTickets > 0 ? 'Priorität' : 'Stabil'}</dd></div>
+                    <div><dt>Fair Play</dt><dd className={flaggedPlayers.length > 0 ? 'is-watch' : ''}>{flaggedPlayers.length > 0 ? 'Prüfung' : 'Clear'}</dd></div>
+                  </dl>
                 </div>
-                <div className={statCardClassName}>
-                  <Headphones className="h-7 w-7 text-violet-300" />
-                  <div className="mt-5 text-4xl font-black tracking-[-0.05em] text-violet-300">{tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length}</div>
-                  <div className="mt-1 text-sm font-semibold text-zinc-400">Offene Tickets</div>
-                  <button onClick={() => setActiveTab('tickets')} className="mt-4 text-xs font-bold text-violet-300 hover:underline">→ Tickets öffnen</button>
+              </section>
+
+              <section className="admin-metric-rail" aria-label="Operations-Kennzahlen">
+                <button onClick={() => setActiveTab('players')}><Users className="text-sky-200" /><span><strong>{profiles.length}</strong><small>Spieler gesamt</small></span><em>Profile →</em></button>
+                <button onClick={() => setActiveTab('disputes')}><ShieldAlert className="text-amber-200" /><span><strong>{disputedMatches.length}</strong><small>Offene Disputes</small></span><em>Prüfen →</em></button>
+                <button onClick={() => setActiveTab('tickets')}><Headphones className="text-violet-200" /><span><strong>{ticketsInQueue}</strong><small>Support Queue</small></span><em>Öffnen →</em></button>
+                <button onClick={() => setActiveTab('live')}><Swords className="text-emerald-200" /><span><strong>{liveMatches.length}</strong><small>Live Matches</small></span><em>Ansehen →</em></button>
+                <button onClick={() => setActiveTab('flagged')}><TriangleAlert className={flaggedPlayers.length > 0 ? 'text-orange-200' : 'text-zinc-500'} /><span><strong>{flaggedPlayers.length}</strong><small>Fair-Play-Signale</small></span><em>Monitor →</em></button>
+                <button onClick={() => setActiveTab('tournaments')}><Trophy className="text-cyan-200" /><span><strong>{activeTournamentCount}</strong><small>Aktive Cups</small></span><em>Control →</em></button>
+              </section>
+
+              <section className="admin-worklist">
+                <div className="admin-worklist-heading"><div><p className="admin-kicker">Arbeitsliste</p><h3>Die nächsten sinnvollen Schritte</h3></div><span>{attentionCount} priorisiert</span></div>
+                <div className="admin-worklist-grid">
+                  <button onClick={() => goToSection(primaryAttentionSection)} className="admin-worklist-row"><span className={attentionCount > 0 ? 'admin-row-icon is-warning' : 'admin-row-icon is-ok'}>{attentionCount > 0 ? <AlertTriangle /> : <CheckCircle2 />}</span><span><strong>{attentionCount > 0 ? 'Priorisierte Vorgänge bearbeiten' : 'Keine eskalierten Vorgänge'}</strong><small>{attentionCount > 0 ? 'Disputes, Support und Fair Play in einer gefilterten Arbeitsansicht.' : 'Nutze die Zeit für Turnierpflege oder neue Ankündigungen.'}</small></span><em>Öffnen →</em></button>
+                  <button onClick={() => setActiveTab('live')} className="admin-worklist-row"><span className="admin-row-icon"><Radar /></span><span><strong>Live Arena überwachen</strong><small>{liveMatches.length ? `${liveMatches.length} Matches laufen gerade und können direkt geprüft werden.` : 'Derzeit laufen keine offenen Ranked-Matches.'}</small></span><em>Live →</em></button>
+                  <button onClick={exportOperationsSnapshot} className="admin-worklist-row"><span className="admin-row-icon"><Download /></span><span><strong>Schichtstand exportieren</strong><small>Erstellt eine kompakte CSV für Moderation, Support und Turnierleitung.</small></span><em>Export →</em></button>
                 </div>
-                <div className={statCardClassName}>
-                  <CheckCircle2 className="h-7 w-7 text-lime-300" />
-                  <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{activeCount}</div>
-                  <div className="mt-1 text-sm font-semibold text-zinc-400">Aktive Accounts</div>
-                </div>
-                <div className={statCardClassName}>
-                  <Swords className="h-7 w-7 text-emerald-300" />
-                  <div className="mt-5 text-4xl font-black tracking-[-0.05em]">{liveMatches.length}</div>
-                  <div className="mt-1 text-sm font-semibold text-zinc-400">Laufende Matches</div>
-                  <button onClick={() => setActiveTab('live')} className="mt-4 text-xs font-bold text-emerald-300 hover:underline">→ Live ansehen</button>
-                </div>
-                <div className={`${statCardClassName} ${flaggedPlayers.length > 0 ? 'border-orange-400/30 bg-orange-400/[0.06]' : ''}`}>
-                  <TriangleAlert className={`h-7 w-7 ${flaggedPlayers.length > 0 ? 'text-orange-300' : 'text-zinc-500'}`} />
-                  <div className={`mt-5 text-4xl font-black tracking-[-0.05em] ${flaggedPlayers.length > 0 ? 'text-orange-300' : ''}`}>{flaggedPlayers.length}</div>
-                  <div className="mt-1 text-sm font-semibold text-zinc-400">Verdächtige Accounts</div>
-                  {flaggedPlayers.length > 0 && <button onClick={() => setActiveTab('flagged')} className="mt-4 text-xs font-bold text-orange-300 hover:underline">→ Prüfen</button>}
-                </div>
-              </div>
+              </section>
             </div>
           )}
 
