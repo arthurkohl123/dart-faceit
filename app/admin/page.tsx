@@ -1627,21 +1627,21 @@ export default function AdminPanel() {
                   </div>
                 </div>
                 <div className="admin-readiness" aria-label="Systemstatus">
-                  <div className="admin-readiness-score"><strong>{healthScore}</strong><span>System-Readiness</span></div>
+                  <div className="admin-readiness-score"><strong>{healthScore}</strong><span>Systemstatus</span></div>
                   <dl>
                     <div><dt>Matchsystem</dt><dd>Online</dd></div>
                     <div><dt>Support-SLA</dt><dd className={urgentTickets > 0 ? 'is-watch' : ''}>{urgentTickets > 0 ? 'Priorität' : 'Stabil'}</dd></div>
-                    <div><dt>Fair Play</dt><dd className={flaggedPlayers.length > 0 ? 'is-watch' : ''}>{flaggedPlayers.length > 0 ? 'Prüfung' : 'Clear'}</dd></div>
+                    <div><dt>Fair Play</dt><dd className={flaggedPlayers.length > 0 ? 'is-watch' : ''}>{flaggedPlayers.length > 0 ? 'Prüfung' : 'Keine Auffälligkeiten'}</dd></div>
                   </dl>
                 </div>
               </section>
 
               <section className="admin-metric-rail" aria-label="Operations-Kennzahlen">
                 <button onClick={() => setActiveTab('players')}><Users className="text-sky-200" /><span><strong>{profiles.length}</strong><small>Spieler gesamt</small></span><em>Profile →</em></button>
-                <button onClick={() => setActiveTab('disputes')}><ShieldAlert className="text-amber-200" /><span><strong>{disputedMatches.length}</strong><small>Offene Disputes</small></span><em>Prüfen →</em></button>
-                <button onClick={() => setActiveTab('tickets')}><Headphones className="text-violet-200" /><span><strong>{ticketsInQueue}</strong><small>Support Queue</small></span><em>Öffnen →</em></button>
+                <button onClick={() => setActiveTab('disputes')} className={disputedMatches.length > 0 ? 'is-alert' : ''}><ShieldAlert className="text-amber-200" /><span><strong>{disputedMatches.length}</strong><small>Offene Disputes</small></span><em>Prüfen →</em></button>
+                <button onClick={() => setActiveTab('tickets')} className={urgentTickets > 0 ? 'is-alert' : ''}><Headphones className="text-violet-200" /><span><strong>{ticketsInQueue}</strong><small>Support Queue</small></span><em>Öffnen →</em></button>
                 <button onClick={() => setActiveTab('live')}><Swords className="text-emerald-200" /><span><strong>{liveMatches.length}</strong><small>Live Matches</small></span><em>Ansehen →</em></button>
-                <button onClick={() => setActiveTab('flagged')}><TriangleAlert className={flaggedPlayers.length > 0 ? 'text-orange-200' : 'text-zinc-500'} /><span><strong>{flaggedPlayers.length}</strong><small>Fair-Play-Signale</small></span><em>Monitor →</em></button>
+                <button onClick={() => setActiveTab('flagged')} className={flaggedPlayers.length > 0 ? 'is-alert' : ''}><TriangleAlert className={flaggedPlayers.length > 0 ? 'text-orange-200' : 'text-zinc-500'} /><span><strong>{flaggedPlayers.length}</strong><small>Fair-Play-Signale</small></span><em>Monitor →</em></button>
                 <button onClick={() => setActiveTab('tournaments')}><Trophy className="text-cyan-200" /><span><strong>{activeTournamentCount}</strong><small>Aktive Cups</small></span><em>Control →</em></button>
               </section>
 
