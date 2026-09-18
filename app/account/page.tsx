@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { ArrowUpRight, Download, Loader2, ShieldAlert, ShieldCheck, Trash2, WalletCards } from 'lucide-react';
+import { ArrowUpRight, Download, KeyRound, Loader2, ShieldAlert, ShieldCheck, Trash2, WalletCards } from 'lucide-react';
 import { PayoutAlert } from '@/components/payout-alert';
 import { createClient } from '@/lib/supabase';
 
@@ -42,6 +42,11 @@ export default function AccountPage() {
         <ShieldCheck className="text-cyan-200" /><h2 className="mt-4 text-xl font-black">Fair Play & Kontoschutz</h2>
         <p className="mt-2 text-sm leading-6 text-zinc-400">Hier findest du klar erklärt, wie wir Mehrfachkonten, Ergebnisabsprachen und andere Wettbewerbsverstöße fair prüfen – und welche Maßnahmen in Frage kommen.</p>
         <Link href="/fairplay" className="mt-5 inline-flex rounded-xl border border-cyan-300/25 bg-cyan-400/10 px-4 py-3 text-sm font-black text-cyan-100">Fair-Play-Regeln ansehen</Link>
+      </section>
+      <section className="mt-5 rounded-3xl border border-violet-300/15 bg-violet-400/[.05] p-6">
+        <KeyRound className="text-violet-200" /><h2 className="mt-4 text-xl font-black">Einstellungen & Sicherheit</h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">Ändere deine E-Mail-Adresse oder dein Passwort direkt in deinem Account.</p>
+        <Link href="/account/settings" className="mt-5 inline-flex rounded-xl border border-violet-300/25 bg-violet-400/10 px-4 py-3 text-sm font-black text-violet-100">Sicherheitseinstellungen öffnen</Link>
       </section>
       <section className="mt-5 rounded-3xl border border-red-300/20 bg-red-500/[.06] p-6">
         <ShieldAlert className="text-red-300" /><h2 className="mt-4 text-xl font-black">Account endgültig löschen</h2>

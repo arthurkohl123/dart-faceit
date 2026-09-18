@@ -16,6 +16,7 @@ import { FriendRequestPopup } from '@/components/friend-request-popup';
 import { FriendsChatLauncher } from '@/components/friends-chat-launcher';
 import { FriendChallengePopup } from '@/components/friend-challenge-popup';
 import { SiteNoticeBanner } from '@/components/site-notice-banner';
+import { AccountMenu } from '@/components/account-menu';
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -250,5 +251,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
     [session, profile, loading, refreshProfile]
   );
 
-  return <AuthContext.Provider value={value}>{children}<SiteNoticeBanner /><FriendsChatLauncher /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setProfile(null);
+    setSession(null);
+    router.push('/');
+    router.refresh();
+  }, [router, supabase]);
+
+  const accountName = profile?.username ?? session?.user?.user_metadata?.username ?? session?.user?.email?.split('@')[0] ?? null;
+
+  return <AuthContext.Provider value={value}>{children}<SiteNoticeBanner />{session?.user && accountName && <AccountMenu username={accountName} email={session.user.email ?? null} isAdmin={Boolean(profile?.is_admin)} onLogout={logout} />}<FriendsChatLauncher /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
 }
