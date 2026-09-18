@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync('supabase/migrations/20260918000000_add_tournament_admin_result_controls.sql', 'utf8');
+const hardeningMigration = readFileSync('supabase/migrations/20260918001000_harden_tournament_no_show_controls.sql', 'utf8');
 const adminPage = readFileSync('app/admin/page.tsx', 'utf8');
 
 test('tournament result controls preserve the ranked finalisation path', () => {
@@ -20,6 +21,8 @@ test('no-show and reset actions cannot silently alter rated tournament history',
   assert.match(migration, /create or replace function public\.admin_restart_tournament/i);
   assert.match(migration, /join public\.matches m on m\.active_match_id = tm\.active_match_id/i);
   assert.match(migration, /bereits gewertete Matches/i);
+  assert.match(hardeningMigration, /No-Shows können erst bei einer vollständigen Paarung gewertet werden/i);
+  assert.match(hardeningMigration, /Der zugehörige Matchroom wurde nicht gefunden/i);
 });
 
 test('admin UI exposes detailed result, no-show and reset workflows', () => {
