@@ -247,14 +247,9 @@ export default function MatchResult() {
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
-  const completionRedirectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-
-  useEffect(() => () => {
-    if (completionRedirectRef.current) clearTimeout(completionRedirectRef.current);
-  }, []);
 
   useEffect(() => {
     const bestOf = Number(new URLSearchParams(window.location.search).get('bestOf'));
@@ -550,7 +545,6 @@ export default function MatchResult() {
         ? ` Elo-Änderung: ${r.elo_change > 0 ? '+' : ''}${r.elo_change}`
         : '';
       setInfoMessage(`${r?.result_message || 'Ergebnis bestätigt.'}${eloText}`);
-      setTimeout(() => router.push('/history'), 1200);
     } catch (err) {
       setErrorMessage(getActionErrorMessage(err, 'Fehler beim Bestätigen.'));
     } finally {
@@ -863,7 +857,6 @@ export default function MatchResult() {
           }
           if (updated.status === 'completed') {
             if (countdownRef.current) clearInterval(countdownRef.current);
-            setTimeout(() => router.push('/history'), 2500);
           }
           if (updated.status === 'disputed') {
             if (countdownRef.current) clearInterval(countdownRef.current);
@@ -926,9 +919,6 @@ export default function MatchResult() {
             player2_autodarts_username: previous.player2_autodarts_username,
           } : previous);
           setInfoMessage('Ergebnis wurde bestätigt. Die Wertung ist abgeschlossen.');
-          if (!completionRedirectRef.current) {
-            completionRedirectRef.current = setTimeout(() => router.push('/history'), 1800);
-          }
         } else if (updated.status !== match.status) {
           setMatch((previous) => previous ? {
             ...updated,
@@ -949,11 +939,16 @@ export default function MatchResult() {
       }
     };
 
-    void refreshConfirmationStatus();
-    const interval = window.setInterval(() => void refreshConfirmationStatus(), 3_000);
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void refreshConfirmationStatus();
+    };
+    refreshIfVisible();
+    const interval = window.setInterval(refreshIfVisible, 3_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
     return () => {
       active = false;
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
     };
   }, [currentUserId, match?.id, match?.status, router, startCountdown, supabase]);
 
@@ -1674,14 +1669,21 @@ export default function MatchResult() {
               </div>
               <h2 className="mt-6 text-3xl font-black tracking-[-0.05em]">Match abgeschlossen</h2>
               <p className="mx-auto mt-4 max-w-sm text-zinc-400">
-                Das Ergebnis wurde bestätigt. Elo wurde vergeben. Du wirst zur History weitergeleitet…
+                {match.match_mode === 'private'
+                  ? 'Das private Duell ist abgeschlossen. Es wurde bewusst keine Elo- oder Profilwertung verändert.'
+                  : 'Das Ergebnis wurde bestätigt und die Elo-Wertung ist abgeschlossen. Dein vollständiger Eintrag ist jetzt in der History.'}
               </p>
-              <button
-                onClick={() => router.push('/history')}
-                className="mt-8 min-h-14 w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-8 py-4 font-black uppercase tracking-[0.14em] text-black sm:w-auto sm:rounded-3xl"
-              >
-                Zur History
-              </button>
+              {submittedData && (
+                <div className="mt-7 grid w-full max-w-md grid-cols-3 overflow-hidden rounded-2xl border border-white/10 bg-black/25 text-left">
+                  <div className="border-r border-white/10 p-4"><p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-600">Ergebnis</p><p className="mt-1 text-xl font-black tabular-nums text-emerald-200">{submittedData.myLegs}:{submittedData.oppLegs}</p></div>
+                  <div className="border-r border-white/10 p-4"><p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-600">Dein Ø</p><p className="mt-1 text-xl font-black tabular-nums text-white">{submittedData.myAvg === null ? '—' : Number(submittedData.myAvg).toFixed(1)}</p></div>
+                  <div className="p-4"><p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-600">180er</p><p className="mt-1 text-xl font-black tabular-nums text-amber-200">{submittedData.my180s ?? 0}</p></div>
+                </div>
+              )}
+              <div className="mt-8 grid w-full gap-3 sm:grid-cols-2 sm:gap-4">
+                <button onClick={() => router.push('/matchmaking')} className="min-h-14 rounded-2xl border border-white/15 px-6 py-4 font-black uppercase tracking-[0.12em] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-400/[0.08] sm:rounded-3xl">Neues Match suchen</button>
+                <button onClick={() => router.push('/history')} className="min-h-14 rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-6 py-4 font-black uppercase tracking-[0.12em] text-black sm:rounded-3xl">Zur History</button>
+              </div>
             </div>
           </div>
         )}

@@ -32,10 +32,20 @@ export default function NotificationsPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() { const { data: { session } } = await supabase.auth.getSession(); if (!session) { router.push('/auth/login'); return; } await load(); }
+    let active = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/auth/login'); return; }
+      await load();
+      if (!active) return;
+      channel = supabase
+        .channel(`notification-inbox-${session.user.id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${session.user.id}` }, () => { void load(); })
+        .subscribe();
+    }
     void init();
-    const channel = supabase.channel('notification-inbox').on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => { void load(); }).subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => { active = false; if (channel) void supabase.removeChannel(channel); };
   }, [load, router, supabase]);
 
   async function openNotification(notification: Notification) {

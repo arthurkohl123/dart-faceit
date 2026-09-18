@@ -53,11 +53,16 @@ export function FriendChallengePopup({ userId }: { userId: string | undefined })
   }, [supabase, userId]);
 
   useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
     const initial = window.setTimeout(() => { void load(); }, 0);
-    const interval = window.setInterval(() => { void load(); }, 4_000);
+    const interval = window.setInterval(refreshIfVisible, 5_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
     };
   }, [load]);
 

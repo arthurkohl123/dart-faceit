@@ -15,13 +15,13 @@ type ChatMessage = {
 type FriendChatProps = {
   friendId: string;
   friendUsername: string;
+  myUserId?: string;
   onClose: () => void;
   onMessagesRead?: () => void;
 };
 
-export function FriendChat({ friendId, friendUsername, onClose, onMessagesRead }: FriendChatProps) {
+export function FriendChat({ friendId, friendUsername, myUserId, onClose, onMessagesRead }: FriendChatProps) {
   const supabase = useMemo(() => createClient(), []);
-  const [myUserId, setMyUserId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(true);
@@ -31,11 +31,7 @@ export function FriendChat({ friendId, friendUsername, onClose, onMessagesRead }
 
   const load = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
-    const [{ data: sessionData }, { data, error: requestError }] = await Promise.all([
-      supabase.auth.getSession(),
-      supabase.rpc('list_friend_messages', { p_friend_id: friendId }),
-    ]);
-    setMyUserId(sessionData.session?.user?.id ?? null);
+    const { data, error: requestError } = await supabase.rpc('list_friend_messages', { p_friend_id: friendId });
     if (requestError) setError(requestError.message);
     else {
       setError(null);
@@ -53,11 +49,16 @@ export function FriendChat({ friendId, friendUsername, onClose, onMessagesRead }
   }, [friendId, onMessagesRead, supabase]);
 
   useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
     const initial = window.setTimeout(() => { void load(true); }, 0);
-    const interval = window.setInterval(() => { void load(); }, 4_000);
+    const interval = window.setInterval(refreshIfVisible, 6_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
     };
   }, [load]);
 

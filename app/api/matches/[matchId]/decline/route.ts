@@ -12,6 +12,17 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ma
   if (!user) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
 
   try {
+    const { data, error: declineError } = await supabase.rpc('decline_match_invitation', { p_match_id: matchId });
+    if (!declineError) {
+      const result = (Array.isArray(data) ? data[0] : data) as { status?: string } | null;
+      if (result?.status === 'not_found') return NextResponse.json({ error: 'Match wurde nicht gefunden.' }, { status: 404 });
+      return NextResponse.json({ status: result?.status ?? 'already_handled' });
+    }
+
+    // Keep a safe short deployment overlap while the new locking function is
+    // being rolled out. Do not hide any other database error.
+    if (!/decline_match_invitation|PGRST202|schema cache/i.test(declineError.message)) throw declineError;
+
     const admin = createAdminClient();
     const { data: match, error } = await admin
       .from('active_matches')

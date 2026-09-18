@@ -69,15 +69,29 @@ export default function TournamentsPage() {
   useEffect(() => {
     if (!selected?.id) return;
     let active = true;
-    const refreshBracket = async () => {
+    let refreshes = 0;
+    const refreshSelectedTournament = async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (selected.status !== 'live') {
+        // Vor Start genügt ein ruhiger Phasenabgleich. Sobald der Server das
+        // Turnier auf live stellt, aktualisiert loadTournaments auch selected
+        // und der schnellere Bracket-Pfad übernimmt automatisch.
+        await loadTournaments();
+        return;
+      }
       const { data, error } = await supabase.rpc('get_tournament_bracket', { p_tournament_id: selected.id });
       if (!active || error) return;
       setBracket((data ?? []) as BracketMatch[]);
-      void loadTournaments();
+      // Die Turnierliste ändert sich deutlich seltener als der offene
+      // Spielbaum. Deshalb nur jeder zweite Bracket-Abruf statt doppelt.
+      refreshes += 1;
+      if (refreshes % 2 === 0) void loadTournaments();
     };
-    const interval = window.setInterval(() => void refreshBracket(), 8_000);
-    return () => { active = false; clearInterval(interval); };
-  }, [loadTournaments, selected?.id, supabase]);
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') void refreshSelectedTournament(); };
+    const interval = window.setInterval(() => void refreshSelectedTournament(), selected.status === 'live' ? 12_000 : 30_000);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => { active = false; clearInterval(interval); document.removeEventListener('visibilitychange', onVisibilityChange); };
+  }, [loadTournaments, selected?.id, selected?.status, supabase]);
 
   async function openTournament(t: Tournament) { setSelected(t); setBracket([]); const { data, error } = await supabase.rpc('get_tournament_bracket', { p_tournament_id: t.id }); if (error) setNotice({ kind: 'error', text: 'Der Turnierplan konnte nicht geladen werden.' }); else setBracket((data ?? []) as BracketMatch[]); }
   async function runAction(t: Tournament, action: 'join' | 'checkin' | 'leave') {

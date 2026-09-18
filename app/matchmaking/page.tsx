@@ -826,50 +826,37 @@ export default function Matchmaking() {
   }, [supabase, router, fetchQueueCounts, fetchLiveMatches, fetchCooldown, fetchMatchmakingStatus, findCurrentMatch, startAcceptCountdown]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      void fetchMatchmakingStatus();
-    }, 5000);
-    return () => window.clearInterval(interval);
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void fetchMatchmakingStatus();
+    };
+    const interval = window.setInterval(refreshIfVisible, 20_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', refreshIfVisible); };
   }, [fetchMatchmakingStatus]);
 
-  // Realtime: Live-Matches aktualisieren wenn sich active_matches ändert
+  // Der Live-Ticker ist reine Anzeige. Ein getakteter Abruf vermeidet, dass
+  // jede Änderung eines fremden Matches bei allen offenen Matchmaking-Seiten
+  // sofort einen zusätzlichen Server-Request auslöst.
   useEffect(() => {
-    const channel = supabase
-      .channel('live-matches-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'active_matches' }, () => {
-        void fetchLiveMatches();
-      })
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [supabase, fetchLiveMatches]);
-
-  // Realtime is best-effort for regular users because row-level security can
-  // suppress table events. Polling keeps the public live ticker reliable.
-  useEffect(() => {
-    const interval = window.setInterval(() => void fetchLiveMatches(), 10_000);
-    return () => window.clearInterval(interval);
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void fetchLiveMatches();
+    };
+    const interval = window.setInterval(refreshIfVisible, 15_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', refreshIfVisible); };
   }, [fetchLiveMatches]);
 
-  // Realtime: Queue-Counts live aktualisieren wenn jemand bei- oder austritt.
-  // Zusätzlich Polling alle 5s als Fallback, falls Realtime für die Tabelle
-  // matchmaking_queue nicht aktiviert ist.
+  // Die Queue-Zähler sind Informationswerte. Ein 10-Sekunden-Intervall hält
+  // sie verständlich aktuell, ohne ein Realtime-Refresh pro Queue-Event für
+  // jeden offenen Browser auszulösen.
   useEffect(() => {
-    const channel = supabase
-      .channel('queue-counts-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matchmaking_queue' }, () => {
-        void fetchQueueCounts();
-      })
-      .subscribe();
-
-    const interval = setInterval(() => {
-      void fetchQueueCounts();
-    }, 5000);
-
-    return () => {
-      void supabase.removeChannel(channel);
-      clearInterval(interval);
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void fetchQueueCounts();
     };
-  }, [supabase, fetchQueueCounts]);
+    const interval = window.setInterval(refreshIfVisible, 10_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', refreshIfVisible); };
+  }, [fetchQueueCounts]);
 
   // Realtime + Polling während der Suche
   // WICHTIG: pollForMatch ist NICHT in den Dependencies! Stattdessen nutzen wir

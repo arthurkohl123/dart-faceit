@@ -20,7 +20,7 @@ type SupportState = {
   agent_username: string | null;
 };
 
-export function FriendsChatLauncher() {
+export function FriendsChatLauncher({ userId }: { userId?: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [friends, setFriends] = useState<ChatFriend[]>([]);
   const [support, setSupport] = useState<SupportState | null>(null);
@@ -32,11 +32,7 @@ export function FriendsChatLauncher() {
   const [supportError, setSupportError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
+    if (!userId) {
       setFriends([]);
       setSupport(null);
       setUnreadFriendMessages(0);
@@ -59,21 +55,23 @@ export function FriendsChatLauncher() {
     if (!supportResult.error) {
       setSupport(((supportResult.data ?? []) as SupportState[])[0] ?? null);
     }
-  }, [supabase]);
+  }, [supabase, userId]);
 
   useEffect(() => {
-    const initial = window.setTimeout(() => {
-      void load();
-    }, 0);
-    const interval = window.setInterval(() => {
-      void load();
-    }, 8_000);
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    refreshIfVisible();
+    // Im Hintergrund reichen seltenere Aktualisierungen. Wenn der Nutzer den
+    // Picker oder ein Chatfenster offen hat, bleibt der Abruf dagegen flott.
+    const interval = window.setInterval(refreshIfVisible, pickerOpen || chatFriend || supportConversationId ? 8_000 : 15_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
 
     return () => {
-      window.clearTimeout(initial);
       window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
     };
-  }, [load]);
+  }, [chatFriend, load, pickerOpen, supportConversationId]);
 
   const openSupport = async () => {
     setSupportError(null);
@@ -220,7 +218,11 @@ export function FriendsChatLauncher() {
         )}
         <button
           type="button"
-          onClick={() => setPickerOpen((open) => !open)}
+          onClick={() => {
+            const next = !pickerOpen;
+            setPickerOpen(next);
+            if (next) void load();
+          }}
           aria-label={unreadFriendMessages > 0 ? `Chat, ${unreadFriendMessages} ungelesene Freundesnachricht${unreadFriendMessages === 1 ? '' : 'en'}` : 'Chat'}
           className="relative inline-flex items-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300 px-4 py-3 text-sm font-black text-black shadow-xl shadow-cyan-400/15 transition hover:bg-cyan-200"
         >
@@ -238,6 +240,7 @@ export function FriendsChatLauncher() {
         <FriendChat
           friendId={chatFriend.user_id}
           friendUsername={chatFriend.username}
+          myUserId={userId}
           onClose={() => setChatFriend(null)}
           onMessagesRead={refreshUnreadFriendMessages}
         />

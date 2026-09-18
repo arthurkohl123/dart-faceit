@@ -10,19 +10,35 @@ export function NotificationBell() {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    let userId: string | null = null;
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      userId = session?.user.id ?? null;
-      if (!userId) return;
-      const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).is('read_at', null);
-      setUnread(count ?? 0);
+    let active = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const load = async (userId: string) => {
+      if (!active) return;
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .is('read_at', null);
+      if (active) setUnread(count ?? 0);
     };
-    void load();
-    const channel = supabase.channel('notification-bell')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => { void load(); })
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user.id;
+      if (!userId) {
+        if (active) setUnread(0);
+        return;
+      }
+      await load(userId);
+      channel = supabase
+        .channel(`notification-bell-${userId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => { void load(userId); })
+        .subscribe();
+    };
+    void init();
+    return () => {
+      active = false;
+      if (channel) void supabase.removeChannel(channel);
+    };
   }, [supabase]);
 
   return (

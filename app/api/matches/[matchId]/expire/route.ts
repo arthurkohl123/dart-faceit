@@ -12,6 +12,16 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ma
   if (!user) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 });
 
   try {
+    const { data, error: expireRpcError } = await supabase.rpc('expire_match_accept', { p_match_id: matchId });
+    if (!expireRpcError) {
+      const result = (Array.isArray(data) ? data[0] : data) as { status?: string } | null;
+      return NextResponse.json({ status: result?.status ?? 'already_handled' });
+    }
+
+    // The fallback is only for a short app-before-migration overlap. It keeps
+    // expired invitations recoverable without masking regular database errors.
+    if (!/expire_match_accept|PGRST202|schema cache/i.test(expireRpcError.message)) throw expireRpcError;
+
     const admin = createAdminClient();
     const { data: match, error } = await admin
       .from('active_matches')
