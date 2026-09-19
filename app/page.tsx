@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowUpRight, ChevronRight, CircleDot, Menu, MessageCircle, Swords, Trophy, X } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, CircleDot, Menu, MessageCircle, Radio, Swords, Trophy, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { ResultRoomPreview } from '@/components/ResultRoomPreview';
 import { WednesdayShowdownPromo } from '@/components/WednesdayShowdownPromo';
 import { getRankRangeLabel, RANK_TIERS } from '@/lib/ranks';
 
-type CommunityStats = { players: number; matches: number; cups: number; liveCups: number; };
+type CommunityStats = { players: number; matches: number; cups: number; liveCups: number; onlinePlayers: number; queuePlayers: number; livePlayers: number; };
 
 const principles = [
   ['01', 'Gegner auf deinem Level', 'Die Suche startet eng bei deiner Elo. Erst mit der Zeit wird der Bereich erweitert.'],
@@ -38,12 +38,14 @@ export default function Home() {
         const response = await fetch('/api/community-stats');
         if (!response.ok) throw new Error('Community stats request failed');
         const data: CommunityStats = await response.json();
-        if ([data.players, data.matches, data.cups, data.liveCups].every((value) => Number.isInteger(value) && value >= 0)) setCommunityStats(data);
+        if ([data.players, data.matches, data.cups, data.liveCups, data.onlinePlayers, data.queuePlayers, data.livePlayers].every((value) => Number.isInteger(value) && value >= 0)) setCommunityStats(data);
       } catch {
         // Die Startseite bleibt auch bei einer kurzzeitig nicht erreichbaren Statistik nutzbar.
       }
     }
     void loadCommunityStats();
+    const refresh = window.setInterval(() => void loadCommunityStats(), 30_000);
+    return () => window.clearInterval(refresh);
   }, []);
 
   const stats = [
@@ -89,6 +91,10 @@ export default function Home() {
           <h1 className="mt-7 max-w-3xl text-[3.3rem] font-black leading-[.9] tracking-[-.075em] text-[#f5f3ee] sm:text-7xl xl:text-[6.2rem]">Kein Zufall.<br /><span className="text-emerald-300">Nur dein nächstes Match.</span></h1>
           <p className="mt-7 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">RankedDarts bringt faire 1v1-Duelle, klare Ergebnisse und eine Rangliste zusammen. Du spielst gegen Leute in deiner Nähe – nicht gegen den Zufall.</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row"><button onClick={() => router.push(primaryTarget)} className="group inline-flex items-center justify-center gap-3 border border-emerald-300 bg-emerald-300 px-6 py-4 text-sm font-black uppercase tracking-[.12em] text-[#07100b] transition hover:bg-emerald-200">{primaryLabel} <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></button><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 border border-indigo-300/35 bg-indigo-300/10 px-6 py-4 text-sm font-bold text-indigo-100 transition hover:border-indigo-200 hover:bg-indigo-300/20"><MessageCircle className="h-4 w-4" /> Community beitreten</a></div>
+          <button onClick={() => router.push(primaryTarget)} className="group mt-5 grid w-full max-w-xl overflow-hidden border border-emerald-300/25 bg-[#0d1110]/90 text-left transition hover:border-emerald-300/50 hover:bg-[#101614] sm:grid-cols-[1fr_auto]" aria-label="Aktuelle Arena-Aktivität ansehen und Matchmaking öffnen">
+            <span className="flex min-w-0 items-center gap-3 px-4 py-4 sm:px-5"><span className="grid h-10 w-10 shrink-0 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-emerald-200"><Radio className="h-4 w-4" /></span><span className="min-w-0"><span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.17em] text-emerald-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,.95)]" /> Live in der Arena</span><span className="mt-1 block text-sm font-bold leading-5 text-zinc-200">{communityStats ? communityStats.queuePlayers > 0 ? `${communityStats.queuePlayers} ${communityStats.queuePlayers === 1 ? 'Spieler sucht' : 'Spieler suchen'} gerade.` : 'Noch niemand sucht – starte die Queue.' : 'Arena-Aktivität wird geladen …'}</span></span></span>
+            <span className="grid grid-cols-2 border-t border-white/10 bg-black/20 sm:border-l sm:border-t-0"><span className="px-4 py-3 text-center"><span className="block text-xl font-black tracking-[-.05em] text-white">{communityStats ? communityStats.onlinePlayers : '–'}</span><span className="mt-0.5 block text-[9px] font-black uppercase tracking-[.12em] text-zinc-500">Aktiv</span></span><span className="border-l border-white/10 px-4 py-3 text-center"><span className="block text-xl font-black tracking-[-.05em] text-emerald-200">{communityStats ? communityStats.livePlayers : '–'}</span><span className="mt-0.5 block text-[9px] font-black uppercase tracking-[.12em] text-zinc-500">Im Match</span></span></span>
+          </button>
           <p className="mt-5 text-xs leading-5 text-zinc-500">Kostenlos: 4 Ranked-Matches pro Tag. Premium: ohne Tageslimit und mit Zugang zu Premium-Turnieren.</p>
         </div>
         <div className="relative z-10"><div className="mb-3 flex items-center justify-between border-y border-white/10 py-3 text-[10px] font-black uppercase tracking-[.16em] text-zinc-500"><span className="inline-flex items-center gap-2"><CircleDot className="h-3.5 w-3.5 text-emerald-300" /> So sieht ein Result Room aus</span><span>Beispielansicht</span></div><ResultRoomPreview onOpen={() => router.push('/matchmaking')} /></div>
