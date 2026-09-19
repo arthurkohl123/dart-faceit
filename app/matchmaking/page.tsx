@@ -1268,6 +1268,7 @@ export default function Matchmaking() {
 
           <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
             <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
+            <Link href="/playtimes" className="transition hover:text-emerald-100">Spielzeiten</Link>
             <Link href="/history" className="transition hover:text-white">History</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
             <Link href="/premium" className="border border-emerald-300/35 px-3 py-1.5 font-bold text-emerald-200 transition hover:bg-emerald-300/10">Premium</Link>
@@ -1285,6 +1286,7 @@ export default function Matchmaking() {
           <div className="border-t border-white/10 bg-[#0a0d0d] px-3 py-3 sm:px-5 sm:py-4 lg:hidden">
             <div className="flex flex-col gap-1">
               <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
+              <Link href="/playtimes" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Spielzeiten planen</Link>
               <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
@@ -1405,6 +1407,9 @@ export default function Matchmaking() {
                 <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Live-Stand</div><div className="mt-1 flex items-center gap-2 text-sm font-black text-cyan-100"><span className="h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />Aktualisiert</div><p className="mt-1 text-xs leading-5 text-zinc-500">{queueFreshnessLabel} · Zähler alle 5 Sekunden</p></div>
               </div>
               <p className="mx-auto mt-3 max-w-3xl text-center text-[11px] leading-5 text-zinc-500">Queue-Signale zählen Plattform-Suchen. Derselbe Spieler kann mehrere Plattformen wählen und wird deshalb im Gesamttotal nur einmal gezählt.</p>
+              <Link href="/playtimes" className="mx-auto mt-5 flex max-w-3xl items-center justify-between gap-4 border border-emerald-300/20 bg-emerald-400/[.06] px-4 py-3.5 text-left transition hover:border-emerald-300/45 hover:bg-emerald-400/[.1]">
+                <span className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center border border-emerald-300/25 text-emerald-200"><Clock className="h-4 w-4" /></span><span><span className="block text-xs font-black text-emerald-100">Kein Gegner gerade?</span><span className="mt-0.5 block text-[11px] font-semibold leading-4 text-emerald-100/65">Plane eine Spielzeit. Sichtbar ist nur die Anzahl der Interessierten.</span></span></span><span className="shrink-0 text-sm font-black text-emerald-200">Planen →</span>
+              </Link>
               {dailyQuota && <div className={`mx-auto mt-5 flex w-full max-w-md items-center justify-center gap-2 border px-4 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.1em] sm:w-fit sm:max-w-none sm:rounded-full sm:tracking-[0.13em] ${dailyQuota.is_premium ? 'border-amber-300/25 bg-amber-400/10 text-amber-100' : dailyQuota.daily_limit === null ? 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-zinc-300'}`}><Zap className="h-3.5 w-3.5 shrink-0" />{dailyQuota.is_premium ? 'Premium · Unbegrenzte Matches' : dailyQuota.daily_limit === null ? 'Mittwoch Showdown · Kein Tageslimit' : `Free · ${dailyMatchesUsed}/${dailyQuota.daily_limit} Matches heute`}</div>}
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
