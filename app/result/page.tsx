@@ -122,7 +122,7 @@ function StatInput({
   required?: boolean;
 }) {
   return (
-    <label className="group block rounded-2xl border border-white/10 bg-black/30 p-3 transition duration-300 focus-within:-translate-y-0.5 focus-within:border-emerald-300/50 focus-within:bg-white/[0.06]">
+    <label className="group block border border-white/10 bg-black/30 p-3 transition duration-300 focus-within:border-emerald-300/50 focus-within:bg-emerald-400/[0.035]">
       <span className="mb-2 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500 transition group-focus-within:text-emerald-300">
         <span>{label}</span>
         {required && <span className="text-emerald-300"></span>}
@@ -135,7 +135,7 @@ function StatInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-14 w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 text-center text-2xl font-black tabular-nums tracking-[-0.04em] text-white outline-none transition placeholder:text-zinc-700 focus:border-transparent focus:bg-black/30 sm:h-16"
+        className="h-14 w-full border border-white/10 bg-[#090b0b] px-4 text-center text-2xl font-black tabular-nums tracking-[-0.04em] text-white outline-none transition placeholder:text-zinc-700 focus:border-emerald-300/50 focus:bg-black/30 sm:h-16"
       />
     </label>
   );
@@ -153,14 +153,14 @@ function LegCounter({
   accent: string;
 }) {
   return (
-    <div className="min-w-0 flex-1 rounded-[1.5rem] border border-white/10 bg-black/30 p-3 sm:p-4">
+    <div className="min-w-0 flex-1 border border-white/10 bg-[#090b0b] p-3 sm:p-4">
       <span className="block truncate text-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 sm:text-[11px]">{label}</span>
       <div className="mt-3 grid grid-cols-[3.25rem_minmax(0,1fr)_3.25rem] items-center gap-2 sm:grid-cols-[3.5rem_minmax(0,1fr)_3.5rem]">
         <button
           type="button"
           aria-label={`${label} verringern`}
           onClick={() => onChange(Math.max(0, value - 1))}
-          className="grid h-14 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-3xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95"
+          className="grid h-14 place-items-center border border-white/10 bg-white/[0.04] text-3xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95"
         >
           −
         </button>
@@ -171,7 +171,7 @@ function LegCounter({
           type="button"
           aria-label={`${label} erhöhen`}
           onClick={() => onChange(value + 1)}
-          className="grid h-14 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-3xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95"
+          className="grid h-14 place-items-center border border-white/10 bg-white/[0.04] text-3xl font-black text-zinc-400 transition hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95"
         >
           +
         </button>
@@ -1046,24 +1046,22 @@ export default function MatchResult() {
   // ── Main render ───────────────────────────────────────────────────────────────
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-white selection:bg-emerald-300 selection:text-black">
+    <main className="relative min-h-screen overflow-hidden bg-[#070908] text-white selection:bg-emerald-300 selection:text-black">
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_4%,rgba(52,211,153,0.24),transparent_29%),radial-gradient(circle_at_88%_8%,rgba(34,211,238,0.14),transparent_28%),radial-gradient(circle_at_50%_55%,rgba(132,204,22,0.06),transparent_38%),linear-gradient(180deg,rgba(5,6,7,0)_0%,#050607_76%)]" />
-        <div className="absolute inset-0 opacity-[0.055] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_82%)]" />
-        <div className="absolute left-1/2 top-20 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full border border-emerald-300/[0.05] sm:h-[44rem] sm:w-[44rem]" />
-        <div className="absolute left-1/2 top-44 h-[18rem] w-[18rem] -translate-x-1/2 rounded-full border border-white/[0.04] sm:h-[30rem] sm:w-[30rem]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(52,211,153,0.14),transparent_24%),radial-gradient(circle_at_95%_10%,rgba(34,211,238,0.08),transparent_24%),linear-gradient(180deg,#070908_0%,#070908_72%,#050606_100%)]" />
+        <div className="absolute inset-0 opacity-[0.035] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:44px_44px]" />
       </div>
 
       {/* Navbar */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#070908]/95 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
           <Link href="/" className="flex items-center gap-3">
             <BrandLogo className="h-10 w-10" />
             <div className="hidden sm:block">
               <div className="text-base font-black tracking-[-0.04em]">RANKEDDARTS</div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/70">
-                Match Result
+                Matchroom
               </div>
             </div>
           </Link>
@@ -1092,25 +1090,24 @@ export default function MatchResult() {
         )}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-7xl px-3 pb-12 pt-20 sm:px-6 sm:pt-24 lg:px-8 lg:pb-20 lg:pt-28">
+      <section className="relative z-10 mx-auto max-w-[88rem] px-3 pb-12 pt-20 sm:px-6 sm:pt-24 lg:px-8 lg:pb-20 lg:pt-28">
 
         {/* Arena intro */}
-        <div className="mb-4 flex flex-col gap-3 px-1 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+        <div className="mb-0 grid border border-white/10 bg-[#090c0b]/90 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="px-5 py-5 sm:px-7 sm:py-6">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.9)]" />
-              Live Matchroom
+              Matchabschluss
             </div>
-            <h1 className="mt-2 text-3xl font-black tracking-[-0.065em] sm:text-4xl lg:text-5xl">
-              Result <span className="text-zinc-600">Center</span>
+            <h1 className="mt-2 text-3xl font-black tracking-[-0.065em] sm:text-4xl">
+              Ergebnisraum
             </h1>
+            <p className="mt-2 text-sm text-zinc-500">Ergebnis eintragen, gemeinsam prüfen, fair werten.</p>
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-600 sm:justify-end sm:overflow-visible sm:pb-0">
-            <span className="whitespace-nowrap text-emerald-300">01 · Match</span>
-            <span>›</span>
-            <span className={`whitespace-nowrap ${match?.status === 'pending_result' ? 'text-white' : 'text-emerald-300'}`}>02 · Ergebnis</span>
-            <span>›</span>
-            <span className={`whitespace-nowrap ${match?.status === 'completed' ? 'text-emerald-300' : 'text-zinc-600'}`}>03 · Wertung</span>
+          <div className="flex items-stretch divide-x divide-white/10 border-t border-white/10 text-[9px] font-black uppercase tracking-[0.14em] sm:border-l sm:border-t-0 sm:text-[10px]">
+            <span className="flex items-center px-3 py-4 text-emerald-300 sm:px-4">01 Match</span>
+            <span className={`flex items-center px-3 py-4 ${match?.status === 'pending_result' ? 'text-white' : 'text-emerald-300'}`}>02 Ergebnis</span>
+            <span className={`flex items-center px-3 py-4 ${match?.status === 'completed' ? 'text-emerald-300' : 'text-zinc-600'}`}>03 Wertung</span>
           </div>
         </div>
 
@@ -1244,21 +1241,21 @@ export default function MatchResult() {
                   : 'Abgebrochen';
 
           return (
-            <div className="relative mb-5 overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:mb-8 sm:rounded-[2.5rem]">
+            <div className="relative mb-5 overflow-hidden border-x border-b border-white/10 bg-[#0a0d0c]/95 shadow-[0_24px_80px_rgba(0,0,0,0.3)] sm:mb-8">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/70 to-transparent" />
               <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.025] px-4 py-3 sm:px-6">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]" />
                   {match.match_mode === 'private' ? 'Privates Duell · nicht gewertet' : 'Ranked Match'}
                 </div>
-                <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-300">
+                <span className="border border-white/10 bg-black/30 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-300">
                   {statusLabel}
                 </span>
               </div>
 
               <div className="grid grid-cols-[minmax(0,1fr)_3.75rem_minmax(0,1fr)] items-stretch sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)]">
                 <div className="flex min-w-0 flex-col items-center justify-center px-2 py-5 text-center sm:px-6 sm:py-8">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-400/10 text-lg font-black text-emerald-200 shadow-[0_0_28px_rgba(52,211,153,0.12)] sm:h-14 sm:w-14 sm:text-xl">
+                  <div className="grid h-11 w-11 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-lg font-black text-emerald-200 shadow-[0_0_28px_rgba(52,211,153,0.12)] sm:h-14 sm:w-14 sm:text-xl">
                     {myName.slice(0, 1).toUpperCase()}
                   </div>
                   <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-emerald-300/70 sm:text-[10px]">{iAmParticipant ? 'Du' : 'Spieler 1'}</span>
@@ -1268,7 +1265,7 @@ export default function MatchResult() {
                     {myAvg !== null && <span>Ø <b className="text-emerald-300">{myAvg.toFixed(1)}</b></span>}
                   </div>
                   {myPlatformUsername && (
-                    <span className={`mt-3 max-w-full truncate rounded-full border px-2 py-1 text-[9px] font-bold sm:px-3 sm:text-[10px] ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${myPlatformUsername}`}>
+                    <span className={`mt-3 max-w-full truncate border px-2 py-1 text-[9px] font-bold sm:px-3 sm:text-[10px] ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${myPlatformUsername}`}>
                       {myPlatformUsername}
                     </span>
                   )}
@@ -1282,7 +1279,7 @@ export default function MatchResult() {
                 </div>
 
                 <div className="flex min-w-0 flex-col items-center justify-center px-2 py-5 text-center sm:px-6 sm:py-8">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl border border-cyan-300/25 bg-cyan-400/10 text-lg font-black text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.1)] sm:h-14 sm:w-14 sm:text-xl">
+                  <div className="grid h-11 w-11 place-items-center border border-cyan-300/25 bg-cyan-400/10 text-lg font-black text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.1)] sm:h-14 sm:w-14 sm:text-xl">
                     {displayedOpponentName.slice(0, 1).toUpperCase()}
                   </div>
                   <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-cyan-300/70 sm:text-[10px]">{iAmParticipant ? 'Gegner' : 'Spieler 2'}</span>
@@ -1292,11 +1289,11 @@ export default function MatchResult() {
                     {oppAvg !== null && <span>Ø <b className="text-cyan-300">{oppAvg.toFixed(1)}</b></span>}
                   </div>
                   {oppPlatformUsername ? (
-                    <span className={`mt-3 max-w-full truncate rounded-full border px-2 py-1 text-[9px] font-bold sm:px-3 sm:text-[10px] ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${oppPlatformUsername}`}>
+                    <span className={`mt-3 max-w-full truncate border px-2 py-1 text-[9px] font-bold sm:px-3 sm:text-[10px] ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${oppPlatformUsername}`}>
                       {oppPlatformUsername}
                     </span>
                   ) : (
-                    <span className="mt-3 max-w-full truncate rounded-full border border-zinc-700/40 bg-zinc-800/40 px-2 py-1 text-[9px] font-bold text-zinc-600 sm:px-3 sm:text-[10px]">
+                    <span className="mt-3 max-w-full truncate border border-zinc-700/40 bg-zinc-800/40 px-2 py-1 text-[9px] font-bold text-zinc-600 sm:px-3 sm:text-[10px]">
                       Nicht hinterlegt
                     </span>
                   )}
@@ -1321,8 +1318,8 @@ export default function MatchResult() {
           );
         })()}
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(21rem,0.65fr)] lg:items-start lg:gap-6">
-          <div className="min-w-0">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(21rem,0.65fr)] lg:items-start lg:gap-0">
+          <div className="min-w-0 lg:border-x lg:border-b lg:border-white/10 lg:bg-[#090c0b]/55">
         {/* Countdown-Banner */}
         {countdown !== null && match?.status === 'awaiting_confirmation' && (
           <div
@@ -1369,10 +1366,10 @@ export default function MatchResult() {
             STATE: pending_result — Ergebnis eintragen
         ══════════════════════════════════════════════════════════════ */}
         {match?.status === 'pending_result' && (
-          <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/60 backdrop-blur-2xl sm:rounded-[2.5rem]">
+          <div className="overflow-hidden border-b border-white/10 bg-[#0a0d0c]/85 shadow-2xl shadow-black/30 backdrop-blur-2xl">
             {/* Header */}
             <div className="border-b border-white/10 bg-gradient-to-r from-emerald-400/[0.06] to-transparent px-5 py-6 sm:px-8 sm:py-7">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Scoreboard</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">01 · Endstand erfassen</p>
               <h2 className="mt-2 text-3xl font-black tracking-[-0.06em] sm:text-4xl">Ergebnis eintragen</h2>
               <p className="mt-2 text-sm text-zinc-500">
                 Trage das Best-of-{bestOfLegs}-Ergebnis sowie Average und 180er von beiden Spielern ein. Dein Gegner muss alles danach bestätigen.
@@ -1382,16 +1379,16 @@ export default function MatchResult() {
             <div className="px-4 py-8 space-y-8 sm:px-8">
               {/* Legs */}
               <div>
-                <p className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Legs</p>
+                <p className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Legs · Endstand</p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                   <LegCounter label="Deine Legs" value={legsWon} onChange={(v) => setLegsWon(Math.min(legsToWin, v))} accent="text-emerald-300" />
                   <LegCounter label="Gegner Legs" value={legsLost} onChange={(v) => setLegsLost(Math.min(legsToWin, v))} accent="text-zinc-300" />
                 </div>
-                <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-center text-sm font-bold text-zinc-400">
+                <p className="mt-4 border-l-2 border-emerald-300/60 bg-emerald-400/[0.04] p-3 text-sm font-bold text-zinc-400">
                   Gespielt wird Best of {bestOfLegs}. Ein gültiges Ergebnis endet mit {legsToWin} Legs für einen Spieler.
                 </p>
                 {!resultIsValid && (legsWon > 0 || legsLost > 0) && (
-                  <p className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-center text-sm font-bold text-red-200">
+                  <p className="mt-3 border-l-2 border-red-300 bg-red-500/10 p-3 text-sm font-bold text-red-200">
                     Ungültiges Best-of-{bestOfLegs}-Ergebnis. Ein Spieler muss genau {legsToWin} Legs erreicht haben.
                   </p>
                 )}
@@ -1404,15 +1401,15 @@ export default function MatchResult() {
               <div>
                 <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">Statistiken beider Spieler</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-500">02 · Statistiken</p>
                     <p className="mt-1 text-sm font-semibold text-zinc-500">Average und 180er sind für beide Spieler Pflichtfelder.</p>
                   </div>
-                  <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">
+                  <span className="border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">
                     Pflichtangaben
                   </span>
                 </div>
                 <div className="grid gap-4 xl:grid-cols-2">
-                  <section className="rounded-[1.75rem] border border-emerald-300/20 bg-gradient-to-br from-emerald-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-emerald-950/20 sm:p-5">
+                  <section className="border border-emerald-300/20 border-t-2 bg-gradient-to-br from-emerald-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-emerald-950/20 sm:p-5">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Du</p>
                       <p className="text-xs font-bold text-zinc-500">deine Werte</p>
@@ -1423,7 +1420,7 @@ export default function MatchResult() {
                     </div>
                   </section>
 
-                  <section className="rounded-[1.75rem] border border-cyan-300/20 bg-gradient-to-br from-cyan-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
+                  <section className="border border-cyan-300/20 border-t-2 bg-gradient-to-br from-cyan-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <p className="text-sm font-black uppercase tracking-[0.22em] text-cyan-200">Gegner</p>
                       <p className="text-xs font-bold text-zinc-500">gegnerische Werte</p>
@@ -1435,7 +1432,7 @@ export default function MatchResult() {
                   </section>
                 </div>
                 {!statsAreValid && (myAverage || opponentAverageInput || myOneEighties || opponentOneEighties) && (
-                  <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] p-3 text-center text-sm font-bold text-amber-100">
+                  <p className="mt-3 border-l-2 border-amber-300 bg-amber-400/[0.08] p-3 text-sm font-bold text-amber-100">
                     Bitte alle vier Statistikfelder korrekt ausfüllen. Average muss zwischen 0 und 180 liegen, 180er müssen ganze Zahlen sein.
                   </p>
                 )}
@@ -1444,7 +1441,7 @@ export default function MatchResult() {
               {/* Live-Preview */}
               {resultIsValid && (
                 <div
-                  className={`flex flex-col items-start justify-between gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:p-5 ${
+                  className={`flex flex-col items-start justify-between gap-3 border border-l-2 p-4 sm:flex-row sm:items-center sm:p-5 ${
                     legsWon > legsLost
                       ? 'border-emerald-300/20 bg-emerald-400/[0.07]'
                       : 'border-red-400/20 bg-red-500/[0.07]'
@@ -1473,7 +1470,7 @@ export default function MatchResult() {
               <button
                 onClick={submitResult}
                 disabled={loading || !canSubmitResult}
-                className="sticky bottom-3 z-20 min-h-16 w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.25)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 sm:rounded-3xl sm:py-5 sm:text-lg sm:tracking-[0.16em] lg:static"
+                className="sticky bottom-3 z-20 min-h-16 w-full border border-emerald-200 bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.12em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.25)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 sm:py-5 sm:text-lg sm:tracking-[0.16em] lg:static"
               >
                 {loading ? 'Wird eingereicht…' : 'Zur Bestätigung einreichen'}
               </button>
@@ -1485,7 +1482,7 @@ export default function MatchResult() {
             STATE: awaiting_confirmation — Einreicher wartet
         ══════════════════════════════════════════════════════════════ */}
         {match?.status === 'awaiting_confirmation' && isSubmitter && (
-          <div className="rounded-[1.75rem] border border-cyan-300/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+          <div className="border-b border-cyan-300/15 bg-[#0a0d0c]/85 shadow-2xl shadow-black/30 backdrop-blur-2xl">
             <div className="flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-12">
               <div className="grid h-20 w-20 place-items-center rounded-3xl border border-cyan-300/20 bg-cyan-400/10">
                 <Clock className="h-10 w-10 text-cyan-200" />
@@ -1500,11 +1497,11 @@ export default function MatchResult() {
                 bestätigen — oder es wird nach Ablauf des Timers automatisch gewertet.
               </p>
               <div className="mt-6 grid w-full max-w-md grid-cols-2 gap-3 text-sm">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600">Dein Average / 180er</p>
                   <p className="mt-1 font-black text-white">{submittedData?.myAvg != null ? submittedData.myAvg.toFixed(2) : '–'} · {submittedData?.my180s ?? 0}×180</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600">Gegner Average / 180er</p>
                   <p className="mt-1 font-black text-white">{submittedData?.oppAvg != null ? submittedData.oppAvg.toFixed(2) : '–'} · {submittedData?.opp180s ?? 0}×180</p>
                 </div>
@@ -1519,7 +1516,7 @@ export default function MatchResult() {
         {match?.status === 'awaiting_confirmation' && needsMyConfirmation && (
           <div className="space-y-5">
             {/* Eingereichte Daten */}
-            <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+            <div className="overflow-hidden border-b border-white/10 bg-[#0a0d0c]/85 shadow-2xl shadow-black/30 backdrop-blur-2xl">
               <div className="border-b border-white/10 px-5 py-6 sm:px-8 sm:py-7">
                 <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">
                   Eingereicht von {submittedData?.submitterName}
@@ -1569,7 +1566,7 @@ export default function MatchResult() {
                 <button
                   onClick={confirmResult}
                   disabled={loading}
-                  className="min-h-16 w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.11em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.2)] transition hover:-translate-y-0.5 disabled:opacity-40 sm:rounded-3xl sm:py-5 sm:text-lg sm:tracking-[0.16em]"
+                  className="min-h-16 w-full border border-emerald-200 bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.11em] text-black shadow-[0_16px_50px_rgba(34,197,94,0.2)] transition hover:-translate-y-0.5 disabled:opacity-40 sm:py-5 sm:text-lg sm:tracking-[0.16em]"
                 >
                   {loading ? 'Wird bestätigt…' : 'Ergebnis bestätigen & Elo vergeben'}
                 </button>
@@ -1577,7 +1574,7 @@ export default function MatchResult() {
             </div>
 
             {/* Dispute-Bereich */}
-            <div className="overflow-hidden rounded-[1.75rem] border border-red-400/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+            <div className="overflow-hidden border-b border-red-400/15 bg-[#0a0d0c]/85 shadow-2xl shadow-black/30 backdrop-blur-2xl">
               <div className="border-b border-white/[0.06] px-5 py-5 sm:px-8 sm:py-6">
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="h-5 w-5 text-red-300 shrink-0" />
@@ -1662,7 +1659,7 @@ export default function MatchResult() {
             STATE: completed
         ══════════════════════════════════════════════════════════════ */}
         {match?.status === 'completed' && (
-          <div className="rounded-[1.75rem] border border-emerald-300/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+          <div className="border-b border-emerald-300/15 bg-[#0a0d0c]/85 shadow-2xl shadow-black/30 backdrop-blur-2xl">
             <div className="flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-14">
               <div className="grid h-20 w-20 place-items-center rounded-3xl border border-emerald-300/25 bg-emerald-400/10">
                 <CheckCircle2 className="h-10 w-10 text-emerald-200" />
@@ -1692,7 +1689,7 @@ export default function MatchResult() {
             STATE: disputed
         ══════════════════════════════════════════════════════════════ */}
         {match?.status === 'disputed' && (
-          <div className="rounded-[1.75rem] border border-amber-300/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+          <div className="border-b border-amber-300/15 bg-[#0a0d0c]/85 shadow-2xl shadow-black/30 backdrop-blur-2xl">
             <div className="flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-14">
               <div className="grid h-20 w-20 place-items-center rounded-3xl border border-amber-300/25 bg-amber-400/10">
                 <Shield className="h-10 w-10 text-amber-200" />
@@ -1714,7 +1711,7 @@ export default function MatchResult() {
             STATE: cancelled
         ════════════════════════════════════════════════════════════ */}
         {match?.status === 'cancelled' && (
-          <div className="rounded-[1.75rem] border border-red-400/15 bg-zinc-950/85 shadow-2xl backdrop-blur-2xl sm:rounded-[2.5rem]">
+          <div className="border-b border-red-400/15 bg-[#0a0d0c]/85 shadow-2xl shadow-black/30 backdrop-blur-2xl">
             <div className="flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-14">
               <div className="grid h-20 w-20 place-items-center rounded-3xl border border-red-400/25 bg-red-500/10">
                 <XCircle className="h-10 w-10 text-red-300" />
@@ -1740,7 +1737,7 @@ export default function MatchResult() {
             MATCHROOM CHAT
         ════════════════════════════════════════════════════════════ */}
         {match && (
-          <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/60 backdrop-blur-2xl sm:rounded-[2rem]">
+          <div className="overflow-hidden border border-white/10 bg-[#0a0d0c]/95 shadow-2xl shadow-black/30 backdrop-blur-2xl lg:border-l-0">
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-white/10 bg-gradient-to-r from-emerald-400/[0.07] to-white/[0.02] px-4 py-4 sm:px-6">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10">

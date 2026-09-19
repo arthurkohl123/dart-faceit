@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getDailyMatchesUsed, getMaxEloDiff, hasReachedDailyMatchLimit } from '../../lib/matchmaking-rules.ts';
+import { getDailyMatchesUsed, getMaxEloDiff, getNextEloSearchExpansion, hasReachedDailyMatchLimit } from '../../lib/matchmaking-rules.ts';
 
 test('the Elo search range expands at the configured boundaries', () => {
   assert.equal(getMaxEloDiff(0), 50);
@@ -15,6 +15,14 @@ test('the Elo search range expands at the configured boundaries', () => {
   assert.equal(getMaxEloDiff(119), 400);
   assert.equal(getMaxEloDiff(120), 500);
   assert.equal(getMaxEloDiff(6000), 500);
+});
+
+test('the next Elo expansion always reflects the active search rules', () => {
+  assert.deepEqual(getNextEloSearchExpansion(0), { atSeconds: 15, range: 100 });
+  assert.deepEqual(getNextEloSearchExpansion(15), { atSeconds: 30, range: 200 });
+  assert.deepEqual(getNextEloSearchExpansion(89), { atSeconds: 90, range: 400 });
+  assert.deepEqual(getNextEloSearchExpansion(119), { atSeconds: 120, range: 500 });
+  assert.equal(getNextEloSearchExpansion(120), null);
 });
 
 test('free users stop at four daily matches while premium stays unlimited', () => {

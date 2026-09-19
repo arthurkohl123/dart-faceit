@@ -20,6 +20,28 @@ export function getMaxEloDiff(seconds: number): number {
   return 500;
 }
 
+export type NextEloSearchExpansion = {
+  atSeconds: number;
+  range: number;
+};
+
+/**
+ * Returns the next point at which the ranked search window widens. Keeping
+ * this next to getMaxEloDiff prevents the UI from promising a different
+ * search cadence than the database matcher actually uses.
+ */
+export function getNextEloSearchExpansion(seconds: number): NextEloSearchExpansion | null {
+  const elapsed = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+  const nextAt = [15, 30, 60, 90, 120].find((boundary) => elapsed < boundary);
+
+  if (nextAt === undefined) return null;
+
+  return {
+    atSeconds: nextAt,
+    range: getMaxEloDiff(nextAt),
+  };
+}
+
 export function getDailyMatchesUsed(quota: DailyMatchQuota | null): number {
   if (!quota) return 0;
 

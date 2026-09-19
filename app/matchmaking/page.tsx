@@ -6,7 +6,7 @@ import { Activity, AlertTriangle, CheckCircle2, Clock, Radar, ShieldCheck, Sword
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useRouter } from 'next/navigation';
-import { getDailyMatchesUsed, getMaxEloDiff, hasReachedDailyMatchLimit, type DailyMatchQuota } from '@/lib/matchmaking-rules';
+import { getDailyMatchesUsed, getMaxEloDiff, getNextEloSearchExpansion, hasReachedDailyMatchLimit, type DailyMatchQuota } from '@/lib/matchmaking-rules';
 import { reportClientError } from '@/lib/client-monitoring';
 
 type MatchmakingStatus = 'idle' | 'selecting' | 'searching' | 'accepting' | 'found' | 'error';
@@ -49,6 +49,12 @@ type CurrentMatch = {
 type MatchmakingQueueSetting = {
   enabled?: boolean;
   message?: string;
+};
+
+type QueueInsight = {
+  activePlayers: number;
+  compatiblePlayers: number;
+  compatiblePlatforms: number;
 };
 
 function isAppChoice(value: unknown): value is AppChoice {
@@ -145,6 +151,7 @@ export default function Matchmaking() {
   const [queueCounts, setQueueCounts] = useState<Record<AppChoice, number>>({ scolia: 0, dartcounter: 0, autodarts: 0 });
   const [uniqueQueuePlayers, setUniqueQueuePlayers] = useState(0);
   const [queueCountsUpdatedAt, setQueueCountsUpdatedAt] = useState<Date | null>(null);
+  const [queueInsight, setQueueInsight] = useState<QueueInsight | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
@@ -207,6 +214,10 @@ export default function Matchmaking() {
 
   const searchProgress = Math.min((elapsedSeconds / 120) * 100, 100);
   const currentRange = getMaxEloDiff(elapsedSeconds);
+  const nextRangeExpansion = getNextEloSearchExpansion(elapsedSeconds);
+  const secondsUntilNextRangeExpansion = nextRangeExpansion
+    ? Math.max(0, nextRangeExpansion.atSeconds - elapsedSeconds)
+    : null;
   const dailyMatchesUsed = getDailyMatchesUsed(dailyQuota);
   const totalQueuePlayers = uniqueQueuePlayers;
   const selectedQueueSignals = selectedApps.reduce((total, app) => total + queueCounts[app], 0);
@@ -475,6 +486,51 @@ export default function Matchmaking() {
     }
   }, [supabase]);
 
+  // The candidate view deliberately returns aggregate values only. This gives
+  // a searching player useful certainty without exposing who else is online,
+  // their exact Elo, or which platform they selected.
+  const fetchQueueInsight = useCallback(async (apps: AppChoice[], maxEloDiff: number) => {
+    if (!apps.length) {
+      setQueueInsight(null);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('get_my_matchmaking_queue_insight', {
+        p_apps: apps,
+        p_max_elo_diff: maxEloDiff,
+      });
+
+      if (error) {
+        if (!isTransientNetworkError(error)) {
+          console.warn('Queue-Status konnte nicht geladen werden:', error.message);
+        }
+        return;
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) {
+        setQueueInsight({ activePlayers: 0, compatiblePlayers: 0, compatiblePlatforms: 0 });
+        return;
+      }
+
+      const insight = row as {
+        active_players?: number | string;
+        compatible_players?: number | string;
+        compatible_platforms?: number | string;
+      };
+      setQueueInsight({
+        activePlayers: Number(insight.active_players) || 0,
+        compatiblePlayers: Number(insight.compatible_players) || 0,
+        compatiblePlatforms: Number(insight.compatible_platforms) || 0,
+      });
+    } catch (error) {
+      if (!isTransientNetworkError(error)) {
+        console.warn('Queue-Status konnte nicht geladen werden:', error);
+      }
+    }
+  }, [supabase]);
+
   const fetchMatchmakingStatus = useCallback(async () => {
     const { data, error } = await supabase.rpc('get_matchmaking_queue_status');
     if (error) return;
@@ -660,6 +716,7 @@ export default function Matchmaking() {
     setErrorMessage('');
     setOpponent(null);
     setQueueConnectionRecovering(false);
+    setQueueInsight(null);
 
     if (!matchmakingEnabled) {
       setErrorMessage(matchmakingMessage);
@@ -857,6 +914,29 @@ export default function Matchmaking() {
     document.addEventListener('visibilitychange', refreshIfVisible);
     return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', refreshIfVisible); };
   }, [fetchQueueCounts]);
+
+  // Refresh the personal, anonymous fit signal independently from matching.
+  // A failed display refresh must never influence an active queue search.
+  useEffect(() => {
+    if (status !== 'searching' || !selectedApps.length) {
+      return;
+    }
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchQueueInsight(selectedApps, currentRange);
+      }
+    };
+
+    refreshIfVisible();
+    const interval = window.setInterval(refreshIfVisible, 5_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
+  }, [currentRange, fetchQueueInsight, selectedApps, status]);
 
   // Realtime + Polling während der Suche
   // WICHTIG: pollForMatch ist NICHT in den Dependencies! Stattdessen nutzen wir
@@ -1406,12 +1486,20 @@ export default function Matchmaking() {
 
               <h2 className="mt-4 text-4xl font-black tracking-[-0.05em]">Gegner wird gesucht</h2>
               <p className="mt-3 text-zinc-400">Aktueller Elo-Suchradius: <span className="font-black text-emerald-300">±{currentRange}</span></p>
-              <div className="mx-auto mt-5 grid max-w-2xl gap-px overflow-hidden border border-white/10 bg-white/10 text-left sm:grid-cols-3">
+              <div className="mx-auto mt-5 grid max-w-3xl gap-px overflow-hidden border border-white/10 bg-white/10 text-left sm:grid-cols-2 lg:grid-cols-4">
                 <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Deine Queues</div><div className="mt-1 text-lg font-black text-white">{selectedApps.length}</div><p className="mt-1 text-xs leading-5 text-zinc-500">parallel aktiv</p></div>
-                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Aktivität</div><div className="mt-1 text-lg font-black text-emerald-200">{selectedQueueSignals}</div><p className="mt-1 text-xs leading-5 text-zinc-500">Queue-Signale auf deiner Auswahl</p></div>
-                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Suchlogik</div><div className="mt-1 text-lg font-black text-cyan-100">offen</div><p className="mt-1 text-xs leading-5 text-zinc-500">Radius wächst automatisch weiter</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Passende Gegner</div><div className={`mt-1 text-lg font-black ${queueInsight?.compatiblePlayers ? 'text-emerald-200' : 'text-zinc-300'}`}>{queueInsight ? queueInsight.compatiblePlayers : '…'}</div><p className="mt-1 text-xs leading-5 text-zinc-500">im aktuellen Elo-Bereich</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Nächster Schritt</div><div className="mt-1 text-lg font-black text-cyan-100">{nextRangeExpansion ? `${secondsUntilNextRangeExpansion}s` : 'max.'}</div><p className="mt-1 text-xs leading-5 text-zinc-500">{nextRangeExpansion ? `dann ±${nextRangeExpansion.range} Elo` : 'maximaler Elo-Radius'}</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Queue-Aktivität</div><div className="mt-1 text-lg font-black text-emerald-200">{selectedQueueSignals}</div><p className="mt-1 text-xs leading-5 text-zinc-500">Signale auf deiner Auswahl</p></div>
               </div>
-              <p className="mx-auto mt-3 max-w-xl text-center text-xs leading-5 text-zinc-500">Kein künstlicher Timer: Ein Match startet sofort, sobald auf einer deiner Plattformen ein gültiger Gegner im aktuellen Elo-Radius verfügbar ist.</p>
+              <p className="mx-auto mt-3 max-w-2xl text-center text-xs leading-5 text-zinc-500">
+                {queueInsight?.compatiblePlayers
+                  ? `${queueInsight.compatiblePlayers} passender ${queueInsight.compatiblePlayers === 1 ? 'Gegner ist' : 'Gegner sind'} gerade auf ${queueInsight.compatiblePlatforms === 1 ? 'einer deiner Plattformen' : `${queueInsight.compatiblePlatforms} deiner Plattformen`} aktiv. Das nächste gültige Match startet automatisch.`
+                  : nextRangeExpansion
+                    ? `Noch kein passender Gegner im aktuellen Bereich. In ${secondsUntilNextRangeExpansion} Sekunden erweitert sich deine Suche auf ±${nextRangeExpansion.range} Elo.`
+                    : 'Der maximale Elo-Radius ist erreicht. Ein gültiges Match startet automatisch, sobald ein passender Gegner aktiv wird.'}
+                <span className="ml-1 text-zinc-600">Spielernamen und genaue Elo-Werte bleiben dabei privat.</span>
+              </p>
               {queueConnectionRecovering && (
                 <p className="mt-3 inline-flex items-center gap-2 border border-amber-300/20 bg-amber-400/[0.06] px-3 py-1.5 text-xs font-semibold text-amber-100">
                   <Activity className="h-3.5 w-3.5 animate-pulse" />
