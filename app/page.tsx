@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUpRight, ChevronRight, CircleDot, Clock, Menu, MessageCircle, Radio, Swords, Trophy, X } from 'lucide-react';
@@ -69,7 +70,7 @@ export default function Home() {
             <span><span className="block text-lg font-black tracking-[-0.05em]">RANKEDDARTS</span><span className="block text-[9px] font-bold uppercase tracking-[0.25em] text-emerald-300">Competitive darts</span></span>
           </button>
           <div className="hidden items-center gap-6 text-[13px] font-semibold text-zinc-300 lg:flex">
-            <a href="/leaderboard" className="hover:text-white">Rangliste</a><a href="/showdown" className="text-violet-200 hover:text-violet-100">Mittwoch Showdown</a><a href="/matchmaking" className="hover:text-white">Matchmaking</a><a href="/playtimes" className="hover:text-emerald-100">Spielzeiten</a><a href="/tournaments" className="hover:text-white">Turniere</a><a href="/updates" className="hover:text-white">Updates</a><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-indigo-200 transition hover:text-white"><MessageCircle className="h-3.5 w-3.5" /> Discord</a>
+            <a href="/leaderboard" className="hover:text-white">Rangliste</a><a href="/showdown" className="text-violet-200 hover:text-violet-100">Mittwoch Showdown</a><a href="/matchmaking" className="hover:text-white">Matchmaking</a><a href="/playtimes" className="hover:text-emerald-100">Spielzeiten</a><Link href="/tournaments" className="hover:text-white">Turniere</Link><a href="/updates" className="hover:text-white">Updates</a><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-indigo-200 transition hover:text-white"><MessageCircle className="h-3.5 w-3.5" /> Discord</a>
             <span className="border-l border-white/15 pl-6 text-[11px] font-bold uppercase tracking-[.12em] text-zinc-500">Saison 01 · bis 01.11.2026</span>
           </div>
           <div className="flex items-center gap-2">
