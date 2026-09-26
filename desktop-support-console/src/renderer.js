@@ -42,7 +42,17 @@ async function request(path, options = {}, retry = true) {
   headers.set('apikey', config.supabasePublishableKey);
   headers.set('Content-Type', 'application/json');
   if (state.session?.access_token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${state.session.access_token}`);
-  const response = await fetch(apiUrl(path), { ...options, headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  let response;
+  try {
+    response = await fetch(apiUrl(path), { ...options, headers, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('Die Verbindung zum Support-Dienst dauert zu lange. Bitte versuche es erneut.');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (response.status === 401 && retry && state.session?.refresh_token) {
     await refreshSession();
     return request(path, options, false);
@@ -126,7 +136,7 @@ function renderLogin() {
   app.innerHTML = `
     <section class="login-layout">
       <div class="login-side"><div class="brand-lockup"><span class="brand-mark">R</span><div><strong>RANKEDDARTS</strong><small>SUPPORT CONSOLE</small></div></div><div class="login-promise"><p class="eyebrow">LIVE SUPPORT DESK</p><h1>Konzentriert helfen.<br><em>Ohne Browser-Chaos.</em></h1><p>Die Console zeigt nur Support-Fälle, die du übernehmen darfst – direkt verbunden mit dem Live-Chat von RankedDarts.</p><ul><li>Desktop-Hinweise bei neuen Anfragen</li><li>Bleibt im Hintergrund erreichbar</li><li>Gleiche sichere Rechte wie auf der Website</li></ul></div><p class="login-note">Nur für autorisierte RankedDarts-Teammitglieder.</p></div>
-      <form class="login-card" id="login-form"><p class="eyebrow">ANMELDUNG</p><h2>Willkommen zurück.</h2><p class="muted">Melde dich mit deinem normalen RankedDarts-Konto an.</p><label>E-Mail<input id="email" type="email" autocomplete="email" required placeholder="name@beispiel.de"></label><label>Passwort<input id="password" type="password" autocomplete="current-password" required placeholder="••••••••"></label><p id="login-error" class="form-error" hidden></p><button class="primary-button" type="submit">Support Console öffnen <span>↗</span></button><p class="form-footnote">Deine Zugangsdaten werden nur direkt bei Supabase geprüft.</p></form>
+      <form class="login-card" id="login-form"><p class="eyebrow">ANMELDUNG</p><h2>Willkommen zurück.</h2><p class="muted">Melde dich mit deinem normalen RankedDarts-Konto an.</p><label>E-Mail<input id="email" type="email" autocomplete="email" required placeholder="name@beispiel.de"></label><label>Passwort<input id="password" type="password" autocomplete="current-password" required placeholder="••••••••"></label><p id="login-error" class="form-error"${state.error ? '' : ' hidden'}>${state.error ? escapeHtml(state.error) : ''}</p><button class="primary-button" type="submit">Support Console öffnen <span>↗</span></button><p class="form-footnote">Deine Zugangsdaten werden nur direkt bei Supabase geprüft.</p></form>
     </section>`;
   document.querySelector('#login-form').addEventListener('submit', login);
 }
@@ -261,8 +271,11 @@ async function bootstrap() {
     state.messagePollingId && clearInterval(state.messagePollingId);
     state.messagePollingId = setInterval(() => { if (state.selectedConversationId) loadMessages(state.selectedConversationId, false); }, 4_000);
   } catch (bootstrapError) {
-    state.error = bootstrapError.message || 'Support Console konnte nicht verbunden werden.';
-    render();
+    saveSession(null);
+    state.user = null;
+    state.agent = null;
+    state.error = humanizeError(bootstrapError, 'Die gespeicherte Anmeldung konnte nicht wiederhergestellt werden. Bitte melde dich erneut an.');
+    renderLogin();
   }
 }
 
