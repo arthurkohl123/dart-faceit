@@ -8,6 +8,9 @@ const state = {
   conversations: [],
   selectedConversationId: null,
   messages: [],
+  context: null,
+  notes: [],
+  agents: [],
   filter: 'all',
   loading: false,
   error: null,
@@ -149,7 +152,7 @@ function renderConsole() {
           <div class="availability"><div><span class="presence ${isAvailable ? 'online' : ''}"></span><strong>${isAvailable ? 'Bereit für neue Chats' : 'Nicht verfügbar'}</strong><small>${state.agent?.agents_online ?? 0} Teammitglieder online</small></div><button id="availability-toggle" class="availability-toggle ${isAvailable ? 'online' : ''}">${isAvailable ? 'Support pausieren' : 'Für Support anmelden'}</button></div>
         </header>
         ${state.error ? `<p class="inline-error">${escapeHtml(state.error)}</p>` : ''}
-        <div class="desk-layout">
+        <div class="desk-layout ${selected ? 'has-inspector' : ''}">
           <aside class="inbox-panel">
             <div class="inbox-head"><div><p class="eyebrow">EINGANG</p><h2>Deine Gespräche</h2></div><span class="inbox-count">${state.conversations.length}</span></div>
             <div class="inbox-tabs"><button data-filter="all" class="${state.filter === 'all' ? 'active' : ''}">Alle <span>${state.conversations.length}</span></button><button data-filter="waiting" class="${state.filter === 'waiting' ? 'active' : ''}">Wartend <span>${waiting.length}</span></button><button data-filter="active" class="${state.filter === 'active' ? 'active' : ''}">Aktiv <span>${active.length}</span></button></div>
@@ -157,6 +160,7 @@ function renderConsole() {
             <footer class="inbox-footer"><span class="pulse-dot ${waiting.length ? 'urgent' : ''}"></span>${waiting.length ? `${waiting.length} warten auf Hilfe` : 'Kein Spieler wartet gerade'}</footer>
           </aside>
           <section class="conversation-stage">${selected ? renderConversation(selected) : renderNoConversation(waiting)}</section>
+          ${selected ? renderInspector(selected) : ''}
         </div>
       </section>
     </section>`;
@@ -186,8 +190,24 @@ function renderConversation(conversation) {
   }).join('') : `<div class="no-messages">Noch keine Nachricht – beginne das Gespräch, wenn du bereit bist.</div>`;
   return `<div class="conversation-view">
     <header class="conversation-header"><div class="customer-heading"><span class="customer-avatar">${escapeHtml(conversation.requester_username.slice(0, 1).toUpperCase())}</span><div><p class="eyebrow">${waiting ? 'NEUE SUPPORT-ANFRAGE' : 'LIVE-UNTERHALTUNG'}</p><h2>${escapeHtml(conversation.requester_username)}</h2><p>${waiting ? `Wartet seit ${formatWhen(conversation.created_at)}` : `Übernommen ${formatWhen(conversation.accepted_at)}`}</p></div></div><div class="conversation-actions">${waiting ? `<button class="primary-button" id="accept-conversation">Übernehmen <span>↗</span></button>` : `<><a href="https://www.rankeddarts.de/profile/${encodeURIComponent(conversation.requester_username)}" target="_blank" class="quiet-button">Profil öffnen</a><button id="close-conversation" class="danger-button">Chat schließen</button></>`}</div></header>
-    ${waiting ? `<div class="waiting-view"><div><p class="eyebrow">BEREIT ZUR ÜBERNAHME</p><h3>Der Spieler sieht dich erst,<br>wenn du den Chat annimmst.</h3><p>Übernimm das Gespräch, um direkt als Support erreichbar zu sein. Es wird nicht automatisch geschlossen.</p></div></div>` : `<div id="messages" class="messages">${messageMarkup}</div><form id="message-form" class="composer"><textarea id="message-input" rows="1" maxlength="1500" placeholder="Antwort schreiben …"></textarea><button class="send-button" type="submit" title="Nachricht senden">↗</button><small><kbd>Enter</kbd> senden · <kbd>Shift + Enter</kbd> neue Zeile</small></form>`}
+    ${waiting ? `<div class="waiting-view"><div><p class="eyebrow">BEREIT ZUR ÜBERNAHME</p><h3>Der Spieler sieht dich erst,<br>wenn du den Chat annimmst.</h3><p>Übernimm das Gespräch, um direkt als Support erreichbar zu sein. Es wird nicht automatisch geschlossen.</p></div></div>` : `<div id="messages" class="messages">${messageMarkup}</div><div class="reply-bar"><button data-reply="Hallo! Ich schaue mir das direkt an.">Begrüßung</button><button data-reply="Danke für die Infos. Gib mir bitte kurz einen Moment.">Prüfe es</button><button data-reply="Ist erledigt. Falls noch etwas offen ist, melde dich gern erneut.">Abschluss</button></div><form id="message-form" class="composer"><textarea id="message-input" rows="1" maxlength="1500" placeholder="Antwort schreiben …"></textarea><button class="send-button" type="submit" title="Nachricht senden">↗</button><small><kbd>Enter</kbd> senden · <kbd>Shift + Enter</kbd> neue Zeile</small></form>`}
   </div>`;
+}
+
+function renderInspector(conversation) {
+  const player = state.context?.player;
+  const support = state.context?.support || {};
+  const notes = state.notes || [];
+  const agents = (state.agents || []).filter((agent) => agent.user_id !== state.user?.id && agent.is_available);
+  const category = support.category || 'general';
+  const priority = support.priority || 'normal';
+  const selectedOption = (value, current) => value === current ? ' selected' : '';
+  return `<aside class="inspector"><div class="inspector-head"><p class="eyebrow">SUPPORT-KONTEXT</p><h2>${escapeHtml(player?.username || conversation.requester_username)}</h2></div>
+    <section class="inspector-block"><div class="player-stats"><span><strong>${player?.elo ?? '—'}</strong>Elo</span><span><strong>${player?.games_played ?? '—'}</strong>Spiele</span><span><strong>${player?.premium ? 'Ja' : 'Nein'}</strong>Premium</span></div><p class="inspector-muted">${player?.banned ? 'Account ist gesperrt.' : `${state.context?.previous_support_cases ?? 0} frühere Support-Fälle`}</p></section>
+    <section class="inspector-block"><label>Kategorie<select id="desk-category"><option value="general"${selectedOption('general', category)}>Allgemein</option><option value="match"${selectedOption('match', category)}>Match</option><option value="tournament"${selectedOption('tournament', category)}>Turnier</option><option value="account"${selectedOption('account', category)}>Konto</option><option value="payment"${selectedOption('payment', category)}>Zahlung</option><option value="technical"${selectedOption('technical', category)}>Technik</option><option value="fairplay"${selectedOption('fairplay', category)}>Fairplay</option><option value="other"${selectedOption('other', category)}>Sonstiges</option></select></label><label>Priorität<select id="desk-priority"><option value="low"${selectedOption('low', priority)}>Niedrig</option><option value="normal"${selectedOption('normal', priority)}>Normal</option><option value="high"${selectedOption('high', priority)}>Hoch</option><option value="urgent"${selectedOption('urgent', priority)}>Dringend</option></select></label><button id="save-metadata" class="inspector-button">Einordnung speichern</button></section>
+    <section class="inspector-block"><p class="inspector-title">INTERNE NOTIZEN</p><div class="note-list">${notes.length ? notes.map((note) => `<article><strong>${escapeHtml(note.author_username)}</strong><p>${escapeHtml(note.content)}</p></article>`).join('') : '<p class="inspector-muted">Noch keine interne Notiz.</p>'}</div><form id="note-form"><textarea id="note-input" maxlength="2000" placeholder="Nur fürs Team …"></textarea><button class="inspector-button" type="submit">Notiz speichern</button></form></section>
+    ${conversation.status === 'active' ? `<section class="inspector-block"><p class="inspector-title">ÜBERGABE</p><select id="transfer-agent"><option value="">Supporter auswählen …</option>${agents.map((agent) => `<option value="${agent.user_id}">${escapeHtml(agent.username)}</option>`).join('')}</select><button id="transfer-conversation" class="inspector-button">Chat übergeben</button></section>` : ''}
+  </aside>`;
 }
 
 function bindConsoleEvents() {
@@ -200,6 +220,10 @@ function bindConsoleEvents() {
   document.querySelector('#close-conversation')?.addEventListener('click', () => closeConversation(state.selectedConversationId));
   document.querySelector('#message-form')?.addEventListener('submit', sendMessage);
   document.querySelector('#message-input')?.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.querySelector('#message-form').requestSubmit(); } });
+  document.querySelectorAll('[data-reply]').forEach((button) => button.addEventListener('click', () => { const input = document.querySelector('#message-input'); input.value = button.dataset.reply; input.focus(); }));
+  document.querySelector('#note-form')?.addEventListener('submit', addNote);
+  document.querySelector('#save-metadata')?.addEventListener('click', saveMetadata);
+  document.querySelector('#transfer-conversation')?.addEventListener('click', transferConversation);
   const messages = document.querySelector('#messages');
   if (messages) messages.scrollTop = messages.scrollHeight;
 }
@@ -272,8 +296,22 @@ async function selectConversation(conversationId) {
   state.selectedConversationId = conversationId;
   state.messages = [];
   render();
-  if (conversation?.status === 'active') await loadMessages(conversationId);
+  await Promise.all([conversation?.status === 'active' ? loadMessages(conversationId, false) : Promise.resolve(), loadDeskData(conversationId)]);
+  if (state.selectedConversationId === conversationId) render();
 }
+
+async function loadDeskData(conversationId) {
+  try {
+    const [context, notes, agents] = await Promise.all([rpc('live_support_admin_get_context', { p_conversation_id: conversationId }), rpc('live_support_admin_list_notes', { p_conversation_id: conversationId }), rpc('live_support_admin_list_agents')]);
+    state.context = context || null; state.notes = notes || []; state.agents = agents || [];
+  } catch (error) { state.error = humanizeError(error, 'Support-Kontext konnte nicht geladen werden.'); }
+}
+
+async function addNote(event) { event.preventDefault(); const input = document.querySelector('#note-input'); const content = input.value.trim(); if (!content || !state.selectedConversationId) return; try { await rpc('live_support_admin_add_note', { p_conversation_id: state.selectedConversationId, p_content: content }); input.value = ''; await loadDeskData(state.selectedConversationId); render(); } catch (error) { state.error = humanizeError(error, 'Notiz konnte nicht gespeichert werden.'); render(); } }
+
+async function saveMetadata() { if (!state.selectedConversationId) return; try { await rpc('live_support_admin_update_metadata', { p_conversation_id: state.selectedConversationId, p_category: document.querySelector('#desk-category').value, p_priority: document.querySelector('#desk-priority').value, p_tags: null }); await sync(); } catch (error) { state.error = humanizeError(error, 'Einordnung konnte nicht gespeichert werden.'); render(); } }
+
+async function transferConversation() { const agentId = document.querySelector('#transfer-agent').value; if (!agentId || !state.selectedConversationId) return; try { await rpc('live_support_admin_transfer', { p_conversation_id: state.selectedConversationId, p_agent_id: agentId }); state.selectedConversationId = null; state.context = null; state.notes = []; await sync(); } catch (error) { state.error = humanizeError(error, 'Chat konnte nicht übergeben werden.'); render(); } }
 
 async function loadMessages(conversationId, rerender = true) {
   try {
@@ -297,7 +335,7 @@ async function setAvailability(available) {
 
 async function acceptConversation(conversationId) {
   if (!conversationId) return;
-  try { await rpc('live_support_accept_conversation', { p_conversation_id: conversationId }); await sync(); await loadMessages(conversationId); }
+  try { await rpc('live_support_accept_conversation', { p_conversation_id: conversationId }); await sync(); await Promise.all([loadMessages(conversationId, false), loadDeskData(conversationId)]); render(); }
   catch (error) { state.error = humanizeError(error, 'Unterhaltung konnte nicht übernommen werden.'); render(); }
 }
 

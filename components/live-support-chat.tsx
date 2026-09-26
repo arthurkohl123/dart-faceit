@@ -31,6 +31,9 @@ export function LiveSupportChat({ conversationId, onClose }: { conversationId: s
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [rating, setRating] = useState<number | null>(null);
+  const [ratingSending, setRatingSending] = useState(false);
+  const [ratingDone, setRatingDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -78,6 +81,24 @@ export function LiveSupportChat({ conversationId, onClose }: { conversationId: s
     onClose();
   };
 
+  const submitRating = async (value: number) => {
+    if (ratingSending || ratingDone) return;
+    setRating(value);
+    setRatingSending(true);
+    setError(null);
+    const { error: ratingError } = await supabase.rpc('live_support_rate_conversation', {
+      p_conversation_id: conversationId,
+      p_rating: value,
+    });
+    if (ratingError) {
+      setError('Die Bewertung konnte gerade nicht gespeichert werden.');
+      setRating(null);
+    } else {
+      setRatingDone(true);
+    }
+    setRatingSending(false);
+  };
+
   const waiting = state?.status === 'waiting';
   const active = state?.status === 'active';
   const closed = state?.status === 'closed';
@@ -88,7 +109,7 @@ export function LiveSupportChat({ conversationId, onClose }: { conversationId: s
         <header className="relative overflow-hidden border-b border-white/10 px-5 py-4 sm:px-6"><div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-violet-400/20 blur-3xl" /><div className="relative flex items-start justify-between"><div className="flex min-w-0 items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-violet-300/25 bg-violet-400/10 text-violet-100"><Headphones className="h-5 w-5" /></div><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">RankedDarts Live Support</p><h2 className="mt-0.5 text-lg font-black">{waiting ? 'Warte auf einen Support-Mitarbeiter' : active ? `${state?.agent_username ?? 'Support'} ist im Chat` : closed ? 'Konversation geschlossen' : 'Live Support'}</h2><p className={`mt-1 flex items-center gap-1.5 text-[11px] font-bold ${active ? 'text-emerald-200' : waiting ? 'text-amber-200' : 'text-zinc-500'}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]' : waiting ? 'bg-amber-300 animate-pulse' : 'bg-zinc-600'}`} />{active ? 'Support-Mitarbeiter aktiv' : waiting ? 'Anfrage wurde übermittelt' : 'Beendet'}</p></div></div><button onClick={onClose} aria-label="Live Support schließen" className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-zinc-400 transition hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button></div></header>
 
         {waiting && <div className="border-b border-amber-300/15 bg-amber-300/[0.06] px-5 py-3 text-xs font-bold text-amber-50">Deine Anfrage ist bei den verfügbaren Admins eingegangen. Beschreibe dein Anliegen gern schon genauer.</div>}
-        {closed && <div className="border-b border-emerald-300/20 bg-emerald-400/[0.08] px-5 py-4"><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" /><div><p className="text-sm font-black text-emerald-100">Der Live-Support-Chat wurde geschlossen.</p><p className="mt-1 text-xs leading-5 text-emerald-100/70">Der Support hat die Unterhaltung beendet. Wenn noch etwas offen ist, kannst du bei erneutem Live Support eine neue Anfrage starten.</p></div></div></div>}
+        {closed && <div className="border-b border-emerald-300/20 bg-emerald-400/[0.08] px-5 py-4"><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" /><div><p className="text-sm font-black text-emerald-100">Der Live-Support-Chat wurde geschlossen.</p><p className="mt-1 text-xs leading-5 text-emerald-100/70">Der Support hat die Unterhaltung beendet. Wenn noch etwas offen ist, kannst du bei erneutem Live Support eine neue Anfrage starten.</p></div></div><div className="mt-4 border-t border-emerald-200/10 pt-3"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/70">Wie war deine Unterstützung?</p>{ratingDone ? <p className="mt-2 text-xs font-bold text-emerald-100">Danke für dein Feedback.</p> : <div className="mt-2 flex gap-1.5">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => void submitRating(value)} disabled={ratingSending} aria-label={`${value} von 5 Sternen`} className={`grid h-8 w-8 place-items-center rounded-lg border text-sm transition ${rating === value ? 'border-emerald-200 bg-emerald-200 text-black' : 'border-emerald-200/20 bg-black/10 text-emerald-100 hover:border-emerald-200/60'}`}>★</button>)}</div>}</div></div>}
 
         <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_85%_10%,rgba(139,92,246,0.08),transparent_30%)] p-4 sm:p-6">{loading ? <div className="grid h-full place-items-center text-zinc-500"><Loader2 className="h-6 w-6 animate-spin" /></div> : messages.length === 0 ? <div className="grid h-full place-items-center text-center"><div><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-violet-300/20 bg-violet-400/10 text-violet-200"><Headphones className="h-6 w-6" /></div><p className="mt-4 text-lg font-black text-zinc-200">Wie können wir helfen?</p><p className="mt-2 text-sm text-zinc-500">Ein Admin übernimmt den Chat, sobald er verfügbar ist.</p></div></div> : <div className="space-y-4">{messages.map((message) => { const isAdmin = message.sender_role === 'agent'; return <div key={message.id} className={`flex ${isAdmin ? 'justify-start' : 'justify-end'}`}><div className={`max-w-[84%] rounded-2xl px-4 py-3 text-sm leading-5 shadow-lg ${isAdmin ? 'rounded-bl-md border border-violet-300/25 bg-gradient-to-br from-violet-400/18 to-cyan-400/[0.08] text-violet-50 shadow-violet-950/30' : 'rounded-br-md bg-violet-300 text-black shadow-violet-300/10'}`}>{isAdmin && <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-violet-300/25 bg-violet-300/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-violet-100"><ShieldCheck className="h-3 w-3" />Admin · {message.sender_name}</div>}<p className="whitespace-pre-wrap break-words">{message.content}</p><p className={`mt-2 text-[10px] font-bold ${isAdmin ? 'text-violet-200/60' : 'text-black/55'}`}>{isAdmin ? `Support · ${time(message.created_at)}` : `Du · ${time(message.created_at)}`}</p></div></div>; })}<div ref={bottomRef} /></div>}</div>
 
