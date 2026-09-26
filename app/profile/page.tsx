@@ -298,7 +298,7 @@ export default function Profile() {
                 }
                 router.push('/matchmaking');
               }}
-              className="shrink-0 border border-emerald-300 bg-emerald-300 px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em] text-black transition hover:bg-emerald-200 sm:px-8 sm:py-4"
+              className="arena-primary-action shrink-0 px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em] sm:px-8 sm:py-4"
             >
               {!phoneVerified ? 'Verifizieren' : hasPlatform ? 'Match suchen' : 'Plattform einrichten'} <ArrowUpRight className="ml-2 inline-block h-4 w-4" />
             </button>
@@ -372,35 +372,35 @@ export default function Profile() {
         )}
 
         {/* ── Stats-Grid ──────────────────────────────────────────────────── */}
-        <div className="mt-5 grid gap-4 grid-cols-2 sm:grid-cols-4">
-          <div className="border border-white/10 bg-[#0d1110] p-5 sm:p-6">
+        <div className="profile-performance-rail mt-5 grid grid-cols-2 sm:grid-cols-4">
+          <div className="profile-performance-cell p-5 sm:p-6">
             <div className="text-[10px] font-black uppercase tracking-[0.26em] text-emerald-300">Rating</div>
             <div className="mt-2 text-4xl font-black tracking-[-0.07em] sm:text-5xl">{elo}</div>
             <div className="mt-1 text-xs text-zinc-500">Elo Punkte</div>
           </div>
-          <div className="border border-white/10 bg-[#0d1110] p-5 sm:p-6">
+          <div className="profile-performance-cell p-5 sm:p-6">
             <div className="text-[10px] font-black uppercase tracking-[0.26em] text-zinc-300">Winrate</div>
             <div className="mt-2 text-4xl font-black tracking-[-0.07em] sm:text-5xl">{winrate}%</div>
             <div className="mt-1 text-xs text-zinc-500">{wins}W / {losses}L</div>
           </div>
-          <div className="border border-yellow-300/15 bg-yellow-400/[0.05] p-5 sm:p-6">
+          <div className="profile-performance-cell bg-yellow-400/[0.05] p-5 sm:p-6">
             <div className="text-[10px] font-black uppercase tracking-[0.26em] text-yellow-300">Ø Average</div>
             <div className="mt-2 text-4xl font-black tracking-[-0.07em] text-yellow-200 sm:text-5xl">
               {avgAverage > 0 ? avgAverage.toFixed(1) : '—'}
             </div>
             <div className="mt-1 text-xs text-zinc-500">Alle Matches</div>
           </div>
-          <div className="border border-red-300/15 bg-red-400/[0.05] p-5 sm:p-6">
+          <div className="profile-performance-cell bg-red-400/[0.05] p-5 sm:p-6">
             <div className="text-[10px] font-black uppercase tracking-[0.26em] text-red-300">180er</div>
             <div className="mt-2 text-4xl font-black tracking-[-0.07em] text-red-200 sm:text-5xl">{total180s}</div>
             <div className="mt-1 text-xs text-zinc-500">Gesamt</div>
           </div>
         </div>
 
-        <section className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="profile-focus-row mt-5 grid lg:grid-cols-[1.15fr_0.85fr]">
           <Link
             href={nextStep.href}
-            className="group relative overflow-hidden border border-emerald-300/25 bg-emerald-400/[0.07] p-6 transition hover:-translate-y-1 hover:border-emerald-200/40 sm:p-7"
+            className="profile-next-action group relative overflow-hidden bg-emerald-400/[0.07] p-6 transition sm:p-7"
           >
             <div className="relative flex items-center gap-5">
               <div className="grid h-14 w-14 shrink-0 place-items-center border border-emerald-200/25 bg-black/25 text-emerald-100">
@@ -415,7 +415,7 @@ export default function Profile() {
             </div>
           </Link>
 
-          <div className="border border-white/10 bg-[#0d1110] p-6 sm:p-7">
+          <div className="profile-momentum bg-[#0d1110] p-6 sm:p-7">
             <div className="flex items-center justify-between">
               <div className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-300">Season Momentum</div>
               <Flame className="h-5 w-5 text-amber-300" />
@@ -430,7 +430,7 @@ export default function Profile() {
 
         <Link
           href="/friends"
-          className="group relative mt-5 flex overflow-hidden border border-white/10 border-l-2 border-l-emerald-300 bg-[#0d1110] p-6 transition hover:border-emerald-300/35 sm:p-7"
+          className="profile-social-callout group relative mt-5 flex overflow-hidden bg-[#0d1110] p-6 transition sm:p-7"
         >
           <div className="relative grid h-14 w-14 shrink-0 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-emerald-100"><UsersRound className="h-6 w-6" /></div>
           <div className="relative ml-5 min-w-0 flex-1"><div className="text-[10px] font-black uppercase tracking-[0.26em] text-emerald-300">Private Duelle</div><h2 className="mt-1 text-xl font-black tracking-[-0.04em] sm:text-2xl">Freunde herausfordern</h2><p className="mt-1 text-sm text-zinc-400">Sieh, wer online ist, und starte private Best-of-Duelle ohne Elo-Wertung.</p></div>
@@ -438,9 +438,9 @@ export default function Profile() {
         </Link>
 
         {/* ── Fortschritt + Verifizierung ─────────────────────────────────── */}
-        <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
+        <div className="profile-account-rail mt-5 grid lg:grid-cols-[1.3fr_0.7fr]">
           {/* Rang-Fortschritt */}
-          <section className="border border-white/10 bg-[#0d1110] p-6 sm:p-8">
+          <section className="profile-rank-progress bg-[#0d1110] p-6 sm:p-8">
             <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Nächster Rang</div>
             <div className="mt-2 flex items-baseline justify-between gap-4">
               <h2 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">{upcoming ? <>Fortschritt zu <span className={nextRank.color}>{nextRank.name}</span></> : <span className={currentRank.color}>Maximaler Rang erreicht</span>}</h2>
@@ -477,7 +477,7 @@ export default function Profile() {
           </section>
 
           {/* Verifizierung */}
-          <section className={`border p-6 sm:p-8 ${phoneVerified ? 'border-emerald-300/20 bg-emerald-400/[0.06]' : 'border-amber-300/20 bg-amber-400/[0.06]'}`}>
+          <section className={`profile-verification p-6 sm:p-8 ${phoneVerified ? 'bg-emerald-400/[0.06]' : 'bg-amber-400/[0.06]'}`}>
             <div className={`text-xs font-black uppercase tracking-[0.28em] ${phoneVerified ? 'text-emerald-300' : 'text-amber-300'}`}>Verifizierung</div>
             <div className="mt-3 flex items-center gap-3">
               {phoneVerified
@@ -503,7 +503,7 @@ export default function Profile() {
         </div>
 
         {/* ── Plattform-Verbindungen ─────────────────────────────────────── */}
-        <section id="platforms" className="mt-5 scroll-mt-28 border border-white/10 bg-[#0d1110] p-6 sm:p-8">
+        <section id="platforms" className="profile-section mt-5 scroll-mt-28 bg-[#0d1110] p-6 sm:p-8">
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Plattformen</div>
@@ -521,9 +521,9 @@ export default function Profile() {
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="profile-platform-strip grid sm:grid-cols-2 xl:grid-cols-3">
             {/* Scolia */}
-            <div className={`border p-5 transition sm:p-6 ${profile?.scolia_username ? 'border-emerald-300/25 bg-emerald-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
+            <div className={`profile-platform-cell p-5 transition sm:p-6 ${profile?.scolia_username ? 'bg-emerald-400/[0.07]' : 'bg-white/[0.03]'}`}>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Scolia</div>
@@ -553,7 +553,7 @@ export default function Profile() {
             </div>
 
             {/* DartCounter */}
-            <div className={`border p-5 transition sm:p-6 ${profile?.dartcounter_username ? 'border-cyan-300/25 bg-cyan-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
+            <div className={`profile-platform-cell p-5 transition sm:p-6 ${profile?.dartcounter_username ? 'bg-cyan-400/[0.07]' : 'bg-white/[0.03]'}`}>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">DartCounter</div>
@@ -583,7 +583,7 @@ export default function Profile() {
             </div>
 
             {/* AutoDarts */}
-            <div className={`border p-5 transition sm:p-6 ${profile?.autodarts_username ? 'border-violet-300/25 bg-violet-400/[0.07]' : 'border-white/10 bg-white/[0.03]'}`}>
+            <div className={`profile-platform-cell p-5 transition sm:p-6 ${profile?.autodarts_username ? 'bg-violet-400/[0.07]' : 'bg-white/[0.03]'}`}>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.22em] text-violet-300">AutoDarts</div>
@@ -659,7 +659,7 @@ export default function Profile() {
         </div>
 
         {/* ── Match History ──────────────────────────────────────────────── */}
-        <section className="mt-5 border border-white/10 bg-[#0d1110] p-6 sm:p-8">
+        <section className="profile-section mt-5 bg-[#0d1110] p-6 sm:p-8">
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Verlauf</div>
@@ -673,9 +673,9 @@ export default function Profile() {
           {matches.length === 0 ? (
             <div className="border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">Noch keine Matches gespielt.</div>
           ) : (
-            <div className="space-y-3">
+            <div className="arena-ledger">
               {matches.map((match) => (
-                <div key={match.id} className="flex items-center justify-between border border-white/10 bg-white/[0.03] px-5 py-4">
+                <div key={match.id} className="arena-ledger-row flex items-center justify-between border-l-emerald-300 bg-white/[0.03] px-5 py-4">
                   <div className="min-w-0"><div className="flex items-center gap-2"><div className="truncate text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div><PlatformBadge app={match.app} />{match.match_mode === 'private' && <span className="shrink-0 rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-200">Privat</span>}</div><div className="mt-1 text-[11px] font-medium text-zinc-500">Beendet: {formatCompletion(match)}</div></div>
                   <div className={`rounded-full px-3 py-1 text-xs font-black ${match.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
                     {match.is_win ? 'SIEG' : 'NIEDERLAGE'}

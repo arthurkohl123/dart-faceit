@@ -145,6 +145,120 @@ body {
   background: rgba(13, 17, 16, .72);
 }
 
+/* Player profile: one continuous player sheet instead of a dashboard of tiles. */
+.profile-performance-rail,
+.profile-focus-row,
+.profile-account-rail,
+.profile-platform-strip {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .11);
+}
+
+.profile-performance-rail { background: rgba(13, 17, 16, .84); }
+.profile-performance-cell { position: relative; min-width: 0; }
+.profile-performance-cell + .profile-performance-cell::before,
+.profile-focus-row > * + *::before,
+.profile-account-rail > * + *::before,
+.profile-platform-cell + .profile-platform-cell::before {
+  position: absolute;
+  top: 14%;
+  bottom: 14%;
+  left: 0;
+  width: 1px;
+  content: '';
+  background: rgba(255, 255, 255, .10);
+}
+
+.profile-focus-row,
+.profile-account-rail { background: rgba(13, 17, 16, .84); }
+.profile-focus-row > *,
+.profile-account-rail > * { position: relative; min-width: 0; }
+
+.profile-next-action {
+  border-left: 3px solid #9af0bc;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .03);
+}
+.profile-next-action:hover { background: rgba(83, 215, 148, .12); }
+
+.profile-social-callout {
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-left: 3px solid #9af0bc;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+}
+.profile-social-callout:hover { background: #101714; }
+
+.profile-section {
+  border: 1px solid rgba(255, 255, 255, .11);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+}
+
+.profile-platform-strip { background: rgba(255, 255, 255, .075); }
+.profile-platform-cell { position: relative; min-width: 0; }
+
+@media (max-width: 1023px) {
+  .profile-focus-row > * + *::before,
+  .profile-account-rail > * + *::before {
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: auto;
+    height: 1px;
+  }
+}
+
+@media (max-width: 1279px) {
+  .profile-platform-cell + .profile-platform-cell::before { display: none; }
+  .profile-platform-cell:nth-child(even)::before {
+    top: 0;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    display: block;
+    width: 1px;
+    height: auto;
+  }
+  .profile-platform-cell:nth-child(n+3)::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 1px;
+    content: '';
+    background: rgba(255, 255, 255, .10);
+  }
+}
+
+@media (max-width: 639px) {
+  .profile-performance-cell + .profile-performance-cell::before { display: none; }
+  .profile-performance-cell:nth-child(even)::before {
+    top: 0;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    display: block;
+    width: 1px;
+    height: auto;
+  }
+  .profile-performance-cell:nth-child(n+3)::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 1px;
+    content: '';
+    background: rgba(255, 255, 255, .10);
+  }
+  .profile-platform-cell + .profile-platform-cell::before {
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: auto;
+    height: 1px;
+  }
+}
+
 /* The tournament landing page keeps its cup identity, but receives the same editorial hero rhythm. */
 .arena-page .arena-content > .grid.items-end:first-child {
   position: relative;
