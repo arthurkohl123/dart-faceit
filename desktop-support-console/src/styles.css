@@ -138,8 +138,8 @@ code { border:1px solid #315346; background:#0c1a15; padding:2px 5px; color:#b7f
 .inspector-muted { margin:0; color:#758d80; font-size:10px; line-height:1.5; }
 .inspector-title { margin:0; color:#93ad9e; font-size:9px; font-weight:900; letter-spacing:.1em; }
 .inspector label { display:grid; gap:5px; color:#779084; font-size:9px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; }
-.inspector select, .inspector textarea { width:100%; border:1px solid #304e3e; background:#0e1d16; color:#dff7e8; padding:8px; outline:0; font-size:11px; }
-.inspector select:focus, .inspector textarea:focus { border-color:#8bf4b7; }
+.inspector select, .inspector input, .inspector textarea { width:100%; border:1px solid #304e3e; background:#0e1d16; color:#dff7e8; padding:8px; outline:0; font-size:11px; }
+.inspector select:focus, .inspector input:focus, .inspector textarea:focus { border-color:#8bf4b7; }
 .inspector textarea { min-height:58px; resize:vertical; }
 .note-list { display:grid; gap:8px; max-height:200px; overflow:auto; }
 .note-list article { border-left:2px solid #547464; background:#0d1d16; padding:7px 8px; }
