@@ -171,11 +171,11 @@ export default function Profile() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#0a0d0d] text-white">
+    <main className="arena-page relative overflow-hidden text-white">
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 sport-grid opacity-30" />
 
       {/* Navbar */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
+      <nav className="arena-nav fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
             <BrandLogo className="h-10 w-10 rounded-lg" />
@@ -189,10 +189,10 @@ export default function Profile() {
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
             <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
             <Link href="/tournaments" className="inline-flex items-center gap-1.5 transition hover:text-white"><Trophy size={14} />Turniere</Link>
+            <Link href="/playtimes" className="transition hover:text-white">Spielzeiten</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
             <Link href="/support" className="inline-flex items-center gap-1.5 transition hover:text-white"><Headphones size={14} />Support</Link>
             <Link href="/friends" className="inline-flex items-center gap-1.5 transition hover:text-white"><UsersRound size={14} />Freunde</Link>
-            <Link href="/account" className="inline-flex items-center gap-1.5 transition hover:text-white"><WalletCards size={14} />Konto</Link>
             <Link href="/premium" className="border border-emerald-300/35 px-3 py-1.5 font-bold text-emerald-200 transition hover:bg-emerald-300/10">Premium</Link>
           </div>
 
@@ -217,19 +217,19 @@ export default function Profile() {
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
                <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Headphones size={15} />Support</Link>
                <Link href="/friends" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><UsersRound size={15} />Freunde & Duelle</Link>
-               <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><WalletCards size={15} />Konto & Auszahlungen</Link>
+               <Link href="/playtimes" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Spielzeiten</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
             </div>
           </div>
         )}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
+      <section className="arena-content relative z-10 mx-auto px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
 
         <PayoutAlert />
 
         {/* ── Hero-Profil-Banner ──────────────────────────────────────────── */}
-        <div className={`relative ${profile ? 'mt-5' : ''} overflow-hidden border border-white/15 bg-[#0d1110] p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12`}>
+        <div className={`arena-hero relative ${profile ? 'mt-5' : ''} p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12`}>
           <div className={`absolute inset-x-0 top-0 h-[2px] ${currentRank.level >= 8 ? 'bg-amber-300' : 'bg-emerald-300'}`} />
 
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">

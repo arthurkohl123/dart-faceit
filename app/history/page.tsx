@@ -66,7 +66,7 @@ function MatchRow({ match }: { match: MatchEntry }) {
   const completed = finishedAt(match);
 
   return (
-    <article className={`border border-white/[0.09] bg-[#0d1110] transition hover:border-white/20 ${match.is_win ? 'border-l-2 border-l-emerald-300' : 'border-l-2 border-l-red-400'}`}>
+    <article className={`arena-ledger-row bg-[#0d1110] transition hover:bg-white/[.025] ${match.is_win ? 'border-l-emerald-300' : 'border-l-red-400'}`}>
       <div className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[88px_minmax(190px,1.35fr)_112px_88px_95px_72px_90px_42px] lg:items-center lg:gap-3">
         <div className={`w-fit border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${match.is_win ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200' : 'border-red-400/25 bg-red-400/10 text-red-200'}`}>{match.is_win ? 'Sieg' : 'Niederl.'}</div>
         <div className="min-w-0">
@@ -152,19 +152,19 @@ export default function MatchHistory() {
   if (loading) return <main className="grid min-h-screen place-items-center bg-[#070909] text-white"><div className="flex items-center gap-3 border border-white/10 bg-[#0d1110] px-5 py-4 text-sm font-black text-zinc-300"><span className="h-2 w-2 animate-pulse bg-emerald-300" />History wird geladen</div></main>;
 
   return (
-    <main className="min-h-screen bg-[#090c0b] text-white">
+    <main className="arena-page text-white">
       <div aria-hidden className="pointer-events-none fixed inset-0 sport-grid opacity-25" />
-      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#090c0b]/95 backdrop-blur-xl">
+      <nav className="arena-nav sticky top-0 z-50 border-b border-white/10 bg-[#090c0b]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3"><BrandLogo className="h-10 w-10" /><div><p className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</p><p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300/80">Match Ledger</p></div></Link>
-          <div className="hidden items-center gap-6 text-sm font-bold text-zinc-400 lg:flex"><Link href="/matchmaking" className="hover:text-white">Matchmaking</Link><Link href="/leaderboard" className="hover:text-white">Leaderboard</Link><Link href="/tournaments" className="hover:text-white">Turniere</Link><Link href="/premium" className="border border-emerald-300/30 px-3 py-1.5 text-emerald-100 hover:bg-emerald-400/10">Premium</Link></div>
+          <div className="hidden items-center gap-5 text-sm font-bold text-zinc-400 lg:flex"><Link href="/matchmaking" className="hover:text-white">Matchmaking</Link><Link href="/leaderboard" className="hover:text-white">Rangliste</Link><Link href="/playtimes" className="hover:text-white">Spielzeiten</Link><Link href="/tournaments" className="hover:text-white">Turniere</Link><Link href="/premium" className="border border-emerald-300/30 px-3 py-1.5 text-emerald-100 hover:bg-emerald-400/10">Premium</Link></div>
           <button onClick={() => setMobileMenuOpen((open) => !open)} className="grid h-10 w-10 place-items-center border border-white/15 text-zinc-200 lg:hidden">{mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}</button>
         </div>
-        {mobileMenuOpen && <div className="border-t border-white/10 px-5 py-3 lg:hidden"><div className="flex flex-col"><Link href="/matchmaking" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Matchmaking</Link><Link href="/leaderboard" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Leaderboard</Link><Link href="/tournaments" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Turniere</Link></div></div>}
+        {mobileMenuOpen && <div className="border-t border-white/10 px-5 py-3 lg:hidden"><div className="flex flex-col"><Link href="/matchmaking" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Matchmaking</Link><Link href="/leaderboard" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Rangliste</Link><Link href="/playtimes" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Spielzeiten</Link><Link href="/tournaments" className="px-3 py-2.5 text-sm font-bold text-zinc-300">Turniere</Link></div></div>}
       </nav>
 
-      <section className="relative mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-5 md:px-8 md:pt-12">
-        <header className="overflow-hidden border border-white/10 bg-[#0d1110]">
+      <section className="arena-content relative mx-auto px-4 pb-20 pt-8 sm:px-5 md:px-8 md:pt-12">
+        <header className="arena-hero">
           <div className="grid gap-7 p-6 sm:p-8 lg:grid-cols-[1.25fr_.75fr] lg:items-end lg:p-10">
             <div><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300"><CalendarDays className="h-3.5 w-3.5" /> Persönliches Match-Archiv</div><h1 className="mt-4 text-4xl font-black tracking-[-0.075em] sm:text-6xl">Deine Spiele.<br /><span className="text-emerald-300">Ohne Rauschen.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Alle bestätigten Ergebnisse, sauber nach Plattform und Spielmodus sortiert. Private Duelle bleiben unrated.</p></div>
             <div className="border-l-2 border-emerald-300 bg-emerald-400/[0.05] p-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Aktuelle Form</p><div className="mt-4 flex min-h-9 items-center gap-1.5">{form.length ? form.map((match) => <span key={match.id} title={match.is_win ? 'Sieg' : 'Niederlage'} className={`h-8 flex-1 border ${match.is_win ? 'border-emerald-300/40 bg-emerald-400/25' : 'border-red-400/35 bg-red-400/20'}`} />) : <span className="text-sm text-zinc-500">Noch keine Ranked-Matches</span>}</div><div className="mt-3 flex items-center justify-between text-xs"><span className="text-zinc-500">Letzte {form.length} Ranked-Matches</span><span className="font-black text-emerald-200">{streak ? `${streak} Winstreak` : 'Neue Serie starten'}</span></div></div>
@@ -174,7 +174,7 @@ export default function MatchHistory() {
           ].map((stat) => <div key={stat.label} className="border-b border-r border-white/10 px-5 py-4 last:border-r-0 lg:border-b-0"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">{stat.label}</p><p className={`mt-1 text-2xl font-black tracking-[-0.05em] ${stat.tone}`}>{stat.value}</p></div>)}</div>
         </header>
 
-        <div className="mt-5 border border-white/10 bg-[#0d1110] p-4 sm:p-5">
+        <div className="arena-panel mt-5 p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-zinc-400"><SlidersHorizontal className="h-4 w-4 text-emerald-300" /> Filter <span className="text-zinc-600">·</span> {filtered.length} Treffer</div><label className="flex h-10 items-center gap-2 border border-white/10 bg-black/20 px-3 lg:w-72"><Search className="h-4 w-4 text-zinc-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Gegner suchen" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600" /></label></div>
           <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.07] pt-4">
             {([['all', 'Alle'], ['wins', 'Siege'], ['losses', 'Niederlagen']] as const).map(([value, label]) => <button key={value} onClick={() => setResultFilter(value)} className={`border px-3 py-2 text-xs font-black ${resultFilter === value ? 'border-emerald-300 bg-emerald-300 text-black' : 'border-white/10 text-zinc-400 hover:border-white/25'}`}>{label}</button>)}
@@ -187,7 +187,7 @@ export default function MatchHistory() {
 
         <div className="mt-8">
           <div className="hidden grid-cols-[88px_minmax(190px,1.35fr)_112px_88px_95px_72px_90px_42px] gap-3 border-b border-white/10 px-5 pb-3 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600 lg:grid"><span>Ergebnis</span><span>Gegner / Zeit</span><span>Plattform</span><span>Legs</span><span>Average</span><span>180er</span><span>Elo</span><span /></div>
-          {groups.length ? groups.map((group) => <section key={group.label} className="mt-6 first:mt-0"><div className="mb-3 flex items-center gap-3"><span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">{group.label}</span><span className="h-px flex-1 bg-white/10" /><span className="text-[10px] font-bold text-zinc-600">{group.matches.length} Match{group.matches.length === 1 ? '' : 'es'}</span></div><div className="space-y-2">{group.matches.map((match) => <MatchRow key={match.id} match={match} />)}</div></section>) : <div className="border border-dashed border-white/15 bg-[#0d1110] px-6 py-20 text-center"><CircleDot className="mx-auto h-8 w-8 text-zinc-700" /><h2 className="mt-4 text-xl font-black">Keine passenden Matches</h2><p className="mt-2 text-sm text-zinc-500">Passe die Filter an oder starte ein neues Match.</p><Link href="/matchmaking" className="mt-6 inline-flex items-center gap-2 border border-emerald-300 bg-emerald-300 px-5 py-3 text-sm font-black text-black">Match suchen <ArrowUpRight className="h-4 w-4" /></Link></div>}
+          {groups.length ? groups.map((group) => <section key={group.label} className="mt-6 first:mt-0"><div className="mb-3 flex items-center gap-3"><span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">{group.label}</span><span className="h-px flex-1 bg-white/10" /><span className="text-[10px] font-bold text-zinc-600">{group.matches.length} Match{group.matches.length === 1 ? '' : 'es'}</span></div><div className="arena-ledger">{group.matches.map((match) => <MatchRow key={match.id} match={match} />)}</div></section>) : <div className="arena-panel border-dashed px-6 py-20 text-center"><CircleDot className="mx-auto h-8 w-8 text-zinc-700" /><h2 className="mt-4 text-xl font-black">Keine passenden Matches</h2><p className="mt-2 text-sm text-zinc-500">Passe die Filter an oder starte ein neues Match.</p><Link href="/matchmaking" className="arena-primary-action mt-6 inline-flex items-center gap-2 px-5 py-3 text-sm font-black">Match suchen <ArrowUpRight className="h-4 w-4" /></Link></div>}
         </div>
       </section>
     </main>

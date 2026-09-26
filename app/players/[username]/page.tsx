@@ -166,11 +166,11 @@ export default function PlayerProfile() {
   const nextRank = upcoming ?? currentRank;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#0a0d0d] text-white">
+    <main className="arena-page relative overflow-hidden text-white">
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 sport-grid opacity-30" />
 
       {/* Nav */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
+      <nav className="arena-nav fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center border border-emerald-300/30 bg-emerald-300 text-lg font-black text-black">R</div>
@@ -179,9 +179,11 @@ export default function PlayerProfile() {
               <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Spielerprofil</div>
             </div>
           </Link>
-          <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
-            <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
+          <div className="hidden items-center gap-6 text-sm font-medium text-zinc-300 lg:flex">
+            <Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link>
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
+            <Link href="/playtimes" className="transition hover:text-white">Spielzeiten</Link>
+            <Link href="/tournaments" className="transition hover:text-white">Turniere</Link>
           </div>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -193,17 +195,19 @@ export default function PlayerProfile() {
         {mobileMenuOpen && (
           <div className="border-t border-white/10 bg-[#0a0d0d] px-5 py-4 lg:hidden">
             <div className="flex flex-col gap-1">
-              <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
+              <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Rangliste</Link>
               <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
+              <Link href="/playtimes" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Spielzeiten</Link>
+              <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Turniere</Link>
             </div>
           </div>
         )}
       </nav>
 
-      <section className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32">
+      <section className="arena-content relative z-10 mx-auto px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32">
 
         {/* Profil-Header */}
-        <div className="relative overflow-hidden border border-white/15 bg-[#0d1110] p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12">
+        <div className="arena-hero relative p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12">
           <div className={`absolute inset-x-0 top-0 h-[2px] ${currentRank.level >= 8 ? 'bg-amber-300' : 'bg-emerald-300'}`} />
           <div className="relative z-10 flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-7 sm:text-left">
             <div className="relative grid h-24 w-24 shrink-0 place-items-center border border-white/20 bg-black/35 text-2xl font-black sm:h-28 sm:w-28 sm:text-3xl">

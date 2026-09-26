@@ -140,9 +140,9 @@ export default function PlaytimesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0d0d] text-[#f5f3ee]">
+    <main className="arena-page text-[#f5f3ee]">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 sport-grid opacity-25" />
-      <nav className="sticky top-0 z-30 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
+      <nav className="arena-nav sticky top-0 z-30 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 md:px-8 md:py-4">
           <Link href="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <BrandLogo className="h-9 w-9 shrink-0 rounded-lg sm:h-10 sm:w-10" />
@@ -160,14 +160,14 @@ export default function PlaytimesPage() {
         {mobileMenuOpen && <div className="border-t border-white/10 px-4 py-3 lg:hidden"><div className="mx-auto grid max-w-7xl gap-1 text-sm font-bold text-zinc-300">{[['Rangliste', '/leaderboard'], ['Matchmaking', '/matchmaking'], ['Spielzeiten', '/playtimes'], ['Turniere', '/tournaments'], ['History', '/history']].map(([label, href]) => <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="border-b border-white/5 py-3 hover:text-emerald-200">{label}</Link>)}</div></div>}
       </nav>
 
-      <section className="mx-auto max-w-7xl px-4 pb-10 pt-10 sm:px-6 md:px-8 md:pb-14 md:pt-16">
-        <div className="grid gap-8 border-b border-white/10 pb-9 lg:grid-cols-[1.18fr_.82fr] lg:items-end">
+      <section className="arena-content mx-auto px-4 pb-10 pt-10 sm:px-6 md:px-8 md:pb-14 md:pt-16">
+        <div className="arena-hero grid gap-8 pb-9 lg:grid-cols-[1.18fr_.82fr] lg:items-end">
           <div>
             <div className="inline-flex items-center gap-2 border-l-2 border-emerald-300 pl-3 text-[10px] font-black uppercase tracking-[.19em] text-emerald-200"><CalendarClock className="h-3.5 w-3.5" /> Gemeinsam besser planbar</div>
             <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[.87] tracking-[-.075em] sm:text-6xl md:text-7xl">Plane deine<br /><span className="text-emerald-300">Ranked-Zeit.</span></h1>
             <p className="mt-6 max-w-2xl text-[15px] leading-7 text-zinc-400 sm:text-base">Trag dich für ein Zeitfenster ein, damit andere wissen: Dann lohnt sich die Queue. Du siehst dabei nur die Anzahl der Interessierten – keine Namen, keine Plattformen.</p>
           </div>
-          <div className="border border-emerald-300/20 bg-emerald-400/[.06] p-5">
+          <div className="arena-panel relative z-10 border-emerald-300/20 bg-emerald-400/[.06] p-5">
             <div className="flex items-start gap-3"><LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-emerald-200" /><div><div className="text-sm font-black text-emerald-100">Privat geplant, gemeinsam sichtbar.</div><p className="mt-1.5 text-sm leading-6 text-emerald-100/65">Es werden nur Gesamtzahlen angezeigt. Deine Auswahl ist nicht als Anwesenheit oder verbindliche Zusage sichtbar.</p></div></div>
             <Link href="/matchmaking" className="mt-5 inline-flex items-center gap-2 text-sm font-black text-emerald-200 hover:text-emerald-100">Direkt zur Queue <ChevronRight className="h-4 w-4" /></Link>
           </div>
@@ -175,7 +175,7 @@ export default function PlaytimesPage() {
 
         {notice && <div className={`mt-6 flex items-start gap-3 border px-4 py-3 text-sm font-bold ${notice.tone === 'success' ? 'border-emerald-300/25 bg-emerald-400/[.08] text-emerald-100' : 'border-red-300/25 bg-red-400/[.08] text-red-100'}`}><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />{notice.text}</div>}
 
-        <div className="mt-8 grid gap-3 border-y border-white/10 py-4 sm:grid-cols-3">
+        <div className="arena-rail mt-8 grid gap-0 sm:grid-cols-3">
           <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center border border-white/10 bg-white/[.03] text-emerald-200"><Clock3 className="h-4 w-4" /></div><div><div className="text-lg font-black leading-none">17–23 Uhr</div><div className="mt-1 text-[10px] font-black uppercase tracking-[.14em] text-zinc-500">Tägliche Slots</div></div></div>
           <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center border border-white/10 bg-white/[.03] text-emerald-200"><Users className="h-4 w-4" /></div><div><div className="text-lg font-black leading-none">{myUpcomingSlots.length}/6</div><div className="mt-1 text-[10px] font-black uppercase tracking-[.14em] text-zinc-500">Deine offenen Zeiten</div></div></div>
           <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center border border-white/10 bg-white/[.03] text-emerald-200"><Radar className="h-4 w-4" /></div><div><div className="text-lg font-black leading-none">Anonym</div><div className="mt-1 text-[10px] font-black uppercase tracking-[.14em] text-zinc-500">Nur Gesamtinteresse</div></div></div>
@@ -185,7 +185,7 @@ export default function PlaytimesPage() {
 
         <section className="mt-10">
           <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-zinc-500">Nächste sieben Tage</p><h2 className="mt-1 text-3xl font-black tracking-[-.055em]">Wann bist du am Oche?</h2></div><p className="max-w-md text-xs leading-5 text-zinc-500">Eine Auswahl ist jederzeit entfernbar. Vor dem Termin musst du selbst in die Queue gehen.</p></div>
-          <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          <div className="arena-schedule-board mt-5 grid gap-px bg-white/[.08] xl:grid-cols-2">
             {Object.entries(groupedSlots).map(([day, daySlots]) => <article key={day} className="overflow-hidden border border-white/10 bg-[#0d1110]"><header className="flex items-center justify-between border-b border-white/10 bg-black/15 px-4 py-3.5"><div><div className="text-[10px] font-black uppercase tracking-[.16em] text-zinc-500">Ranked-Slots</div><h3 className="mt-1 text-lg font-black">{dateFormatter.format(new Date(daySlots[0].starts_at))}</h3></div><span className="text-xs font-black text-emerald-200">{daySlots.filter((slot) => slot.joined_by_me).length ? 'Du bist dabei' : 'frei planbar'}</span></header><div className="divide-y divide-white/[.07]">{daySlots.map((slot) => {
               const planned = Number(slot.planned_players) || 0;
               const status = slotStatus(slot, now);

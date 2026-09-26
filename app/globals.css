@@ -44,6 +44,129 @@ body {
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
 
+/* Public arena: a shared visual language for player-facing pages.
+   It deliberately uses rails, rules and editorial spacing instead of a sea of isolated cards. */
+.arena-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(58rem 32rem at 100% -12%, rgba(72, 207, 151, .09), transparent 62%),
+    radial-gradient(46rem 28rem at -12% 22%, rgba(91, 143, 126, .07), transparent 66%),
+    #090d0c;
+}
+
+.arena-page .arena-nav {
+  border-color: rgba(255, 255, 255, .10);
+  background: linear-gradient(90deg, rgba(9, 13, 12, .98), rgba(13, 20, 18, .94));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .15);
+}
+
+.arena-page .arena-content { position: relative; max-width: 80rem; }
+
+.arena-page .arena-hero {
+  position: relative;
+  overflow: hidden;
+  border-block: 1px solid rgba(255, 255, 255, .12);
+  background:
+    linear-gradient(105deg, rgba(101, 226, 167, .075), transparent 43%),
+    rgba(13, 17, 16, .72);
+}
+
+.arena-page .arena-hero::after {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(34%, 23rem);
+  content: '';
+  pointer-events: none;
+  opacity: .32;
+  background-image:
+    linear-gradient(rgba(183, 255, 215, .16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(183, 255, 215, .16) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(90deg, transparent, black 42%);
+}
+
+.arena-page .arena-panel {
+  border: 1px solid rgba(255, 255, 255, .11);
+  background: linear-gradient(135deg, rgba(255, 255, 255, .025), transparent 54%), #0d1110;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+}
+
+.arena-page .arena-rail {
+  display: grid;
+  overflow: hidden;
+  border-block: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(3, 6, 5, .30);
+}
+
+.arena-page .arena-rail > * {
+  position: relative;
+}
+
+.arena-page .arena-rail > * + *::before {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  left: 0;
+  width: 1px;
+  content: '';
+  background: rgba(255, 255, 255, .10);
+}
+
+.arena-page .arena-primary-action {
+  border: 1px solid #9af0bc;
+  background: #9af0bc;
+  color: #07100b;
+  box-shadow: 4px 4px 0 rgba(154, 240, 188, .18);
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.arena-page .arena-primary-action:hover {
+  background: #b7f8d0;
+  box-shadow: 6px 6px 0 rgba(154, 240, 188, .12);
+  transform: translate(-1px, -1px);
+}
+
+.arena-page .arena-ledger {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(13, 17, 16, .74);
+}
+
+.arena-page .arena-ledger-row {
+  border: 0;
+  border-left-width: 3px;
+}
+
+.arena-page .arena-ledger-row + .arena-ledger-row { border-top: 1px solid rgba(255, 255, 255, .075); }
+
+.arena-page .arena-schedule-board {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .11);
+  background: rgba(13, 17, 16, .72);
+}
+
+/* The tournament landing page keeps its cup identity, but receives the same editorial hero rhythm. */
+.arena-page .arena-content > .grid.items-end:first-child {
+  position: relative;
+  overflow: hidden;
+  border-block: 1px solid rgba(255, 255, 255, .12);
+  padding-block: 2rem;
+  background: linear-gradient(105deg, rgba(251, 191, 36, .075), transparent 44%);
+}
+
+.arena-page :focus-visible {
+  outline: 2px solid #9af0bc;
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .arena-page .arena-content { padding-inline: 1rem !important; }
+  .arena-page .arena-hero { margin-inline: -1rem; padding-inline: 1rem; }
+  .arena-page .arena-hero::after { width: 48%; opacity: .18; }
+  .arena-page .arena-rail > * + *::before { top: 0; right: 0; bottom: auto; left: 0; width: auto; height: 1px; }
+  .arena-page .arena-primary-action { box-shadow: 3px 3px 0 rgba(154, 240, 188, .16); }
+}
+
 /* Admin console: a dense, app-like workspace intentionally separated from the public site. */
 .faceit-admin {
   --ops-orange: #ff5a1f;
