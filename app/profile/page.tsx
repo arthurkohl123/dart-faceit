@@ -229,7 +229,7 @@ export default function Profile() {
         <PayoutAlert />
 
         {/* ── Hero-Profil-Banner ──────────────────────────────────────────── */}
-        <div className={`arena-hero profile-player-stage relative ${profile ? 'mt-5' : ''} p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12`}>
+        <div className={`profile-showcase relative ${profile ? 'mt-5' : ''} p-7 sm:p-10 md:p-12`}>
           <div className={`absolute inset-x-0 top-0 h-[2px] ${currentRank.level >= 8 ? 'bg-amber-300' : 'bg-emerald-300'}`} />
 
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
@@ -306,8 +306,8 @@ export default function Profile() {
         </div>
 
         {gamesPlayed === 0 && (
-          <section className="mt-5 overflow-hidden border border-indigo-300/20 bg-[#0d1110] shadow-[0_20px_50px_rgba(0,0,0,.2)]">
-            <div className="flex flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-indigo-400/[0.12] via-[#0d1110] to-emerald-400/[0.07] px-6 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-8">
+          <section className="profile-first-run mt-8 overflow-hidden">
+            <div className="flex flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-indigo-400/[0.10] via-transparent to-emerald-400/[0.06] py-6 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-200">Dein erster Run</div>
                 <h2 className="mt-2 text-2xl font-black tracking-[-0.045em] text-white sm:text-3xl">In wenigen Schritten startklar.</h2>
@@ -397,40 +397,25 @@ export default function Profile() {
           </div>
         </div>
 
-        <section className="profile-focus-row mt-5 grid lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="profile-command-line mt-8">
           <Link
             href={nextStep.href}
-            className="profile-next-action group relative overflow-hidden bg-emerald-400/[0.07] p-6 transition sm:p-7"
+            className="group flex min-w-0 items-center gap-4 py-5 transition sm:gap-6"
           >
-            <div className="relative flex items-center gap-5">
-              <div className="grid h-14 w-14 shrink-0 place-items-center border border-emerald-200/25 bg-black/25 text-emerald-100">
-                <NextStepIcon className="h-6 w-6" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200">Dein nächster Zug</div>
-                <div className="mt-1 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">{nextStep.label}</div>
-                <p className="mt-1 text-sm text-zinc-300">{nextStep.detail}</p>
-              </div>
-              <ArrowUpRight className="h-6 w-6 shrink-0 text-emerald-100 transition group-hover:-translate-y-1 group-hover:translate-x-1" />
-            </div>
+            <div className="grid h-11 w-11 shrink-0 place-items-center border-l-2 border-emerald-300 bg-emerald-400/[0.07] text-emerald-100"><NextStepIcon className="h-5 w-5" /></div>
+            <div className="min-w-0 flex-1"><div className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-200">Dein nächster Zug</div><div className="mt-1 text-lg font-black tracking-[-0.04em] text-white sm:text-xl">{nextStep.label}</div><p className="mt-1 text-sm text-zinc-400">{nextStep.detail}</p></div>
+            <ArrowUpRight className="h-5 w-5 shrink-0 text-emerald-100 transition group-hover:-translate-y-1 group-hover:translate-x-1" />
           </Link>
-
-          <div className="profile-momentum bg-[#0d1110] p-6 sm:p-7">
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-300">Season Momentum</div>
-              <Flame className="h-5 w-5 text-amber-300" />
-            </div>
-            <div className="mt-3 flex items-end justify-between gap-4">
-              <div><span className="text-3xl font-black tracking-[-0.06em] text-white">{gamesPlayed}</span><span className="ml-2 text-sm font-bold text-zinc-500">Matches</span></div>
-              <div className="text-right text-sm font-bold text-emerald-200">{wins} Siege</div>
-            </div>
-            <div className="mt-4 h-2 overflow-hidden bg-white/10"><div className="h-full bg-emerald-300" style={{ width: `${Math.max(winrate, 8)}%` }} /></div>
+          <div className="profile-momentum-line flex items-center gap-4 py-5">
+            <Flame className="h-5 w-5 text-amber-300" />
+            <div><div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Season Momentum</div><div className="mt-1 text-sm font-bold text-zinc-200"><span className="text-xl font-black text-white">{gamesPlayed}</span> Matches <span className="mx-2 text-zinc-600">/</span> <span className="text-emerald-200">{wins} Siege</span></div></div>
+            <div className="ml-auto h-1.5 w-24 overflow-hidden bg-white/10 sm:w-36"><div className="h-full bg-emerald-300" style={{ width: `${Math.max(winrate, 8)}%` }} /></div>
           </div>
         </section>
 
         <Link
           href="/friends"
-          className="profile-social-callout group relative mt-5 flex overflow-hidden bg-[#0d1110] p-6 transition sm:p-7"
+          className="profile-social-callout group relative mt-6 flex overflow-hidden py-5 transition sm:py-6"
         >
           <div className="relative grid h-14 w-14 shrink-0 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-emerald-100"><UsersRound className="h-6 w-6" /></div>
           <div className="relative ml-5 min-w-0 flex-1"><div className="text-[10px] font-black uppercase tracking-[0.26em] text-emerald-300">Private Duelle</div><h2 className="mt-1 text-xl font-black tracking-[-0.04em] sm:text-2xl">Freunde herausfordern</h2><p className="mt-1 text-sm text-zinc-400">Sieh, wer online ist, und starte private Best-of-Duelle ohne Elo-Wertung.</p></div>
@@ -440,7 +425,7 @@ export default function Profile() {
         {/* ── Fortschritt + Verifizierung ─────────────────────────────────── */}
         <div className={`profile-account-rail mt-5 grid ${phoneVerified ? '' : 'lg:grid-cols-[1.3fr_0.7fr]'}`}>
           {/* Rang-Fortschritt */}
-          <section className="profile-rank-progress bg-[#0d1110] p-6 sm:p-8">
+          <section className="profile-rank-progress py-6 sm:py-8">
             <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Nächster Rang</div>
             <div className="mt-2 flex items-baseline justify-between gap-4">
               <h2 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">{upcoming ? <>Fortschritt zu <span className={nextRank.color}>{nextRank.name}</span></> : <span className={currentRank.color}>Maximaler Rang erreicht</span>}</h2>
@@ -454,16 +439,16 @@ export default function Profile() {
               />
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="border border-white/10 bg-black/20 p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm">
+            <div className="profile-rank-milestones mt-4 grid grid-cols-3">
+              <div className="profile-rank-milestone p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm">
                 <span className="block text-lg font-black text-white sm:text-xl">{currentRank.min}</span>
                 <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${currentRank.color}`}>{currentRank.name}</span>
               </div>
-              <div className="border border-white/10 bg-black/20 p-3 text-center text-xs text-zinc-400 sm:p-4 sm:text-sm">
+              <div className="profile-rank-milestone p-3 text-center text-xs text-zinc-400 sm:p-4 sm:text-sm">
                 <span className="block text-lg font-black text-emerald-300 sm:text-xl">{elo}</span>
                 <span>Aktuell</span>
               </div>
-              <div className="border border-white/10 bg-black/20 p-3 text-right text-xs text-zinc-400 sm:p-4 sm:text-sm">
+              <div className="profile-rank-milestone p-3 text-right text-xs text-zinc-400 sm:p-4 sm:text-sm">
                 <span className="block text-lg font-black text-white sm:text-xl">{nextRank.min}</span>
                 <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${nextRank.color}`}>{nextRank.name}</span>
               </div>

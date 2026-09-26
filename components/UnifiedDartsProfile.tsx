@@ -102,7 +102,7 @@ export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = 
           const winrate = stat && stat.match_count > 0 ? Math.round((stat.wins / stat.match_count) * 100) : 0;
 
           return (
-            <article key={platform.app} className={`unified-profile-platform p-5 sm:p-6 ${hasActivity || isConnected ? platform.surface : 'bg-white/[0.02]'}`}>
+            <article key={platform.app} className={`unified-profile-platform !border-0 p-5 sm:p-6 ${hasActivity || isConnected ? platform.surface : 'bg-white/[0.02]'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className={`text-sm font-black ${platform.accent}`}>{platform.label}</div>

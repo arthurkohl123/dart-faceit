@@ -147,22 +147,22 @@ body {
 
 /* Player profile: one continuous player sheet instead of a dashboard of tiles. */
 .profile-performance-rail,
-.profile-focus-row,
 .profile-account-rail,
-.profile-platform-strip {
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .11);
-}
+.profile-platform-strip { overflow: hidden; }
 
-.profile-performance-rail { background: rgba(13, 17, 16, .84); }
-.profile-player-stage {
+.profile-performance-rail {
+  border-block: 1px solid rgba(255, 255, 255, .12);
+  background: transparent;
+}
+.profile-showcase {
   min-height: 21rem;
-  border-left: 3px solid #9af0bc !important;
+  overflow: hidden;
+  border-left: 3px solid #9af0bc;
   background:
     linear-gradient(100deg, rgba(78, 221, 153, .13), rgba(13, 17, 16, .68) 46%, rgba(13, 17, 16, .9)),
-    #0d1110 !important;
+    #0d1110;
 }
-.profile-player-stage::before {
+.profile-showcase::before {
   position: absolute;
   top: -9rem;
   right: 3.5rem;
@@ -174,7 +174,7 @@ body {
   box-shadow: 0 0 0 38px rgba(154, 240, 188, .025), 0 0 0 76px rgba(154, 240, 188, .018);
   pointer-events: none;
 }
-.profile-player-stage > * { z-index: 1; }
+.profile-showcase > * { z-index: 1; }
 .profile-performance-cell { position: relative; min-width: 0; }
 .profile-performance-cell + .profile-performance-cell::before,
 .profile-focus-row > * + *::before,
@@ -189,23 +189,24 @@ body {
   background: rgba(255, 255, 255, .10);
 }
 
-.profile-focus-row,
-.profile-account-rail { background: rgba(13, 17, 16, .84); }
-.profile-focus-row > *,
+.profile-account-rail { border-block: 1px solid rgba(255, 255, 255, .12); background: transparent; }
 .profile-account-rail > * { position: relative; min-width: 0; }
 
-.profile-next-action {
-  border-left: 3px solid #9af0bc;
-  box-shadow: inset 0 1px rgba(255, 255, 255, .03);
+.profile-command-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
 }
-.profile-next-action:hover { background: rgba(83, 215, 148, .12); }
+.profile-command-line > * { min-width: 0; }
+.profile-momentum-line { border-left: 1px solid rgba(255, 255, 255, .11); padding-left: 2rem; }
+.profile-first-run { border-block: 1px solid rgba(129, 140, 248, .28); }
 
 .profile-social-callout {
-  border: 1px solid rgba(255, 255, 255, .11);
+  border-block: 1px solid rgba(255, 255, 255, .11);
   border-left: 3px solid #9af0bc;
-  box-shadow: inset 0 1px rgba(255, 255, 255, .025);
 }
-.profile-social-callout:hover { background: #101714; }
+.profile-social-callout:hover { background: linear-gradient(90deg, rgba(83, 215, 148, .07), transparent 48%); }
 
 .profile-section {
   border: 0;
@@ -216,11 +217,25 @@ body {
 
 .profile-platform-strip { background: rgba(255, 255, 255, .075); }
 .profile-platform-cell { position: relative; min-width: 0; }
+.profile-rank-milestones {
+  overflow: hidden;
+  border-block: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(255, 255, 255, .025);
+}
+.profile-rank-milestone { position: relative; min-width: 0; }
+.profile-rank-milestone + .profile-rank-milestone::before {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  left: 0;
+  width: 1px;
+  content: '';
+  background: rgba(255, 255, 255, .10);
+}
 
 .unified-profile-sheet {
-  overflow: hidden;
   border-block: 1px solid rgba(255, 255, 255, .12);
-  background: linear-gradient(105deg, rgba(72, 208, 152, .055), transparent 44%);
+  background: transparent;
 }
 .unified-profile-heading { padding: 1.5rem 0; }
 .unified-profile-summary {
@@ -242,12 +257,12 @@ body {
 }
 .unified-profile-platforms {
   overflow: hidden;
-  background: rgba(255, 255, 255, .07);
+  border-bottom: 1px solid rgba(255, 255, 255, .10);
+  background: transparent;
 }
 .unified-profile-note { padding: .85rem 0; }
 
 @media (max-width: 1023px) {
-  .profile-focus-row > * + *::before,
   .profile-account-rail > * + *::before {
     top: 0;
     right: 0;
@@ -259,8 +274,8 @@ body {
 }
 
 @media (max-width: 639px) {
-  .profile-player-stage { min-height: auto; }
-  .profile-player-stage::before { top: -4rem; right: -7rem; width: 18rem; height: 18rem; }
+  .profile-showcase { min-height: auto; }
+  .profile-showcase::before { top: -4rem; right: -7rem; width: 18rem; height: 18rem; }
   .unified-profile-summary-cell + .unified-profile-summary-cell::before { display: none; }
   .unified-profile-summary-cell:nth-child(even)::before {
     top: 0;
@@ -313,6 +328,8 @@ body {
 }
 
 @media (max-width: 639px) {
+  .profile-command-line { grid-template-columns: 1fr; gap: 0; }
+  .profile-momentum-line { border-top: 1px solid rgba(255, 255, 255, .11); border-left: 0; padding-left: 0; }
   .profile-performance-cell + .profile-performance-cell::before { display: none; }
   .profile-performance-cell:nth-child(even)::before {
     top: 0;
