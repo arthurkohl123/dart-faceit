@@ -19,7 +19,7 @@ if (source) {
       return [line.slice(0, divider).trim(), line.slice(divider + 1).trim().replace(/^['"]|['"]$/g, '')];
     }));
   supabaseUrl = values.NEXT_PUBLIC_SUPABASE_URL;
-  supabasePublishableKey = values.NEXT_PUBLIC_SUPABASE_ANON_KEY || values.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  supabasePublishableKey = values.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || values.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 } else {
   const production = 'https://www.rankeddarts.de';
   const html = await (await fetch(production)).text();
@@ -31,7 +31,9 @@ if (source) {
   const jwtMatch = bundle.match(/eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/);
   const publishableMatch = bundle.match(/sb_publishable_[a-zA-Z0-9_-]+/);
   supabaseUrl = urlMatch?.[0];
-  supabasePublishableKey = clientMatch?.[1] || publishableMatch?.[0] || jwtMatch?.[0];
+  // Prefer the modern, rotatable publishable key. A legacy anon JWT can be
+  // present in an old bundle and eventually produces misleading token errors.
+  supabasePublishableKey = publishableMatch?.[0] || clientMatch?.[1] || jwtMatch?.[0];
 }
 
 if (!supabaseUrl || !supabasePublishableKey) {
