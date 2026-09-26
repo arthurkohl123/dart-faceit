@@ -1,0 +1,40 @@
+{
+  "name": "rankeddarts-support-console",
+  "version": "1.0.0",
+  "private": true,
+  "author": "RankedDarts",
+  "description": "Native desktop console for RankedDarts live support",
+  "type": "module",
+  "main": "src/main.mjs",
+  "scripts": {
+    "configure": "node scripts/configure-from-rankeddarts-env.mjs",
+    "dev": "electron .",
+    "start": "electron .",
+    "package:win": "electron-builder --win nsis --x64"
+  },
+  "build": {
+    "appId": "de.rankeddarts.supportconsole",
+    "productName": "RankedDarts Support Console",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "RankedDarts-Support-Console-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^40.2.1",
+    "electron-builder": "^26.0.19"
+  }
+}
