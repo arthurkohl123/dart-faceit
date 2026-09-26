@@ -1,3 +1,5 @@
+import { emptyOperationsState, loadOperations, renderOperationsWorkspace } from './operations.js';
+
 const app = document.querySelector('#app');
 const config = window.RANKEDDARTS_SUPPORT_CONFIG;
 
@@ -17,6 +19,8 @@ const state = {
   lastWaitingIds: null,
   pollingId: null,
   messagePollingId: null,
+  view: 'support',
+  operations: emptyOperationsState(),
 };
 
 function readSession() {
@@ -142,6 +146,7 @@ function renderLogin() {
 }
 
 function renderConsole() {
+  if (state.view === 'operations') return renderOperationsConsole();
   const waiting = state.conversations.filter((conversation) => conversation.status === 'waiting');
   const active = state.conversations.filter((conversation) => conversation.status === 'active');
   const visible = filteredConversations();
@@ -153,7 +158,7 @@ function renderConsole() {
     <section class="console-shell">
       <aside class="rail">
         <div class="rail-brand"><span class="brand-mark">R</span><span class="rail-wordmark">RD</span></div>
-        <nav aria-label="Arbeitsbereiche"><button class="rail-button active" title="Live Support">◌</button><a class="rail-button" href="https://www.rankeddarts.de/admin" title="Admin-Panel">↗</a></nav>
+        <nav aria-label="Arbeitsbereiche"><button id="open-support" class="rail-button active" title="Live Support">◌</button><button id="open-operations" class="rail-button" title="Operations Console">⌘</button></nav>
         <div class="rail-bottom"><button id="hide-app" class="rail-button" title="In den Hintergrund">−</button><button id="sign-out" class="rail-button" title="Abmelden">⇥</button></div>
       </aside>
       <section class="workspace">
@@ -221,7 +226,153 @@ function renderInspector(conversation) {
   </aside>`;
 }
 
+function sessionAssuranceLevel() {
+  const token = state.session?.access_token;
+  if (!token) return 'aal1';
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(payload)).aal || 'aal1';
+  } catch {
+    return 'aal1';
+  }
+}
+
+function renderOperationsConsole() {
+  const agentName = state.user?.user_metadata?.username || state.user?.email?.split('@')[0] || 'Operations';
+  const requiresMfa = state.operations.mfaRequired;
+  app.innerHTML = `
+    <section class="console-shell operations-shell">
+      <aside class="rail">
+        <div class="rail-brand"><span class="brand-mark">R</span><span class="rail-wordmark">RD</span></div>
+        <nav aria-label="Arbeitsbereiche"><button id="open-support" class="rail-button" title="Live Support">◌</button><button id="open-operations" class="rail-button active" title="Operations Console">⌘</button></nav>
+        <div class="rail-bottom"><button id="hide-app" class="rail-button" title="In den Hintergrund">−</button><button id="sign-out" class="rail-button" title="Abmelden">⇥</button></div>
+      </aside>
+      <section class="workspace ops-root">
+        <header class="ops-topbar"><div><p class="eyebrow">DESKTOP OPERATIONS CONSOLE</p><h1>Hallo, ${escapeHtml(agentName)}.</h1></div><div><span class="ops-secure-dot"></span>Serverseitig geprüft · ${sessionAssuranceLevel().toUpperCase()}</div></header>
+        ${requiresMfa ? renderOperationsMfa() : renderOperationsWorkspace(state.operations)}
+      </section>
+    </section>`;
+  bindOperationsEvents();
+}
+
+function renderOperationsMfa() {
+  return `<section class="ops-mfa"><div class="ops-mfa-symbol">⇢</div><p class="eyebrow">ZUSÄTZLICHE ABSICHERUNG</p><h2>Operations braucht MFA.</h2><p>Live Support bleibt verfügbar. Für Spieler-, Zahlungs- und Turnierverwaltung wird deine bestehende RankedDarts-Mehrfachauthentifizierung verlangt.</p><form id="ops-mfa-form"><label>Code aus deiner Authenticator-App<input id="ops-mfa-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]*" placeholder="000000" required></label><p class="form-error" id="ops-mfa-error" hidden></p><button class="primary-button" type="submit">MFA bestätigen <span>↗</span></button></form><button id="ops-back-to-support" class="ops-text-button">Zurück zum Live Support</button></section>`;
+}
+
+async function isCurrentUserAdmin() {
+  const userId = encodeURIComponent(state.user?.id || '');
+  if (!userId) return false;
+  const profiles = await request(`/rest/v1/profiles?select=is_admin&supabaseId=eq.${userId}&limit=1`);
+  return Boolean(profiles?.[0]?.is_admin);
+}
+
+async function openOperations() {
+  state.view = 'operations';
+  state.operations.error = null;
+  state.operations.loading = true;
+  render();
+  try {
+    if (!await isCurrentUserAdmin()) throw new Error('Dieser Bereich ist nur für RankedDarts-Admins freigegeben.');
+    if (sessionAssuranceLevel() !== 'aal2') {
+      state.operations.mfaRequired = true;
+      state.operations.loading = false;
+      render();
+      return;
+    }
+    await refreshOperations();
+  } catch (error) {
+    state.operations.loading = false;
+    state.operations.error = humanizeError(error, 'Operations Console konnte nicht geöffnet werden.');
+    render();
+  }
+}
+
+function openSupport() {
+  state.view = 'support';
+  render();
+}
+
+async function refreshOperations() {
+  state.operations.loading = true;
+  state.operations.error = null;
+  render();
+  try {
+    Object.assign(state.operations, await loadOperations({ rpc }));
+  } catch (error) {
+    state.operations.error = humanizeError(error, 'Operations-Daten konnten nicht geladen werden.');
+  } finally {
+    state.operations.loading = false;
+    render();
+  }
+}
+
+async function searchOperationsPlayer(event) {
+  event.preventDefault();
+  const input = document.querySelector('#ops-player-query');
+  const query = input?.value.trim();
+  if (!query) return;
+  state.operations.playerQuery = query;
+  try {
+    const encoded = encodeURIComponent(`*${query.replace(/[*,()]/g, '')}*`);
+    state.operations.playerResults = await request(`/rest/v1/profiles?select=id,username,elo&username=ilike.${encoded}&order=elo.desc&limit=8`) || [];
+    state.operations.error = null;
+  } catch (error) {
+    state.operations.error = humanizeError(error, 'Spieler konnten nicht gesucht werden.');
+  }
+  render();
+}
+
+async function selectOperationsPlayer(profileId) {
+  if (!profileId) return;
+  try {
+    state.operations.selectedPlayer = await rpc('admin_get_player_360', { p_profile_id: profileId });
+    state.operations.error = null;
+  } catch (error) {
+    state.operations.error = humanizeError(error, 'Spieler-Kontext konnte nicht geladen werden.');
+  }
+  render();
+}
+
+async function beginMfaChallenge() {
+  const factors = await request('/auth/v1/factors');
+  const factor = (factors?.totp || factors?.all || []).find((entry) => entry.status === 'verified' && entry.factor_type === 'totp');
+  if (!factor?.id) throw new Error('Für dieses Konto wurde keine bestätigte TOTP-Mehrfachauthentifizierung gefunden. Richte sie zuerst in den Kontoeinstellungen ein.');
+  return { factor, challenge: await request(`/auth/v1/factors/${encodeURIComponent(factor.id)}/challenge`, { method: 'POST', body: '{}' }) };
+}
+
+async function verifyOperationsMfa(event) {
+  event.preventDefault();
+  const errorTarget = document.querySelector('#ops-mfa-error');
+  const code = document.querySelector('#ops-mfa-code')?.value.trim();
+  errorTarget.hidden = true;
+  try {
+    const { factor, challenge } = await beginMfaChallenge();
+    const payload = await request(`/auth/v1/factors/${encodeURIComponent(factor.id)}/verify`, { method: 'POST', body: JSON.stringify({ challenge_id: challenge.id, code }) });
+    if (payload?.access_token) saveSession(payload);
+    if (sessionAssuranceLevel() !== 'aal2') throw new Error('MFA konnte nicht bestätigt werden. Bitte prüfe den Code und versuche es erneut.');
+    state.operations.mfaRequired = false;
+    await refreshOperations();
+  } catch (error) {
+    errorTarget.textContent = humanizeError(error, 'MFA-Code konnte nicht bestätigt werden.');
+    errorTarget.hidden = false;
+  }
+}
+
+function bindOperationsEvents() {
+  document.querySelector('#open-support')?.addEventListener('click', openSupport);
+  document.querySelector('#open-operations')?.addEventListener('click', openOperations);
+  document.querySelector('#hide-app')?.addEventListener('click', () => window.supportConsole.hide());
+  document.querySelector('#sign-out')?.addEventListener('click', signOut);
+  document.querySelector('#ops-refresh')?.addEventListener('click', refreshOperations);
+  document.querySelector('#ops-player-search')?.addEventListener('submit', searchOperationsPlayer);
+  document.querySelectorAll('[data-ops-player]').forEach((button) => button.addEventListener('click', () => selectOperationsPlayer(button.dataset.opsPlayer)));
+  document.querySelector('#ops-mfa-form')?.addEventListener('submit', verifyOperationsMfa);
+  document.querySelector('#ops-back-to-support')?.addEventListener('click', openSupport);
+}
+
 function bindConsoleEvents() {
+  document.querySelector('#open-support')?.addEventListener('click', openSupport);
+  document.querySelector('#open-operations')?.addEventListener('click', openOperations);
   document.querySelector('#availability-toggle')?.addEventListener('click', () => setAvailability(!state.agent?.is_available));
   document.querySelector('#hide-app')?.addEventListener('click', () => window.supportConsole.hide());
   document.querySelector('#sign-out')?.addEventListener('click', signOut);

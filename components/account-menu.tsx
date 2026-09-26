@@ -2,18 +2,17 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, CircleHelp, Code2, LogOut, Settings2, ShieldCheck, UserRound } from 'lucide-react';
+import { ChevronDown, CircleHelp, Code2, LogOut, Settings2, UserRound } from 'lucide-react';
 
 type AccountMenuProps = {
   username: string;
   email: string | null;
-  isAdmin: boolean;
   isDeveloper: boolean;
   isNewPlayer: boolean;
   onLogout: () => Promise<void>;
 };
 
-export function AccountMenu({ username, email, isAdmin, isDeveloper, isNewPlayer, onLogout }: AccountMenuProps) {
+export function AccountMenu({ username, email, isDeveloper, isNewPlayer, onLogout }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -75,11 +74,6 @@ export function AccountMenu({ username, email, isAdmin, isDeveloper, isNewPlayer
             <Link href="/getting-started" onClick={() => setOpen(false)} role="menuitem" className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition hover:text-white ${isNewPlayer ? 'bg-emerald-400/[0.08] text-emerald-100 hover:bg-emerald-400/[0.13]' : 'text-zinc-200 hover:bg-white/[0.07]'}`}>
               <CircleHelp className="h-4 w-4 text-emerald-200" /> {isNewPlayer ? 'Erste Schritte' : 'Spielablauf & Hilfe'}
             </Link>
-            {isAdmin && (
-              <Link href="/admin" onClick={() => setOpen(false)} role="menuitem" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-amber-100 transition hover:bg-amber-300/10 hover:text-amber-50">
-                <ShieldCheck className="h-4 w-4 text-amber-300" /> Admin Console
-              </Link>
-            )}
             {isDeveloper && (
               <Link href="/developer" onClick={() => setOpen(false)} role="menuitem" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-cyan-100 transition hover:bg-cyan-300/10 hover:text-cyan-50">
                 <Code2 className="h-4 w-4 text-cyan-300" /> Developer Workbench

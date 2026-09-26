@@ -502,7 +502,6 @@ export default function DeveloperDashboard() {
           <div className="developer-console-topbar-actions">
             <span className={`developer-console-sync ${autoRefresh ? 'is-live' : ''}`}><i /> {autoRefresh ? 'Live-Sync' : 'Sync pausiert'}</span>
             <button type="button" onClick={() => void loadDashboard()} className="developer-console-primary-button"><RefreshCcw className="h-3.5 w-3.5" /> Aktualisieren <kbd>R</kbd></button>
-            <Link href="/admin" className="developer-console-admin-link">Admin <ArrowUpRight className="h-3.5 w-3.5" /></Link>
           </div>
         </header>
 

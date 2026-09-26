@@ -270,5 +270,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   const accountName = profile?.username ?? session?.user?.user_metadata?.username ?? session?.user?.email?.split('@')[0] ?? null;
 
-  return <AuthContext.Provider value={value}>{children}<SiteNoticeBanner />{session?.user && accountName && <AccountMenu username={accountName} email={session.user.email ?? null} isAdmin={Boolean(profile?.is_admin)} isDeveloper={Boolean(profile?.is_developer)} isNewPlayer={(profile?.gamesPlayed ?? 0) === 0} onLogout={logout} />}<RealtimeNotificationToaster userId={session?.user?.id} /><FriendsChatLauncher userId={session?.user?.id} /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}<SiteNoticeBanner />{session?.user && accountName && <AccountMenu username={accountName} email={session.user.email ?? null} isDeveloper={Boolean(profile?.is_developer)} isNewPlayer={(profile?.gamesPlayed ?? 0) === 0} onLogout={logout} />}<RealtimeNotificationToaster userId={session?.user?.id} /><FriendsChatLauncher userId={session?.user?.id} /><FriendRequestPopup userId={session?.user?.id} /><FriendChallengePopup userId={session?.user?.id} /></AuthContext.Provider>;
 }

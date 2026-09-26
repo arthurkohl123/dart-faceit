@@ -5,6 +5,10 @@ const PROTECTED_ROUTES = ['/matchmaking', '/result', '/history', '/profile', '/a
 const ADMIN_ROUTES = ['/admin'];
 const DEVELOPER_ROUTES = ['/developer'];
 const AUTH_ROUTES = ['/auth/login', '/auth/register'];
+// Admin work moves to the MFA-protected desktop Operations Console. Keep the
+// browser block opt-in until a current desktop build has been tested by an
+// owner, so a failed desktop update cannot lock the team out of recovery.
+const DESKTOP_OPERATIONS_ONLY = process.env.RANKEDDARTS_DESKTOP_OPERATIONS_ONLY === '1';
 // These endpoints are deliberately public and perform their own validation.
 // Keeping them out of the session refresh path prevents a stale browser token
 // from blocking the home page ticker or health checks for minutes.
@@ -49,6 +53,10 @@ function createTimeoutFetch() {
 
 export async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
+
+  if (DESKTOP_OPERATIONS_ONLY && (pathname === '/admin' || pathname.startsWith('/admin/'))) {
+    return new NextResponse(null, { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
+  }
 
   // URLs sind in Next.js case-sensitive. Viele Nutzer tippen die Seite mit
   // großem D ein; leite diese Schreibweise deshalb zuverlässig auf die echte
