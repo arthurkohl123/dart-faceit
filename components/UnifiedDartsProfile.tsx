@@ -58,8 +58,8 @@ export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = 
     .sort((a, b) => Number(b.best_average) - Number(a.best_average))[0];
 
   return (
-    <section className="overflow-hidden border border-white/10 bg-[#0d1110]">
-      <div className="flex flex-col gap-4 border-b border-white/10 px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-7 sm:py-6">
+    <section className="unified-profile-sheet">
+      <div className="unified-profile-heading flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300">
             <Activity className="h-3.5 w-3.5" /> Unified Darts Profile
@@ -74,27 +74,27 @@ export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = 
       </div>
 
       {!compact && (
-        <div className="grid grid-cols-2 border-b border-white/10 sm:grid-cols-4">
-          <div className="border-r border-white/10 px-4 py-4 text-center sm:px-6">
+        <div className="unified-profile-summary grid grid-cols-2 sm:grid-cols-4">
+          <div className="unified-profile-summary-cell px-4 py-4 text-center sm:px-6">
             <div className="text-xl font-black text-white sm:text-2xl">{overallWinrate}%</div>
             <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Gesamt-Winrate</div>
           </div>
-          <div className="border-r border-white/10 px-4 py-4 text-center sm:px-6">
+          <div className="unified-profile-summary-cell px-4 py-4 text-center sm:px-6">
             <div className="text-xl font-black text-amber-200 sm:text-2xl">{total180s}</div>
             <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">180er gesamt</div>
           </div>
-          <div className="px-4 py-4 text-center sm:px-6">
+          <div className="unified-profile-summary-cell px-4 py-4 text-center sm:px-6">
             <div className="text-xl font-black text-emerald-300 sm:text-2xl">{totalWins}</div>
             <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Siege gesamt</div>
           </div>
-          <div className="border-l border-t border-white/10 px-4 py-4 text-center sm:border-t-0 sm:px-6">
+          <div className="unified-profile-summary-cell px-4 py-4 text-center sm:px-6">
             <div className="truncate text-sm font-black text-zinc-100 sm:text-base">{primaryPlatform ? platforms.find((item) => item.app === primaryPlatform.app)?.label : '—'}</div>
             <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Hauptplattform</div>
           </div>
         </div>
       )}
 
-      <div className="grid gap-3 p-4 sm:grid-cols-3 sm:p-5">
+      <div className="unified-profile-platforms grid sm:grid-cols-3">
         {platforms.map((platform) => {
           const stat = statsByApp.get(platform.app);
           const isConnected = connectedApps.includes(platform.app);
@@ -102,7 +102,7 @@ export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = 
           const winrate = stat && stat.match_count > 0 ? Math.round((stat.wins / stat.match_count) * 100) : 0;
 
           return (
-            <article key={platform.app} className={`border p-4 ${hasActivity || isConnected ? platform.surface : 'border-white/10 bg-white/[0.02]'}`}>
+            <article key={platform.app} className={`unified-profile-platform p-5 sm:p-6 ${hasActivity || isConnected ? platform.surface : 'bg-white/[0.02]'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className={`text-sm font-black ${platform.accent}`}>{platform.label}</div>
@@ -144,7 +144,7 @@ export function UnifiedDartsProfile({ statistics, connectedApps = [], compact = 
         })}
       </div>
 
-      <div className="flex items-start gap-2 border-t border-white/10 bg-black/15 px-5 py-3 text-[11px] leading-5 text-zinc-500 sm:px-7">
+      <div className="unified-profile-note flex items-start gap-2 text-[11px] leading-5 text-zinc-500">
         <BarChart3 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-600" />
         Private Freundschaftsduelle und nicht bestätigte Ergebnisse fließen nicht in diese Werte ein.
       </div>

@@ -229,7 +229,7 @@ export default function Profile() {
         <PayoutAlert />
 
         {/* ── Hero-Profil-Banner ──────────────────────────────────────────── */}
-        <div className={`arena-hero relative ${profile ? 'mt-5' : ''} p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12`}>
+        <div className={`arena-hero profile-player-stage relative ${profile ? 'mt-5' : ''} p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12`}>
           <div className={`absolute inset-x-0 top-0 h-[2px] ${currentRank.level >= 8 ? 'bg-amber-300' : 'bg-emerald-300'}`} />
 
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
@@ -438,7 +438,7 @@ export default function Profile() {
         </Link>
 
         {/* ── Fortschritt + Verifizierung ─────────────────────────────────── */}
-        <div className="profile-account-rail mt-5 grid lg:grid-cols-[1.3fr_0.7fr]">
+        <div className={`profile-account-rail mt-5 grid ${phoneVerified ? '' : 'lg:grid-cols-[1.3fr_0.7fr]'}`}>
           {/* Rang-Fortschritt */}
           <section className="profile-rank-progress bg-[#0d1110] p-6 sm:p-8">
             <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Nächster Rang</div>
@@ -476,8 +476,8 @@ export default function Profile() {
             )}
           </section>
 
-          {/* Verifizierung */}
-          <section className={`profile-verification p-6 sm:p-8 ${phoneVerified ? 'bg-emerald-400/[0.06]' : 'bg-amber-400/[0.06]'}`}>
+          {/* Verifizierung wird nur gezeigt, wenn noch etwas zu tun ist. */}
+          {!phoneVerified && <section className="profile-verification bg-amber-400/[0.06] p-6 sm:p-8">
             <div className={`text-xs font-black uppercase tracking-[0.28em] ${phoneVerified ? 'text-emerald-300' : 'text-amber-300'}`}>Verifizierung</div>
             <div className="mt-3 flex items-center gap-3">
               {phoneVerified
@@ -491,15 +491,13 @@ export default function Profile() {
                 ? 'Dein Account ist für Fair-Play und Ranked vorbereitet.'
                 : 'Bestätige deine Nummer, bevor du vollständig in Ranked startest.'}
             </p>
-            {!phoneVerified && (
-              <Link
-                href={`/auth/verify-phone${profile?.phone_number ? `?phone=${encodeURIComponent(profile.phone_number)}` : ''}`}
-                className="mt-5 inline-flex border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 text-sm font-black text-amber-100 transition hover:bg-amber-300/18"
-              >
-                Jetzt verifizieren →
-              </Link>
-            )}
-          </section>
+            <Link
+              href={`/auth/verify-phone${profile?.phone_number ? `?phone=${encodeURIComponent(profile.phone_number)}` : ''}`}
+              className="mt-5 inline-flex border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 text-sm font-black text-amber-100 transition hover:bg-amber-300/18"
+            >
+              Jetzt verifizieren →
+            </Link>
+          </section>}
         </div>
 
         {/* ── Plattform-Verbindungen ─────────────────────────────────────── */}
