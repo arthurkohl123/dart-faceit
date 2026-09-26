@@ -64,6 +64,14 @@ async function rpc(name, args = {}) {
   return request(`/rest/v1/rpc/${name}`, { method: 'POST', body: JSON.stringify(args) });
 }
 
+function humanizeError(error, fallback) {
+  const message = error?.message || '';
+  if (message.includes('LIVE_SUPPORT_CANNOT_ACCEPT_OWN_REQUEST') || message.includes('live_support_conversations_distinct_users')) {
+    return 'Du kannst deine eigene Support-Anfrage nicht übernehmen. Teste den Ablauf mit einem zweiten Benutzerkonto.';
+  }
+  return message || fallback;
+}
+
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
 }
@@ -271,7 +279,7 @@ async function loadMessages(conversationId, rerender = true) {
   try {
     state.messages = await rpc('live_support_list_messages', { p_conversation_id: conversationId }) || [];
     state.error = null;
-  } catch (error) { state.error = error.message || 'Nachrichten konnten nicht geladen werden.'; }
+  } catch (error) { state.error = humanizeError(error, 'Nachrichten konnten nicht geladen werden.'); }
   if (rerender) render();
   else {
     const target = document.querySelector('#messages');
@@ -283,14 +291,14 @@ async function setAvailability(available) {
   state.loading = true;
   render();
   try { await rpc('live_support_set_agent_availability', { p_available: available }); await sync(); }
-  catch (error) { state.error = error.message || 'Status konnte nicht geändert werden.'; render(); }
+  catch (error) { state.error = humanizeError(error, 'Status konnte nicht geändert werden.'); render(); }
   finally { state.loading = false; }
 }
 
 async function acceptConversation(conversationId) {
   if (!conversationId) return;
   try { await rpc('live_support_accept_conversation', { p_conversation_id: conversationId }); await sync(); await loadMessages(conversationId); }
-  catch (error) { state.error = error.message || 'Unterhaltung konnte nicht übernommen werden.'; render(); }
+  catch (error) { state.error = humanizeError(error, 'Unterhaltung konnte nicht übernommen werden.'); render(); }
 }
 
 async function sendMessage(event) {
@@ -300,13 +308,13 @@ async function sendMessage(event) {
   if (!content || !state.selectedConversationId) return;
   input.value = '';
   try { await rpc('live_support_send_message', { p_conversation_id: state.selectedConversationId, p_content: content }); await loadMessages(state.selectedConversationId, false); await sync(); }
-  catch (error) { state.error = error.message || 'Nachricht konnte nicht gesendet werden.'; input.value = content; render(); }
+  catch (error) { state.error = humanizeError(error, 'Nachricht konnte nicht gesendet werden.'); input.value = content; render(); }
 }
 
 async function closeConversation(conversationId) {
   if (!conversationId || !confirm('Diese Live-Unterhaltung wirklich schließen?')) return;
   try { await rpc('live_support_close_conversation', { p_conversation_id: conversationId }); state.selectedConversationId = null; state.messages = []; await sync(); }
-  catch (error) { state.error = error.message || 'Unterhaltung konnte nicht geschlossen werden.'; render(); }
+  catch (error) { state.error = humanizeError(error, 'Unterhaltung konnte nicht geschlossen werden.'); render(); }
 }
 
 function signOut() {

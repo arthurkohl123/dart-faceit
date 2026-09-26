@@ -94,10 +94,15 @@ export function LiveSupportAdmin() {
   };
 
   const accept = async (conversationId: string) => {
+    const conversation = conversations.find((item) => item.conversation_id === conversationId);
+    if (conversation?.requester_id === (await supabase.auth.getUser()).data.user?.id) {
+      setError('Du kannst deine eigene Support-Anfrage nicht übernehmen. Teste den Ablauf mit einem zweiten Benutzerkonto.');
+      return;
+    }
     setBusy(true);
     setError(null);
     const { error: acceptError } = await supabase.rpc('live_support_accept_conversation', { p_conversation_id: conversationId });
-    if (acceptError) setError(acceptError.message);
+    if (acceptError) setError(acceptError.message.includes('LIVE_SUPPORT_CANNOT_ACCEPT_OWN_REQUEST') ? 'Du kannst deine eigene Support-Anfrage nicht übernehmen. Teste den Ablauf mit einem zweiten Benutzerkonto.' : acceptError.message);
     else {
       setSelectedId(conversationId);
       await loadMessages(conversationId);
