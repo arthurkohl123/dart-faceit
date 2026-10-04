@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, Crown, Medal, Menu, Search, ShieldCheck, Swords, Trophy, Users, X } from 'lucide-react';
+import { ArrowUpRight, Medal, Menu, Search, ShieldCheck, Swords, Trophy, Users, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { getRankForElo } from '@/lib/ranks';
@@ -86,7 +86,6 @@ export default function Leaderboard() {
   }, [authLoading, currentProfile, currentUserId, supabase]);
 
   const filteredPlayers = players.map((player, index) => ({ player, index })).filter(({ player }) => player.username.toLowerCase().includes(searchQuery.toLowerCase()));
-  const topPlayers = players.slice(0, 3);
   const medals = ['🥇', '🥈', '🥉'];
 
   if (loading) return <main className="grid min-h-screen place-items-center bg-[#0a0d0d] text-zinc-300"><div className="border border-white/15 bg-[#0d1110] px-6 py-4 font-bold">Rangliste wird geladen…</div></main>;
@@ -121,30 +120,6 @@ export default function Leaderboard() {
               <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-200/70">Dein Platz</p><p className="mt-1 text-4xl font-black tracking-[-.06em] text-emerald-200">{myRankLoading ? '…' : myRank ? `#${myRank}` : currentProfile?.gamesPlayed ? '—' : '—'}</p></div>
               <div><p className="text-lg font-black text-zinc-100">{currentProfile?.username ?? user?.user_metadata?.username ?? 'Dein Profil'}</p><p className="mt-1 text-sm text-zinc-400">{currentProfile?.gamesPlayed ? `${currentProfile.gamesPlayed} bestätigte Ranked-Spiele · ${currentProfile.elo} Elo` : 'Spiele dein erstes bestätigtes Ranked-Match, um in der Rangliste zu erscheinen.'}</p><p className="mt-3 text-xs leading-5 text-zinc-500">{myRank && myRank > 100 ? 'Du liegst aktuell außerhalb der sichtbaren Top 100. Deine persönliche Platzierung wird trotzdem hier angezeigt.' : myRank ? 'Du bist in den Top 100. Dein Eintrag ist in der Liste zusätzlich markiert.' : 'Deine Platzierung wird nach dem ersten gewerteten Spiel berechnet.'}</p></div>
               {myRank && myRank > 100 && <span className="w-fit border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs font-black text-amber-100">Außerhalb Top 100</span>}
-            </div>
-          </section>
-        )}
-
-        {topPlayers.length === 3 && (
-          <section className="arena-panel mt-10">
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.18em] text-amber-200"><Crown className="h-4 w-4" /> Top 3 · Season 01</div>
-              <span className="text-xs font-bold text-zinc-500">Nach Elo</span>
-            </div>
-            <div className="divide-y divide-white/10">
-              {topPlayers.map((player, index) => {
-                const rank = getRankForElo(player.elo);
-                const winrate = player.gamesPlayed ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
-                const isCurrentUser = currentUserId === player.supabaseId;
-                return (
-                  <Link key={player.username} href={`/players/${encodeURIComponent(player.username)}`} className={`grid grid-cols-[2.75rem_minmax(0,1fr)_5rem_4.5rem] items-center gap-3 px-5 py-4 transition hover:bg-white/[.025] sm:grid-cols-[3.5rem_minmax(0,1fr)_6rem_5rem] ${isCurrentUser ? 'border-l-2 border-emerald-200 bg-emerald-300/[.08]' : ''}`}>
-                    <span className="grid h-9 w-9 place-items-center bg-amber-300 text-lg text-black">{medals[index]}</span>
-                    <span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={`block truncate text-base font-black ${player.isPremium ? premiumNameStyle : ''}`}>{player.username}</span>{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={`mt-1 block text-xs font-bold ${rank.color}`}>L{rank.level} · {rank.name}</span></span>
-                    <span className="text-right"><span className="block text-xl font-black text-emerald-300">{player.elo}</span><span className="text-[10px] font-black uppercase tracking-[.12em] text-zinc-500">Elo</span></span>
-                    <span className="text-right text-xs"><span className="block font-black text-zinc-100">{winrate}%</span><span className="text-zinc-500">Winrate</span></span>
-                  </Link>
-                );
-              })}
             </div>
           </section>
         )}
