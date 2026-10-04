@@ -345,8 +345,7 @@ type TournamentResultDraft = {
 type TournamentForm = {
   title: string; description: string; startsAt: string; closesAt: string; maxPlayers: string; bestOf: string;
   premiumOnly: boolean; maxAverage: string; minAverage: string; scoringPlatform: 'scolia' | 'dartcounter'; accessCode: string;
-  tournamentFormat: 'single_elimination' | 'double_elimination' | 'group_stage'; checkInMinutes: string;
-  dartMode: 'straight_in_double_out' | 'double_in_double_out';
+  tournamentFormat: 'single_elimination' | 'double_elimination' | 'group_stage'; dartMode: 'straight_in_double_out' | 'double_in_double_out'; announceOnDiscord: boolean; checkInMinutes: string;
   prizeTitle: string; prizeDetails: string; disputePolicy: string;
 };
 
@@ -478,7 +477,7 @@ export default function AdminPanel() {
   const [payoutPaymentDetailsId, setPayoutPaymentDetailsId] = useState<string | null>(null);
   const [pendingPayoutDetailsDeleteId, setPendingPayoutDetailsDeleteId] = useState<string | null>(null);
   const [tournaments, setTournaments] = useState<AdminTournament[]>([]);
-  const [tournamentForm, setTournamentForm] = useState<TournamentForm>({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '', tournamentFormat: 'single_elimination', dartMode: 'straight_in_double_out', checkInMinutes: '30', prizeTitle: '', prizeDetails: '', disputePolicy: 'Bei Verbindungsproblemen sofort Screenshots sichern, den Gegner informieren und innerhalb von 15 Minuten ein Support-Ticket öffnen. Bis zur Admin-Entscheidung darf das Match nicht neu gestartet werden.' });
+  const [tournamentForm, setTournamentForm] = useState<TournamentForm>({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '', tournamentFormat: 'single_elimination', dartMode: 'straight_in_double_out', announceOnDiscord: true, checkInMinutes: '30', prizeTitle: '', prizeDetails: '', disputePolicy: 'Bei Verbindungsproblemen sofort Screenshots sichern, den Gegner informieren und innerhalb von 15 Minuten ein Support-Ticket öffnen. Bis zur Admin-Entscheidung darf das Match nicht neu gestartet werden.' });
   const [tournamentSaving, setTournamentSaving] = useState(false);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [tournamentBracket, setTournamentBracket] = useState<TournamentMatch[]>([]);
@@ -833,7 +832,7 @@ export default function AdminPanel() {
       setActionMessage('Bitte gib Titel, Anmeldeschluss und Startzeit an.'); return;
     }
     setTournamentSaving(true);
-    const { error } = await supabase.rpc('admin_create_tournament', {
+    const { data: createdTournamentId, error } = await supabase.rpc('admin_create_tournament', {
       p_title: tournamentForm.title.trim(), p_description: tournamentForm.description.trim(),
       p_starts_at: new Date(tournamentForm.startsAt).toISOString(), p_registration_closes_at: new Date(tournamentForm.closesAt).toISOString(),
       p_max_players: Number(tournamentForm.maxPlayers), p_best_of: Number(tournamentForm.bestOf), p_premium_only: tournamentForm.premiumOnly,
@@ -845,8 +844,20 @@ export default function AdminPanel() {
     });
     setTournamentSaving(false);
     if (error) { setActionMessage(`Turnier konnte nicht erstellt werden: ${error.message}`); return; }
-    setTournamentForm({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '', tournamentFormat: 'single_elimination', dartMode: 'straight_in_double_out', checkInMinutes: '30', prizeTitle: '', prizeDetails: '', disputePolicy: 'Bei Verbindungsproblemen sofort Screenshots sichern, den Gegner informieren und innerhalb von 15 Minuten ein Support-Ticket öffnen. Bis zur Admin-Entscheidung darf das Match nicht neu gestartet werden.' });
-    setActionMessage('Turnier ist veröffentlicht und für Spieler sichtbar.');
+    setTournamentForm({ title: '', description: '', startsAt: '', closesAt: '', maxPlayers: '8', bestOf: '5', premiumOnly: false, maxAverage: '', minAverage: '', scoringPlatform: 'dartcounter', accessCode: '', tournamentFormat: 'single_elimination', dartMode: 'straight_in_double_out', announceOnDiscord: true, checkInMinutes: '30', prizeTitle: '', prizeDetails: '', disputePolicy: 'Bei Verbindungsproblemen sofort Screenshots sichern, den Gegner informieren und innerhalb von 15 Minuten ein Support-Ticket öffnen. Bis zur Admin-Entscheidung darf das Match nicht neu gestartet werden.' });
+    let announcementMessage = 'Turnier ist veröffentlicht und für Spieler sichtbar.';
+    if (tournamentForm.announceOnDiscord && createdTournamentId) {
+      const response = await fetch('/api/admin/tournaments/announce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tournamentId: createdTournamentId }),
+      });
+      const result = await response.json().catch(() => null) as { error?: string; code?: string } | null;
+      if (response.ok) announcementMessage = 'Turnier erstellt und im Discord angekündigt.';
+      else if (result?.code === 'DISCORD_WEBHOOK_NOT_CONFIGURED') announcementMessage = 'Turnier erstellt. Discord ist noch nicht verbunden – hinterlege dafür den Webhook in Vercel.';
+      else announcementMessage = `Turnier erstellt, aber Discord konnte nicht posten: ${result?.error || 'Unbekannter Fehler'}`;
+    }
+    setActionMessage(announcementMessage);
     await loadTournaments();
   };
 
@@ -2005,6 +2016,7 @@ export default function AdminPanel() {
                   <input value={tournamentForm.prizeTitle} onChange={e => setTournamentForm(f => ({ ...f, prizeTitle: e.target.value }))} placeholder="Preis, z. B. 50 € + Champion Badge" className={inputClassName} />
                   <input value={tournamentForm.prizeDetails} onChange={e => setTournamentForm(f => ({ ...f, prizeDetails: e.target.value }))} placeholder="Auszahlung / Einlösung / Sponsor" className={inputClassName} />
                   <textarea value={tournamentForm.disputePolicy} onChange={e => setTournamentForm(f => ({ ...f, disputePolicy: e.target.value }))} placeholder="Verbindungs- und Streitfallregeln" className={`${inputClassName} min-h-24 resize-none md:col-span-2`} />
+                  <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-indigo-300/20 bg-indigo-400/[0.07] px-5 py-4 text-sm font-bold text-indigo-100 md:col-span-2"><input type="checkbox" checked={tournamentForm.announceOnDiscord} onChange={e => setTournamentForm(f => ({ ...f, announceOnDiscord: e.target.checked }))} className="mt-0.5 h-4 w-4 accent-indigo-300" /><MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-indigo-200" /><span>Nach dem Erstellen im Discord ankündigen<small className="mt-1 block text-xs font-normal leading-5 text-indigo-100/60">Postet automatisch einen strukturierten Beitrag mit @everyone, Startzeit, Plattform, Spielmodus, Preisen und Anmeldelink.</small></span></label>
                 </div>
                 <button onClick={() => void createTournament()} disabled={tournamentSaving} className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 to-orange-400 px-6 py-3.5 text-sm font-black uppercase tracking-[0.12em] text-black transition hover:-translate-y-0.5 disabled:opacity-60"><Sparkles className="h-4 w-4" />{tournamentSaving ? 'Wird veröffentlicht …' : 'Turnier veröffentlichen'}</button>
               </section>
