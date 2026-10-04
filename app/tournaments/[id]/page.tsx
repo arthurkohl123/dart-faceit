@@ -25,6 +25,7 @@ type TournamentMatch = {
   player1_legs: number | null; player2_legs: number | null; player1_average: number | null; player2_average: number | null;
 };
 type Standing = { rank: number; group_number: number; user_id: string; username: string; wins: number; losses: number; points: number; average: number | null };
+type Notice = { kind: 'success' | 'error'; text: string };
 
 const formatMeta: Record<TournamentFormat, string> = { single_elimination: 'Single Elimination', double_elimination: 'Double Elimination', group_stage: 'Gruppenphase' };
 const formatDate = (value: string) => new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
@@ -39,8 +40,13 @@ export default function TournamentDetailPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<'join' | 'checkin' | 'leave' | null>(null);
+  const [accessCode, setAccessCode] = useState('');
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
 
   const loadTournament = useCallback(async () => {
+    setError(null);
     const [tournamentResult, bracketResult, standingsResult] = await Promise.all([
       supabase.rpc('list_tournaments'),
       supabase.rpc('get_tournament_bracket', { p_tournament_id: params.id }),
@@ -59,12 +65,19 @@ export default function TournamentDetailPage() {
   useEffect(() => {
     void (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.replace('/auth/login'); return; }
+      if (!user) { router.replace(`/auth/login?redirectTo=${encodeURIComponent(`/tournaments/${params.id}`)}`); return; }
       setUserId(user.id);
       await loadTournament();
       setLoading(false);
     })();
-  }, [loadTournament, router, supabase]);
+  }, [loadTournament, params.id, router, supabase]);
+
+  useEffect(() => {
+    const tick = () => setCurrentTime(Date.now());
+    tick();
+    const timer = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!tournament) return;
@@ -74,17 +87,89 @@ export default function TournamentDetailPage() {
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', refreshOnFocus); };
   }, [loadTournament, tournament]);
 
+  async function runRegistrationAction(action: 'join' | 'checkin' | 'leave') {
+    if (!tournament) return;
+    setPendingAction(action);
+    setNotice(null);
+    const result = action === 'join'
+      ? await supabase.rpc('join_tournament', { p_tournament_id: tournament.id, p_access_code: accessCode.trim().toUpperCase() || null })
+      : action === 'checkin'
+        ? await supabase.rpc('check_in_tournament', { p_tournament_id: tournament.id })
+        : await supabase.rpc('leave_tournament', { p_tournament_id: tournament.id });
+    setPendingAction(null);
+    if (result.error) {
+      setNotice({ kind: 'error', text: result.error.message });
+      return;
+    }
+    const text = action === 'join' && result.data === 'waitlisted'
+      ? 'Du stehst auf der Warteliste und rückst automatisch nach.'
+      : action === 'join'
+        ? 'Startplatz reserviert. Den Check-in nicht vergessen.'
+        : action === 'checkin'
+          ? 'Check-in bestätigt – dein Platz ist sicher.'
+          : 'Du wurdest vom Turnier abgemeldet.';
+    setNotice({ kind: 'success', text });
+    await loadTournament();
+  }
+
   if (loading) return <main className="grid min-h-screen place-items-center bg-[#07080c] text-zinc-400">Turnierplan wird geladen …</main>;
   if (!tournament) return <main className="grid min-h-screen place-items-center bg-[#07080c] px-5 text-center text-zinc-400"><div><p>{error || 'Dieses Turnier wurde nicht gefunden.'}</p><Link href="/tournaments" className="mt-5 inline-flex items-center gap-2 border border-white/15 px-4 py-3 text-sm font-bold text-white"><ArrowLeft size={16} /> Zur Turnierübersicht</Link></div></main>;
 
   return <main className="sport-grid min-h-screen bg-[#0a0d0d] text-white">
     <nav className="mx-auto flex max-w-7xl items-center justify-between border-b border-white/10 px-5 py-5 md:px-8"><Link href="/tournaments" className="inline-flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white"><ArrowLeft size={16} /> Turnierübersicht</Link><div className="flex items-center gap-3"><NotificationBell /><Link href="/premium" className="border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs font-black text-amber-200"><Crown size={14} className="mr-1 inline" /> PREMIUM</Link></div></nav>
-    <section className="mx-auto max-w-7xl px-5 pb-10 pt-12 md:px-8 md:pt-16"><div className="grid gap-8 lg:grid-cols-[1fr_auto]"><div><div className="inline-flex items-center gap-2 border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black tracking-[.18em] text-amber-200"><Sparkles size={13} /> {formatMeta[tournament.tournament_format].toUpperCase()}</div><h1 className="mt-5 text-4xl font-black tracking-[-.05em] sm:text-6xl">{tournament.title}</h1><p className="mt-4 max-w-3xl text-base leading-7 text-zinc-400">{tournament.description || 'Alle Paarungen, Ergebnisse und der aktuelle Stand auf einen Blick.'}</p></div><div className="grid grid-cols-2 gap-px self-start border border-white/10 bg-white/10 sm:grid-cols-4"><Metric icon={<Users size={17} />} value={`${tournament.checked_in_count}/${tournament.max_players}`} label="Eingecheckt" /><Metric icon={<Swords size={17} />} value={`Bo ${tournament.best_of}`} label="Format" /><Metric icon={<CalendarDays size={17} />} value={formatDate(tournament.starts_at).split(',')[0]} label="Start" /><Metric icon={<Trophy size={17} />} value={tournament.winner_username || '—'} label="Champion" /></div></div></section>
+    <section className="mx-auto max-w-7xl px-5 pb-10 pt-12 md:px-8 md:pt-16"><div className="grid gap-8 lg:grid-cols-[1fr_auto]"><div><div className="inline-flex items-center gap-2 border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black tracking-[.18em] text-amber-200"><Sparkles size={13} /> {formatMeta[tournament.tournament_format].toUpperCase()}</div><h1 className="mt-5 text-4xl font-black tracking-[-.05em] sm:text-6xl">{tournament.title}</h1><p className="mt-4 max-w-3xl text-base leading-7 text-zinc-400">{tournament.description || 'Alle Paarungen, Ergebnisse und der aktuelle Stand auf einen Blick.'}</p><TournamentAction tournament={tournament} currentTime={currentTime} pendingAction={pendingAction} accessCode={accessCode} notice={notice} setAccessCode={setAccessCode} setNotice={setNotice} onAction={runRegistrationAction} /></div><div className="grid grid-cols-2 gap-px self-start border border-white/10 bg-white/10 sm:grid-cols-4"><Metric icon={<Users size={17} />} value={`${tournament.checked_in_count}/${tournament.max_players}`} label="Eingecheckt" /><Metric icon={<Swords size={17} />} value={`Bo ${tournament.best_of}`} label="Format" /><Metric icon={<CalendarDays size={17} />} value={formatDate(tournament.starts_at).split(',')[0]} label="Start" /><Metric icon={<Trophy size={17} />} value={tournament.winner_username || '—'} label="Champion" /></div></div></section>
     <section className="mx-auto max-w-7xl px-5 pb-16 md:px-8"><div className="grid gap-4 border-y border-white/10 py-5 md:grid-cols-3"><InfoCard icon={<TicketCheck size={18} />} title="Check-in" body={`${formatDate(tournament.check_in_opens_at)} bis ${formatDate(tournament.check_in_closes_at)}`} /><InfoCard icon={<Trophy size={18} />} title="Preis" body={tournament.prize_title ? `${tournament.prize_title}${tournament.prize_details ? ` · ${tournament.prize_details}` : ''}` : 'Noch kein Preis hinterlegt'} /><InfoCard icon={<ShieldAlert size={18} />} title="Streitfälle & Verbindung" body={tournament.dispute_policy} /></div>
       {tournament.status === 'cancelled' && <div className="mt-6 border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100"><b>Turnier abgesagt:</b> {tournament.cancellation_reason}</div>}
       <div className="mt-8">{tournament.tournament_format === 'group_stage' ? <GroupStage tournament={tournament} matches={matches} standings={standings} userId={userId} /> : <KnockoutBracket tournament={tournament} matches={matches} userId={userId} />}</div>
     </section>
   </main>;
+}
+
+function TournamentAction({
+  tournament,
+  currentTime,
+  pendingAction,
+  accessCode,
+  notice,
+  setAccessCode,
+  setNotice,
+  onAction,
+}: {
+  tournament: Tournament;
+  currentTime: number;
+  pendingAction: 'join' | 'checkin' | 'leave' | null;
+  accessCode: string;
+  notice: Notice | null;
+  setAccessCode: (value: string) => void;
+  setNotice: (value: Notice | null) => void;
+  onAction: (action: 'join' | 'checkin' | 'leave') => void;
+}) {
+  const registrationOpen = tournament.status === 'registration' && currentTime > 0 && currentTime <= new Date(tournament.registration_closes_at).getTime();
+  const checkInOpen = tournament.status === 'registration' && currentTime > 0 && currentTime >= new Date(tournament.check_in_opens_at).getTime() && currentTime <= new Date(tournament.check_in_closes_at).getTime();
+  const canJoin = registrationOpen && !tournament.joined;
+  const isWaitlisted = tournament.participant_status === 'waitlisted';
+  const isRegistered = tournament.participant_status === 'registered';
+  const isCheckedIn = tournament.checked_in || tournament.participant_status === 'checked_in';
+  const isFull = Number(tournament.participant_count) >= tournament.max_players;
+  const actionLabel = isFull ? 'Auf Warteliste' : 'Jetzt anmelden';
+
+  return <div className="mt-7 max-w-2xl border border-amber-300/25 bg-amber-300/[.06] p-4 sm:p-5">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-[10px] font-black tracking-[.18em] text-amber-200">DEIN TURNIER-STATUS</p>
+        <p className="mt-1 text-sm font-semibold text-zinc-200">
+          {isCheckedIn ? 'Du bist eingecheckt – dein Platz ist sicher.' : isWaitlisted ? 'Du stehst auf der Warteliste.' : isRegistered ? 'Du bist angemeldet. Den Check-in nicht vergessen.' : tournament.status === 'registration' ? 'Melde dich direkt hier für das Turnier an.' : 'Die Anmeldung ist geschlossen.'}
+        </p>
+      </div>
+      {canJoin && <button type="button" disabled={pendingAction === 'join'} onClick={() => onAction('join')} className="inline-flex shrink-0 items-center justify-center border border-amber-200 bg-amber-300 px-5 py-3 text-xs font-black text-black transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-60">{pendingAction === 'join' ? 'WIRD ANGEMELDET …' : actionLabel}</button>}
+      {isRegistered && checkInOpen && <button type="button" disabled={pendingAction === 'checkin'} onClick={() => onAction('checkin')} className="inline-flex shrink-0 items-center justify-center border border-emerald-200 bg-emerald-300 px-5 py-3 text-xs font-black text-black transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">{pendingAction === 'checkin' ? 'WIRD BESTÄTIGT …' : 'JETZT CHECK-IN'}</button>}
+      {isCheckedIn && <span className="inline-flex shrink-0 items-center justify-center border border-emerald-300/30 bg-emerald-400/10 px-5 py-3 text-xs font-black text-emerald-100">EINGECHECKT</span>}
+    </div>
+    {canJoin && tournament.requires_access_code && <label className="mt-4 block"><span className="mb-2 block text-[10px] font-black tracking-[.14em] text-violet-200">COMMUNITY-CODE</span><input value={accessCode} onChange={event => setAccessCode(event.target.value.toUpperCase())} placeholder="Code eingeben" autoComplete="off" className="w-full border border-violet-300/25 bg-black/25 px-3 py-3 text-xs font-bold uppercase tracking-[.12em] text-white outline-none placeholder:text-zinc-600 focus:border-violet-200" /></label>}
+    {tournament.premium_only && canJoin && <p className="mt-3 text-xs text-amber-100/70">Dieses Turnier ist exklusiv für Premium-Mitglieder.</p>}
+    {tournament.joined && tournament.status === 'registration' && !isCheckedIn && <button type="button" disabled={pendingAction === 'leave'} onClick={() => onAction('leave')} className="mt-3 text-[10px] font-bold text-zinc-500 transition hover:text-red-300 disabled:opacity-60">{pendingAction === 'leave' ? 'WIRD ABGEMELDET …' : 'Teilnahme zurückziehen'}</button>}
+    {notice && <div aria-live="polite" className={`mt-4 flex items-start justify-between gap-3 border px-3 py-3 text-xs ${notice.kind === 'success' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-red-300/25 bg-red-500/10 text-red-100'}`}><span>{notice.text}</span><button type="button" onClick={() => setNotice(null)} aria-label="Hinweis schließen" className="text-base leading-none opacity-70 hover:opacity-100">×</button></div>}
+  </div>;
 }
 
 function GroupStage({ tournament, matches, standings, userId }: { tournament: Tournament; matches: TournamentMatch[]; standings: Standing[]; userId: string | null }) {
