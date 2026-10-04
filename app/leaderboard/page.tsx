@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Crown, Medal, Menu, Search, ShieldCheck, Swords, Trophy, Users, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
-import { WednesdayShowdownPromo } from '@/components/WednesdayShowdownPromo';
 import { getRankForElo } from '@/lib/ranks';
 import { useAuth } from '@/app/providers';
 
@@ -149,8 +148,6 @@ export default function Leaderboard() {
             </div>
           </section>
         )}
-
-        <WednesdayShowdownPromo compact />
 
         <section className="mt-10 md:hidden">
           <div className="mb-3 flex items-end justify-between border-b border-white/10 pb-3">
