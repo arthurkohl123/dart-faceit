@@ -14,6 +14,7 @@ const premiumNameStyle = 'inline-flex max-w-full items-center border border-emer
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
+  const [rankedPlayerCount, setRankedPlayerCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,11 +25,16 @@ export default function Leaderboard() {
     let isMounted = true;
     async function fetchLeaderboard() {
       try {
-        const { data, error } = await supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, supabaseId').gte('gamesPlayed', 1).order('elo', { ascending: false }).limit(100);
-        if (error) throw error;
-        const rankedPlayers = (data || []) as Player[];
+        const [leaderboardResult, countResult] = await Promise.all([
+          supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, supabaseId').gte('gamesPlayed', 1).order('elo', { ascending: false }).limit(100),
+          supabase.from('public_visible_profiles').select('supabaseId', { count: 'exact', head: true }).gte('gamesPlayed', 1),
+        ]);
+        if (leaderboardResult.error) throw leaderboardResult.error;
+        const rankedPlayers = (leaderboardResult.data || []) as Player[];
         if (!isMounted) return;
         setPlayers(rankedPlayers);
+        setRankedPlayerCount(countResult.error ? rankedPlayers.length : Math.max(countResult.count ?? 0, rankedPlayers.length));
+        if (countResult.error) console.warn('Anzahl der Ranked-Spieler konnte nicht geladen werden:', countResult.error);
         const ids = rankedPlayers.map((player) => player.supabaseId).filter(Boolean) as string[];
         if (ids.length) {
           const { data: statistics } = await supabase.rpc('get_public_player_statistics', { p_user_ids: ids });
@@ -72,7 +78,7 @@ export default function Leaderboard() {
           <div className="border border-white/15 bg-[#0d1110] p-4"><label htmlFor="player-search" className="text-[10px] font-black uppercase tracking-[.16em] text-zinc-500">Spieler finden</label><div className="relative mt-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" /><input id="player-search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Name eingeben" className="w-full border border-white/10 bg-black/30 py-3 pl-10 pr-9 text-sm font-bold outline-none placeholder:text-zinc-600 focus:border-emerald-300" />{searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white" aria-label="Suche löschen"><X size={15} /></button>}</div><Link href="/matchmaking" className="mt-3 flex items-center justify-between border border-emerald-300 bg-emerald-300 px-4 py-3 text-xs font-black uppercase tracking-[.1em] text-[#07100b] hover:bg-emerald-200">Match suchen <ArrowUpRight className="h-4 w-4" /></Link></div>
         </header>
 
-        <div className="mt-5 grid grid-cols-2 border border-white/10 bg-[#0d1110] md:grid-cols-4"><div className="border-b border-r border-white/10 px-5 py-4 md:border-b-0"><Users className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-2xl font-black">{players.length}</p><p className="text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Ranked-Spieler</p></div><div className="border-b border-white/10 px-5 py-4 md:border-b-0 md:border-r"><ShieldCheck className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-sm font-black">Nur bestätigt</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Wertung</p></div><div className="border-r border-white/10 px-5 py-4"><Trophy className="h-4 w-4 text-amber-200" /><p className="mt-2 text-sm font-black">430 €</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Saison-Preisgeld</p></div><div className="px-5 py-4"><Swords className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-sm font-black">1v1</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Ranked-Duelle</p></div></div>
+        <div className="mt-5 grid grid-cols-2 border border-white/10 bg-[#0d1110] md:grid-cols-4"><div className="border-b border-r border-white/10 px-5 py-4 md:border-b-0"><Users className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-2xl font-black">{rankedPlayerCount}</p><p className="text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Ranked-Spieler</p></div><div className="border-b border-white/10 px-5 py-4 md:border-b-0 md:border-r"><ShieldCheck className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-sm font-black">Nur bestätigt</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Wertung</p></div><div className="border-r border-white/10 px-5 py-4"><Trophy className="h-4 w-4 text-amber-200" /><p className="mt-2 text-sm font-black">430 €</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Saison-Preisgeld</p></div><div className="px-5 py-4"><Swords className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-sm font-black">1v1</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Ranked-Duelle</p></div></div>
 
         {topPlayers.length === 3 && (
           <section className="arena-panel mt-10">
