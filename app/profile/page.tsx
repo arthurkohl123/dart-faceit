@@ -189,7 +189,6 @@ export default function Profile() {
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
             <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
             <Link href="/tournaments" className="inline-flex items-center gap-1.5 transition hover:text-white"><Trophy size={14} />Turniere</Link>
-            <Link href="/playtimes" className="transition hover:text-white">Spielzeiten</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
             <Link href="/support" className="inline-flex items-center gap-1.5 transition hover:text-white"><Headphones size={14} />Support</Link>
             <Link href="/friends" className="inline-flex items-center gap-1.5 transition hover:text-white"><UsersRound size={14} />Freunde</Link>
@@ -217,7 +216,6 @@ export default function Profile() {
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
                <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Headphones size={15} />Support</Link>
                <Link href="/friends" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><UsersRound size={15} />Freunde & Duelle</Link>
-               <Link href="/playtimes" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Spielzeiten</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
             </div>
           </div>

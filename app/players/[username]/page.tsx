@@ -182,7 +182,6 @@ export default function PlayerProfile() {
           <div className="hidden items-center gap-6 text-sm font-medium text-zinc-300 lg:flex">
             <Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link>
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
-            <Link href="/playtimes" className="transition hover:text-white">Spielzeiten</Link>
             <Link href="/tournaments" className="transition hover:text-white">Turniere</Link>
           </div>
           <button
@@ -197,7 +196,6 @@ export default function PlayerProfile() {
             <div className="flex flex-col gap-1">
               <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Rangliste</Link>
               <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
-              <Link href="/playtimes" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Spielzeiten</Link>
               <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Turniere</Link>
             </div>
           </div>
