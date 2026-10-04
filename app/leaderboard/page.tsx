@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { WednesdayShowdownPromo } from '@/components/WednesdayShowdownPromo';
 import { getRankForElo } from '@/lib/ranks';
+import { useAuth } from '@/app/providers';
 
 type Player = { username: string; elo: number; gamesPlayed: number; wins: number; isPremium?: boolean; supabaseId?: string; };
 type PlayerAvgMap = Record<string, number>;
@@ -19,11 +20,20 @@ export default function Leaderboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [avgMap, setAvgMap] = useState<PlayerAvgMap>({});
+  const [myRank, setMyRank] = useState<number | null>(null);
+  const [myRankLoading, setMyRankLoading] = useState(false);
+  const { user, profile: currentProfile, loading: authLoading } = useAuth();
+  const currentUserId = user?.id ?? null;
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     let isMounted = true;
+    if (authLoading) return () => { isMounted = false; };
+
     async function fetchLeaderboard() {
+      const canCalculatePersonalRank = Boolean(currentUserId && currentProfile && currentProfile.gamesPlayed > 0);
+      setMyRank(null);
+      setMyRankLoading(canCalculatePersonalRank);
       try {
         const [leaderboardResult, countResult] = await Promise.all([
           supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, supabaseId').gte('gamesPlayed', 1).order('elo', { ascending: false }).limit(100),
@@ -35,6 +45,25 @@ export default function Leaderboard() {
         setPlayers(rankedPlayers);
         setRankedPlayerCount(countResult.error ? rankedPlayers.length : Math.max(countResult.count ?? 0, rankedPlayers.length));
         if (countResult.error) console.warn('Anzahl der Ranked-Spieler konnte nicht geladen werden:', countResult.error);
+
+        if (canCalculatePersonalRank && currentUserId && currentProfile) {
+          const listedIndex = rankedPlayers.findIndex((player) => player.supabaseId === currentUserId);
+          if (listedIndex >= 0) {
+            setMyRank(listedIndex + 1);
+          } else {
+            const { count: playersAhead, error: rankError } = await supabase
+              .from('public_visible_profiles')
+              .select('supabaseId', { count: 'exact', head: true })
+              .gte('gamesPlayed', 1)
+              .gt('elo', currentProfile.elo);
+            if (rankError) {
+              console.warn('Eigene Ranglistenplatzierung konnte nicht geladen werden:', rankError);
+            } else {
+              setMyRank((playersAhead ?? 0) + 1);
+            }
+          }
+        }
+
         const ids = rankedPlayers.map((player) => player.supabaseId).filter(Boolean) as string[];
         if (ids.length) {
           const { data: statistics } = await supabase.rpc('get_public_player_statistics', { p_user_ids: ids });
@@ -47,12 +76,15 @@ export default function Leaderboard() {
       } catch (error) {
         console.error('Rangliste konnte nicht geladen werden:', error);
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setMyRankLoading(false);
+        }
       }
     }
     void fetchLeaderboard();
     return () => { isMounted = false; };
-  }, [supabase]);
+  }, [authLoading, currentProfile, currentUserId, supabase]);
 
   const filteredPlayers = players.map((player, index) => ({ player, index })).filter(({ player }) => player.username.toLowerCase().includes(searchQuery.toLowerCase()));
   const topPlayers = players.slice(0, 3);
@@ -80,6 +112,20 @@ export default function Leaderboard() {
 
         <div className="mt-5 grid grid-cols-2 border border-white/10 bg-[#0d1110] md:grid-cols-4"><div className="border-b border-r border-white/10 px-5 py-4 md:border-b-0"><Users className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-2xl font-black">{rankedPlayerCount}</p><p className="text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Ranked-Spieler</p></div><div className="border-b border-white/10 px-5 py-4 md:border-b-0 md:border-r"><ShieldCheck className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-sm font-black">Nur bestätigt</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Wertung</p></div><div className="border-r border-white/10 px-5 py-4"><Trophy className="h-4 w-4 text-amber-200" /><p className="mt-2 text-sm font-black">430 €</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Saison-Preisgeld</p></div><div className="px-5 py-4"><Swords className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-sm font-black">1v1</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500">Ranked-Duelle</p></div></div>
 
+        {currentUserId && (
+          <section className="mt-8 border border-emerald-300/30 bg-emerald-300/[.055]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-300/15 px-5 py-4">
+              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.18em] text-emerald-200"><ShieldCheck className="h-4 w-4" /> Deine Ranglisten-Übersicht</div>
+              <span className="border border-emerald-300/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-emerald-200/70">Nur für dich sichtbar</span>
+            </div>
+            <div className="grid gap-5 px-5 py-5 md:grid-cols-[9rem_minmax(0,1fr)_auto] md:items-center md:px-6">
+              <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-200/70">Dein Platz</p><p className="mt-1 text-4xl font-black tracking-[-.06em] text-emerald-200">{myRankLoading ? '…' : myRank ? `#${myRank}` : currentProfile?.gamesPlayed ? '—' : '—'}</p></div>
+              <div><p className="text-lg font-black text-zinc-100">{currentProfile?.username ?? user?.user_metadata?.username ?? 'Dein Profil'}</p><p className="mt-1 text-sm text-zinc-400">{currentProfile?.gamesPlayed ? `${currentProfile.gamesPlayed} bestätigte Ranked-Spiele · ${currentProfile.elo} Elo` : 'Spiele dein erstes bestätigtes Ranked-Match, um in der Rangliste zu erscheinen.'}</p><p className="mt-3 text-xs leading-5 text-zinc-500">{myRank && myRank > 100 ? 'Du liegst aktuell außerhalb der sichtbaren Top 100. Deine persönliche Platzierung wird trotzdem hier angezeigt.' : myRank ? 'Du bist in den Top 100. Dein Eintrag ist in der Liste zusätzlich markiert.' : 'Deine Platzierung wird nach dem ersten gewerteten Spiel berechnet.'}</p></div>
+              {myRank && myRank > 100 && <span className="w-fit border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs font-black text-amber-100">Außerhalb Top 100</span>}
+            </div>
+          </section>
+        )}
+
         {topPlayers.length === 3 && (
           <section className="arena-panel mt-10">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
@@ -90,10 +136,11 @@ export default function Leaderboard() {
               {topPlayers.map((player, index) => {
                 const rank = getRankForElo(player.elo);
                 const winrate = player.gamesPlayed ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
+                const isCurrentUser = currentUserId === player.supabaseId;
                 return (
-                  <Link key={player.username} href={`/players/${encodeURIComponent(player.username)}`} className="grid grid-cols-[2.75rem_minmax(0,1fr)_5rem_4.5rem] items-center gap-3 px-5 py-4 transition hover:bg-white/[.025] sm:grid-cols-[3.5rem_minmax(0,1fr)_6rem_5rem]">
+                  <Link key={player.username} href={`/players/${encodeURIComponent(player.username)}`} className={`grid grid-cols-[2.75rem_minmax(0,1fr)_5rem_4.5rem] items-center gap-3 px-5 py-4 transition hover:bg-white/[.025] sm:grid-cols-[3.5rem_minmax(0,1fr)_6rem_5rem] ${isCurrentUser ? 'border-l-2 border-emerald-200 bg-emerald-300/[.08]' : ''}`}>
                     <span className="grid h-9 w-9 place-items-center bg-amber-300 text-lg text-black">{medals[index]}</span>
-                    <span className="min-w-0"><span className={`block truncate text-base font-black ${player.isPremium ? premiumNameStyle : ''}`}>{player.username}</span><span className={`mt-1 block text-xs font-bold ${rank.color}`}>L{rank.level} · {rank.name}</span></span>
+                    <span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={`block truncate text-base font-black ${player.isPremium ? premiumNameStyle : ''}`}>{player.username}</span>{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={`mt-1 block text-xs font-bold ${rank.color}`}>L{rank.level} · {rank.name}</span></span>
                     <span className="text-right"><span className="block text-xl font-black text-emerald-300">{player.elo}</span><span className="text-[10px] font-black uppercase tracking-[.12em] text-zinc-500">Elo</span></span>
                     <span className="text-right text-xs"><span className="block font-black text-zinc-100">{winrate}%</span><span className="text-zinc-500">Winrate</span></span>
                   </Link>
@@ -115,7 +162,8 @@ export default function Leaderboard() {
               const rank = getRankForElo(player.elo);
               const winrate = player.gamesPlayed ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               const prize = [175, 100, 75, 50, 30][index];
-              return <Link key={`${player.username}-${index}`} href={`/players/${encodeURIComponent(player.username)}`} className="arena-ledger-row grid grid-cols-[2.4rem_minmax(0,1fr)_auto] items-center gap-3 border-l-emerald-300 px-4 py-4 transition hover:bg-emerald-300/[.045]"><span className={`grid h-8 w-8 place-items-center text-xs font-black ${index < 3 ? 'bg-amber-300 text-black' : 'border border-white/10 text-zinc-400'}`}>{index < 3 ? medals[index] : `#${index + 1}`}</span><span className="min-w-0"><span className={`block truncate text-sm font-black ${player.isPremium ? premiumNameStyle : ''}`}>{player.username}</span><span className={`mt-1 block text-[11px] font-bold ${rank.color}`}>L{rank.level} · {rank.name} · {player.gamesPlayed} Spiele · {winrate}%</span></span><span className="text-right"><span className="block text-lg font-black text-emerald-300">{player.elo}</span><span className="block text-[10px] font-black text-zinc-500">{player.supabaseId && avgMap[player.supabaseId] != null ? `Ø ${avgMap[player.supabaseId].toFixed(1)}` : 'Ø —'}{prize ? ` · ${prize} €` : ''}</span></span></Link>;
+              const isCurrentUser = currentUserId === player.supabaseId;
+              return <Link key={`${player.username}-${index}`} href={`/players/${encodeURIComponent(player.username)}`} className={`arena-ledger-row grid grid-cols-[2.4rem_minmax(0,1fr)_auto] items-center gap-3 border-l-emerald-300 px-4 py-4 transition hover:bg-emerald-300/[.045] ${isCurrentUser ? 'border-l-2 border-emerald-200 bg-emerald-300/[.08]' : ''}`}><span className={`grid h-8 w-8 place-items-center text-xs font-black ${index < 3 ? 'bg-amber-300 text-black' : 'border border-white/10 text-zinc-400'}`}>{index < 3 ? medals[index] : `#${index + 1}`}</span><span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={`block truncate text-sm font-black ${player.isPremium ? premiumNameStyle : ''}`}>{player.username}</span>{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={`mt-1 block text-[11px] font-bold ${rank.color}`}>L{rank.level} · {rank.name} · {player.gamesPlayed} Spiele · {winrate}%</span></span><span className="text-right"><span className="block text-lg font-black text-emerald-300">{player.elo}</span><span className="block text-[10px] font-black text-zinc-500">{player.supabaseId && avgMap[player.supabaseId] != null ? `Ø ${avgMap[player.supabaseId].toFixed(1)}` : 'Ø —'}{prize ? ` · ${prize} €` : ''}</span></span></Link>;
             })}
             {filteredPlayers.length === 0 && <div className="px-5 py-14 text-center"><Search className="mx-auto h-6 w-6 text-zinc-600" /><p className="mt-3 font-black">Kein Spieler gefunden</p><p className="mt-1 text-sm text-zinc-500">Versuche es mit einem anderen Namen.</p></div>}
           </div>
@@ -123,7 +171,7 @@ export default function Leaderboard() {
 
         <div className="hidden md:block">
 
-        <section className="mt-12 overflow-x-auto border border-white/15 bg-[#0d1110]"><div className="flex min-w-[760px] items-center justify-between border-b border-white/15 px-6 py-5"><div><p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.18em] text-emerald-300"><Medal className="h-4 w-4" /> Globale Rangliste</p><p className="mt-1 text-sm text-zinc-500">{searchQuery ? `${filteredPlayers.length} Treffer für „${searchQuery}“` : 'Top 100 · Nur bestätigte Ranked-Matches'}</p></div><Link href="/matchmaking" className="border border-emerald-300/35 px-4 py-2 text-xs font-black text-emerald-200 hover:bg-emerald-300/10">Match suchen</Link></div><div className="hidden min-w-[760px] grid-cols-[3.5rem_minmax(12rem,1fr)_4.5rem_5rem_6rem_5rem_4.5rem] items-center gap-4 border-b border-white/10 px-6 py-3 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500 md:grid"><span>Platz</span><span>Spieler</span><span className="text-right">Spiele</span><span className="text-right">Winrate</span><span className="text-right">Ø Average</span><span className="text-right">Elo</span><span className="text-right">Preis</span></div><div className="divide-y divide-white/10">{filteredPlayers.map(({ player, index }) => { const rank = getRankForElo(player.elo); const winrate = player.gamesPlayed ? Math.round((player.wins / player.gamesPlayed) * 100) : 0; const prize = [175, 100, 75, 50, 30][index]; return <Link key={`${player.username}-${index}`} href={`/players/${encodeURIComponent(player.username)}`} className="grid min-w-[760px] grid-cols-[3.5rem_minmax(12rem,1fr)_4.5rem_5rem_6rem_5rem_4.5rem] items-center gap-4 px-6 py-4 transition hover:bg-emerald-300/[.045]"><span className={`grid h-8 w-8 place-items-center text-xs font-black ${index < 3 ? 'bg-amber-300 text-black' : 'border border-white/10 text-zinc-400'}`}>{index < 3 ? medals[index] : `#${index + 1}`}</span><span className="min-w-0"><span className={`block truncate text-sm font-black ${player.isPremium ? premiumNameStyle : ''}`}>{player.username}</span><span className={`mt-1 block text-xs font-bold ${rank.color}`}>L{rank.level} · {rank.name}</span></span><span className="text-right text-sm font-black">{player.gamesPlayed}</span><span className="text-right text-sm font-black text-zinc-200">{winrate}%</span><span className="text-right text-sm font-black text-zinc-200">{player.supabaseId && avgMap[player.supabaseId] != null ? avgMap[player.supabaseId].toFixed(1) : '—'}</span><span className="text-right text-lg font-black text-emerald-300">{player.elo}</span><span className="text-right text-xs font-black text-amber-100">{prize ? `${prize} €` : '—'}</span></Link>; })}</div>{filteredPlayers.length === 0 && <div className="min-w-[760px] px-6 py-16 text-center"><Search className="mx-auto h-7 w-7 text-zinc-600" /><p className="mt-3 font-black">Kein Spieler gefunden</p><p className="mt-1 text-sm text-zinc-500">Versuche es mit einem anderen Namen.</p></div>}</section>
+        <section className="mt-12 overflow-x-auto border border-white/15 bg-[#0d1110]"><div className="flex min-w-[760px] items-center justify-between border-b border-white/15 px-6 py-5"><div><p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.18em] text-emerald-300"><Medal className="h-4 w-4" /> Globale Rangliste</p><p className="mt-1 text-sm text-zinc-500">{searchQuery ? `${filteredPlayers.length} Treffer für „${searchQuery}“` : 'Top 100 · Nur bestätigte Ranked-Matches'}</p></div><Link href="/matchmaking" className="border border-emerald-300/35 px-4 py-2 text-xs font-black text-emerald-200 hover:bg-emerald-300/10">Match suchen</Link></div><div className="hidden min-w-[760px] grid-cols-[3.5rem_minmax(12rem,1fr)_4.5rem_5rem_6rem_5rem_4.5rem] items-center gap-4 border-b border-white/10 px-6 py-3 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500 md:grid"><span>Platz</span><span>Spieler</span><span className="text-right">Spiele</span><span className="text-right">Winrate</span><span className="text-right">Ø Average</span><span className="text-right">Elo</span><span className="text-right">Preis</span></div><div className="divide-y divide-white/10">{filteredPlayers.map(({ player, index }) => { const rank = getRankForElo(player.elo); const winrate = player.gamesPlayed ? Math.round((player.wins / player.gamesPlayed) * 100) : 0; const prize = [175, 100, 75, 50, 30][index]; const isCurrentUser = currentUserId === player.supabaseId; return <Link key={`${player.username}-${index}`} href={`/players/${encodeURIComponent(player.username)}`} className={`grid min-w-[760px] grid-cols-[3.5rem_minmax(12rem,1fr)_4.5rem_5rem_6rem_5rem_4.5rem] items-center gap-4 px-6 py-4 transition hover:bg-emerald-300/[.045] ${isCurrentUser ? 'border-l-2 border-emerald-200 bg-emerald-300/[.08]' : ''}`}><span className={`grid h-8 w-8 place-items-center text-xs font-black ${index < 3 ? 'bg-amber-300 text-black' : 'border border-white/10 text-zinc-400'}`}>{index < 3 ? medals[index] : `#${index + 1}`}</span><span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={`block truncate text-sm font-black ${player.isPremium ? premiumNameStyle : ''}`}>{player.username}</span>{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={`mt-1 block text-xs font-bold ${rank.color}`}>L{rank.level} · {rank.name}</span></span><span className="text-right text-sm font-black">{player.gamesPlayed}</span><span className="text-right text-sm font-black text-zinc-200">{winrate}%</span><span className="text-right text-sm font-black text-zinc-200">{player.supabaseId && avgMap[player.supabaseId] != null ? avgMap[player.supabaseId].toFixed(1) : '—'}</span><span className="text-right text-lg font-black text-emerald-300">{player.elo}</span><span className="text-right text-xs font-black text-amber-100">{prize ? `${prize} €` : '—'}</span></Link>; })}</div>{filteredPlayers.length === 0 && <div className="min-w-[760px] px-6 py-16 text-center"><Search className="mx-auto h-7 w-7 text-zinc-600" /><p className="mt-3 font-black">Kein Spieler gefunden</p><p className="mt-1 text-sm text-zinc-500">Versuche es mit einem anderen Namen.</p></div>}</section>
 
         </div>
 
