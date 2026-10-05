@@ -43,6 +43,7 @@ export async function GET(request: Request) {
   authorizeUrl.searchParams.set('response_type', 'code');
   authorizeUrl.searchParams.set('redirect_uri', config.redirectUri);
   authorizeUrl.searchParams.set('scope', 'identify');
+  authorizeUrl.searchParams.set('state', state);
 
   const response = NextResponse.redirect(authorizeUrl);
   response.cookies.set(STATE_COOKIE, state, {
