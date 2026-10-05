@@ -79,6 +79,8 @@ type DisputedMatch = {
   submitted_player2_average: number | null;
   submitted_player1_checkout: number | null;
   submitted_player2_checkout: number | null;
+  submitted_player1_180s: number | null;
+  submitted_player2_180s: number | null;
   dispute_reason: string | null;
   dispute_screenshot_url: string | null;
   created_at: string;
@@ -127,6 +129,8 @@ type ResolveForm = {
   p2Avg: string;
   p1Checkout: string;
   p2Checkout: string;
+  p1OneEighties: string;
+  p2OneEighties: string;
   note: string;
 };
 
@@ -145,6 +149,13 @@ function parseTicketMessageContent(content: string) {
 
 function ticketImageAlt(fileName: string) {
   return fileName.replace(/[-_]+/g, ' ').replace(/\.[^/.]+$/, '').trim() || 'Ticket-Bildanhang';
+}
+
+function toNonNegativeInteger(value: string) {
+  const trimmed = value.trim();
+  if (trimmed === '') return 0;
+  const parsed = Number(trimmed);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 const statusCfg: Record<string, { label: string; cls: string; dot: string }> = {
@@ -305,6 +316,8 @@ export default function ModeratorPanel() {
             p2Avg: String(m.submitted_player2_average ?? ''),
             p1Checkout: String(m.submitted_player1_checkout ?? ''),
             p2Checkout: String(m.submitted_player2_checkout ?? ''),
+            p1OneEighties: String(m.submitted_player1_180s ?? ''),
+            p2OneEighties: String(m.submitted_player2_180s ?? ''),
             note: '',
           };
         });
@@ -408,7 +421,9 @@ export default function ModeratorPanel() {
 
   const resolveDispute = async (m: DisputedMatch) => {
     const f = resolveForms[m.match_id];
-    if (!f?.winnerId || !f.p1Legs || !f.p2Legs) { showToast('Bitte Gewinner und Legs ausfüllen.', false); return; }
+    const p1OneEighties = toNonNegativeInteger(f?.p1OneEighties ?? '');
+    const p2OneEighties = toNonNegativeInteger(f?.p2OneEighties ?? '');
+    if (!f?.winnerId || !f.p1Legs || !f.p2Legs || p1OneEighties === null || p2OneEighties === null) { showToast('Bitte Gewinner, Legs und 180er ausfüllen.', false); return; }
     const { error } = await supabase.rpc('mod_resolve_dispute', {
       p_match_id: m.match_id, p_winner_id: f.winnerId,
       p_player1_legs: Number(f.p1Legs), p_player2_legs: Number(f.p2Legs),
@@ -416,6 +431,8 @@ export default function ModeratorPanel() {
       p_player2_average: f.p2Avg ? Number(f.p2Avg) : null,
       p_player1_checkout: f.p1Checkout ? Number(f.p1Checkout) : null,
       p_player2_checkout: f.p2Checkout ? Number(f.p2Checkout) : null,
+      p_player1_one_eighties: p1OneEighties,
+      p_player2_one_eighties: p2OneEighties,
       p_mod_note: f.note || null,
     });
     if (error) { showToast('Fehler: ' + error.message, false); return; }
@@ -956,6 +973,8 @@ export default function ModeratorPanel() {
                               <input type="number" value={f.p2Avg ?? ''} onChange={e => patchForm(m.match_id, { p2Avg: e.target.value })} className={inputCls} placeholder={`${m.player2_username} Average`} />
                               <input type="number" value={f.p1Checkout ?? ''} onChange={e => patchForm(m.match_id, { p1Checkout: e.target.value })} className={inputCls} placeholder={`${m.player1_username} Checkout`} />
                               <input type="number" value={f.p2Checkout ?? ''} onChange={e => patchForm(m.match_id, { p2Checkout: e.target.value })} className={inputCls} placeholder={`${m.player2_username} Checkout`} />
+                              <input type="number" min="0" step="1" inputMode="numeric" value={f.p1OneEighties ?? ''} onChange={e => patchForm(m.match_id, { p1OneEighties: e.target.value })} className={inputCls} placeholder={`${m.player1_username} 180er`} />
+                              <input type="number" min="0" step="1" inputMode="numeric" value={f.p2OneEighties ?? ''} onChange={e => patchForm(m.match_id, { p2OneEighties: e.target.value })} className={inputCls} placeholder={`${m.player2_username} 180er`} />
                             </div>
 
                             {/* Notiz */}

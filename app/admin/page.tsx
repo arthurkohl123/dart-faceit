@@ -89,6 +89,8 @@ type DisputedMatch = {
   submitted_player2_average: number | null;
   submitted_player1_checkout: number | null;
   submitted_player2_checkout: number | null;
+  submitted_player1_180s: number | null;
+  submitted_player2_180s: number | null;
   dispute_reason: string | null;
   dispute_screenshot_url: string | null;
   confirmation_requested_at: string | null;
@@ -364,6 +366,8 @@ type ResolveFormState = {
   player2Average: string;
   player1Checkout: string;
   player2Checkout: string;
+  player1OneEighties: string;
+  player2OneEighties: string;
   adminNote: string;
 };
 
@@ -375,6 +379,8 @@ const emptyForm: ResolveFormState = {
   player2Average: '',
   player1Checkout: '',
   player2Checkout: '',
+  player1OneEighties: '',
+  player2OneEighties: '',
   adminNote: '',
 };
 
@@ -386,6 +392,13 @@ const selectOptionClassName = 'bg-zinc-950 text-zinc-50';
 function toOptionalNumber(value: string) {
   const trimmed = value.trim();
   return trimmed === '' ? null : Number(trimmed);
+}
+
+function toNonNegativeInteger(value: string) {
+  const trimmed = value.trim();
+  if (trimmed === '') return 0;
+  const parsed = Number(trimmed);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function formatDate(value: string | null) {
@@ -1041,6 +1054,8 @@ export default function AdminPanel() {
             player2Average: String(match.submitted_player2_average ?? ''),
             player1Checkout: String(match.submitted_player1_checkout ?? ''),
             player2Checkout: String(match.submitted_player2_checkout ?? ''),
+            player1OneEighties: String(match.submitted_player1_180s ?? ''),
+            player2OneEighties: String(match.submitted_player2_180s ?? ''),
             adminNote: '',
           };
         }
@@ -1347,9 +1362,11 @@ export default function AdminPanel() {
     const form = resolveForms[match.match_id] || emptyForm;
     const player1Legs = Number(form.player1Legs);
     const player2Legs = Number(form.player2Legs);
+    const player1OneEighties = toNonNegativeInteger(form.player1OneEighties);
+    const player2OneEighties = toNonNegativeInteger(form.player2OneEighties);
 
-    if (!form.winnerId || Number.isNaN(player1Legs) || Number.isNaN(player2Legs)) {
-      setActionMessage('Bitte Gewinner und Legs korrekt ausfüllen.');
+    if (!form.winnerId || Number.isNaN(player1Legs) || Number.isNaN(player2Legs) || player1OneEighties === null || player2OneEighties === null) {
+      setActionMessage('Bitte Gewinner, Legs und 180er korrekt ausfüllen.');
       return;
     }
 
@@ -1362,6 +1379,8 @@ export default function AdminPanel() {
       p_player2_average: toOptionalNumber(form.player2Average),
       p_player1_checkout: toOptionalNumber(form.player1Checkout),
       p_player2_checkout: toOptionalNumber(form.player2Checkout),
+      p_player1_one_eighties: player1OneEighties,
+      p_player2_one_eighties: player2OneEighties,
       p_admin_note: form.adminNote.trim() || null,
     });
 
@@ -1875,6 +1894,35 @@ export default function AdminPanel() {
                             onChange={(event) => updateResolveForm(match.match_id, { player2Checkout: event.target.value })}
                             className={inputClassName}
                           />
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <label className="block">
+                            <span className="mb-2 block text-xs font-bold text-zinc-400">180er {match.player1_username}</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={form.player1OneEighties}
+                              onChange={(event) => updateResolveForm(match.match_id, { player1OneEighties: event.target.value })}
+                              className={inputClassName}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-2 block text-xs font-bold text-zinc-400">180er {match.player2_username}</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={form.player2OneEighties}
+                              onChange={(event) => updateResolveForm(match.match_id, { player2OneEighties: event.target.value })}
+                              className={inputClassName}
+                            />
+                          </label>
                         </div>
 
                         <textarea
