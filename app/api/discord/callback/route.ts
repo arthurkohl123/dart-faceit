@@ -39,9 +39,11 @@ export async function GET(request: Request) {
   };
 
   if (error === 'access_denied') return response('cancelled');
-  if (!code || !stateValue || !stateSecret || !config || !state || !user) return response('failed');
+  const stateUserId = typeof state?.userId === 'string' ? state.userId : null;
+  if (!code || !stateValue || !stateSecret || !config || !state || !stateUserId) return response('failed');
   if (cookieStore.get(STATE_COOKIE)?.value !== stateValue) return response('failed');
-  if (state.userId !== user.id || typeof state.expiresAt !== 'number' || state.expiresAt < Date.now()) return response('failed');
+  if (user && user.id !== stateUserId) return response('failed');
+  if (typeof state.expiresAt !== 'number' || state.expiresAt < Date.now()) return response('failed');
 
   try {
     const discordUser = await getDiscordUserFromCode(code, config);
@@ -50,7 +52,7 @@ export async function GET(request: Request) {
       .from('profiles')
       .select('supabaseId')
       .eq('discord_user_id', discordUser.id)
-      .neq('supabaseId', user.id)
+      .neq('supabaseId', stateUserId)
       .maybeSingle();
     if (existingError) throw existingError;
     if (existing) return response('already-linked');
@@ -58,7 +60,7 @@ export async function GET(request: Request) {
     const { data: profile, error: profileError } = await admin
       .from('profiles')
       .select('"isPremium", discord_user_id')
-      .eq('supabaseId', user.id)
+      .eq('supabaseId', stateUserId)
       .single();
     if (profileError) throw profileError;
 
@@ -70,7 +72,7 @@ export async function GET(request: Request) {
       discord_username: discordUser.global_name || discordUser.username || 'Discord Nutzer',
       discord_avatar: discordUser.avatar || null,
       discord_linked_at: new Date().toISOString(),
-    }).eq('supabaseId', user.id);
+    }).eq('supabaseId', stateUserId);
     if (updateError) throw updateError;
 
     return response(roleSync.ok ? 'connected' : 'role-error');

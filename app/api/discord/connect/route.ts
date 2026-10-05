@@ -48,6 +48,7 @@ export async function GET(request: Request) {
     sameSite: 'lax',
     maxAge: 10 * 60,
     path: '/api/discord',
+    ...(process.env.NODE_ENV === 'production' ? { domain: '.rankeddarts.de' } : {}),
   });
   return response;
 }
