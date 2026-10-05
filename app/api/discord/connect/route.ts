@@ -5,7 +5,10 @@ import { createSignedState, getDiscordConfig } from '@/lib/discord';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const STATE_COOKIE = 'rankeddarts_discord_oauth_state';
+// v2 deliberately uses a new name and the root path. Older deployments used
+// /api/discord, which can leave a second cookie with the same name in the
+// browser and make the callback read a stale state value.
+const STATE_COOKIE = 'rankeddarts_discord_oauth_state_v2';
 
 function safeReturnTo(value: string | null) {
   return value && value.startsWith('/') && !value.startsWith('//') ? value : '/profile';
@@ -47,7 +50,7 @@ export async function GET(request: Request) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 10 * 60,
-    path: '/api/discord',
+    path: '/',
     ...(process.env.NODE_ENV === 'production' ? { domain: '.rankeddarts.de' } : {}),
   });
   return response;

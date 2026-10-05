@@ -6,7 +6,7 @@ import { getDiscordConfig, getDiscordUserFromCode, syncDiscordPremiumRole, verif
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const STATE_COOKIE = 'rankeddarts_discord_oauth_state';
+const STATE_COOKIE = 'rankeddarts_discord_oauth_state_v2';
 
 function safeReturnTo(value: unknown) {
   return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : '/profile';
@@ -35,20 +35,48 @@ export async function GET(request: Request) {
     return redirect;
   };
 
-  if (error === 'access_denied') return response('cancelled');
   const stateUserId = typeof state?.userId === 'string' ? state.userId : null;
-  if (!code || !stateValue || !stateSecret || !config || !state || !stateUserId) return response('failed');
-  if (cookieStore.get(STATE_COOKIE)?.value !== stateValue) return response('failed');
-  if (typeof state.expiresAt !== 'number' || state.expiresAt < Date.now()) return response('failed');
+  const stateCookieValue = cookieStore.get(STATE_COOKIE)?.value ?? null;
+  const stateExpired = typeof state?.expiresAt !== 'number' || state.expiresAt < Date.now();
+  const rejectionReasons = [
+    !code ? 'missing-code' : null,
+    !stateValue ? 'missing-state' : null,
+    !stateSecret ? 'missing-state-secret' : null,
+    !config ? 'missing-discord-config' : null,
+    !state ? 'invalid-state-signature' : null,
+    !stateUserId ? 'missing-state-user' : null,
+    !stateCookieValue ? 'missing-state-cookie' : null,
+    stateCookieValue && stateValue && stateCookieValue !== stateValue ? 'state-cookie-mismatch' : null,
+    state && stateExpired ? 'state-expired' : null,
+  ].filter((reason): reason is string => Boolean(reason));
+
+  if (error === 'access_denied') return response('cancelled');
+  if (rejectionReasons.length > 0) {
+    console.warn('Discord OAuth callback rejected before token exchange', {
+      host: requestUrl.host,
+      reasons: rejectionReasons,
+      hasCode: Boolean(code),
+      hasState: Boolean(stateValue),
+      hasStateCookie: Boolean(stateCookieValue),
+      stateMatchesCookie: Boolean(stateCookieValue && stateValue && stateCookieValue === stateValue),
+      hasStateSecret: Boolean(stateSecret),
+      hasDiscordConfig: Boolean(config),
+    });
+    return response('failed');
+  }
+
+  const validCode = code as string;
+  const validConfig = config as NonNullable<typeof config>;
+  const linkedUserId = stateUserId as string;
 
   try {
-    const discordUser = await getDiscordUserFromCode(code, config);
+    const discordUser = await getDiscordUserFromCode(validCode, validConfig);
     const admin = createAdminClient();
     const { data: existing, error: existingError } = await admin
       .from('profiles')
       .select('supabaseId')
       .eq('discord_user_id', discordUser.id)
-      .neq('supabaseId', stateUserId)
+      .neq('supabaseId', linkedUserId)
       .maybeSingle();
     if (existingError) throw existingError;
     if (existing) return response('already-linked');
@@ -56,7 +84,7 @@ export async function GET(request: Request) {
     const { data: profile, error: profileError } = await admin
       .from('profiles')
       .select('"isPremium", discord_user_id')
-      .eq('supabaseId', stateUserId)
+      .eq('supabaseId', linkedUserId)
       .single();
     if (profileError) throw profileError;
 
@@ -68,7 +96,7 @@ export async function GET(request: Request) {
       discord_username: discordUser.global_name || discordUser.username || 'Discord Nutzer',
       discord_avatar: discordUser.avatar || null,
       discord_linked_at: new Date().toISOString(),
-    }).eq('supabaseId', stateUserId);
+    }).eq('supabaseId', linkedUserId);
     if (updateError) throw updateError;
 
     return response(roleSync.ok ? 'connected' : 'role-error');
