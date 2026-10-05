@@ -1,18 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { BrandLogo } from '@/components/BrandLogo';
-import { AdminBadge } from '@/components/AdminBadge';
-import { getRankProgress } from '@/lib/ranks';
 import { useRouter } from 'next/navigation';
-import { NotificationBell } from '@/components/notification-bell';
-import { PayoutAlert } from '@/components/payout-alert';
-import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
-import { ArrowUpRight, CheckCircle2, CircleHelp, Flame, Headphones, Link2, Menu, MessageCircle, Pencil, RefreshCw, Save, ShieldCheck, Sparkles, Target, Trophy, Unlink, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
-
-const DISCORD_INVITE_URL = 'https://discord.gg/V6u29zEhp';
+import { type DartsPlatform, type PlatformStatistic } from '@/components/UnifiedDartsProfile';
+import { ProfileV2 } from '@/components/ProfileV2';
 
 type MatchData = {
   id: string | number;
@@ -49,7 +41,6 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Performance-Stats
   const [avgAverage, setAvgAverage] = useState<number>(0);
   const [total180s, setTotal180s] = useState<number>(0);
   const [platformStatistics, setPlatformStatistics] = useState<PlatformStatistic[]>([]);
@@ -123,10 +114,6 @@ export default function Profile() {
     return () => { isMounted = false; };
   }, [supabase, router]);
 
-  const formatCompletion = (match: MatchData) => new Intl.DateTimeFormat('de-DE', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  }).format(new Date(match.completed_at ?? match.created_at));
-
   const savePlatformUsernames = async () => {
     setSavingPlatforms(true);
     setPlatformSaveMsg(null);
@@ -176,29 +163,13 @@ export default function Profile() {
     }, 0);
   };
 
-  const elo = profile?.elo ?? 1000;
-  const gamesPlayed = profile?.gamesPlayed ?? 0;
-  const wins = profile?.wins ?? 0;
-  const losses = Math.max(gamesPlayed - wins, 0);
-  const winrate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
-  const { current: currentRank, upcoming, eloToNext, progress } = getRankProgress(elo);
-  const nextRank = upcoming ?? currentRank;
   const phoneVerified = Boolean(profile?.phone_verified);
-  const phoneStatusText = phoneVerified ? 'Telefon verifiziert' : 'Telefon offen';
   const hasPlatform = Boolean(profile?.scolia_username || profile?.dartcounter_username || profile?.autodarts_username);
   const connectedApps = (['scolia', 'dartcounter', 'autodarts'] as DartsPlatform[]).filter((app) => {
     if (app === 'scolia') return Boolean(profile?.scolia_username);
     if (app === 'dartcounter') return Boolean(profile?.dartcounter_username);
     return Boolean(profile?.autodarts_username);
   });
-  const queueReady = phoneVerified && hasPlatform;
-  const nextStep = !phoneVerified
-    ? { label: 'Telefon verifizieren', detail: 'Noch ein Schritt bis zum Ranked-Zugang.', href: '/auth/verify-phone', icon: ShieldCheck }
-    : !hasPlatform
-      ? { label: 'Plattform verbinden', detail: 'Hinterlege Scolia, DartCounter oder AutoDarts für die Queue.', href: '#platforms', icon: Target }
-      : { label: 'Nächstes Match starten', detail: 'Du bist bereit für die Ranked-Queue.', href: '/matchmaking', icon: Zap };
-  const NextStepIcon = nextStep.icon;
-
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
@@ -207,550 +178,62 @@ export default function Profile() {
     );
   }
 
+  if (!profile) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#050607] px-6 text-white">
+        <div className="border border-rose-300/20 bg-[#0d1110] px-6 py-4 text-sm font-bold text-rose-200">
+          Dein Profil konnte nicht geladen werden.
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="arena-page relative overflow-hidden text-white">
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 sport-grid opacity-30" />
-
-      {/* Navbar */}
-      <nav className="arena-nav fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <BrandLogo className="h-10 w-10 rounded-lg" />
-            <div>
-              <div className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Profil Hub</div>
-            </div>
-          </Link>
-
-          <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
-            <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
-            <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
-            <Link href="/tournaments" className="inline-flex items-center gap-1.5 transition hover:text-white"><Trophy size={14} />Turniere</Link>
-            <Link href="/updates" className="transition hover:text-white">Updates</Link>
-            <Link href="/support" className="inline-flex items-center gap-1.5 transition hover:text-white"><Headphones size={14} />Support</Link>
-            <Link href="/friends" className="inline-flex items-center gap-1.5 transition hover:text-white"><UsersRound size={14} />Freunde</Link>
-            <Link href="/premium" className="border border-emerald-300/35 px-3 py-1.5 font-bold text-emerald-200 transition hover:bg-emerald-300/10">Premium</Link>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <NotificationBell />
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="grid h-10 w-10 place-items-center border border-white/15 text-zinc-200 transition hover:bg-white/[0.05] lg:hidden"
-            >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-          </div>
-        </div>
-
-        {mobileMenuOpen && (
-          <div className="border-t border-white/10 bg-[#0a0d0d] px-5 py-4 lg:hidden">
-            <div className="flex flex-col gap-1">
-              <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
-              <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
-              <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Trophy size={15} />Turniere</Link>
-              <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
-              <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
-               <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><Headphones size={15} />Support</Link>
-               <Link href="/friends" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white"><UsersRound size={15} />Freunde & Duelle</Link>
-              <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
-            </div>
-          </div>
-        )}
-      </nav>
-
-      <section className="arena-content relative z-10 mx-auto px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
-
-        <PayoutAlert />
-
-        {/* ── Hero-Profil-Banner ──────────────────────────────────────────── */}
-        <div className={`profile-showcase relative ${profile ? 'mt-5' : ''} p-7 sm:p-10 md:p-12`}>
-          <div className={`absolute inset-x-0 top-0 h-[2px] ${currentRank.level >= 8 ? 'bg-amber-300' : 'bg-emerald-300'}`} />
-
-          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
-            {/* Avatar-Ring */}
-            <div
-              className={`relative flex h-20 w-20 shrink-0 items-center justify-center border-2 bg-black/40 sm:h-24 sm:w-24 ${currentRank.ringColor}`}
-            >
-              <span className="text-3xl font-black text-white sm:text-4xl">
-                {(profile?.username ?? 'S').charAt(0).toUpperCase()}
-              </span>
-              <span className="absolute -bottom-2 -right-2 grid h-7 w-7 place-items-center border border-emerald-200/40 bg-emerald-400 text-black"><Zap className="h-3.5 w-3.5 fill-current" /></span>
-            </div>
-
-            {/* Name + Rang */}
-            <div className="flex-1 min-w-0">
-              <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80"><Sparkles className="h-3.5 w-3.5" /> Spielerprofil · Season 01 · bis 01.11.2026</div>
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-black tracking-[-0.06em] sm:text-4xl md:text-5xl lg:text-6xl truncate">
-                  {profile?.username || 'Spieler'}
-                </h1>
-                <span className={`border px-3 py-1 text-xs font-black uppercase tracking-[0.2em] ${currentRank.ringColor} bg-black/30 ${currentRank.color}`}>
-                  Level {currentRank.level} · {currentRank.name}
-                </span>
-                {profile?.isPremium && (
-                  <span className="inline-flex items-center gap-1.5 border border-emerald-200/35 bg-emerald-300/15 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-emerald-100">
-                    <Sparkles className="h-3.5 w-3.5 fill-current text-emerald-300" /> Premium
-                  </span>
-                )}
-                {profile?.is_admin && <AdminBadge />}
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-zinc-400">
-                <span className="flex items-center gap-1.5">
-                  <span className="text-base font-black text-white">{elo}</span>
-                  <span>Elo</span>
-                </span>
-                <span className="h-3.5 w-px bg-white/15" />
-                <span className="flex items-center gap-1.5">
-                  <span className="text-base font-black text-white">{gamesPlayed}</span>
-                  <span>Spiele</span>
-                </span>
-                <span className="h-3.5 w-px bg-white/15" />
-                <span className="flex items-center gap-1.5">
-                  <span className={`text-base font-black ${winrate >= 50 ? 'text-emerald-300' : 'text-zinc-300'}`}>{winrate}%</span>
-                  <span>Winrate</span>
-                </span>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] ${queueReady ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-amber-300/25 bg-amber-400/10 text-amber-100'}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${queueReady ? 'bg-emerald-300 animate-pulse' : 'bg-amber-300'}`} />
-                  {queueReady ? 'Queue bereit' : 'Profil vervollständigen'}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-bold text-zinc-300"><Trophy className="h-3.5 w-3.5 text-yellow-200" /> Level {currentRank.level} · {currentRank.name}</span>
-              </div>
-            </div>
-
-            {/* CTA */}
-            <button
-              onClick={() => {
-                if (!phoneVerified) {
-                  router.push('/auth/verify-phone');
-                  return;
-                }
-                if (!hasPlatform) {
-                  openPlatformSetup();
-                  return;
-                }
-                router.push('/matchmaking');
-              }}
-              className="arena-primary-action shrink-0 px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em] sm:px-8 sm:py-4"
-            >
-              {!phoneVerified ? 'Verifizieren' : hasPlatform ? 'Match suchen' : 'Plattform einrichten'} <ArrowUpRight className="ml-2 inline-block h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {gamesPlayed === 0 && (
-          <section className="profile-first-run mt-8 overflow-hidden">
-            <div className="flex flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-indigo-400/[0.10] via-transparent to-emerald-400/[0.06] py-6 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-200">Dein erster Run</div>
-                <h2 className="mt-2 text-2xl font-black tracking-[-0.045em] text-white sm:text-3xl">In wenigen Schritten startklar.</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Verbinde dein Scoring-System, finde dein erstes Ranked-Match und entdecke die Community rund um RankedDarts.</p>
-              </div>
-              {!phoneVerified && (
-                <Link href="/auth/verify-phone" className="inline-flex w-fit shrink-0 items-center gap-2 border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] text-amber-100 transition hover:bg-amber-300/20">
-                  <ShieldCheck className="h-4 w-4" /> Ranked freischalten
-                </Link>
-              )}
-              <Link href="/getting-started" className="inline-flex w-fit shrink-0 items-center gap-2 border border-indigo-300/25 bg-indigo-400/[0.08] px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] text-indigo-100 transition hover:bg-indigo-400/[0.14]">
-                <CircleHelp className="h-4 w-4" /> Ablauf ansehen
-              </Link>
-            </div>
-
-            <div className="grid divide-y divide-white/10 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
-              <button onClick={openPlatformSetup} className="group p-6 text-left transition hover:bg-white/[0.035] sm:p-7">
-                <div className="flex items-start justify-between gap-4">
-                  <span className="grid h-9 w-9 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-sm font-black text-emerald-100">01</span>
-                  {hasPlatform ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Target className="h-5 w-5 text-zinc-500 transition group-hover:text-emerald-200" />}
-                </div>
-                <h3 className="mt-7 text-lg font-black tracking-[-0.035em] text-white">Plattform verbinden</h3>
-                <p className="mt-2 min-h-10 text-sm leading-5 text-zinc-400">Scolia, DartCounter oder AutoDarts hinterlegen.</p>
-                <span className={`mt-5 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] ${hasPlatform ? 'text-emerald-200' : 'text-zinc-300 group-hover:text-white'}`}>
-                  {hasPlatform ? 'Erledigt' : 'Jetzt einrichten'} <ArrowUpRight className="h-3.5 w-3.5" />
-                </span>
-              </button>
-
-              <Link href={queueReady ? '/matchmaking' : '#platforms'} className="group p-6 transition hover:bg-white/[0.035] sm:p-7">
-                <div className="flex items-start justify-between gap-4">
-                  <span className="grid h-9 w-9 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-sm font-black text-emerald-100">02</span>
-                  {queueReady ? <Zap className="h-5 w-5 text-emerald-300" /> : <ShieldCheck className="h-5 w-5 text-zinc-500 transition group-hover:text-emerald-200" />}
-                </div>
-                <h3 className="mt-7 text-lg font-black tracking-[-0.035em] text-white">Erstes Match finden</h3>
-                <p className="mt-2 min-h-10 text-sm leading-5 text-zinc-400">{queueReady ? 'Du bist bereit für die Ranked-Queue.' : 'Noch Plattform und Verifizierung abschließen.'}</p>
-                <span className={`mt-5 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] ${queueReady ? 'text-emerald-200' : 'text-zinc-300 group-hover:text-white'}`}>
-                  {queueReady ? 'Queue öffnen' : 'Voraussetzungen ansehen'} <ArrowUpRight className="h-3.5 w-3.5" />
-                </span>
-              </Link>
-
-              <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="group p-6 transition hover:bg-white/[0.035] sm:p-7">
-                <div className="flex items-start justify-between gap-4">
-                  <span className="grid h-9 w-9 place-items-center border border-indigo-300/25 bg-indigo-400/10 text-sm font-black text-indigo-100">03</span>
-                  <MessageCircle className="h-5 w-5 text-indigo-200 transition group-hover:text-white" />
-                </div>
-                <h3 className="mt-7 text-lg font-black tracking-[-0.035em] text-white">Community beitreten</h3>
-                <p className="mt-2 min-h-10 text-sm leading-5 text-zinc-400">Finde Gegner, Updates und Hilfe auf unserem Discord.</p>
-                <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] text-indigo-200 group-hover:text-white">Discord öffnen <ArrowUpRight className="h-3.5 w-3.5" /></span>
-              </a>
-
-              <Link href="/tournaments" className="group p-6 transition hover:bg-white/[0.035] sm:p-7">
-                <div className="flex items-start justify-between gap-4">
-                  <span className="grid h-9 w-9 place-items-center border border-yellow-300/25 bg-yellow-400/10 text-sm font-black text-yellow-100">04</span>
-                  <Trophy className="h-5 w-5 text-yellow-200 transition group-hover:text-yellow-100" />
-                </div>
-                <h3 className="mt-7 text-lg font-black tracking-[-0.035em] text-white">Turniere entdecken</h3>
-                <p className="mt-2 min-h-10 text-sm leading-5 text-zinc-400">Melde dich für kommende Cups und K.-o.-Events an.</p>
-                <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] text-yellow-200 group-hover:text-white">Zu den Turnieren <ArrowUpRight className="h-3.5 w-3.5" /></span>
-              </Link>
-            </div>
-          </section>
-        )}
-
-        {/* ── Stats-Grid ──────────────────────────────────────────────────── */}
-        <div className="profile-performance-rail mt-5 grid grid-cols-2 sm:grid-cols-4">
-          <div className="profile-performance-cell p-5 sm:p-6">
-            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-emerald-300">Rating</div>
-            <div className="mt-2 text-4xl font-black tracking-[-0.07em] sm:text-5xl">{elo}</div>
-            <div className="mt-1 text-xs text-zinc-500">Elo Punkte</div>
-          </div>
-          <div className="profile-performance-cell p-5 sm:p-6">
-            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-zinc-300">Winrate</div>
-            <div className="mt-2 text-4xl font-black tracking-[-0.07em] sm:text-5xl">{winrate}%</div>
-            <div className="mt-1 text-xs text-zinc-500">{wins}W / {losses}L</div>
-          </div>
-          <div className="profile-performance-cell bg-yellow-400/[0.05] p-5 sm:p-6">
-            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-yellow-300">Ø Average</div>
-            <div className="mt-2 text-4xl font-black tracking-[-0.07em] text-yellow-200 sm:text-5xl">
-              {avgAverage > 0 ? avgAverage.toFixed(1) : '—'}
-            </div>
-            <div className="mt-1 text-xs text-zinc-500">Alle Matches</div>
-          </div>
-          <div className="profile-performance-cell bg-red-400/[0.05] p-5 sm:p-6">
-            <div className="text-[10px] font-black uppercase tracking-[0.26em] text-red-300">180er</div>
-            <div className="mt-2 text-4xl font-black tracking-[-0.07em] text-red-200 sm:text-5xl">{total180s}</div>
-            <div className="mt-1 text-xs text-zinc-500">Gesamt</div>
-          </div>
-        </div>
-
-        <section className="profile-command-line mt-8">
-          <Link
-            href={nextStep.href}
-            className="group flex min-w-0 items-center gap-4 py-5 transition sm:gap-6"
-          >
-            <div className="grid h-11 w-11 shrink-0 place-items-center border-l-2 border-emerald-300 bg-emerald-400/[0.07] text-emerald-100"><NextStepIcon className="h-5 w-5" /></div>
-            <div className="min-w-0 flex-1"><div className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-200">Dein nächster Zug</div><div className="mt-1 text-lg font-black tracking-[-0.04em] text-white sm:text-xl">{nextStep.label}</div><p className="mt-1 text-sm text-zinc-400">{nextStep.detail}</p></div>
-            <ArrowUpRight className="h-5 w-5 shrink-0 text-emerald-100 transition group-hover:-translate-y-1 group-hover:translate-x-1" />
-          </Link>
-          <div className="profile-momentum-line flex items-center gap-4 py-5">
-            <Flame className="h-5 w-5 text-amber-300" />
-            <div><div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Season Momentum</div><div className="mt-1 text-sm font-bold text-zinc-200"><span className="text-xl font-black text-white">{gamesPlayed}</span> Matches <span className="mx-2 text-zinc-600">/</span> <span className="text-emerald-200">{wins} Siege</span></div></div>
-            <div className="ml-auto h-1.5 w-24 overflow-hidden bg-white/10 sm:w-36"><div className="h-full bg-emerald-300" style={{ width: `${Math.max(winrate, 8)}%` }} /></div>
-          </div>
-        </section>
-
-        <Link
-          href="/friends"
-          className="profile-social-callout group relative mt-6 flex overflow-hidden py-5 transition sm:py-6"
-        >
-          <div className="relative grid h-14 w-14 shrink-0 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-emerald-100"><UsersRound className="h-6 w-6" /></div>
-          <div className="relative ml-5 min-w-0 flex-1"><div className="text-[10px] font-black uppercase tracking-[0.26em] text-emerald-300">Private Duelle</div><h2 className="mt-1 text-xl font-black tracking-[-0.04em] sm:text-2xl">Freunde herausfordern</h2><p className="mt-1 text-sm text-zinc-400">Sieh, wer online ist, und starte private Best-of-Duelle ohne Elo-Wertung.</p></div>
-          <ArrowUpRight className="relative ml-4 mt-1 h-6 w-6 shrink-0 text-emerald-300 transition group-hover:-translate-y-1 group-hover:translate-x-1" />
-        </Link>
-
-        {/* ── Fortschritt + Verifizierung ─────────────────────────────────── */}
-        <div className={`profile-account-rail mt-5 grid ${phoneVerified ? '' : 'lg:grid-cols-[1.3fr_0.7fr]'}`}>
-          {/* Rang-Fortschritt */}
-          <section className="profile-rank-progress py-6 sm:py-8">
-            <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Nächster Rang</div>
-            <div className="mt-2 flex items-baseline justify-between gap-4">
-              <h2 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">{upcoming ? <>Fortschritt zu <span className={nextRank.color}>{nextRank.name}</span></> : <span className={currentRank.color}>Maximaler Rang erreicht</span>}</h2>
-              <span className="text-2xl font-black text-emerald-300">{Math.round(progress)}%</span>
-            </div>
-
-            <div className="mt-5 h-2.5 overflow-hidden bg-white/10 sm:h-3">
-              <div
-                className="h-full bg-emerald-300 transition-all duration-700"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-
-            <div className="profile-rank-milestones mt-4 grid grid-cols-3">
-              <div className="profile-rank-milestone p-3 text-xs text-zinc-400 sm:p-4 sm:text-sm">
-                <span className="block text-lg font-black text-white sm:text-xl">{currentRank.min}</span>
-                <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${currentRank.color}`}>{currentRank.name}</span>
-              </div>
-              <div className="profile-rank-milestone p-3 text-center text-xs text-zinc-400 sm:p-4 sm:text-sm">
-                <span className="block text-lg font-black text-emerald-300 sm:text-xl">{elo}</span>
-                <span>Aktuell</span>
-              </div>
-              <div className="profile-rank-milestone p-3 text-right text-xs text-zinc-400 sm:p-4 sm:text-sm">
-                <span className="block text-lg font-black text-white sm:text-xl">{nextRank.min}</span>
-                <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${nextRank.color}`}>{nextRank.name}</span>
-              </div>
-            </div>
-
-            {eloToNext > 0 && (
-              <p className="mt-4 text-sm text-zinc-500">
-                Noch <span className="font-black text-white">{eloToNext} Elo</span> bis {nextRank.name}.
-              </p>
-            )}
-          </section>
-
-          {/* Verifizierung wird nur gezeigt, wenn noch etwas zu tun ist. */}
-          {!phoneVerified && <section className="profile-verification bg-amber-400/[0.06] p-6 sm:p-8">
-            <div className={`text-xs font-black uppercase tracking-[0.28em] ${phoneVerified ? 'text-emerald-300' : 'text-amber-300'}`}>Verifizierung</div>
-            <div className="mt-3 flex items-center gap-3">
-              {phoneVerified
-                ? <CheckCircle2 size={22} className="shrink-0 text-emerald-400" />
-                : <XCircle size={22} className="shrink-0 text-amber-400" />
-              }
-              <span className="text-lg font-black tracking-[-0.03em] sm:text-xl">{phoneStatusText}</span>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-zinc-400">
-              {phoneVerified
-                ? 'Dein Account ist für Fair-Play und Ranked vorbereitet.'
-                : 'Bestätige deine Nummer, bevor du vollständig in Ranked startest.'}
-            </p>
-            <Link
-              href={`/auth/verify-phone${profile?.phone_number ? `?phone=${encodeURIComponent(profile.phone_number)}` : ''}`}
-              className="mt-5 inline-flex border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 text-sm font-black text-amber-100 transition hover:bg-amber-300/18"
-            >
-              Jetzt verifizieren →
-            </Link>
-          </section>}
-        </div>
-
-        {/* ── Plattform-Verbindungen ─────────────────────────────────────── */}
-        <section id="platforms" className="profile-section mt-5 scroll-mt-28 bg-[#0d1110] p-6 sm:p-8">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div>
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Plattformen</div>
-              <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Verbundene Accounts</h2>
-              <p className="mt-1 text-sm text-zinc-400">Hinterlege deine Nutzernamen, um die jeweilige Queue zu betreten.</p>
-            </div>
-            {!editingPlatforms && (
-              <button
-                onClick={() => { setEditingPlatforms(true); setPlatformSaveMsg(null); }}
-                className="flex items-center gap-2 border border-white/15 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:border-white/30 hover:bg-white/10"
-              >
-                <Pencil size={14} />
-                Bearbeiten
-              </button>
-            )}
-          </div>
-
-          <div className="profile-platform-strip grid sm:grid-cols-2 xl:grid-cols-3">
-            {/* Scolia */}
-            <div className={`profile-platform-cell p-5 transition sm:p-6 ${profile?.scolia_username ? 'bg-emerald-400/[0.07]' : 'bg-white/[0.03]'}`}>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Scolia</div>
-                  <div className="mt-0.5 text-sm font-bold text-zinc-400">Kamera-Tracking</div>
-                </div>
-                {profile?.scolia_username
-                  ? <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
-                  : <XCircle size={16} className="shrink-0 text-zinc-600" />
-                }
-              </div>
-              {editingPlatforms ? (
-                <input
-                  type="text"
-                  value={scoliaInput}
-                  onChange={(e) => setScoliaInput(e.target.value)}
-                  placeholder="Dein Scolia-Username"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/50 focus:bg-white/[0.08]"
-                />
-              ) : (
-                <div className="text-sm font-bold">
-                  {profile?.scolia_username
-                    ? <span className="text-emerald-200">{profile.scolia_username}</span>
-                    : <span className="text-zinc-600">Nicht hinterlegt</span>
-                  }
-                </div>
-              )}
-            </div>
-
-            {/* DartCounter */}
-            <div className={`profile-platform-cell p-5 transition sm:p-6 ${profile?.dartcounter_username ? 'bg-cyan-400/[0.07]' : 'bg-white/[0.03]'}`}>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">DartCounter</div>
-                  <div className="mt-0.5 text-sm font-bold text-zinc-400">App-Tracking</div>
-                </div>
-                {profile?.dartcounter_username
-                  ? <CheckCircle2 size={16} className="shrink-0 text-cyan-400" />
-                  : <XCircle size={16} className="shrink-0 text-zinc-600" />
-                }
-              </div>
-              {editingPlatforms ? (
-                <input
-                  type="text"
-                  value={dartcounterInput}
-                  onChange={(e) => setDartcounterInput(e.target.value)}
-                  placeholder="Dein DartCounter-Username"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-300/50 focus:bg-white/[0.08]"
-                />
-              ) : (
-                <div className="text-sm font-bold">
-                  {profile?.dartcounter_username
-                    ? <span className="text-cyan-200">{profile.dartcounter_username}</span>
-                    : <span className="text-zinc-600">Nicht hinterlegt</span>
-                  }
-                </div>
-              )}
-            </div>
-
-            {/* AutoDarts */}
-            <div className={`profile-platform-cell p-5 transition sm:p-6 ${profile?.autodarts_username ? 'bg-violet-400/[0.07]' : 'bg-white/[0.03]'}`}>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs font-black uppercase tracking-[0.22em] text-violet-300">AutoDarts</div>
-                  <div className="mt-0.5 text-sm font-bold text-zinc-400">Automatisches Tracking</div>
-                </div>
-                {profile?.autodarts_username
-                  ? <CheckCircle2 size={16} className="shrink-0 text-violet-400" />
-                  : <XCircle size={16} className="shrink-0 text-zinc-600" />
-                }
-              </div>
-              {editingPlatforms ? (
-                <input
-                  type="text"
-                  value={autodartsInput}
-                  onChange={(e) => setAutodartsInput(e.target.value)}
-                  placeholder="Dein AutoDarts-Username"
-                  maxLength={100}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-violet-300/50 focus:bg-white/[0.08]"
-                />
-              ) : (
-                <div className="text-sm font-bold">
-                  {profile?.autodarts_username
-                    ? <span className="text-violet-200">{profile.autodarts_username}</span>
-                    : <span className="text-zinc-600">Nicht hinterlegt</span>
-                  }
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Speichern / Abbrechen */}
-          {editingPlatforms && (
-            <div className="mt-5 flex items-center gap-3">
-              <button
-                onClick={savePlatformUsernames}
-                disabled={savingPlatforms}
-                className="flex items-center gap-2 border border-emerald-200 bg-emerald-300 px-6 py-2.5 text-sm font-black text-black transition hover:bg-emerald-200 disabled:opacity-50"
-              >
-                <Save size={14} />
-                {savingPlatforms ? 'Speichern...' : 'Speichern'}
-              </button>
-              <button
-                onClick={() => {
-                  setEditingPlatforms(false);
-                  setScoliaInput(profile?.scolia_username ?? '');
-                  setDartcounterInput(profile?.dartcounter_username ?? '');
-                  setAutodartsInput(profile?.autodarts_username ?? '');
-                  setPlatformSaveMsg(null);
-                }}
-                className="flex items-center gap-2 border border-white/15 px-5 py-2.5 text-sm font-bold text-zinc-300 transition hover:bg-white/10"
-              >
-                <X size={14} />
-                Abbrechen
-              </button>
-              {platformSaveMsg && (
-                <span className={`text-sm font-bold ${platformSaveMsg.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
-                  {platformSaveMsg.text}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Hinweis wenn keine Plattform hinterlegt */}
-          {!profile?.scolia_username && !profile?.dartcounter_username && !profile?.autodarts_username && !editingPlatforms && (
-            <div className="mt-4 border border-amber-300/20 bg-amber-400/[0.06] px-5 py-4 text-sm text-amber-200">
-              Hinterlege mindestens einen Plattform-Account, um am Matchmaking teilzunehmen.
-            </div>
-          )}
-        </section>
-
-        {/* ── Discord-Verbindung ────────────────────────────────────────── */}
-        <section id="discord" className="profile-section mt-5 scroll-mt-28 overflow-hidden bg-[#0d1110] p-6 sm:p-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-start gap-4">
-              <div className="grid h-12 w-12 shrink-0 place-items-center border border-indigo-300/30 bg-indigo-400/10 text-indigo-100">
-                <Link2 className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-black uppercase tracking-[0.28em] text-indigo-200">Community-Verbindung</div>
-                <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Discord verknüpfen</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Verbinde deinen Discord-Account sicher mit RankedDarts. Bei aktivem Premium wird die Premium-Rolle automatisch vergeben und bei Ablauf wieder entfernt.</p>
-              </div>
-            </div>
-
-            {profile?.discord_user_id ? (
-              <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-                <div className="inline-flex items-center gap-2 border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-100">
-                  <CheckCircle2 className="h-4 w-4" /> {profile.discord_username || 'Discord verbunden'}
-                </div>
-                <div className="flex flex-wrap gap-2 sm:justify-end">
-                  <button type="button" onClick={() => { setDiscordMsg(null); window.location.assign('/api/discord/connect?returnTo=/profile'); }} className="inline-flex items-center gap-2 border border-indigo-300/25 px-3 py-2 text-xs font-black text-indigo-100 transition hover:bg-indigo-400/10">
-                    <RefreshCw className="h-3.5 w-3.5" /> Neu verbinden
-                  </button>
-                  <button type="button" onClick={() => void unlinkDiscord()} disabled={discordBusy} className="inline-flex items-center gap-2 border border-rose-300/20 px-3 py-2 text-xs font-black text-rose-100 transition hover:bg-rose-400/10 disabled:opacity-50">
-                    <Unlink className="h-3.5 w-3.5" /> {discordBusy ? 'Wird getrennt …' : 'Trennen'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button type="button" onClick={() => { setDiscordMsg(null); window.location.assign('/api/discord/connect?returnTo=/profile'); }} className="inline-flex shrink-0 items-center justify-center gap-2 border border-indigo-200 bg-indigo-200 px-5 py-3 text-sm font-black text-[#111827] transition hover:bg-indigo-100">
-                <Link2 className="h-4 w-4" /> Mit Discord verbinden
-              </button>
-            )}
-          </div>
-
-          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/10 pt-5 text-xs text-zinc-500">
-            <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Offizieller Discord-Login</span>
-            <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-amber-200" /> Premium-Rolle automatisch</span>
-            <span>Du kannst die Verbindung jederzeit trennen.</span>
-          </div>
-          {discordMsg && <p className={`mt-4 text-sm font-bold ${discordMsg.type === 'success' ? 'text-emerald-300' : discordMsg.type === 'info' ? 'text-cyan-200' : 'text-rose-300'}`}>{discordMsg.text}</p>}
-        </section>
-
-        <div className="mt-5">
-          <UnifiedDartsProfile statistics={platformStatistics} connectedApps={connectedApps} />
-        </div>
-
-        {/* ── Match History ──────────────────────────────────────────────── */}
-        <section className="profile-section mt-5 bg-[#0d1110] p-6 sm:p-8">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <div>
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Verlauf</div>
-              <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Letzte Matches</h2>
-            </div>
-            <Link href="/history" className="border border-white/15 px-4 py-2 text-xs font-bold text-zinc-300 transition hover:border-white/30 hover:bg-white/10 sm:text-sm">
-              Alle ansehen
-            </Link>
-          </div>
-
-          {matches.length === 0 ? (
-            <div className="border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">Noch keine Matches gespielt.</div>
-          ) : (
-            <div className="arena-ledger">
-              {matches.map((match) => (
-                <div key={match.id} className="arena-ledger-row flex items-center justify-between border-l-emerald-300 bg-white/[0.03] px-5 py-4">
-                  <div className="min-w-0"><div className="flex items-center gap-2"><div className="truncate text-sm font-bold text-zinc-300">{match.opponent_name ?? 'Unbekannter Gegner'}</div><PlatformBadge app={match.app} />{match.match_mode === 'private' && <span className="shrink-0 rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-200">Privat</span>}</div><div className="mt-1 text-[11px] font-medium text-zinc-500">Beendet: {formatCompletion(match)}</div></div>
-                  <div className={`rounded-full px-3 py-1 text-xs font-black ${match.is_win ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300'}`}>
-                    {match.is_win ? 'SIEG' : 'NIEDERLAGE'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <div className="mt-6 text-center">
-          <Link href="/account" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.035] px-5 py-3 text-sm font-black text-zinc-200 transition hover:border-emerald-300/30 hover:bg-emerald-400/10"><WalletCards className="h-4 w-4 text-emerald-300" />Konto & Auszahlungen</Link>
-        </div>
-      </section>
-    </main>
+    <ProfileV2
+      profile={profile}
+      matches={matches}
+      platformStatistics={platformStatistics}
+      overallAverage={avgAverage}
+      overall180s={total180s}
+      connectedApps={connectedApps}
+      mobileMenuOpen={mobileMenuOpen}
+      setMobileMenuOpen={setMobileMenuOpen}
+      openPlatformSetup={openPlatformSetup}
+      primaryAction={() => {
+        if (!phoneVerified) {
+          router.push('/auth/verify-phone');
+        } else if (!hasPlatform) {
+          openPlatformSetup();
+        } else {
+          router.push('/matchmaking');
+        }
+      }}
+      editingPlatforms={editingPlatforms}
+      setEditingPlatforms={setEditingPlatforms}
+      scoliaInput={scoliaInput}
+      dartcounterInput={dartcounterInput}
+      autodartsInput={autodartsInput}
+      setScoliaInput={setScoliaInput}
+      setDartcounterInput={setDartcounterInput}
+      setAutodartsInput={setAutodartsInput}
+      savePlatformUsernames={savePlatformUsernames}
+      savingPlatforms={savingPlatforms}
+      platformSaveMsg={platformSaveMsg}
+      cancelPlatformEdit={() => {
+        setEditingPlatforms(false);
+        setScoliaInput(profile?.scolia_username ?? '');
+        setDartcounterInput(profile?.dartcounter_username ?? '');
+        setAutodartsInput(profile?.autodarts_username ?? '');
+        setPlatformSaveMsg(null);
+      }}
+      startDiscordConnect={() => {
+        setDiscordMsg(null);
+        window.location.assign('/api/discord/connect?returnTo=/profile');
+      }}
+      unlinkDiscord={unlinkDiscord}
+      discordBusy={discordBusy}
+      discordMsg={discordMsg}
+    />
   );
+
 }
