@@ -11,6 +11,7 @@ import { useAuth } from '@/app/providers';
 type Player = { username: string; elo: number; gamesPlayed: number; wins: number; isPremium?: boolean; supabaseId?: string; };
 type PlayerAvgMap = Record<string, number>;
 const premiumNameStyle = 'inline-flex max-w-full items-center border border-emerald-300/45 bg-emerald-300/10 px-1.5 py-0.5 text-emerald-100';
+const MIN_LEADERBOARD_GAMES = 10;
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -30,13 +31,13 @@ export default function Leaderboard() {
     if (authLoading) return () => { isMounted = false; };
 
     async function fetchLeaderboard() {
-      const canCalculatePersonalRank = Boolean(currentUserId && currentProfile && currentProfile.gamesPlayed > 0);
+      const canCalculatePersonalRank = Boolean(currentUserId && currentProfile && currentProfile.gamesPlayed >= MIN_LEADERBOARD_GAMES);
       setMyRank(null);
       setMyRankLoading(canCalculatePersonalRank);
       try {
         const [leaderboardResult, countResult] = await Promise.all([
-          supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, supabaseId').gte('gamesPlayed', 1).order('elo', { ascending: false }).limit(100),
-          supabase.from('public_visible_profiles').select('supabaseId', { count: 'exact', head: true }).gte('gamesPlayed', 1),
+          supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, supabaseId').gte('gamesPlayed', MIN_LEADERBOARD_GAMES).order('elo', { ascending: false }).limit(100),
+          supabase.from('public_visible_profiles').select('supabaseId', { count: 'exact', head: true }).gte('gamesPlayed', MIN_LEADERBOARD_GAMES),
         ]);
         if (leaderboardResult.error) throw leaderboardResult.error;
         const rankedPlayers = (leaderboardResult.data || []) as Player[];
@@ -53,7 +54,7 @@ export default function Leaderboard() {
             const { count: playersAhead, error: rankError } = await supabase
               .from('public_visible_profiles')
               .select('supabaseId', { count: 'exact', head: true })
-              .gte('gamesPlayed', 1)
+              .gte('gamesPlayed', MIN_LEADERBOARD_GAMES)
               .gt('elo', currentProfile.elo);
             if (rankError) {
               console.warn('Eigene Ranglistenplatzierung konnte nicht geladen werden:', rankError);
@@ -104,7 +105,7 @@ export default function Leaderboard() {
 
       <section className="arena-content mx-auto px-5 py-12 md:px-8 md:py-16">
         <header className="arena-hero grid gap-8 py-8 lg:grid-cols-[1fr_25rem] lg:items-end md:py-10">
-          <div><p className="border-l-2 border-emerald-300 pl-3 text-[11px] font-black uppercase tracking-[.2em] text-emerald-200">Season 01 · bis 01.11.2026</p><h1 className="mt-5 text-5xl font-black leading-[.88] tracking-[-.075em] md:text-7xl">Globale<br /><span className="text-emerald-300">Rangliste.</span></h1><p className="mt-5 max-w-xl leading-7 text-zinc-400">Top 100 nach Elo. Gewertet werden ausschließlich bestätigte Ranked-Matches.</p></div>
+          <div><p className="border-l-2 border-emerald-300 pl-3 text-[11px] font-black uppercase tracking-[.2em] text-emerald-200">Season 01 · bis 01.11.2026</p><h1 className="mt-5 text-5xl font-black leading-[.88] tracking-[-.075em] md:text-7xl">Globale<br /><span className="text-emerald-300">Rangliste.</span></h1><p className="mt-5 max-w-xl leading-7 text-zinc-400">Top 100 nach Elo. In die Rangliste werden nur Spieler mit mindestens {MIN_LEADERBOARD_GAMES} bestätigten Ranked-Matches aufgenommen.</p></div>
           <div className="border border-white/15 bg-[#0d1110] p-4"><label htmlFor="player-search" className="text-[10px] font-black uppercase tracking-[.16em] text-zinc-500">Spieler finden</label><div className="relative mt-3"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" /><input id="player-search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Name eingeben" className="w-full border border-white/10 bg-black/30 py-3 pl-10 pr-9 text-sm font-bold outline-none placeholder:text-zinc-600 focus:border-emerald-300" />{searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white" aria-label="Suche löschen"><X size={15} /></button>}</div><Link href="/matchmaking" className="mt-3 flex items-center justify-between border border-emerald-300 bg-emerald-300 px-4 py-3 text-xs font-black uppercase tracking-[.1em] text-[#07100b] hover:bg-emerald-200">Match suchen <ArrowUpRight className="h-4 w-4" /></Link></div>
         </header>
 
@@ -118,7 +119,7 @@ export default function Leaderboard() {
             </div>
             <div className="grid gap-5 px-5 py-5 md:grid-cols-[9rem_minmax(0,1fr)_auto] md:items-center md:px-6">
               <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-200/70">Dein Platz</p><p className="mt-1 text-4xl font-black tracking-[-.06em] text-emerald-200">{myRankLoading ? '…' : myRank ? `#${myRank}` : currentProfile?.gamesPlayed ? '—' : '—'}</p></div>
-              <div><p className="text-lg font-black text-zinc-100">{currentProfile?.username ?? user?.user_metadata?.username ?? 'Dein Profil'}</p><p className="mt-1 text-sm text-zinc-400">{currentProfile?.gamesPlayed ? `${currentProfile.gamesPlayed} bestätigte Ranked-Spiele · ${currentProfile.elo} Elo` : 'Spiele dein erstes bestätigtes Ranked-Match, um in der Rangliste zu erscheinen.'}</p><p className="mt-3 text-xs leading-5 text-zinc-500">{myRank && myRank > 100 ? 'Du liegst aktuell außerhalb der sichtbaren Top 100. Deine persönliche Platzierung wird trotzdem hier angezeigt.' : myRank ? 'Du bist in den Top 100. Dein Eintrag ist in der Liste zusätzlich markiert.' : 'Deine Platzierung wird nach dem ersten gewerteten Spiel berechnet.'}</p></div>
+              <div><p className="text-lg font-black text-zinc-100">{currentProfile?.username ?? user?.user_metadata?.username ?? 'Dein Profil'}</p><p className="mt-1 text-sm text-zinc-400">{currentProfile?.gamesPlayed ? `${currentProfile.gamesPlayed} bestätigte Ranked-Spiele · ${currentProfile.elo} Elo` : `Spiele mindestens ${MIN_LEADERBOARD_GAMES} bestätigte Ranked-Matches, um in der Rangliste zu erscheinen.`}</p><p className="mt-3 text-xs leading-5 text-zinc-500">{myRank && myRank > 100 ? 'Du liegst aktuell außerhalb der sichtbaren Top 100. Deine persönliche Platzierung wird trotzdem hier angezeigt.' : myRank ? 'Du bist in den Top 100. Dein Eintrag ist in der Liste zusätzlich markiert.' : `Deine Platzierung wird ab ${MIN_LEADERBOARD_GAMES} bestätigten Ranked-Matches berechnet.`}</p></div>
               {myRank && myRank > 100 && <span className="w-fit border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs font-black text-amber-100">Außerhalb Top 100</span>}
             </div>
           </section>
