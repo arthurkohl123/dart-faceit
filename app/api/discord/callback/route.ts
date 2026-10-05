@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { getDiscordConfig, getDiscordUserFromCode, syncDiscordPremiumRole, verifySignedState } from '@/lib/discord';
 
@@ -26,8 +25,6 @@ export async function GET(request: Request) {
   const error = requestUrl.searchParams.get('error');
   const stateSecret = process.env.DISCORD_OAUTH_STATE_SECRET?.trim();
   const config = getDiscordConfig();
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
   const cookieStore = await cookies();
   const state = stateValue && stateSecret ? verifySignedState(stateValue, stateSecret) : null;
   const returnTo = safeReturnTo(state?.returnTo);
@@ -42,7 +39,6 @@ export async function GET(request: Request) {
   const stateUserId = typeof state?.userId === 'string' ? state.userId : null;
   if (!code || !stateValue || !stateSecret || !config || !state || !stateUserId) return response('failed');
   if (cookieStore.get(STATE_COOKIE)?.value !== stateValue) return response('failed');
-  if (user && user.id !== stateUserId) return response('failed');
   if (typeof state.expiresAt !== 'number' || state.expiresAt < Date.now()) return response('failed');
 
   try {
