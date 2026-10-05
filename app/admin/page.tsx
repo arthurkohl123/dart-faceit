@@ -448,7 +448,7 @@ export default function AdminPanel() {
   const [banReasonUserId, setBanReasonUserId] = useState<string | null>(null);
   const [banReasonInput, setBanReasonInput] = useState('');
   const [premiumEditorUserId, setPremiumEditorUserId] = useState<string | null>(null);
-  const [premiumDuration, setPremiumDuration] = useState<'7' | '30' | '60' | '90' | 'unlimited'>('30');
+  const [premiumDuration, setPremiumDuration] = useState<'7' | '14' | '30' | '60' | '90' | 'unlimited'>('30');
   const [premiumReason, setPremiumReason] = useState('');
   const [premiumSavingUserId, setPremiumSavingUserId] = useState<string | null>(null);
   const [softResetSeasonLabel, setSoftResetSeasonLabel] = useState('Season 01');
@@ -2234,6 +2234,7 @@ export default function AdminPanel() {
                         <div className="mt-3 grid gap-3 sm:grid-cols-[0.65fr_1.35fr]">
                           <select value={premiumDuration} onChange={(event) => setPremiumDuration(event.target.value as typeof premiumDuration)} className={`${inputClassName} [color-scheme:dark]`}>
                             <option className={selectOptionClassName} value="7">7 Tage</option>
+                            <option className={selectOptionClassName} value="14">14 Tage</option>
                             <option className={selectOptionClassName} value="30">30 Tage</option>
                             <option className={selectOptionClassName} value="60">60 Tage</option>
                             <option className={selectOptionClassName} value="90">90 Tage</option>
