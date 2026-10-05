@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { verifyStripeSignature } from '@/lib/stripe-webhook';
 import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
+import { syncDiscordPremiumRole } from '@/lib/discord';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
 
     const { data: profile, error: profileError } = await admin
       .from('profiles')
-      .select('stripe_last_event_at, premium_manual_granted_at, premium_manual_until')
+      .select('stripe_last_event_at, premium_manual_granted_at, premium_manual_until, discord_user_id')
       .eq('supabaseId', supabaseUserId)
       .maybeSingle();
     if (profileError) throw profileError;
@@ -134,6 +135,15 @@ export async function POST(request: Request) {
       .eq('supabaseId', supabaseUserId);
 
     if (error) throw error;
+
+    // Discord is an optional downstream entitlement. A Discord outage must
+    // never make Stripe retry a successfully processed payment event.
+    if (profile?.discord_user_id) {
+      const roleSync = await syncDiscordPremiumRole(profile.discord_user_id, premiumActive);
+      if (!roleSync.ok) {
+        console.warn('Discord Premium-Rolle konnte nach Stripe-Update nicht synchronisiert werden:', roleSync.message);
+      }
+    }
 
     const { error: finishError } = await admin.rpc('finish_stripe_webhook_event', {
       p_event_id: event.id,

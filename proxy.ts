@@ -15,6 +15,9 @@ const DESKTOP_OPERATIONS_ONLY = process.env.RANKEDDARTS_DESKTOP_OPERATIONS_ONLY 
 const PUBLIC_API_ROUTES = [
   '/api/health',
   '/api/stripe/webhook',
+  '/api/discord/connect',
+  '/api/discord/callback',
+  '/api/discord/sync',
   '/api/matches/live',
   '/api/community-stats',
   '/api/security/captcha',

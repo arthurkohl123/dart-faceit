@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { NotificationBell } from '@/components/notification-bell';
 import { PayoutAlert } from '@/components/payout-alert';
 import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
-import { ArrowUpRight, CheckCircle2, CircleHelp, Flame, Headphones, Menu, MessageCircle, Pencil, Save, ShieldCheck, Sparkles, Target, Trophy, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, CircleHelp, Flame, Headphones, Link2, Menu, MessageCircle, Pencil, RefreshCw, Save, ShieldCheck, Sparkles, Target, Trophy, Unlink, UsersRound, WalletCards, X, XCircle, Zap } from 'lucide-react';
 
 const DISCORD_INVITE_URL = 'https://discord.gg/V6u29zEhp';
 
@@ -37,6 +37,10 @@ type ProfileData = {
   scolia_username: string | null;
   dartcounter_username: string | null;
   autodarts_username: string | null;
+  discord_user_id?: string | null;
+  discord_username?: string | null;
+  discord_avatar?: string | null;
+  discord_linked_at?: string | null;
 };
 
 export default function Profile() {
@@ -57,6 +61,8 @@ export default function Profile() {
   const [autodartsInput, setAutodartsInput] = useState('');
   const [savingPlatforms, setSavingPlatforms] = useState(false);
   const [platformSaveMsg, setPlatformSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [discordBusy, setDiscordBusy] = useState(false);
+  const [discordMsg, setDiscordMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -96,6 +102,21 @@ export default function Profile() {
         console.error('Plattform-Statistiken konnten nicht geladen werden:', platformStatisticsError);
       }
       setLoading(false);
+
+      const discordStatus = new URLSearchParams(window.location.search).get('discord');
+      const discordMessages: Record<string, { type: 'success' | 'error' | 'info'; text: string }> = {
+        connected: { type: 'success', text: 'Discord ist verbunden. Deine Premium-Rolle wird automatisch synchronisiert.' },
+        'role-error': { type: 'error', text: 'Discord ist verbunden, aber die Premium-Rolle konnte noch nicht gesetzt werden. Bitte prüfe die Bot-Rollenhierarchie.' },
+        'not-member': { type: 'error', text: 'Bitte tritt zuerst dem RankedDarts-Discord bei und starte die Verknüpfung danach erneut.' },
+        'already-linked': { type: 'error', text: 'Dieser Discord-Account ist bereits mit einem anderen RankedDarts-Konto verbunden.' },
+        'not-configured': { type: 'error', text: 'Die Discord-Verknüpfung ist noch nicht vollständig konfiguriert.' },
+        cancelled: { type: 'info', text: 'Discord-Verknüpfung abgebrochen.' },
+        failed: { type: 'error', text: 'Discord konnte nicht verbunden werden. Bitte versuche es erneut.' },
+      };
+      if (discordStatus && discordMessages[discordStatus]) {
+        setDiscordMsg(discordMessages[discordStatus]);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     }
 
     void load();
@@ -128,6 +149,22 @@ export default function Profile() {
       setPlatformSaveMsg({ type: 'error', text: err instanceof Error ? err.message : 'Fehler beim Speichern.' });
     } finally {
       setSavingPlatforms(false);
+    }
+  };
+
+  const unlinkDiscord = async () => {
+    setDiscordBusy(true);
+    setDiscordMsg(null);
+    try {
+      const response = await fetch('/api/discord/unlink', { method: 'POST' });
+      const result = await response.json() as { error?: string; warning?: string };
+      if (!response.ok) throw new Error(result.error || 'Discord konnte nicht getrennt werden.');
+      setProfile((previous) => previous ? { ...previous, discord_user_id: null, discord_username: null, discord_avatar: null, discord_linked_at: null } : previous);
+      setDiscordMsg({ type: result.warning ? 'info' : 'success', text: result.warning || 'Discord wurde getrennt. Eine eventuell vorhandene Premium-Rolle wurde entfernt.' });
+    } catch (error) {
+      setDiscordMsg({ type: 'error', text: error instanceof Error ? error.message : 'Discord konnte nicht getrennt werden.' });
+    } finally {
+      setDiscordBusy(false);
     }
   };
 
@@ -633,6 +670,49 @@ export default function Profile() {
               Hinterlege mindestens einen Plattform-Account, um am Matchmaking teilzunehmen.
             </div>
           )}
+        </section>
+
+        {/* ── Discord-Verbindung ────────────────────────────────────────── */}
+        <section id="discord" className="profile-section mt-5 scroll-mt-28 overflow-hidden bg-[#0d1110] p-6 sm:p-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center border border-indigo-300/30 bg-indigo-400/10 text-indigo-100">
+                <Link2 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-black uppercase tracking-[0.28em] text-indigo-200">Community-Verbindung</div>
+                <h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Discord verknüpfen</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Verbinde deinen Discord-Account sicher mit RankedDarts. Bei aktivem Premium wird die Premium-Rolle automatisch vergeben und bei Ablauf wieder entfernt.</p>
+              </div>
+            </div>
+
+            {profile?.discord_user_id ? (
+              <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+                <div className="inline-flex items-center gap-2 border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-100">
+                  <CheckCircle2 className="h-4 w-4" /> {profile.discord_username || 'Discord verbunden'}
+                </div>
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <button type="button" onClick={() => { setDiscordMsg(null); window.location.assign('/api/discord/connect?returnTo=/profile'); }} className="inline-flex items-center gap-2 border border-indigo-300/25 px-3 py-2 text-xs font-black text-indigo-100 transition hover:bg-indigo-400/10">
+                    <RefreshCw className="h-3.5 w-3.5" /> Neu verbinden
+                  </button>
+                  <button type="button" onClick={() => void unlinkDiscord()} disabled={discordBusy} className="inline-flex items-center gap-2 border border-rose-300/20 px-3 py-2 text-xs font-black text-rose-100 transition hover:bg-rose-400/10 disabled:opacity-50">
+                    <Unlink className="h-3.5 w-3.5" /> {discordBusy ? 'Wird getrennt …' : 'Trennen'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => { setDiscordMsg(null); window.location.assign('/api/discord/connect?returnTo=/profile'); }} className="inline-flex shrink-0 items-center justify-center gap-2 border border-indigo-200 bg-indigo-200 px-5 py-3 text-sm font-black text-[#111827] transition hover:bg-indigo-100">
+                <Link2 className="h-4 w-4" /> Mit Discord verbinden
+              </button>
+            )}
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/10 pt-5 text-xs text-zinc-500">
+            <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Offizieller Discord-Login</span>
+            <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-amber-200" /> Premium-Rolle automatisch</span>
+            <span>Du kannst die Verbindung jederzeit trennen.</span>
+          </div>
+          {discordMsg && <p className={`mt-4 text-sm font-bold ${discordMsg.type === 'success' ? 'text-emerald-300' : discordMsg.type === 'info' ? 'text-cyan-200' : 'text-rose-300'}`}>{discordMsg.text}</p>}
         </section>
 
         <div className="mt-5">
