@@ -76,6 +76,8 @@ export default function Register() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [confirmationPending, setConfirmationPending] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -122,9 +124,60 @@ export default function Register() {
     }
   };
 
+  const handleResendConfirmation = async () => {
+    const emailForResend = email.trim();
+    if (!emailForResend) {
+      setFormMessage({ type: 'error', text: 'Bitte gib zuerst deine E-Mail-Adresse ein.' });
+      return;
+    }
+
+    setResendLoading(true);
+    setFormMessage(null);
+
+    try {
+      const captcha = await verifyCaptcha('register', captchaToken);
+      if (!captcha.ok) {
+        setFormMessage({ type: 'error', text: captcha.error || 'Sicherheitsprüfung fehlgeschlagen.' });
+        return;
+      }
+
+      const rateLimitResponse = await fetch('/api/rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resend_confirmation', email: emailForResend }),
+      });
+      if (!rateLimitResponse.ok) {
+        const payload = await rateLimitResponse.json().catch(() => null) as { error?: string } | null;
+        setFormMessage({ type: 'error', text: payload?.error || 'Bitte versuche es später erneut.' });
+        return;
+      }
+
+      const emailRedirectTo = typeof window !== 'undefined'
+        ? `${window.location.origin}/auth/login?confirmed=1`
+        : undefined;
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: emailForResend,
+        options: { emailRedirectTo },
+      });
+
+      if (error) {
+        setFormMessage({ type: 'error', text: `Bestätigungs-E-Mail konnte nicht erneut gesendet werden: ${getReadableAuthError(error)}` });
+        return;
+      }
+
+      setFormMessage({ type: 'success', text: 'Wir haben die Bestätigungs-E-Mail erneut angestoßen. Bitte prüfe auch den Spam-Ordner.' });
+    } catch (error) {
+      setFormMessage({ type: 'error', text: `Bestätigungs-E-Mail konnte nicht erneut gesendet werden: ${getReadableAuthError(error)}` });
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormMessage(null);
+    setConfirmationPending(false);
 
     if (!trimmedUsername) {
       setFormMessage({ type: 'error', text: 'Bitte gib einen Benutzernamen ein.' });
@@ -205,6 +258,7 @@ export default function Register() {
       }
 
       if (!data.user) {
+        setConfirmationPending(true);
         setFormMessage({
           type: 'info',
           text: 'Falls die E-Mail-Adresse gültig ist, erhältst du gleich eine Bestätigungs-E-Mail. Bitte prüfe auch deinen Spam-Ordner.',
@@ -213,6 +267,7 @@ export default function Register() {
       }
 
       if (!data.session) {
+        setConfirmationPending(true);
         setFormMessage({
           type: 'success',
           text: 'Registrierung erfolgreich. Bitte bestätige jetzt deine E-Mail-Adresse über den Link, den wir dir gesendet haben. Danach kannst du dich einloggen.',
@@ -221,6 +276,7 @@ export default function Register() {
         return;
       }
 
+      setConfirmationPending(false);
       await createProfileForActiveSession(data.user.id);
 
       if (smsVerificationEnabled) {
@@ -292,6 +348,12 @@ export default function Register() {
                 {formMessage.text}
               </div>
             )}
+
+      {confirmationPending && (
+        <button type="button" onClick={() => void handleResendConfirmation()} disabled={resendLoading || loading} className="mb-5 w-full border border-amber-300/25 bg-amber-300/[0.06] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-amber-100 transition hover:border-amber-300/50 disabled:cursor-not-allowed disabled:opacity-50">
+          {resendLoading ? 'Wird erneut gesendet …' : 'Bestätigungs-E-Mail erneut senden'}
+        </button>
+      )}
 
             <form onSubmit={handleRegister} className="space-y-4">
               <label className="block">

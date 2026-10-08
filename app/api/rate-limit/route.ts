@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 const actions: Record<string, RateLimitScope> = {
   login: 'login',
+  resend_confirmation: 'resend_confirmation',
   support: 'support',
 };
 

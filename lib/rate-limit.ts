@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase-admin';
 
 export const RATE_LIMITS = {
-  login: { limit: 5, windowSeconds: 15 * 60 },
+  login: { limit: 8, windowSeconds: 15 * 60 },
+  resend_confirmation: { limit: 3, windowSeconds: 15 * 60 },
   support: { limit: 8, windowSeconds: 10 * 60 },
   checkout: { limit: 3, windowSeconds: 15 * 60 },
   monitoring: { limit: 20, windowSeconds: 10 * 60 },
@@ -28,7 +29,7 @@ function getClientIp(request: Request) {
 
 function hashRateLimitKey(scope: RateLimitScope, subject: string) {
   return createHash('sha256')
-    .update(`rankeddarts:${scope}:${subject}`)
+    .update(`rankeddarts:v2:${scope}:${subject}`)
     .digest('hex');
 }
 function getPrivacySafeDeviceSignal(request: Request) {
@@ -46,14 +47,22 @@ export async function consumeRateLimit(
   // prevents a user from simply changing networks to reset their attempts.
   const subjects = [`ip:${getClientIp(request)}`];
   if (identifier?.trim()) subjects.push(`account:${identifier.trim().toLowerCase()}`);
-  const deviceSignal = getPrivacySafeDeviceSignal(request);
+  // Login and confirmation resend requests can legitimately come from shared
+  // networks. The account bucket remains strict, while the IP bucket gets a
+  // higher ceiling so one household, club or office cannot block everyone.
+  const deviceSignal = scope === 'login' || scope === 'resend_confirmation'
+    ? null
+    : getPrivacySafeDeviceSignal(request);
   if (deviceSignal) subjects.push(deviceSignal);
 
   const results = await Promise.all(subjects.map(async (subject) => {
+    const subjectPolicy = (scope === 'login' || scope === 'resend_confirmation') && subject.startsWith('ip:')
+      ? { ...policy, limit: scope === 'login' ? 30 : 15 }
+      : policy;
     const { data, error } = await createAdminClient().rpc('consume_rate_limit', {
       p_key: hashRateLimitKey(scope, subject),
-      p_limit: policy.limit,
-      p_window_seconds: policy.windowSeconds,
+      p_limit: subjectPolicy.limit,
+      p_window_seconds: subjectPolicy.windowSeconds,
     });
 
     if (error) throw error;
@@ -63,7 +72,7 @@ export async function consumeRateLimit(
     return {
       allowed: row.allowed,
       remaining: Number(row.remaining ?? 0),
-      retryAfterSeconds: Math.max(1, Number(row.retry_after_seconds ?? policy.windowSeconds)),
+      retryAfterSeconds: Math.max(1, Number(row.retry_after_seconds ?? subjectPolicy.windowSeconds)),
     } satisfies RateLimitResult;
   }));
 
