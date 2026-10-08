@@ -3,8 +3,36 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "RankedDarts – Competitive Darts Matchmaking",
-  description: "Finde faire Gegner, spiele bestätigte Matches und klettere mit einem transparenten Elo-System durch die RankedDarts-Leaderboards.",
+  metadataBase: new URL("https://www.rankeddarts.de"),
+  title: {
+    default: "RankedDarts – Competitive Darts Matchmaking",
+    template: "%s · RankedDarts",
+  },
+  description: "Spiele über Scolia, DartCounter oder AutoDarts, finde faire Gegner und klettere mit bestätigten Matches durch das RankedDarts-Leaderboard.",
+  keywords: ["Darts", "Dart Matchmaking", "Scolia", "DartCounter", "AutoDarts", "Elo Ranking", "Dart Turniere"],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "de_DE",
+    url: "https://www.rankeddarts.de/",
+    siteName: "RankedDarts",
+    title: "RankedDarts – Dein nächstes Darts-Match",
+    description: "Faire 1v1-Duelle über Scolia, DartCounter oder AutoDarts. Ergebnis bestätigen, Elo sammeln, aufsteigen.",
+    images: [{
+      url: "/rankeddarts-darts-club-hero-v2.png",
+      width: 1672,
+      height: 941,
+      alt: "RankedDarts – Competitive Darts Matchmaking",
+    }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RankedDarts – Dein nächstes Darts-Match",
+    description: "Faire Darts-Matches über Scolia, DartCounter oder AutoDarts.",
+    images: ["/rankeddarts-darts-club-hero-v2.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
