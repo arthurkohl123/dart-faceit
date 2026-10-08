@@ -208,7 +208,7 @@ function BracketMatchCard({ match, userId, bestOf, isFinal, showConnector }: { m
   const isReady = match.status === 'ready' && Boolean(match.active_match_id);
   const statusLabel = isBye ? 'FREILOS' : match.status === 'completed' ? 'ENDE' : isReady ? 'LIVE' : 'OFFEN';
 
-  return <article className={`relative min-w-0 overflow-visible border ${isFinal ? 'border-amber-300/35 bg-amber-300/[.06] shadow-[0_0_24px_rgba(252,211,77,.06)]' : isMyMatch ? 'border-cyan-300/40 bg-cyan-300/[.07]' : 'border-white/10 bg-[#121816]'}`}>
+  return <article className={`relative min-w-0 overflow-visible border w-full sm:w-[90%] lg:w-[82%] ${isFinal ? 'border-amber-300/35 bg-amber-300/[.06] shadow-[0_0_24px_rgba(252,211,77,.06)]' : isMyMatch ? 'border-cyan-300/40 bg-cyan-300/[.07]' : 'border-white/10 bg-[#121816]'}`}>
     <div className="flex min-w-0 items-center justify-between gap-1 border-b border-white/10 px-2 py-1"><span className={`truncate text-[8px] font-black tracking-[.12em] ${isBye ? 'text-amber-200' : match.status === 'completed' ? 'text-emerald-200' : isReady ? 'text-cyan-200' : 'text-zinc-500'}`}>{statusLabel}</span><span className="shrink-0 text-[8px] font-bold text-zinc-600">#{match.match_number}</span></div>
     <div className="px-2 py-1">
       <BracketPlayer name={match.player1_username} emptyLabel={isBye ? 'Freilos' : undefined} legs={match.player1_legs} average={match.player1_average} won={match.winner_id === match.player1_id} />
