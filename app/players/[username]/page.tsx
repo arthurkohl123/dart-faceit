@@ -5,9 +5,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { AdminBadge } from '@/components/AdminBadge';
+import { RankBadge } from '@/components/RankBadge';
 import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
 import { getRankProgress } from '@/lib/ranks';
-import { ArrowUpRight, Medal, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
+import { ArrowUpRight, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
 type PublicProfile = {
   username: string;
@@ -208,8 +209,8 @@ export default function PlayerProfile() {
         <div className="arena-hero relative p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12">
           <div className={`absolute inset-x-0 top-0 h-[2px] ${currentRank.level >= 8 ? 'bg-amber-300' : 'bg-emerald-300'}`} />
           <div className="relative z-10 flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-7 sm:text-left">
-            <div className="relative grid h-24 w-24 shrink-0 place-items-center border border-white/20 bg-black/35 text-2xl font-black sm:h-28 sm:w-28 sm:text-3xl">
-              {currentRank.badge}
+            <div className="relative grid h-24 w-24 shrink-0 place-items-center border border-white/20 bg-black/35 sm:h-28 sm:w-28">
+              <RankBadge level={currentRank.level} size="xl" priority />
               <span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center border border-emerald-200/40 bg-emerald-400 text-black"><Zap className="h-4 w-4 fill-current" /></span>
             </div>
             <div className="flex-1 min-w-0">
@@ -288,7 +289,7 @@ export default function PlayerProfile() {
           <div className="mt-4 h-2 overflow-hidden bg-white/10">
             <div className="h-full bg-emerald-300" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-5 flex items-center justify-between border border-white/10 bg-black/20 px-4 py-3 text-xs text-zinc-400"><span className="inline-flex items-center gap-2"><Medal className="h-4 w-4 text-emerald-300" /> Level {currentRank.level} · {currentRank.name}</span><span className="font-black text-white">{elo} Elo</span></div>
+          <div className="mt-5 flex items-center justify-between border border-white/10 bg-black/20 px-4 py-3 text-xs text-zinc-400"><span className="inline-flex items-center gap-2"><RankBadge level={currentRank.level} size="xs" /> Level {currentRank.level} · {currentRank.name}</span><span className="font-black text-white">{elo} Elo</span></div>
         </div>
           </div>
 
