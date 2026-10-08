@@ -7,7 +7,6 @@ import { ArrowUpRight, ChevronRight, CircleDot, Menu, MessageCircle, Radio, Swor
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { ResultRoomPreview } from '@/components/ResultRoomPreview';
-import { WednesdayShowdownPromo } from '@/components/WednesdayShowdownPromo';
 import { getRankRangeLabel, RANK_TIERS } from '@/lib/ranks';
 
 type CommunityStats = { players: number; matches: number; cups: number; liveCups: number; onlinePlayers: number; queuePlayers: number; livePlayers: number; };
@@ -17,6 +16,12 @@ const principles = [
   ['02', 'Ein Ergebnis, zwei Bestätigungen', 'Elo und Statistiken zählen erst, wenn das Resultat von beiden Seiten bestätigt wurde.'],
   ['03', 'Eine Saison mit Ziel', 'Season 01 läuft bis zum 01.11.2026. Jede Platzierung wird durch gespielte Matches verdient.'],
 ];
+
+const scoringPlatforms = [
+  { name: 'Scolia', mark: 'S', detail: 'Auto-Scoring', tone: 'border-cyan-200/25 bg-cyan-200/[0.07] text-cyan-100' },
+  { name: 'DartCounter', mark: 'D', detail: 'Live-Score', tone: 'border-violet-200/25 bg-violet-200/[0.07] text-violet-100' },
+  { name: 'AutoDarts', mark: 'A', detail: 'Board-Setup', tone: 'border-amber-200/25 bg-amber-200/[0.07] text-amber-100' },
+] as const;
 
 const DISCORD_INVITE_URL = 'https://discord.gg/V6u29zEhp';
 
@@ -70,7 +75,7 @@ export default function Home() {
             <span><span className="block text-lg font-black tracking-[-0.05em]">RANKEDDARTS</span><span className="block text-[9px] font-bold uppercase tracking-[0.25em] text-emerald-300">Competitive darts</span></span>
           </button>
           <div className="hidden items-center gap-6 text-[13px] font-semibold text-zinc-300 lg:flex">
-            <a href="/leaderboard" className="hover:text-white">Rangliste</a><a href="/showdown" className="text-violet-200 hover:text-violet-100">Mittwoch Showdown</a><a href="/matchmaking" className="hover:text-white">Matchmaking</a><Link href="/tournaments" className="hover:text-white">Turniere</Link><a href="/updates" className="hover:text-white">Updates</a><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-indigo-200 transition hover:text-white"><MessageCircle className="h-3.5 w-3.5" /> Discord</a>
+            <a href="/leaderboard" className="hover:text-white">Rangliste</a><a href="/matchmaking" className="hover:text-white">Matchmaking</a><Link href="/tournaments" className="hover:text-white">Turniere</Link><a href="/updates" className="hover:text-white">Updates</a><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-indigo-200 transition hover:text-white"><MessageCircle className="h-3.5 w-3.5" /> Discord</a>
             <span className="border-l border-white/15 pl-6 text-[11px] font-bold uppercase tracking-[.12em] text-zinc-500">Saison 01 · bis 01.11.2026</span>
           </div>
           <div className="flex items-center gap-2">
@@ -78,17 +83,20 @@ export default function Home() {
             <button onClick={() => setMobileMenuOpen((open) => !open)} className="grid h-9 w-9 place-items-center border border-white/15 text-zinc-200 lg:hidden" aria-label="Menü öffnen">{mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}</button>
           </div>
         </div>
-        {mobileMenuOpen && <div className="border-t border-white/10 px-5 py-3 lg:hidden"><div className="mx-auto grid max-w-7xl gap-1 text-sm font-bold text-zinc-300">{['Rangliste|/leaderboard', 'Mittwoch Showdown|/showdown', 'Matchmaking|/matchmaking', 'Turniere|/tournaments', 'Updates|/updates', 'Premium|/premium'].map((entry) => { const [label, href] = entry.split('|'); return <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="border-b border-white/5 py-3 hover:text-emerald-200">{label}</a>; })}<a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 border-b border-white/5 py-3 text-indigo-200 hover:text-white"><MessageCircle className="h-4 w-4" /> Discord-Community</a></div></div>}
+        {mobileMenuOpen && <div className="border-t border-white/10 px-5 py-3 lg:hidden"><div className="mx-auto grid max-w-7xl gap-1 text-sm font-bold text-zinc-300">{['Rangliste|/leaderboard', 'Matchmaking|/matchmaking', 'Turniere|/tournaments', 'Updates|/updates', 'Premium|/premium'].map((entry) => { const [label, href] = entry.split('|'); return <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="border-b border-white/5 py-3 hover:text-emerald-200">{label}</a>; })}<a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 border-b border-white/5 py-3 text-indigo-200 hover:text-white"><MessageCircle className="h-4 w-4" /> Discord-Community</a></div></div>}
       </nav>
 
       <section className="relative mx-auto grid max-w-7xl gap-12 overflow-hidden px-5 pb-16 pt-14 md:px-8 lg:grid-cols-[.92fr_1.08fr] lg:items-center lg:py-24">
         <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
           <div className="absolute inset-0 bg-[url('/rankeddarts-darts-club-hero-v2.png')] bg-cover bg-[72%_center] opacity-35" />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,#0a0d0d_0%,rgba(10,13,13,.94)_40%,rgba(10,13,13,.55)_72%,#0a0d0d_100%)]" />
+          <div className="absolute -right-24 top-12 h-80 w-80 rounded-full border border-emerald-200/15 shadow-[0_0_100px_rgba(52,211,153,.14)] lg:right-10 lg:top-24" />
+          <div className="absolute -right-10 top-28 h-52 w-52 rounded-full border border-cyan-200/20 shadow-[0_0_80px_rgba(103,232,249,.12)] lg:right-24 lg:top-40" />
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0a0d0d] to-transparent" />
         </div>
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 border-l-2 border-emerald-300 pl-3 text-[11px] font-black uppercase tracking-[.19em] text-emerald-200"><span className="h-2 w-2 rounded-full bg-emerald-300" /> Matchmaking geöffnet</div>
+          <div className="mt-6 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[.16em] text-zinc-500"><span className="text-zinc-400">Dein Board.</span><span className="text-emerald-300">Deine Plattform.</span><span className="text-zinc-700">/</span><span>Scolia</span><span className="text-zinc-700">·</span><span>DartCounter</span><span className="text-zinc-700">·</span><span>AutoDarts</span></div>
           <h1 className="mt-7 max-w-3xl text-[3.3rem] font-black leading-[.9] tracking-[-.075em] text-[#f5f3ee] sm:text-7xl xl:text-[6.2rem]">Kein Zufall.<br /><span className="text-emerald-300">Nur dein nächstes Match.</span></h1>
           <p className="mt-7 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">RankedDarts bringt faire 1v1-Duelle, klare Ergebnisse und eine Rangliste zusammen. Du spielst gegen Leute in deiner Nähe – nicht gegen den Zufall.</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row"><button onClick={() => router.push(primaryTarget)} className="group inline-flex items-center justify-center gap-3 border border-emerald-300 bg-emerald-300 px-6 py-4 text-sm font-black uppercase tracking-[.12em] text-[#07100b] transition hover:bg-emerald-200">{primaryLabel} <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></button><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 border border-indigo-300/35 bg-indigo-300/10 px-6 py-4 text-sm font-bold text-indigo-100 transition hover:border-indigo-200 hover:bg-indigo-300/20"><MessageCircle className="h-4 w-4" /> Community beitreten</a></div>
@@ -103,13 +111,28 @@ export default function Home() {
 
       <section className="border-y border-white/10 bg-[#0d1110]"><div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-y divide-white/10 md:grid-cols-4 md:divide-y-0">{stats.map(([value, label]) => <div key={label} className="px-5 py-6 md:px-8 md:py-8"><div className="text-3xl font-black tracking-[-.06em] text-white md:text-4xl">{value}</div><div className="mt-1 text-xs font-bold uppercase tracking-[.12em] text-zinc-500">{label}</div></div>)}</div></section>
 
-      <WednesdayShowdownPromo />
+      <section className="relative overflow-hidden border-y border-white/10 bg-[#0d1110]">
+        <div aria-hidden className="pointer-events-none absolute -left-24 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-emerald-300/[0.06] blur-3xl" />
+        <div className="relative mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-20">
+          <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
+            <div className="max-w-2xl">
+              <p className="text-[11px] font-black uppercase tracking-[.22em] text-emerald-300">Drei Plattformen. Ein Ranking.</p>
+              <h2 className="mt-4 text-4xl font-black tracking-[-.065em] md:text-6xl">Du spielst, wo dein Board steht.</h2>
+              <p className="mt-5 max-w-xl text-base leading-7 text-zinc-400">Scolia, DartCounter oder AutoDarts: Deine bevorzugte Scoring-Plattform bleibt dein Zuhause. RankedDarts verbindet die Ergebnisse zu fairen Matches, bestätigten Stats und einer gemeinsamen Rangliste.</p>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-2 self-start border border-emerald-200/20 bg-emerald-200/[0.06] px-4 py-2 text-[10px] font-black uppercase tracking-[.16em] text-emerald-100 lg:self-end"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.9)]" /> Plattformübergreifend bereit</span>
+          </div>
+          <div className="mt-10 grid gap-3 md:grid-cols-3">
+            {scoringPlatforms.map((platform) => <div key={platform.name} className={`group relative overflow-hidden border p-5 transition hover:-translate-y-1 hover:border-white/30 ${platform.tone}`}><div aria-hidden className="absolute -right-6 -top-8 h-24 w-24 rounded-full border border-current/20 transition group-hover:scale-125" /><div className="relative flex items-center gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center border border-current/35 bg-black/20 text-xl font-black">{platform.mark}</span><span><span className="block text-lg font-black tracking-[-.03em] text-white">{platform.name}</span><span className="mt-1 block text-[10px] font-black uppercase tracking-[.16em] opacity-70">{platform.detail}</span></span></div><div className="relative mt-5 flex items-center gap-2 text-xs font-bold text-zinc-300"><span className="h-1.5 w-1.5 rounded-full bg-current" /> Mit RankedDarts verbunden <ArrowUpRight className="ml-auto h-4 w-4 opacity-60 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></div></div>)}
+          </div>
+        </div>
+      </section>
 
       <section className="mx-auto max-w-7xl px-5 pt-20 md:px-8 md:pt-28">
         <div className="grid overflow-hidden border border-white/15 bg-[#0d1110] md:grid-cols-[1.15fr_.85fr]">
           <div className="min-h-72 bg-[url('/rankeddarts-darts-club-hero-v2.png')] bg-cover bg-[68%_center] md:min-h-[25rem]" />
           <div className="flex flex-col justify-between p-7 md:p-10">
-            <div><p className="text-[11px] font-black uppercase tracking-[.2em] text-emerald-300">Competitive darts, ohne Theater</p><h2 className="mt-4 text-3xl font-black tracking-[-.055em] md:text-5xl">Dein Spiel. Klar gewertet.</h2><p className="mt-5 max-w-md leading-7 text-zinc-400">Du spielst über deine gewählte Plattform, reichst dein Ergebnis ein und dein Gegner bestätigt es. Erst dann zählt das Match für deine Saison.</p></div>
+            <div><p className="text-[11px] font-black uppercase tracking-[.2em] text-emerald-300">Competitive darts, ohne Theater</p><h2 className="mt-4 text-3xl font-black tracking-[-.055em] md:text-5xl">Dein Spiel. Klar gewertet.</h2><p className="mt-5 max-w-md leading-7 text-zinc-400">Scolia, DartCounter oder AutoDarts liefern dir das Spielgefühl, das du kennst. RankedDarts übernimmt den fairen Rahmen: Ergebnis einreichen, bestätigen lassen und für deine Saison zählen.</p></div>
             <a href="/matchmaking" className="mt-9 inline-flex items-center gap-2 text-sm font-black text-emerald-200 hover:text-emerald-100">So funktioniert Matchmaking <ChevronRight className="h-4 w-4" /></a>
           </div>
         </div>
