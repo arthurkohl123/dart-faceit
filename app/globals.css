@@ -683,6 +683,9 @@ body {
 .profile-v2 .profile-v6-avatar-column { display: flex; flex-direction: column; align-items: center; gap: .7rem; }
 .profile-v2 .profile-v6-avatar { box-shadow: 0 0 0 8px rgba(154, 240, 188, .035), 0 20px 70px rgba(0, 0, 0, .32); }
 .profile-v2 .profile-v6-level-mark { color: rgba(154, 240, 188, .65); font-size: .58rem; font-weight: 900; letter-spacing: .16em; }
+.profile-v2 .profile-v7-avatar { isolation: isolate; }
+.profile-v2 .profile-v7-avatar::before { position: absolute; inset: .35rem; border: 1px solid rgba(154, 240, 188, .24); border-radius: 999px; background: radial-gradient(circle, rgba(154, 240, 188, .12), rgba(3, 8, 6, .15) 62%, transparent 72%); box-shadow: 0 0 28px rgba(83, 215, 148, .14), inset 0 0 16px rgba(154, 240, 188, .08); content: ''; }
+.profile-v2 .profile-v7-level-mark { color: rgba(154, 240, 188, .68); font-size: .55rem; font-weight: 900; letter-spacing: .19em; line-height: 1; }
 .profile-v2 .profile-v6-status-line { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem; color: rgba(244, 244, 245, .72); font-size: .68rem; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; }
 .profile-v2 .profile-v6-status-divider { height: .22rem; width: .22rem; border-radius: 999px; background: rgba(255, 255, 255, .25); }
 .profile-v2 .profile-v6-rating { min-width: 0; }
