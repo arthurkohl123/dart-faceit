@@ -675,6 +675,21 @@ body {
 .profile-v2 .profile-v5-identity { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 1.35rem; min-width: 0; }
 .profile-v2 .profile-v5-avatar { box-shadow: 0 0 0 8px rgba(154, 240, 188, .035), 0 20px 70px rgba(0, 0, 0, .32); }
 .profile-v2 .profile-v5-rating { min-width: 0; }
+.profile-v2 .profile-v6-hero { background: linear-gradient(112deg, rgba(83, 215, 148, .055), transparent 48%, rgba(3, 6, 5, .65)); }
+.profile-v2 .profile-v6-glow { pointer-events: none; background: radial-gradient(circle at 13% 48%, rgba(154, 240, 188, .14), transparent 22%), radial-gradient(circle at 92% 40%, rgba(62, 182, 255, .06), transparent 26%), repeating-linear-gradient(90deg, rgba(154, 240, 188, .045) 0 1px, transparent 1px 64px); mask-image: linear-gradient(90deg, transparent, black 24%, transparent 94%); opacity: .7; }
+.profile-v2 .profile-v6-season { color: rgba(161, 161, 170, .45); font-size: .62rem; font-weight: 900; letter-spacing: .2em; }
+.profile-v2 .profile-v6-layout { min-width: 0; }
+.profile-v2 .profile-v6-identity { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 1.35rem; min-width: 0; }
+.profile-v2 .profile-v6-avatar-column { display: flex; flex-direction: column; align-items: center; gap: .7rem; }
+.profile-v2 .profile-v6-avatar { box-shadow: 0 0 0 8px rgba(154, 240, 188, .035), 0 20px 70px rgba(0, 0, 0, .32); }
+.profile-v2 .profile-v6-level-mark { color: rgba(154, 240, 188, .65); font-size: .58rem; font-weight: 900; letter-spacing: .16em; }
+.profile-v2 .profile-v6-status-line { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem; color: rgba(244, 244, 245, .72); font-size: .68rem; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; }
+.profile-v2 .profile-v6-status-divider { height: .22rem; width: .22rem; border-radius: 999px; background: rgba(255, 255, 255, .25); }
+.profile-v2 .profile-v6-rating { min-width: 0; }
+.profile-v2 .profile-v6-score-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.2rem; }
+.profile-v2 .profile-v6-score { color: #fff; font-size: clamp(4.5rem, 9vw, 6.5rem); font-weight: 900; line-height: .86; letter-spacing: -.11em; }
+.profile-v2 .profile-v6-rank-name { border-left: 2px solid rgba(154, 240, 188, .22); padding: .2rem 0 .15rem 1rem; text-align: right; }
+.profile-v2 .profile-v6-nav a { transition: color .16s ease; }
 @media (max-width: 639px) {
   .profile-v2 .profile-v3-metrics > div:nth-child(odd)::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; content: ''; background: rgba(255, 255, 255, .1); }
   .profile-v2 .profile-v3-metrics > div:nth-child(even)::before { top: 0; bottom: 0; }
@@ -684,6 +699,10 @@ body {
   .profile-v2 .profile-v4-identity { gap: .85rem; }
   .profile-v2 .profile-v4-rank-copy { padding-left: .7rem; }
   .profile-v2 .profile-v5-identity { gap: .9rem; }
+  .profile-v2 .profile-v6-identity { gap: .85rem; }
+  .profile-v2 .profile-v6-status-line { gap: .6rem; letter-spacing: .11em; }
+  .profile-v2 .profile-v6-season { display: none; }
+  .profile-v2 .profile-v6-nav span { width: 100%; margin-left: 0; }
 }
 
 /* Admin console: a dense, app-like workspace intentionally separated from the public site. */
