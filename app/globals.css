@@ -661,12 +661,22 @@ body {
 .profile-v2 .profile-v3-discord-mark { display: grid; height: 2.8rem; width: 2.8rem; flex-shrink: 0; place-items: center; border: 1px solid rgba(165, 180, 252, .3); background: rgba(129, 140, 248, .1); color: #c7d2fe; }
 .profile-v2 .profile-v3-discord-button { border: 1px solid #c7d2fe; background: #c7d2fe; color: #111827; transition: background .16s ease, transform .16s ease; }
 .profile-v2 .profile-v3-discord-button:hover { background: #e0e7ff; transform: translateY(-1px); }
+.profile-v2 .profile-v4-hero { background: linear-gradient(115deg, rgba(83, 215, 148, .07), transparent 46%, rgba(9, 13, 12, .72)); }
+.profile-v2 .profile-v4-layout { min-width: 0; }
+.profile-v2 .profile-v4-identity { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 1.2rem; min-width: 0; }
+.profile-v2 .profile-v4-avatar-wrap { padding-top: .2rem; }
+.profile-v2 .profile-v4-avatar { box-shadow: 0 0 0 8px rgba(154, 240, 188, .035), 0 20px 70px rgba(0, 0, 0, .32); }
+.profile-v2 .profile-v4-identity-copy { min-width: 0; }
+.profile-v2 .profile-v4-rating { min-width: 0; }
+.profile-v2 .profile-v4-rank-copy { border-left: 2px solid rgba(154, 240, 188, .22); padding-left: 1rem; }
 @media (max-width: 639px) {
   .profile-v2 .profile-v3-metrics > div:nth-child(odd)::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; content: ''; background: rgba(255, 255, 255, .1); }
   .profile-v2 .profile-v3-metrics > div:nth-child(even)::before { top: 0; bottom: 0; }
   .profile-v2 .profile-v3-platform-row { align-items: flex-start; flex-wrap: wrap; }
   .profile-v2 .profile-v3-platform-row > div:nth-of-type(2) { width: calc(100% - 1.5rem); }
   .profile-v2 .profile-v3-platform-row > input { margin-left: 1.5rem; }
+  .profile-v2 .profile-v4-identity { gap: .85rem; }
+  .profile-v2 .profile-v4-rank-copy { padding-left: .7rem; }
 }
 
 /* Admin console: a dense, app-like workspace intentionally separated from the public site. */

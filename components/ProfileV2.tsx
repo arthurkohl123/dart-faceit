@@ -196,41 +196,41 @@ export function ProfileV2(props: Props) {
       <section className="arena-content relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
         <PayoutAlert />
 
-        <header className="profile-v3-hero relative mt-5 overflow-hidden border-y border-emerald-300/20 py-7 sm:py-9 lg:py-10">
+        <header className="profile-v4-hero relative mt-5 overflow-hidden border-y border-emerald-300/20 py-7 sm:py-9 lg:py-10">
           <div aria-hidden className="profile-v3-hero-glow absolute inset-0" />
-          <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(19rem,.85fr)] lg:items-end">
-            <div className="min-w-0">
-              <div className="profile-v2-eyebrow"><Sparkles className="h-3.5 w-3.5" /> Spielerprofil · Season 01 · bis 01.11.2026</div>
-              <div className="mt-5 flex items-start gap-5 sm:gap-6">
-                <div className={'profile-v3-avatar relative grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center sm:h-24 sm:w-24 ' + currentRank.ringColor}>
+          <div className="profile-v4-topline relative"><div className="profile-v2-eyebrow"><Sparkles className="h-3.5 w-3.5" /> Spielerprofil · Season 01 · bis 01.11.2026</div></div>
+          <div className="profile-v4-layout relative mt-5 grid gap-8 lg:grid-cols-[minmax(0,1.16fr)_minmax(20rem,.84fr)] lg:items-center">
+            <div className="profile-v4-identity min-w-0">
+              <div className="profile-v4-avatar-wrap">
+                <div className={'profile-v3-avatar profile-v4-avatar relative grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center sm:h-24 sm:w-24 ' + currentRank.ringColor}>
                   <RankBadge level={currentRank.level} size="xl" priority />
                   <span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border border-emerald-200/50 bg-emerald-300 text-black"><Zap className="h-4 w-4 fill-current" /></span>
                 </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="truncate text-4xl font-black tracking-[-0.08em] sm:text-6xl lg:text-7xl">{profile?.username || 'Spieler'}</h1>
-                    {profile?.isPremium && <span className="profile-v3-status profile-v3-status-premium"><Sparkles className="h-3.5 w-3.5 fill-current" />Premium</span>}
-                    {profile?.is_admin && <AdminBadge />}
-                  </div>
-                  <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">Dein Wettbewerbsprofil für Ranked-Matches, Turniere und die nächste Runde.</p>
-                  <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-black uppercase tracking-[0.13em]">
-                    <span className={'inline-flex items-center gap-2 ' + currentRank.color}>Level {currentRank.level} · {currentRank.name}</span>
-                    <span className="h-1 w-1 rounded-full bg-white/30" />
-                    <span className={queueReady ? 'inline-flex items-center gap-2 text-emerald-200' : 'inline-flex items-center gap-2 text-amber-200'}><span className={'h-1.5 w-1.5 rounded-full ' + (queueReady ? 'animate-pulse bg-emerald-300' : 'bg-amber-300')} />{queueReady ? 'Queue bereit' : 'Profil vervollständigen'}</span>
-                  </div>
-                </div>
               </div>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button type="button" onClick={primaryAction} className="arena-primary-action inline-flex items-center px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em]">{!phoneVerified ? 'Verifizieren' : hasPlatform ? 'Match suchen' : 'Plattform einrichten'}<ArrowUpRight className="ml-2 h-4 w-4" /></button>
-                <Link href="/history" className="profile-v3-quiet-action inline-flex items-center gap-2 px-5 py-3.5 text-sm font-bold"><Activity className="h-4 w-4" />Match-Verlauf</Link>
+              <div className="profile-v4-identity-copy min-w-0">
+                <h1 className="truncate text-4xl font-black leading-none tracking-[-0.08em] sm:text-6xl lg:text-[4.25rem]">{profile?.username || 'Spieler'}</h1>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {profile?.isPremium && <span className="profile-v3-status profile-v3-status-premium"><Sparkles className="h-3.5 w-3.5 fill-current" />Premium</span>}
+                  {profile?.is_admin && <AdminBadge />}
+                </div>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">Dein Wettbewerbsprofil für Ranked-Matches, Turniere und die nächste Runde.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-black uppercase tracking-[0.13em]">
+                  <span className={'inline-flex items-center gap-2 ' + currentRank.color}>Level {currentRank.level} · {currentRank.name}</span>
+                  <span className="h-1 w-1 rounded-full bg-white/30" />
+                  <span className={queueReady ? 'inline-flex items-center gap-2 text-emerald-200' : 'inline-flex items-center gap-2 text-amber-200'}><span className={'h-1.5 w-1.5 rounded-full ' + (queueReady ? 'animate-pulse bg-emerald-300' : 'bg-amber-300')} />{queueReady ? 'Queue bereit' : 'Profil vervollständigen'}</span>
+                </div>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button type="button" onClick={primaryAction} className="arena-primary-action inline-flex items-center px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em]">{!phoneVerified ? 'Verifizieren' : hasPlatform ? 'Match suchen' : 'Plattform einrichten'}<ArrowUpRight className="ml-2 h-4 w-4" /></button>
+                  <Link href="/history" className="profile-v3-quiet-action inline-flex items-center gap-2 px-5 py-3.5 text-sm font-bold"><Activity className="h-4 w-4" />Match-Verlauf</Link>
+                </div>
               </div>
             </div>
 
-            <div className="profile-v3-rating relative lg:border-l lg:border-white/15 lg:pl-8">
+            <div className="profile-v4-rating relative lg:border-l lg:border-white/15 lg:pl-8">
               <div className="profile-v2-label">Aktuelles Rating</div>
               <div className="mt-2 flex items-end justify-between gap-6">
                 <div><div className="text-7xl font-black leading-none tracking-[-0.1em] text-white sm:text-8xl">{elo}</div><div className="mt-2 text-sm font-bold text-zinc-500">Elo-Punkte</div></div>
-                <div className="pb-1 text-right"><RankBadge level={currentRank.level} size="md" /><div className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Rang</div><div className={'mt-1 text-2xl font-black ' + currentRank.color}>{currentRank.name}</div><div className="mt-1 text-xs text-zinc-500">Level {currentRank.level}</div></div>
+                <div className="profile-v4-rank-copy pb-1 text-right"><div className={'text-2xl font-black ' + currentRank.color}>{currentRank.name}</div><div className="mt-1 text-xs text-zinc-500">Level {currentRank.level}</div></div>
               </div>
               <div className="mt-6"><div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500"><span>Fortschritt zum nächsten Rang</span><span className="text-emerald-200">{Math.round(progress)}%</span></div><div className="mt-2 h-1.5 overflow-hidden bg-white/10"><div className="h-full bg-emerald-300" style={{ width: progress + '%' }} /></div><div className="mt-2 flex items-center justify-between text-xs text-zinc-500"><span>{currentRank.min} {currentRank.name}</span><span>{upcoming ? nextRank.name + ' · ' + nextRank.min : 'Maximal'}</span></div></div>
             </div>
