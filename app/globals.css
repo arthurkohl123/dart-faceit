@@ -40,6 +40,185 @@ body {
   box-shadow: inset 0 0 0 1px rgba(152,245,190,.08);
 }
 
+/* Home signature: a restrained editorial system instead of a dashboard template. */
+.rankeddarts-home {
+  --rd-rule: rgba(215, 235, 224, .12);
+  --rd-muted: #8d9993;
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(42rem 28rem at 78% 4%, rgba(88, 222, 157, .09), transparent 65%),
+    linear-gradient(115deg, rgba(255, 255, 255, .018), transparent 34%),
+    #090d0c;
+}
+
+.rankeddarts-home::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  opacity: .38;
+  background-image:
+    linear-gradient(90deg, rgba(191, 255, 215, .045) 1px, transparent 1px),
+    linear-gradient(rgba(191, 255, 215, .026) 1px, transparent 1px);
+  background-size: 96px 96px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.rankeddarts-home .rd-home-nav {
+  position: relative;
+  background: rgba(8, 12, 11, .9);
+}
+
+.rankeddarts-home .rd-home-nav::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  content: '';
+  background: linear-gradient(90deg, #9af0bc 0 17%, transparent 17% 44%, rgba(150, 225, 255, .8) 44% 58%, transparent 58%);
+  opacity: .78;
+}
+
+.rankeddarts-home .rd-home-hero {
+  border-bottom: 1px solid var(--rd-rule);
+}
+
+.rankeddarts-home .rd-home-hero::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: max(1.25rem, calc((100vw - 80rem) / 2));
+  width: 1px;
+  content: '';
+  background: linear-gradient(to bottom, transparent, rgba(154, 240, 188, .4) 18%, rgba(154, 240, 188, .1) 72%, transparent);
+  pointer-events: none;
+}
+
+.rankeddarts-home h1,
+.rankeddarts-home h2,
+.rankeddarts-home h3 {
+  text-wrap: balance;
+}
+
+.rankeddarts-home .rd-live-banner {
+  position: relative;
+  border-left-width: 3px;
+  border-left-color: #9af0bc;
+  background: linear-gradient(90deg, rgba(58, 170, 116, .12), rgba(13, 17, 16, .92) 48%);
+}
+
+.rankeddarts-home .rd-live-banner::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 38%;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(154, 240, 188, .65));
+}
+
+.rankeddarts-home .rd-home-stats {
+  background: rgba(11, 16, 14, .8);
+}
+
+.rankeddarts-home .rd-home-stats > div > div {
+  transition: background-color .18s ease, transform .18s ease;
+}
+
+.rankeddarts-home .rd-home-stats > div > div:hover {
+  background: rgba(154, 240, 188, .035);
+  transform: translateY(-2px);
+}
+
+.rankeddarts-home .rd-home-platforms,
+.rankeddarts-home .rd-home-proof,
+.rankeddarts-home .rd-home-principles,
+.rankeddarts-home .rd-home-ranks {
+  position: relative;
+}
+
+.rankeddarts-home .rd-home-platforms::before,
+.rankeddarts-home .rd-home-principles::before {
+  position: absolute;
+  top: 0;
+  left: max(1.25rem, calc((100vw - 80rem) / 2));
+  width: 26px;
+  height: 1px;
+  content: '';
+  background: #9af0bc;
+  box-shadow: 34px 0 0 rgba(154, 240, 188, .28), 68px 0 0 rgba(154, 240, 188, .12);
+}
+
+.rankeddarts-home .rd-platform-card {
+  min-height: 154px;
+  border-top-color: rgba(255, 255, 255, .19);
+  border-right-color: transparent;
+  border-bottom-color: var(--rd-rule);
+  border-left-color: transparent;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .034), transparent 58%);
+}
+
+.rankeddarts-home .rd-platform-card:hover {
+  border-top-color: rgba(154, 240, 188, .72);
+  background: linear-gradient(145deg, rgba(154, 240, 188, .09), transparent 58%);
+  transform: translateY(-3px);
+}
+
+.rankeddarts-home .rd-home-flow article,
+.rankeddarts-home .rd-home-principles article {
+  position: relative;
+}
+
+.rankeddarts-home .rd-home-flow article::after,
+.rankeddarts-home .rd-home-principles article::after {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 0;
+  width: 22px;
+  height: 1px;
+  content: '';
+  background: rgba(154, 240, 188, .5);
+}
+
+.rankeddarts-home .rd-home-ranks > div {
+  border-top: 2px solid #9af0bc;
+}
+
+.rankeddarts-home .rd-home-cta {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(154, 240, 188, .075), transparent 44%),
+    #0d1110;
+}
+
+.rankeddarts-home .rd-home-cta::before,
+.rankeddarts-home .rd-home-cta::after {
+  position: absolute;
+  top: 50%;
+  width: 17rem;
+  height: 17rem;
+  border: 1px solid rgba(154, 240, 188, .14);
+  border-radius: 50%;
+  content: '';
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.rankeddarts-home .rd-home-cta::before { left: -10rem; box-shadow: 0 0 0 30px rgba(154, 240, 188, .03), 0 0 0 60px rgba(154, 240, 188, .018); }
+.rankeddarts-home .rd-home-cta::after { right: -10rem; opacity: .55; }
+
+@media (max-width: 640px) {
+  .rankeddarts-home .rd-home-hero::after,
+  .rankeddarts-home .rd-home-platforms::before,
+  .rankeddarts-home .rd-home-principles::before { left: 1.25rem; }
+
+  .rankeddarts-home .rd-platform-card { min-height: 132px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
