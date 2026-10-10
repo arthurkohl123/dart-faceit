@@ -32,17 +32,31 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      setFormMessage({ type: 'error', text: 'Fehler beim Aktualisieren des Passworts: ' + error.message });
+      const errorCode = 'code' in error && typeof error.code === 'string' ? error.code : '';
+      const isSamePassword = errorCode === 'same_password'
+        || error.message.toLowerCase().includes('new password should be different');
+
+      setFormMessage({
+        type: 'error',
+        text: isSamePassword
+          ? 'Das neue Passwort muss sich von deinem bisherigen Passwort unterscheiden.'
+          : 'Der Reset-Link ist ungültig oder abgelaufen. Bitte fordere auf der Login-Seite einen neuen Link an.',
+      });
       setLoading(false);
       return;
     }
+
+    // Die Recovery-Session ist nur für den Reset gedacht. Durch das Abmelden
+    // landet der Nutzer beim anschließenden Login nicht in einer alten
+    // Recovery-Sitzung.
+    await supabase.auth.signOut();
 
     setFormMessage({ type: 'success', text: 'Dein Passwort wurde erfolgreich geändert. Du wirst gleich zum Login weitergeleitet.' });
     setPassword('');
     setConfirmPassword('');
     setLoading(false);
 
-    window.setTimeout(() => router.push('/auth/login'), 1800);
+    window.setTimeout(() => router.replace('/auth/login?reset=1'), 1800);
   };
 
   return (
@@ -84,6 +98,7 @@ export default function ResetPasswordPage() {
               <input
                 type="password"
                 placeholder="Mindestens 6 Zeichen"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"
@@ -96,6 +111,7 @@ export default function ResetPasswordPage() {
               <input
                 type="password"
                 placeholder="Passwort wiederholen"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-white/[0.07]"

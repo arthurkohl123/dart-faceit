@@ -27,6 +27,16 @@ function LoginForm() {
     setLoading(true);
     setFormMessage(null);
 
+    // Browsers/Passwortmanager können versehentlich Leerzeichen oder eine
+    // andere Groß-/Kleinschreibung einfügen. Supabase behandelt E-Mail-Adressen
+    // beim Login als exakten String, deshalb normalisieren wir sie einmalig.
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setFormMessage({ type: 'error', text: 'Bitte gib deine E-Mail-Adresse ein.' });
+      setLoading(false);
+      return;
+    }
+
     const captcha = await verifyCaptcha('login', captchaToken);
     if (!captcha.ok) {
       setFormMessage({ type: 'error', text: captcha.error || 'Sicherheitsprüfung fehlgeschlagen.' });
@@ -37,7 +47,7 @@ function LoginForm() {
     const rateLimitResponse = await fetch('/api/rate-limit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', email }),
+      body: JSON.stringify({ action: 'login', email: normalizedEmail }),
     });
 
     if (!rateLimitResponse.ok) {
@@ -47,10 +57,19 @@ function LoginForm() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
     if (error) {
-      setFormMessage({ type: 'error', text: 'Fehler: ' + error.message });
+      const errorCode = 'code' in error && typeof error.code === 'string' ? error.code : '';
+      const isInvalidCredentials = errorCode === 'invalid_credentials'
+        || error.message.toLowerCase().includes('invalid login credentials');
+
+      setFormMessage({
+        type: 'error',
+        text: isInvalidCredentials
+          ? 'E-Mail oder Passwort stimmen nicht. Wenn du dein Passwort gerade zurückgesetzt hast, verwende den Link aus der neuesten Reset-Mail und wähle ein neues Passwort, das sich vom alten unterscheidet.'
+          : 'Der Login konnte gerade nicht abgeschlossen werden. Bitte versuche es erneut.',
+      });
       setLoading(false);
       return;
     }
@@ -135,6 +154,7 @@ function LoginForm() {
           <span className="relative block"><Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" /><input
             type="email"
             placeholder="name@example.com"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full border border-white/10 bg-black/25 py-4 pl-11 pr-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-emerald-400/[0.04]"
@@ -157,6 +177,7 @@ function LoginForm() {
           <span className="relative block"><LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" /><input
             type="password"
             placeholder="Dein Passwort"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full border border-white/10 bg-black/25 py-4 pl-11 pr-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-emerald-400/[0.04]"
