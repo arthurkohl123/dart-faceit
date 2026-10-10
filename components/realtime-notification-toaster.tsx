@@ -77,7 +77,7 @@ export function RealtimeNotificationToaster({ userId }: { userId?: string }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-black text-white">{notification.title}</span>
-        {notification.body && <span className="mt-1 block line-clamp-2 text-xs leading-5 text-zinc-400">{notification.body}</span>}
+        {notification.body && notification.type !== 'match_found' && <span className="mt-1 block line-clamp-2 text-xs leading-5 text-zinc-400">{notification.body}</span>}
       </span>
       {notification.href && <ChevronRight className="h-5 w-5 shrink-0 text-emerald-200" />}
     </>
