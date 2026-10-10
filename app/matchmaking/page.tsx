@@ -19,7 +19,7 @@ type MatchmakingResponse = {
   opponent_username: string | null;
   opponent_elo: number | null;
   player_elo: number | null;
-  match_status: 'searching' | 'matched' | 'pending_accept' | 'already_in_match';
+  match_status: 'searching' | 'matched' | 'pending_accept' | 'accept_expired' | 'already_in_match';
   error?: string;
 };
 
@@ -307,19 +307,38 @@ export default function Matchmaking() {
       if (remaining <= 0 && !acceptExpireCalledRef.current) {
         acceptExpireCalledRef.current = true;
         clearInterval(acceptIntervalRef.current!);
+        let shouldRequeue = iHaveAcceptedRef.current;
         try {
-          await fetch(`/api/matches/${encodeURIComponent(matchId)}/expire`, {
+          const response = await fetch(`/api/matches/${encodeURIComponent(matchId)}/expire`, {
             method: 'POST',
             cache: 'no-store',
           });
+          const result = await response.json().catch(() => null) as { status?: string; requeue_current?: boolean } | null;
+          if (response.ok && result?.status === 'expired') {
+            shouldRequeue = result.requeue_current === true;
+          }
         } catch (err) {
           console.error('expire_match_accept fehlgeschlagen:', err);
         }
-        setStatus('searching');
+
+        // The accepted player may continue searching. The player who did not
+        // accept is deliberately returned to idle so a stale poll cannot put
+        // them straight back into the queue.
+        opponentDeclineHandledRef.current = true;
         setAcceptMatchId(null);
         setIHaveAccepted(false);
+        iHaveAcceptedRef.current = false;
         setOpponentAccepted(false);
         setOpponentDeclined(false);
+        if (shouldRequeue) {
+          setErrorMessage('Der Gegner hat nicht bestätigt. Du bleibst in der Suche.');
+          skipCancelOnSearchingExitRef.current = true;
+          statusRef.current = 'searching';
+          setStatus('searching');
+        } else {
+          setErrorMessage('Die Annahmefrist ist abgelaufen. Du wurdest aus der Queue entfernt.');
+          setStatus('idle');
+        }
       }
     }, 500);
   }, []);
@@ -599,6 +618,7 @@ export default function Matchmaking() {
       const deadline = existingMatch.accept_deadline as string | null;
       const remaining = deadline ? new Date(deadline).getTime() - Date.now() : 0;
       if (remaining > 0) {
+        setOpponent(null);
         setAcceptMatchId(existingMatch.id);
         setIHaveAccepted(false);
         iHaveAcceptedRef.current = false;
@@ -640,10 +660,18 @@ export default function Matchmaking() {
 
       await fetchQueueCounts();
 
+      if (result?.match_status === 'accept_expired') {
+        setErrorMessage('Die Annahmefrist ist abgelaufen. Du wurdest aus der Queue entfernt.');
+        statusRef.current = 'idle';
+        setStatus('idle');
+        return;
+      }
+
       if (result?.match_status === 'pending_accept' && result.match_id) {
         // Match gefunden → Accept-Screen anzeigen (kein direkter Redirect!)
         playMatchFoundSound(result.match_id);
         const matchApp = result.app && apps.includes(result.app) ? result.app : apps[0];
+        setOpponent(null);
         setSelectedApp(matchApp);
         selectedAppRef.current = matchApp;
         setAcceptMatchId(result.match_id);
@@ -828,6 +856,7 @@ export default function Matchmaking() {
             ? Math.max(0, Math.round((new Date(deadline).getTime() - Date.now()) / 1000))
             : 0;
           if (remaining > 0) {
+            setOpponent(null);
             setAcceptMatchId(activeMatch.id);
             setIHaveAccepted(false);
             setOpponentAccepted(false);
@@ -958,6 +987,7 @@ export default function Matchmaking() {
           if (newMatch.status === 'pending_accept') {
             // Accept-Screen anzeigen
             playMatchFoundSound(newMatch.id);
+            setOpponent(null);
             setAcceptMatchId(newMatch.id);
             setIHaveAccepted(false);
             iHaveAcceptedRef.current = false;
@@ -1561,6 +1591,7 @@ export default function Matchmaking() {
 
                   <h2 className="mt-8 text-4xl font-black tracking-[-0.05em]">Match gefunden!</h2>
                   <p className="mt-3 text-zinc-400">Bestätige innerhalb von <span className="font-black text-white">30 Sekunden</span> um das Match zu starten.</p>
+                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-zinc-600">Gegnerdetails werden erst nach beidseitiger Bestätigung angezeigt.</p>
 
                   {/* App-Badge */}
                   <div className={`mt-4 inline-flex items-center gap-2 border px-4 py-2 text-sm font-bold ${cfg.badge}`}>
