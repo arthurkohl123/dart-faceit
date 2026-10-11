@@ -195,12 +195,12 @@ function MatchList({ title, detail, matches, userId, bestOf, scheduled = false }
   return <section className="border border-white/10 bg-[#0d1110]"><header className="flex items-center justify-between border-b border-white/10 p-5"><div><p className="text-[10px] font-black tracking-[.16em] text-amber-300">{title.toUpperCase()}</p><p className="mt-1 text-sm text-zinc-500">{detail}</p></div><span className="border border-white/10 px-2.5 py-1 text-xs font-black text-zinc-400">{matches.length}</span></header>{matches.length === 0 ? <div className="p-6 text-sm text-zinc-500">{scheduled ? 'Keine weiteren Paarungen offen.' : 'Noch kein Ergebnis vorhanden.'}</div> : <div className="grid gap-3 p-4 sm:grid-cols-2">{matches.map(match => <GroupMatchCard key={match.id} match={match} userId={userId} bestOf={bestOf} scheduled={scheduled} />)}</div>}</section>;
 }
 
-function GroupMatchCard({ match, userId, bestOf, featured = false, scheduled = false }: { match: TournamentMatch; userId: string | null; bestOf: number; featured?: boolean; scheduled?: boolean }) {
+function GroupMatchCard({ match, userId, bestOf, featured = false, scheduled = false, mode = 'group' }: { match: TournamentMatch; userId: string | null; bestOf: number; featured?: boolean; scheduled?: boolean; mode?: 'group' | 'double' }) {
   const isMyMatch = Boolean(userId && (match.player1_id === userId || match.player2_id === userId));
   const isBye = match.status === 'completed' && Boolean(match.player1_id) && !match.player2_id;
   const statusLabel = isBye ? 'FREILOS' : match.status === 'completed' ? 'BEENDET' : match.status === 'ready' ? 'MATCHROOM BEREIT' : 'GEPLANT';
   const isReady = match.status === 'ready' && Boolean(match.active_match_id);
-  return <article className={`border ${featured ? 'mt-4 border-cyan-300/30 bg-cyan-400/[.06] p-5' : 'border-white/10 bg-black/20 p-4'} ${scheduled ? 'opacity-75' : ''}`}><div className="mb-4 flex items-center justify-between gap-3"><span className={`text-[9px] font-black tracking-[.14em] ${isReady ? 'text-cyan-200' : isBye ? 'text-amber-200' : match.status === 'completed' ? 'text-emerald-200' : 'text-zinc-500'}`}>{statusLabel}</span><span className="text-[10px] font-bold text-zinc-600">MATCH {match.match_number}</span></div><MatchPlayer name={match.player1_username} legs={match.player1_legs} average={match.player1_average} won={match.winner_id === match.player1_id} /><MatchPlayer name={match.player2_username} emptyLabel={isBye ? 'Freilos' : undefined} legs={match.player2_legs} average={match.player2_average} won={match.winner_id === match.player2_id} />{isReady && isMyMatch && <Link href={`/result?matchId=${match.active_match_id}&bestOf=${bestOf}`} className="mt-4 flex items-center justify-center gap-1 bg-amber-300 px-4 py-3 text-xs font-black text-black">MATCHROOM ÖFFNEN <ChevronRight size={14} /></Link>}{isReady && !isMyMatch && <p className="mt-4 text-xs text-zinc-500">Dieses Gruppenmatch läuft gerade.</p>}{scheduled && <p className="mt-4 text-xs text-zinc-500">Wird nach dem aktuellen Ergebnis freigeschaltet.</p>}</article>;
+  return <article className={`border ${featured ? 'mt-4 border-cyan-300/30 bg-cyan-400/[.06] p-5' : 'border-white/10 bg-black/20 p-4'} ${scheduled ? 'opacity-75' : ''}`}><div className="mb-4 flex items-center justify-between gap-3"><span className={`text-[9px] font-black tracking-[.14em] ${isReady ? 'text-cyan-200' : isBye ? 'text-amber-200' : match.status === 'completed' ? 'text-emerald-200' : 'text-zinc-500'}`}>{statusLabel}</span><span className="text-[10px] font-bold text-zinc-600">MATCH {match.match_number}</span></div><MatchPlayer name={match.player1_username} legs={match.player1_legs} average={match.player1_average} won={match.winner_id === match.player1_id} /><MatchPlayer name={match.player2_username} emptyLabel={isBye ? 'Freilos' : undefined} legs={match.player2_legs} average={match.player2_average} won={match.winner_id === match.player2_id} />{isReady && isMyMatch && <Link href={`/result?matchId=${match.active_match_id}&bestOf=${bestOf}`} className="mt-4 flex items-center justify-center gap-1 bg-amber-300 px-4 py-3 text-xs font-black text-black">MATCHROOM ÖFFNEN <ChevronRight size={14} /></Link>}{isReady && !isMyMatch && <p className="mt-4 text-xs text-zinc-500">{mode === 'double' ? 'Diese Paarung ist aktuell aktiv.' : 'Dieses Gruppenmatch läuft gerade.'}</p>}{scheduled && <p className="mt-4 text-xs text-zinc-500">{mode === 'double' ? 'Wird nach Abschluss der aktuellen Matchwelle freigeschaltet.' : 'Wird nach dem aktuellen Ergebnis freigeschaltet.'}</p>}</article>;
 }
 
 function BracketMatchCard({ match, userId, bestOf, isFinal, showConnector }: { match: TournamentMatch; userId: string | null; bestOf: number; isFinal: boolean; showConnector: boolean }) {
@@ -249,8 +249,49 @@ function KnockoutBracket({ tournament, matches, userId }: { tournament: Tourname
         <div className="flex items-center justify-between gap-2 border border-white/10 bg-white/[.025] p-2"><button type="button" aria-label="Vorherige Runde" disabled={activeMobileRoundIndex === 0} onClick={() => setMobileRoundIndex(index => Math.max(0, index - 1))} className="grid h-9 w-9 place-items-center border border-white/10 text-zinc-300 transition hover:border-amber-300/40 hover:text-amber-200 disabled:pointer-events-none disabled:opacity-25"><ChevronLeft size={16} /></button><div className="text-center"><p className="text-[10px] font-black tracking-[.14em] text-amber-200">RUNDE {activeMobileRound[0] || '—'}</p><p className="mt-0.5 text-[9px] text-zinc-600">{activeMobileMatches.length} MATCHES</p></div><button type="button" aria-label="Nächste Runde" disabled={activeMobileRoundIndex >= sortedRounds.length - 1} onClick={() => setMobileRoundIndex(index => Math.min(sortedRounds.length - 1, index + 1))} className="grid h-9 w-9 place-items-center border border-white/10 text-zinc-300 transition hover:border-amber-300/40 hover:text-amber-200 disabled:pointer-events-none disabled:opacity-25"><ChevronRight size={16} /></button></div>
         <div className="space-y-2">{activeMobileMatches.map(match => <BracketMatchCard key={match.id} match={match} userId={userId} bestOf={tournament.best_of} isFinal={activeMobileRoundIndex === sortedRounds.length - 1} showConnector={false} />)}</div>
       </div>
-    </div> : <div className="grid gap-5 p-5 md:grid-cols-2 xl:grid-cols-3">{sortedRounds.map(([round, roundMatches]) => <section key={round}><p className="mb-3 text-[10px] font-black tracking-[.15em] text-zinc-400">RUNDE {round}</p><div className="space-y-3">{roundMatches.map(match => <GroupMatchCard key={match.id} match={match} userId={userId} bestOf={tournament.best_of} />)}</div></section>)}</div>}
+    </div> : tournament.tournament_format === 'double_elimination' ? <DoubleEliminationView tournament={tournament} matches={matches} userId={userId} /> : <div className="grid gap-5 p-5 md:grid-cols-2 xl:grid-cols-3">{sortedRounds.map(([round, roundMatches]) => <section key={round}><p className="mb-3 text-[10px] font-black tracking-[.15em] text-zinc-400">RUNDE {round}</p><div className="space-y-3">{roundMatches.map(match => <GroupMatchCard key={match.id} match={match} userId={userId} bestOf={tournament.best_of} />)}</div></section>)}</div>}
   </section>;
+}
+
+function DoubleEliminationView({ tournament, matches, userId }: { tournament: Tournament; matches: TournamentMatch[]; userId: string | null }) {
+  const rounds = matches.reduce<Record<number, TournamentMatch[]>>((all, match) => { (all[match.round_number] ??= []).push(match); return all; }, {});
+  const sortedRounds = Object.entries(rounds).sort(([left], [right]) => Number(left) - Number(right));
+  const pendingRoundEntry = sortedRounds.find(([, roundMatches]) => roundMatches.some(match => match.status !== 'completed'));
+  const displayRoundEntry = pendingRoundEntry ?? sortedRounds[sortedRounds.length - 1];
+  const activeRound = displayRoundEntry?.[0] ?? '—';
+  const currentMatches = [...(pendingRoundEntry?.[1] ?? [])].sort((left, right) => left.match_number - right.match_number);
+  const completedMatches = matches.filter(match => match.status === 'completed');
+  const scheduledMatches = matches.filter(match => match.status === 'scheduled' && String(match.round_number) !== activeRound);
+  const liveMatches = currentMatches.filter(match => match.status === 'ready');
+
+  return <div className="space-y-5 p-4 sm:p-6">
+    <div className="grid gap-px border border-white/10 bg-white/10 sm:grid-cols-3">
+      <DoubleMetric value={`Runde ${activeRound}`} label="Aktuelle Matchwelle" />
+      <DoubleMetric value={String(liveMatches.length)} label="Aktive Matchrooms" />
+      <DoubleMetric value={`${completedMatches.length}/${matches.length}`} label="Matches verarbeitet" />
+    </div>
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,.7fr)]">
+      <section className="overflow-hidden border border-cyan-300/20 bg-cyan-300/[.035]">
+        <header className="flex flex-col justify-between gap-3 border-b border-cyan-300/15 p-5 sm:flex-row sm:items-end">
+          <div><p className="text-[10px] font-black tracking-[.18em] text-cyan-200">AKTUELLE MATCHWELLE</p><h3 className="mt-1 text-xl font-black">Runde {activeRound}</h3><p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Die Paarungen dieser Runde werden nacheinander verarbeitet. Nach der Ergebnisfreigabe wird die nächste Welle automatisch aufgebaut.</p></div>
+          <span className="inline-flex w-fit items-center gap-2 border border-cyan-300/20 bg-cyan-400/10 px-3 py-2 text-[10px] font-black tracking-[.12em] text-cyan-100"><Swords size={14} /> {currentMatches.length} MATCHES</span>
+        </header>
+        {currentMatches.length > 0 ? <div className="grid gap-3 p-4 sm:grid-cols-2">{currentMatches.map(match => <GroupMatchCard key={match.id} match={match} userId={userId} bestOf={tournament.best_of} mode="double" />)}</div> : <div className="p-6 text-sm text-zinc-500">Alle Paarungen dieser Runde sind abgeschlossen. Das Turnier wartet auf die nächste Freigabe.</div>}
+      </section>
+      <aside className="border border-amber-300/20 bg-amber-300/[.045] p-5">
+        <p className="text-[10px] font-black tracking-[.18em] text-amber-200">DOUBLE ELIMINATION</p>
+        <h3 className="mt-2 text-xl font-black">Zwei Chancen. Ein Ziel.</h3>
+        <p className="mt-3 text-sm leading-6 text-zinc-400">Eine Niederlage beendet dein Turnier noch nicht. Erst nach der zweiten Niederlage scheidest du aus. Die Ansicht bleibt dabei bewusst auf die laufende Matchwelle fokussiert.</p>
+        <div className="mt-5 border-t border-white/10 pt-4"><div className="flex items-center justify-between text-xs"><span className="text-zinc-500">Ergebnisse</span><strong className="text-emerald-200">{completedMatches.length} beendet</strong></div><div className="mt-3 flex items-center justify-between text-xs"><span className="text-zinc-500">Nächste Welle</span><strong className="text-zinc-300">{scheduledMatches.length ? `${scheduledMatches.length} geplant` : 'wird vorbereitet'}</strong></div></div>
+      </aside>
+    </div>
+    {completedMatches.length > 0 && <section className="border border-white/10 bg-black/15"><header className="flex items-center justify-between border-b border-white/10 px-5 py-4"><div><p className="text-[10px] font-black tracking-[.16em] text-emerald-200">ERGEBNISSE</p><p className="mt-1 text-sm text-zinc-500">Bereits abgeschlossene Paarungen</p></div><span className="text-xs font-black text-zinc-500">{completedMatches.length}</span></header><div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">{completedMatches.map(match => <GroupMatchCard key={match.id} match={match} userId={userId} bestOf={tournament.best_of} mode="double" />)}</div></section>}
+    {scheduledMatches.length > 0 && <section className="border border-white/10 bg-black/15"><header className="flex items-center justify-between border-b border-white/10 px-5 py-4"><div><p className="text-[10px] font-black tracking-[.16em] text-zinc-300">NÄCHSTE WELLE</p><p className="mt-1 text-sm text-zinc-500">Diese Matches werden nach der aktuellen Runde freigeschaltet</p></div><span className="text-xs font-black text-zinc-500">{scheduledMatches.length}</span></header><div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">{scheduledMatches.map(match => <GroupMatchCard key={match.id} match={match} userId={userId} bestOf={tournament.best_of} scheduled mode="double" />)}</div></section>}
+  </div>;
+}
+
+function DoubleMetric({ value, label }: { value: string; label: string }) {
+  return <div className="bg-[#0d1110] p-4"><b className="block truncate text-lg text-white">{value}</b><span className="mt-1 block text-[9px] font-black tracking-[.1em] text-zinc-500">{label}</span></div>;
 }
 
 function EmptyPlan() { return <div className="grid min-h-48 place-items-center p-8 text-center text-sm text-zinc-500"><div><Clock3 className="mx-auto mb-3 text-zinc-600" /><p>Der Turnierplan wird nach dem verpflichtenden Check-in ausgelost.</p></div></div>; }
