@@ -24,8 +24,10 @@ type TournamentMatch = {
   player1_username: string | null; player2_username: string | null; winner_id: string | null; winner_username: string | null;
   status: 'scheduled' | 'ready' | 'completed'; bracket_stage: string; active_match_id: string | null;
   player1_legs: number | null; player2_legs: number | null; player1_average: number | null; player2_average: number | null;
+  player1_losses?: number; player2_losses?: number;
 };
 type Standing = { rank: number; group_number: number; user_id: string; username: string; wins: number; losses: number; points: number; average: number | null };
+type TournamentParticipantLoss = { user_id: string; losses: number | null };
 type Notice = { kind: 'success' | 'error'; text: string };
 
 const formatMeta: Record<TournamentFormat, string> = { single_elimination: 'Single Elimination', double_elimination: 'Double Elimination', group_stage: 'Gruppenphase' };
@@ -48,18 +50,26 @@ export default function TournamentDetailPage() {
 
   const loadTournament = useCallback(async () => {
     setError(null);
-    const [tournamentResult, bracketResult, standingsResult] = await Promise.all([
+    const [tournamentResult, bracketResult, standingsResult, participantResult] = await Promise.all([
       supabase.rpc('list_tournaments'),
       supabase.rpc('get_tournament_bracket', { p_tournament_id: params.id }),
       supabase.rpc('get_tournament_standings', { p_tournament_id: params.id }),
+      supabase.from('tournament_participants').select('user_id, losses').eq('tournament_id', params.id),
     ]);
     if (tournamentResult.error || bracketResult.error || standingsResult.error) {
       setError('Der Turnierplan konnte gerade nicht geladen werden. Bitte versuche es gleich noch einmal.');
       return;
     }
     const nextTournament = ((tournamentResult.data ?? []) as Tournament[]).find(item => item.id === params.id) ?? null;
+    const lossesByUser = new Map(((participantResult.data ?? []) as TournamentParticipantLoss[]).map(participant => [participant.user_id, Number(participant.losses ?? 0)]));
+    const nextMatches = ((bracketResult.data ?? []) as TournamentMatch[]).map(match => ({
+      ...match,
+      bracket_stage: match.bracket_stage || 'double',
+      player1_losses: match.player1_id ? lossesByUser.get(match.player1_id) ?? 0 : 0,
+      player2_losses: match.player2_id ? lossesByUser.get(match.player2_id) ?? 0 : 0,
+    }));
     setTournament(nextTournament);
-    setMatches((bracketResult.data ?? []) as TournamentMatch[]);
+    setMatches(nextMatches);
     setStandings((standingsResult.data ?? []) as Standing[]);
   }, [params.id, supabase]);
 
@@ -260,6 +270,12 @@ function DoubleEliminationView({ tournament, matches, userId }: { tournament: To
   const displayRoundEntry = pendingRoundEntry ?? sortedRounds[sortedRounds.length - 1];
   const activeRound = displayRoundEntry?.[0] ?? '—';
   const currentMatches = [...(pendingRoundEntry?.[1] ?? [])].sort((left, right) => left.match_number - right.match_number);
+  const pendingMatches = matches.filter(match => match.status !== 'completed');
+  const isLowerBracketMatch = (match: TournamentMatch) => match.bracket_stage === 'lower' || (match.bracket_stage !== 'upper' && match.bracket_stage !== 'main' && Math.max(match.player1_losses ?? 0, match.player2_losses ?? 0) > 0);
+  const upperMatches = pendingMatches.filter(match => !isLowerBracketMatch(match));
+  const lowerMatches = pendingMatches.filter(isLowerBracketMatch);
+  const [selectedBracket, setSelectedBracket] = useState<'upper' | 'lower'>(lowerMatches.length > 0 && upperMatches.length === 0 ? 'lower' : 'upper');
+  const selectedMatches = selectedBracket === 'upper' ? upperMatches : lowerMatches;
   const completedMatches = matches.filter(match => match.status === 'completed');
   const scheduledMatches = matches.filter(match => match.status === 'scheduled' && String(match.round_number) !== activeRound);
   const liveMatches = currentMatches.filter(match => match.status === 'ready');
@@ -273,10 +289,13 @@ function DoubleEliminationView({ tournament, matches, userId }: { tournament: To
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,.7fr)]">
       <section className="overflow-hidden border border-cyan-300/20 bg-cyan-300/[.035]">
         <header className="flex flex-col justify-between gap-3 border-b border-cyan-300/15 p-5 sm:flex-row sm:items-end">
-          <div><p className="text-[10px] font-black tracking-[.18em] text-cyan-200">AKTUELLE MATCHWELLE</p><h3 className="mt-1 text-xl font-black">Runde {activeRound}</h3><p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Die Paarungen dieser Runde werden nacheinander verarbeitet. Nach der Ergebnisfreigabe wird die nächste Welle automatisch aufgebaut.</p></div>
-          <span className="inline-flex w-fit items-center gap-2 border border-cyan-300/20 bg-cyan-400/10 px-3 py-2 text-[10px] font-black tracking-[.12em] text-cyan-100"><Swords size={14} /> {currentMatches.length} MATCHES</span>
+          <div><p className="text-[10px] font-black tracking-[.18em] text-cyan-200">TURNIERBAUM</p><h3 className="mt-1 text-xl font-black">Runde {activeRound}</h3><p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Wähle den Weg durch das Turnier. Die Zuordnung basiert auf der aktuellen Anzahl an Niederlagen und aktualisiert sich automatisch.</p></div>
+          <span className="inline-flex w-fit items-center gap-2 border border-cyan-300/20 bg-cyan-400/10 px-3 py-2 text-[10px] font-black tracking-[.12em] text-cyan-100"><Swords size={14} /> {pendingMatches.length} OFFENE MATCHES</span>
         </header>
-        {currentMatches.length > 0 ? <div className="grid gap-3 p-4 sm:grid-cols-2">{currentMatches.map(match => <GroupMatchCard key={match.id} match={match} userId={userId} bestOf={tournament.best_of} mode="double" />)}</div> : <div className="p-6 text-sm text-zinc-500">Alle Paarungen dieser Runde sind abgeschlossen. Das Turnier wartet auf die nächste Freigabe.</div>}
+        <div className="flex flex-wrap gap-2 border-b border-white/10 p-4">
+          {(['upper', 'lower'] as const).map(bracket => { const count = bracket === 'upper' ? upperMatches.length : lowerMatches.length; const active = selectedBracket === bracket; return <button key={bracket} type="button" onClick={() => setSelectedBracket(bracket)} className={`inline-flex items-center gap-2 border px-4 py-2.5 text-[10px] font-black tracking-[.14em] transition ${active ? bracket === 'upper' ? 'border-cyan-200/50 bg-cyan-300/15 text-cyan-100' : 'border-amber-200/50 bg-amber-300/15 text-amber-100' : 'border-white/10 bg-black/15 text-zinc-500 hover:border-white/25 hover:text-zinc-300'}`}>{bracket === 'upper' ? 'UPPER BRACKET' : 'LOWER BRACKET'}<span className="text-[9px] opacity-70">{count}</span></button>; })}
+        </div>
+        <DoubleBracketPane matches={selectedMatches} userId={userId} bestOf={tournament.best_of} bracket={selectedBracket} />
       </section>
       <aside className="border border-amber-300/20 bg-amber-300/[.045] p-5">
         <p className="text-[10px] font-black tracking-[.18em] text-amber-200">DOUBLE ELIMINATION</p>
@@ -288,6 +307,13 @@ function DoubleEliminationView({ tournament, matches, userId }: { tournament: To
     {completedMatches.length > 0 && <section className="border border-white/10 bg-black/15"><header className="flex items-center justify-between border-b border-white/10 px-5 py-4"><div><p className="text-[10px] font-black tracking-[.16em] text-emerald-200">ERGEBNISSE</p><p className="mt-1 text-sm text-zinc-500">Bereits abgeschlossene Paarungen</p></div><span className="text-xs font-black text-zinc-500">{completedMatches.length}</span></header><div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">{completedMatches.map(match => <GroupMatchCard key={match.id} match={match} userId={userId} bestOf={tournament.best_of} mode="double" />)}</div></section>}
     {scheduledMatches.length > 0 && <section className="border border-white/10 bg-black/15"><header className="flex items-center justify-between border-b border-white/10 px-5 py-4"><div><p className="text-[10px] font-black tracking-[.16em] text-zinc-300">NÄCHSTE WELLE</p><p className="mt-1 text-sm text-zinc-500">Diese Matches werden nach der aktuellen Runde freigeschaltet</p></div><span className="text-xs font-black text-zinc-500">{scheduledMatches.length}</span></header><div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">{scheduledMatches.map(match => <GroupMatchCard key={match.id} match={match} userId={userId} bestOf={tournament.best_of} scheduled mode="double" />)}</div></section>}
   </div>;
+}
+
+function DoubleBracketPane({ matches, userId, bestOf, bracket }: { matches: TournamentMatch[]; userId: string | null; bestOf: number; bracket: 'upper' | 'lower' }) {
+  const rounds = matches.reduce<Record<number, TournamentMatch[]>>((all, match) => { (all[match.round_number] ??= []).push(match); return all; }, {});
+  const sortedRounds = Object.entries(rounds).sort(([left], [right]) => Number(left) - Number(right));
+  if (matches.length === 0) return <div className="p-8 text-center"><p className={`text-sm font-bold ${bracket === 'upper' ? 'text-cyan-100' : 'text-amber-100'}`}>{bracket === 'upper' ? 'Keine offenen Upper-Bracket-Matches' : 'Das Lower Bracket wird nach der ersten Niederlage sichtbar.'}</p><p className="mt-2 text-xs leading-5 text-zinc-500">Abgeschlossene Paarungen findest du weiter unten unter „Ergebnisse“.</p></div>;
+  return <div className="grid gap-4 overflow-x-auto p-4 md:grid-cols-2 xl:grid-cols-3">{sortedRounds.map(([round, roundMatches], roundIndex) => <section key={round} className="min-w-0"><div className="mb-2 flex items-center justify-between"><p className={`text-[9px] font-black tracking-[.15em] ${bracket === 'upper' ? 'text-cyan-200' : 'text-amber-200'}`}>RUNDE {round}</p><span className="text-[9px] font-bold text-zinc-600">{roundMatches.length} MATCHES</span></div><div className="space-y-3">{[...roundMatches].sort((left, right) => left.match_number - right.match_number).map(match => <BracketMatchCard key={match.id} match={match} userId={userId} bestOf={bestOf} isFinal={roundIndex === sortedRounds.length - 1} showConnector={roundIndex < sortedRounds.length - 1} />)}</div></section>)}</div>;
 }
 
 function DoubleMetric({ value, label }: { value: string; label: string }) {
