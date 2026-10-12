@@ -274,8 +274,7 @@ function DoubleEliminationView({ tournament, matches, userId }: { tournament: To
   const hasExplicitSplit = matches.some(match => match.bracket_stage === 'upper' || match.bracket_stage === 'lower');
   const upperMatches = hasExplicitSplit ? matches.filter(match => match.bracket_stage === 'upper' || match.bracket_stage === 'main') : [];
   const lowerMatches = hasExplicitSplit ? matches.filter(match => match.bracket_stage === 'lower') : [];
-  const [selectedBracket, setSelectedBracket] = useState<'combined' | 'upper' | 'lower'>(hasExplicitSplit ? 'upper' : 'combined');
-  const selectedMatches = selectedBracket === 'combined' ? matches : selectedBracket === 'upper' ? upperMatches : lowerMatches;
+  const [selectedBracket, setSelectedBracket] = useState<'combined' | 'upper' | 'lower'>('combined');
   const completedMatches = matches.filter(match => match.status === 'completed');
   const scheduledMatches = matches.filter(match => match.status === 'scheduled' && String(match.round_number) !== activeRound);
   const liveMatches = currentMatches.filter(match => match.status === 'ready');
@@ -296,7 +295,7 @@ function DoubleEliminationView({ tournament, matches, userId }: { tournament: To
           <BracketTab active={selectedBracket === 'combined'} onClick={() => setSelectedBracket('combined')} label="GESAMTER BAUM" count={matches.length} tone="combined" />
           {hasExplicitSplit && <><BracketTab active={selectedBracket === 'upper'} onClick={() => setSelectedBracket('upper')} label="UPPER BRACKET" count={upperMatches.length} tone="upper" /><BracketTab active={selectedBracket === 'lower'} onClick={() => setSelectedBracket('lower')} label="LOWER BRACKET" count={lowerMatches.length} tone="lower" /></>}
         </div>
-        <DoubleBracketPane matches={selectedMatches} userId={userId} bestOf={tournament.best_of} bracket={selectedBracket} />
+        <DoubleBracketPane matches={matches} userId={userId} bestOf={tournament.best_of} bracket={selectedBracket} />
       </section>
       <aside className="border border-amber-300/20 bg-amber-300/[.045] p-5">
         <p className="text-[10px] font-black tracking-[.18em] text-amber-200">DOUBLE ELIMINATION</p>
@@ -313,15 +312,55 @@ function BracketTab({ active, onClick, label, count, tone }: { active: boolean; 
   return <button type="button" onClick={onClick} className={`inline-flex items-center gap-2 border px-4 py-2.5 text-[10px] font-black tracking-[.14em] transition ${active ? activeClass : 'border-white/10 bg-black/15 text-zinc-500 hover:border-white/25 hover:text-zinc-300'}`}>{label}<span className="text-[9px] opacity-70">{count}</span></button>;
 }
 
+type DoubleBracketKind = 'upper' | 'lower' | 'final';
+type ClassifiedDoubleMatch = { match: TournamentMatch; kind: DoubleBracketKind };
+type DoubleBracketColumn = { key: string; label: string; matches: TournamentMatch[] };
+
+function classifyDoubleEliminationMatches(matches: TournamentMatch[]): ClassifiedDoubleMatch[] {
+  const losses = new Map<string, number>();
+  const finalPairs = new Set<string>();
+  const ordered = [...matches].sort((left, right) => left.round_number - right.round_number || left.match_number - right.match_number);
+
+  return ordered.map(match => {
+    const player1Losses = match.player1_id ? losses.get(match.player1_id) ?? 0 : 0;
+    const player2Losses = match.player2_id ? losses.get(match.player2_id) ?? 0 : 0;
+    const pairKey = match.player1_id && match.player2_id ? [match.player1_id, match.player2_id].sort().join(':') : '';
+    const explicitStage = match.bracket_stage?.toLowerCase();
+    const isGrandFinal = Boolean(pairKey && finalPairs.has(pairKey)) || ['final', 'grand_final', 'grand-final', 'reset'].includes(explicitStage ?? '') || (player1Losses === 0 && player2Losses === 1) || (player1Losses === 1 && player2Losses === 0);
+    const kind: DoubleBracketKind = isGrandFinal ? 'final' : explicitStage === 'lower' || player1Losses > 0 || player2Losses > 0 ? 'lower' : 'upper';
+
+    if (kind === 'final' && pairKey) finalPairs.add(pairKey);
+    if (match.status === 'completed' && match.winner_id && match.player1_id && match.player2_id) {
+      const loserId = match.winner_id === match.player1_id ? match.player2_id : match.player1_id;
+      losses.set(loserId, (losses.get(loserId) ?? 0) + 1);
+    }
+    return { match, kind };
+  });
+}
+
+function buildDoubleBracketColumns(items: ClassifiedDoubleMatch[], kind: DoubleBracketKind): DoubleBracketColumn[] {
+  if (kind === 'final') return items.map((item, index) => ({ key: item.match.id, label: index === 0 ? 'GRAND FINAL' : `RESET ${index}`, matches: [item.match] }));
+  const grouped = new Map<number, TournamentMatch[]>();
+  items.filter(item => item.kind === kind).forEach(item => { const matches = grouped.get(item.match.round_number) ?? []; matches.push(item.match); grouped.set(item.match.round_number, matches); });
+  return [...grouped.entries()].sort(([left], [right]) => left - right).map(([round, roundMatches], index) => ({ key: `${kind}-${round}`, label: kind === 'upper' ? index === grouped.size - 1 ? 'UPPER-FINALE' : `UPPER RUNDE ${index + 1}` : `LOWER RUNDE ${index + 1}`, matches: roundMatches.sort((left, right) => left.match_number - right.match_number) }));
+}
+
+function DoubleBracketLane({ title, description, tone, columns, userId, bestOf }: { title: string; description: string; tone: 'upper' | 'lower' | 'final'; columns: DoubleBracketColumn[]; userId: string | null; bestOf: number }) {
+  const accent = tone === 'upper' ? 'border-cyan-300/25 bg-cyan-300/[.035]' : tone === 'lower' ? 'border-amber-300/25 bg-amber-300/[.035]' : 'border-violet-300/25 bg-violet-300/[.035]';
+  const label = tone === 'upper' ? 'text-cyan-200' : tone === 'lower' ? 'text-amber-200' : 'text-violet-200';
+  return <section className={`overflow-hidden border ${accent}`}><header className="border-b border-white/10 px-4 py-3 sm:px-5"><div className="flex flex-wrap items-baseline justify-between gap-2"><div><p className={`text-[10px] font-black tracking-[.18em] ${label}`}>{title}</p><p className="mt-1 text-xs text-zinc-500">{description}</p></div><span className="text-[9px] font-black tracking-[.12em] text-zinc-600">{columns.reduce((count, column) => count + column.matches.length, 0)} MATCHES</span></div></header><div className="overflow-x-auto"><div className="flex min-w-max items-stretch gap-3 p-4 sm:gap-5 sm:p-5">{columns.map((column, columnIndex) => <div key={column.key} className="flex w-[224px] shrink-0 flex-col"><div className={`mb-2 flex min-h-8 items-center justify-between border-b border-white/10 pb-2 text-[9px] font-black tracking-[.12em] ${label}`}><span>{column.label}</span><span className="text-zinc-600">{column.matches.length}</span></div><div className="flex min-h-[230px] flex-1 flex-col justify-around gap-3">{column.matches.map(match => <BracketMatchCard key={match.id} match={match} userId={userId} bestOf={bestOf} isFinal={tone === 'final'} showConnector={columnIndex < columns.length - 1} tree />)}</div></div>)}{columns.length === 0 && <p className="py-8 text-sm text-zinc-500">Noch keine Matches in diesem Bereich.</p>}</div></div></section>;
+}
+
 function DoubleBracketPane({ matches, userId, bestOf, bracket }: { matches: TournamentMatch[]; userId: string | null; bestOf: number; bracket: 'combined' | 'upper' | 'lower' }) {
-  const rounds = matches.reduce<Record<number, TournamentMatch[]>>((all, match) => { (all[match.round_number] ??= []).push(match); return all; }, {});
-  const sortedRounds = Object.entries(rounds).sort(([left], [right]) => Number(left) - Number(right));
-  if (matches.length === 0) return <div className="p-8 text-center"><p className={`text-sm font-bold ${bracket === 'upper' ? 'text-cyan-100' : bracket === 'lower' ? 'text-amber-100' : 'text-white'}`}>{bracket === 'upper' ? 'Keine Upper-Bracket-Matches vorhanden' : bracket === 'lower' ? 'Noch keine Lower-Bracket-Matches vorhanden' : 'Noch keine Paarungen vorhanden'}</p><p className="mt-2 text-xs leading-5 text-zinc-500">Sobald eine Paarung freigeschaltet wird, erscheint sie hier in der passenden Runde.</p></div>;
-  const firstRoundMatchCount = sortedRounds[0]?.[1].length ?? 1;
-  const treeRows = Math.max(1, firstRoundMatchCount * 2);
-  const treeHeight = Math.max(300, treeRows * 54);
-  const treeMinWidth = Math.max(820, sortedRounds.length * 224);
-  return <div className="overflow-x-auto p-4"><div className="grid gap-4" style={{ minWidth: `${treeMinWidth}px`, gridTemplateColumns: `repeat(${sortedRounds.length}, minmax(208px, 1fr))` }}>{sortedRounds.map(([round, roundMatches], roundIndex) => <section key={round} className="min-w-0"><div className="mb-2 flex items-center justify-between"><p className={`text-[9px] font-black tracking-[.15em] ${bracket === 'upper' ? 'text-cyan-200' : bracket === 'lower' ? 'text-amber-200' : 'text-zinc-300'}`}>RUNDE {round}</p><span className="text-[9px] font-bold text-zinc-600">{roundMatches.length} MATCHES</span></div><div className="grid h-[var(--tree-height)] gap-2" style={{ '--tree-height': `${treeHeight}px`, gridTemplateRows: `repeat(${treeRows}, minmax(0, 1fr))` } as CSSProperties}>{[...roundMatches].sort((left, right) => left.match_number - right.match_number).map((match, matchIndex) => <div key={match.id} className="relative min-w-0 self-center" style={{ gridRowStart: Math.min(treeRows, 2 ** roundIndex + matchIndex * 2 ** (roundIndex + 1)) }}><BracketMatchCard match={match} userId={userId} bestOf={bestOf} isFinal={roundIndex === sortedRounds.length - 1} showConnector={roundIndex < sortedRounds.length - 1} tree /></div>)}</div></section>)}</div></div>;
+  if (matches.length === 0) return <div className="p-8 text-center"><p className="text-sm font-bold text-zinc-300">Noch keine Paarungen vorhanden</p><p className="mt-2 text-xs leading-5 text-zinc-500">Sobald eine Paarung freigeschaltet wird, erscheint sie hier in der passenden Runde.</p></div>;
+  const classified = classifyDoubleEliminationMatches(matches);
+  const upperColumns = buildDoubleBracketColumns(classified, 'upper');
+  const lowerColumns = buildDoubleBracketColumns(classified, 'lower');
+  const finalColumns = buildDoubleBracketColumns(classified, 'final');
+  const showUpper = bracket === 'combined' || bracket === 'upper';
+  const showLower = bracket === 'combined' || bracket === 'lower';
+  const showFinal = bracket === 'combined' || bracket === 'lower';
+  return <div className="space-y-4 p-4 sm:space-y-5 sm:p-5">{showUpper && <DoubleBracketLane title="UPPER BRACKET" description="Alle Spieler starten hier. Eine Niederlage führt ins Lower Bracket." tone="upper" columns={upperColumns} userId={userId} bestOf={bestOf} />}{showUpper && showLower && <div className="flex items-center justify-center gap-3 py-1 text-[9px] font-black tracking-[.15em] text-zinc-600"><span className="h-px w-16 bg-white/10" />NIEDERLAGE → LOWER BRACKET<span className="h-px w-16 bg-white/10" /></div>}{showLower && <DoubleBracketLane title="LOWER BRACKET" description="Hier kämpfen sich Spieler mit einer Niederlage zurück ins Turnier." tone="lower" columns={lowerColumns} userId={userId} bestOf={bestOf} />}{showFinal && finalColumns.length > 0 && <DoubleBracketLane title="FINALE" description="Lower-Bracket-Sieger gegen den Upper-Bracket-Sieger – inklusive möglichem Reset." tone="final" columns={finalColumns} userId={userId} bestOf={bestOf} />}</div>;
 }
 
 function DoubleMetric({ value, label }: { value: string; label: string }) {
