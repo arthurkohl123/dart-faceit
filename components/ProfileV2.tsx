@@ -36,7 +36,7 @@ import {
 } from '@/components/UnifiedDartsProfile';
 import { getRankProgress } from '@/lib/ranks';
 
-const DISCORD_INVITE_URL = 'https://discord.gg/V6u29zEhp';
+const DISCORD_INVITE_URL = 'https://discord.gg/5qwUZQxjfV';
 
 type ProfileData = {
   username: string | null;

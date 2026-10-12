@@ -30,7 +30,7 @@ const homepageSteps = [
   { number: '03', title: 'Match bestätigen', text: 'Ergebnis einreichen, bestätigen lassen und direkt in der Rangliste steigen.', icon: ClipboardCheck },
 ] as const;
 
-const DISCORD_INVITE_URL = 'https://discord.gg/V6u29zEhp';
+const DISCORD_INVITE_URL = 'https://discord.gg/5qwUZQxjfV';
 
 export default function Home() {
   const router = useRouter();
