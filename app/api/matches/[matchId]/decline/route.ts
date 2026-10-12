@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ma
     return NextResponse.json({ status: 'declined' });
   } catch (error) {
     console.error('Could not decline match:', error);
+    await recordMonitoringEvent({
+      source: 'matchmaking',
+      eventType: 'matchmaking_decline_error',
+      severity: 'error',
+      message: monitoringErrorMessage(error),
+      fingerprint: `matchmaking:decline:${matchId}`,
+      context: { match_id: matchId, phase: 'decline', cause: monitoringErrorMessage(error) },
+    });
     return NextResponse.json({ error: 'Match konnte nicht abgelehnt werden.' }, { status: 503 });
   }
 }

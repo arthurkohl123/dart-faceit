@@ -374,7 +374,7 @@ export default function Matchmaking() {
         setStatus('error');
       } else {
         console.error('accept_match fehlgeschlagen:', err);
-        reportClientError('matchmaking_accept_error', message, { phase: 'accept' });
+        reportClientError('matchmaking_accept_error', message, { phase: 'accept', match_id: acceptMatchId, cause: message });
         setErrorMessage(message || 'Das Match konnte nicht gestartet werden. Bitte versuche es erneut.');
         setStatus('error');
       }
@@ -396,7 +396,7 @@ export default function Matchmaking() {
       if (!response.ok) throw new Error('Match konnte nicht abgelehnt werden.');
     } catch (err) {
       console.error('decline_match fehlgeschlagen:', err);
-      reportClientError('matchmaking_decline_error', err instanceof Error ? err.message : String(err), { phase: 'decline' });
+      reportClientError('matchmaking_decline_error', err instanceof Error ? err.message : String(err), { phase: 'decline', match_id: acceptMatchId, cause: err instanceof Error ? err.message : String(err) });
     } finally {
       if (acceptIntervalRef.current) clearInterval(acceptIntervalRef.current);
       setAcceptMatchId(null);
@@ -719,7 +719,7 @@ export default function Matchmaking() {
           return;
         } else {
           setErrorMessage(msg);
-          reportClientError('matchmaking_queue_error', msg, { phase: 'poll', apps });
+          reportClientError('matchmaking_queue_error', msg, { phase: 'poll', apps, cause: msg });
         }
         setStatus('error');
       }
@@ -816,7 +816,7 @@ export default function Matchmaking() {
       await supabase.rpc('cancel_matchmaking');
     } catch (error) {
       console.error('Matchmaking-Abbruch fehlgeschlagen:', error);
-      reportClientError('matchmaking_cancel_error', error instanceof Error ? error.message : String(error), { phase: 'cancel' });
+      reportClientError('matchmaking_cancel_error', error instanceof Error ? error.message : String(error), { phase: 'cancel', cause: error instanceof Error ? error.message : String(error) });
     } finally {
       setQueueConnectionRecovering(false);
       setStatus('idle');
@@ -1259,7 +1259,7 @@ export default function Matchmaking() {
         // und soll nicht als Produktionsfehler alarmieren.
         if (!isTransientNetworkError(err)) {
           console.error('Heartbeat fehlgeschlagen:', err);
-          reportClientError('matchmaking_heartbeat_error', err instanceof Error ? err.message : String(err), { phase: 'heartbeat' });
+          reportClientError('matchmaking_heartbeat_error', err instanceof Error ? err.message : String(err), { phase: 'heartbeat', cause: err instanceof Error ? err.message : String(err) });
         }
       }
     };

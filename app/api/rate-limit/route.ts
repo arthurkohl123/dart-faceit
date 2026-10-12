@@ -32,8 +32,13 @@ export async function POST(request: Request) {
 
     const result = await consumeRateLimit(scope, request, identifier);
     if (!result.allowed) {
+      const minutes = Math.floor(result.retryAfterSeconds / 60);
+      const seconds = result.retryAfterSeconds % 60;
+      const waitText = minutes > 0
+        ? `${minutes} Min.${seconds ? ` ${seconds} Sek.` : ''}`
+        : `${result.retryAfterSeconds} Sek.`;
       return NextResponse.json(
-        { error: 'Zu viele Anfragen. Bitte versuche es in einigen Minuten erneut.' },
+        { error: `Zu viele Anfragen. Bitte versuche es in ${waitText} erneut.`, retry_after_seconds: result.retryAfterSeconds },
         { status: 429, headers: { 'Retry-After': String(result.retryAfterSeconds) } },
       );
     }

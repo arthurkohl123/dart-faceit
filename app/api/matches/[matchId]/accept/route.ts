@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -94,6 +95,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ma
     return NextResponse.json({ status: 'waiting', match_id: match.id });
   } catch (error) {
     console.error('Could not accept match:', error);
+    await recordMonitoringEvent({
+      source: 'matchmaking',
+      eventType: 'matchmaking_accept_error',
+      severity: 'error',
+      message: monitoringErrorMessage(error),
+      fingerprint: `matchmaking:accept:${matchId}`,
+      context: { match_id: matchId, phase: 'accept', cause: monitoringErrorMessage(error) },
+    });
     return NextResponse.json({ error: 'Match konnte nicht angenommen werden.' }, { status: 503 });
   }
 }

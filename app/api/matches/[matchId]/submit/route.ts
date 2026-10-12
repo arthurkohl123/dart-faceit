@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -105,6 +106,14 @@ export async function POST(
     });
   } catch (error) {
     console.error('Could not submit match result:', error);
+    await recordMonitoringEvent({
+      source: 'matchmaking',
+      eventType: 'matchmaking_result_submit_error',
+      severity: 'error',
+      message: monitoringErrorMessage(error),
+      fingerprint: `matchmaking:result-submit:${matchId}`,
+      context: { match_id: matchId, phase: 'result_submit', cause: monitoringErrorMessage(error) },
+    });
     return NextResponse.json({ error: 'Ergebnis konnte nicht gespeichert werden.' }, { status: 503 });
   }
 }

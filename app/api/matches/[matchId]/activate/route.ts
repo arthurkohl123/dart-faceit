@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,6 +48,14 @@ export async function POST(
     return NextResponse.json({ status: updated?.status ?? 'pending_result', migrated: true });
   } catch (error) {
     console.error('Could not activate legacy match:', error);
+    await recordMonitoringEvent({
+      source: 'matchmaking',
+      eventType: 'matchmaking_activate_error',
+      severity: 'error',
+      message: monitoringErrorMessage(error),
+      fingerprint: `matchmaking:activate:${matchId}`,
+      context: { match_id: matchId, phase: 'activate', cause: monitoringErrorMessage(error) },
+    });
     return NextResponse.json({ error: 'Matchroom konnte nicht vorbereitet werden.' }, { status: 503 });
   }
 }

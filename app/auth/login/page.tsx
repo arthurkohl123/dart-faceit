@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TurnstileWidget } from '@/components/turnstile-widget';
 import { verifyCaptcha } from '@/lib/captcha-client';
 import { BrandLogo } from '@/components/BrandLogo';
-import { ArrowLeft, ArrowRight, LockKeyhole, Mail } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock3, LockKeyhole, Mail, RefreshCcw } from 'lucide-react';
 
 // ─── Innere Komponente (nutzt useSearchParams) ────────────────────────────────
 // useSearchParams() erfordert ein Suspense-Boundary im App Router.
@@ -16,16 +16,49 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [canResendConfirmation, setCanResendConfirmation] = useState(false);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+
+  // A stale local session can survive a failed refresh and make the next
+  // login appear to hang or redirect back to a protected page. Supabase will
+  // refresh a valid session here; an actually expired one is removed locally.
+  useEffect(() => {
+    let mounted = true;
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted || !session?.expires_at) return;
+      if (session.expires_at * 1000 <= Date.now()) {
+        void supabase.auth.signOut({ scope: 'local' });
+      }
+    });
+    return () => { mounted = false; };
+  }, [supabase]);
+
+  useEffect(() => {
+    if (retryAfterSeconds <= 0) return;
+    const interval = window.setInterval(() => {
+      setRetryAfterSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [retryAfterSeconds]);
+
+  const formatRetryAfter = (seconds: number) => {
+    if (seconds < 60) return `${seconds} Sekunden`;
+    const minutes = Math.floor(seconds / 60);
+    const remaining = seconds % 60;
+    return remaining ? `${minutes} Min. ${remaining} Sek.` : `${minutes} Minuten`;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setFormMessage(null);
+    setCanResendConfirmation(false);
 
     // Browsers/Passwortmanager können versehentlich Leerzeichen oder eine
     // andere Groß-/Kleinschreibung einfügen. Supabase behandelt E-Mail-Adressen
@@ -52,7 +85,9 @@ function LoginForm() {
 
     if (!rateLimitResponse.ok) {
       const payload = await rateLimitResponse.json().catch(() => null) as { error?: string } | null;
-      setFormMessage({ type: 'error', text: payload?.error || 'Die Sicherheitsprüfung ist gerade nicht verfügbar.' });
+      const retryAfter = Math.max(0, Number(rateLimitResponse.headers.get('Retry-After') || 0));
+      setRetryAfterSeconds(retryAfter);
+      setFormMessage({ type: 'error', text: payload?.error || `Zu viele Loginversuche. Bitte warte ${formatRetryAfter(retryAfter)} und versuche es dann erneut.` });
       setLoading(false);
       return;
     }
@@ -63,10 +98,19 @@ function LoginForm() {
       const errorCode = 'code' in error && typeof error.code === 'string' ? error.code : '';
       const isInvalidCredentials = errorCode === 'invalid_credentials'
         || error.message.toLowerCase().includes('invalid login credentials');
+      const isEmailNotConfirmed = errorCode === 'email_not_confirmed'
+        || error.message.toLowerCase().includes('email not confirmed');
+
+      // Remove a stale browser session after every failed auth exchange. This
+      // does not sign the user out on other devices.
+      void supabase.auth.signOut({ scope: 'local' });
+      setCanResendConfirmation(isEmailNotConfirmed);
 
       setFormMessage({
         type: 'error',
-        text: isInvalidCredentials
+        text: isEmailNotConfirmed
+          ? 'Dein Konto ist noch nicht bestätigt. Sende dir die Bestätigungsmail erneut und öffne den neuesten Link.'
+          : isInvalidCredentials
           ? 'E-Mail oder Passwort stimmen nicht. Wenn du dein Passwort gerade zurückgesetzt hast, verwende den Link aus der neuesten Reset-Mail und wähle ein neues Passwort, das sich vom alten unterscheidet.'
           : 'Der Login konnte gerade nicht abgeschlossen werden. Bitte versuche es erneut.',
       });
@@ -92,6 +136,7 @@ function LoginForm() {
 
     setResetLoading(true);
     setFormMessage(null);
+    setCanResendConfirmation(false);
 
     const captcha = await verifyCaptcha('login', captchaToken);
     if (!captcha.ok) {
@@ -108,7 +153,9 @@ function LoginForm() {
 
     if (!rateLimitResponse.ok) {
       const payload = await rateLimitResponse.json().catch(() => null) as { error?: string } | null;
-      setFormMessage({ type: 'error', text: payload?.error || 'Die Sicherheitsprüfung ist gerade nicht verfügbar.' });
+      const retryAfter = Math.max(0, Number(rateLimitResponse.headers.get('Retry-After') || 0));
+      setRetryAfterSeconds(retryAfter);
+      setFormMessage({ type: 'error', text: payload?.error || `Zu viele Anfragen. Bitte warte ${formatRetryAfter(retryAfter)}.` });
       setResetLoading(false);
       return;
     }
@@ -129,6 +176,50 @@ function LoginForm() {
     setResetLoading(false);
   };
 
+  const handleResendConfirmation = async () => {
+    const emailForResend = email.trim();
+    if (!emailForResend || resendLoading || retryAfterSeconds > 0) return;
+
+    setResendLoading(true);
+    setFormMessage(null);
+
+    try {
+      const captcha = await verifyCaptcha('login', captchaToken);
+      if (!captcha.ok) {
+        setFormMessage({ type: 'error', text: captcha.error || 'Sicherheitsprüfung fehlgeschlagen.' });
+        return;
+      }
+
+      const rateLimitResponse = await fetch('/api/rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resend_confirmation', email: emailForResend }),
+      });
+      if (!rateLimitResponse.ok) {
+        const payload = await rateLimitResponse.json().catch(() => null) as { error?: string } | null;
+        const retryAfter = Math.max(0, Number(rateLimitResponse.headers.get('Retry-After') || 0));
+        setRetryAfterSeconds(retryAfter);
+        setFormMessage({ type: 'error', text: payload?.error || `Bitte warte ${formatRetryAfter(retryAfter)} und versuche es danach erneut.` });
+        return;
+      }
+
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: emailForResend,
+        options: { emailRedirectTo: `${window.location.origin}/auth/login?confirmed=1` },
+      });
+      if (error) {
+        setFormMessage({ type: 'error', text: `Bestätigungsmail konnte nicht gesendet werden: ${error.message}` });
+        return;
+      }
+
+      setCanResendConfirmation(false);
+      setFormMessage({ type: 'success', text: 'Die neueste Bestätigungsmail wurde gesendet. Bitte prüfe auch den Spam-Ordner.' });
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   return (
     <div className="relative border border-white/10 bg-[#0b0e0e] p-5 shadow-[0_28px_90px_rgba(0,0,0,.48)] sm:p-7">
       <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-300 to-transparent" />
@@ -145,6 +236,16 @@ function LoginForm() {
             : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
         }`}>
           {formMessage.text}
+        </div>
+      )}
+
+      {canResendConfirmation && (
+        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+          <span>Bestätigungsmail nicht angekommen?</span>
+          <button type="button" onClick={() => void handleResendConfirmation()} disabled={resendLoading || retryAfterSeconds > 0} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-200/30 px-3 py-2 text-xs font-black transition hover:bg-amber-200/10 disabled:cursor-not-allowed disabled:opacity-50">
+            {resendLoading ? <RefreshCcw className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+            {retryAfterSeconds > 0 ? `Warte ${formatRetryAfter(retryAfterSeconds)}` : 'Erneut senden'}
+          </button>
         </div>
       )}
 
@@ -195,6 +296,10 @@ function LoginForm() {
           {loading ? 'Einloggen...' : <>Einloggen <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></>}
         </button>
       </form>
+
+      {retryAfterSeconds > 0 && !canResendConfirmation && (
+        <p className="mt-4 flex items-center justify-center gap-2 text-center text-xs font-bold text-amber-200/80"><Clock3 className="h-3.5 w-3.5" />Nächster Versuch in {formatRetryAfter(retryAfterSeconds)} möglich.</p>
+      )}
 
       <div className="mt-6 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600"><span>Season 01 · bis 01.11.2026</span><span className="h-1 w-1 rounded-full bg-zinc-700" /><span>Secure access</span></div>
       <p className="mt-4 text-center text-sm text-zinc-400">

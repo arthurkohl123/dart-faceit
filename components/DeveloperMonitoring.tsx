@@ -30,6 +30,9 @@ type MonitoringEvent = {
   severity: 'info' | 'warning' | 'error' | 'critical';
   message: string;
   context: Record<string, unknown>;
+  incident_code?: string | null;
+  match_id?: string | null;
+  cause?: string | null;
   occurrence_count: number;
   first_seen_at: string;
   last_seen_at: string;
@@ -63,6 +66,12 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString('de-DE', {
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
+}
+
+function incidentCode(event: MonitoringEvent) {
+  if (event.incident_code) return event.incident_code;
+  const readableType = event.event_type.replace(/[^a-z0-9]+/gi, '-').toUpperCase();
+  return `RD-${readableType}-${event.id.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
 }
 
 export function DeveloperMonitoring() {
@@ -184,8 +193,13 @@ export function DeveloperMonitoring() {
                     <span className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">{event.source} · {event.event_type}</span>
                     {event.occurrence_count > 1 && <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[10px] font-black text-zinc-300">×{event.occurrence_count}</span>}
                   </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-black uppercase tracking-[0.13em] text-cyan-200/80">
+                    <span>Fehler-ID: {incidentCode(event)}</span>
+                    <span>Zeit: {formatDate(event.last_seen_at)}</span>
+                    {event.match_id && <span>Match: {event.match_id}</span>}
+                  </div>
                   <p className="mt-3 break-words text-sm font-bold text-zinc-100">{event.message}</p>
-                  <p className="mt-2 text-[11px] text-zinc-500">Zuletzt: {formatDate(event.last_seen_at)}{event.resolved_at ? ` · erledigt ${formatDate(event.resolved_at)}` : ''}</p>
+                  <p className="mt-2 text-[11px] text-zinc-500">Ursache: {event.cause || event.message}{event.resolved_at ? ` · erledigt ${formatDate(event.resolved_at)}` : ''}</p>
                 </div>
                 {!event.resolved_at && (
                   <button type="button" disabled={resolving === event.id} onClick={() => void resolveEvent(event.id)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-100 transition hover:bg-emerald-400/15 disabled:opacity-50">

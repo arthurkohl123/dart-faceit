@@ -30,7 +30,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: build-check-anon-key
 
   production-smoke:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Run the critical user-flow smoke suite for every deployment push as well
+    # as the existing scheduled/manual production checks.
+    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

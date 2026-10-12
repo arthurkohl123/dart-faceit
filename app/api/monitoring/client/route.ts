@@ -12,6 +12,9 @@ const allowedEvents = new Set([
   'matchmaking_queue_error',
   'matchmaking_cancel_error',
   'matchmaking_heartbeat_error',
+  'matchmaking_activate_error',
+  'matchmaking_result_submit_error',
+  'matchmaking_expire_error',
   'client_runtime_error',
   'client_chunk_load_error',
 ]);
@@ -34,15 +37,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid monitoring event' }, { status: 400 });
     }
 
-    const serializedContext = JSON.stringify(body.context ?? {});
+    const context = body.context && typeof body.context === 'object' && !Array.isArray(body.context)
+      ? body.context
+      : {};
+    const serializedContext = JSON.stringify(context);
     const source = body.eventType.startsWith('client_') ? 'frontend' : 'matchmaking';
+    const matchId = typeof context.match_id === 'string' ? context.match_id : 'global';
     await recordMonitoringEvent({
       source,
       eventType: body.eventType,
       severity: body.eventType === 'client_chunk_load_error' ? 'warning' : 'error',
       message: monitoringErrorMessage(body.message),
-      fingerprint: `${source}:${body.eventType}`,
-      context: serializedContext.length <= 2_000 ? body.context : {},
+      fingerprint: `${source}:${body.eventType}:${matchId}`,
+      context: serializedContext.length <= 2_000 ? context : {},
     });
 
     return NextResponse.json({ accepted: true });

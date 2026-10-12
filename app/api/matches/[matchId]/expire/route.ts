@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -62,6 +63,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ma
     });
   } catch (error) {
     console.error('Could not expire match accept:', error);
+    await recordMonitoringEvent({
+      source: 'matchmaking',
+      eventType: 'matchmaking_expire_error',
+      severity: 'error',
+      message: monitoringErrorMessage(error),
+      fingerprint: `matchmaking:expire:${matchId}`,
+      context: { match_id: matchId, phase: 'expire', cause: monitoringErrorMessage(error) },
+    });
     return NextResponse.json({ error: 'Abgelaufene Match-Anfrage konnte nicht bereinigt werden.' }, { status: 503 });
   }
 }
