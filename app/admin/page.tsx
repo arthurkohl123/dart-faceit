@@ -2320,6 +2320,12 @@ export default function AdminPanel() {
                   {/* Aktionen */}
                   <div className="flex flex-wrap gap-2">
                     <button
+                      onClick={() => { setActiveTab('flagged'); void openFairplayReview(user.id); }}
+                      className="rounded-xl border border-violet-300/25 bg-violet-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-violet-100 transition hover:bg-violet-400/20"
+                    >
+                      Akte öffnen
+                    </button>
+                    <button
                       onClick={() => { setPremiumEditorUserId(premiumEditorUserId === user.id ? null : user.id); setPremiumReason(user.premium_manual_reason || ''); }}
                       className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-amber-100 transition hover:bg-amber-300/15"
                     >
