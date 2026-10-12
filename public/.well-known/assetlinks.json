@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "de.rankeddarts.app",
+      "sha256_cert_fingerprints": [
+        "5E:61:06:78:B8:A6:AD:51:3E:C2:D9:39:15:52:BF:17:99:6B:03:27:7D:E3:6B:64:B5:3B:AE:98:D9:56:CB:DA"
+      ]
+    }
+  }
+]
