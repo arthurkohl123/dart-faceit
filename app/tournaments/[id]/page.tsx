@@ -232,7 +232,7 @@ function BracketMatchCard({ match, userId, bestOf, isFinal, showConnector, tree 
 
 function BracketPlayer({ name, emptyLabel = 'Wird ermittelt', legs, average, won }: { name: string | null; emptyLabel?: string; legs: number | null; average: number | null; won: boolean }) {
   return <div className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 py-1.5 ${won ? 'text-emerald-100' : 'text-zinc-300'}`} title={name || emptyLabel}>
-    <div className="min-w-0"><p className="break-words text-[11px] font-semibold leading-tight sm:text-[12px]">{name || emptyLabel}</p>{average !== null && <p className="mt-0.5 text-[9px] font-normal leading-none text-zinc-500 sm:text-[10px]">Ø {Number(average).toFixed(1)}</p>}</div>
+    <div className="min-w-0"><p className="truncate whitespace-nowrap text-[11px] font-semibold leading-tight sm:text-[12px]" title={name || emptyLabel}>{name || emptyLabel}</p>{average !== null && <p className="mt-0.5 text-[9px] font-normal leading-none text-zinc-500 sm:text-[10px]">Ø {Number(average).toFixed(1)}</p>}</div>
     <span className={`shrink-0 text-[12px] font-black sm:text-[13px] ${won ? 'text-emerald-200' : legs !== null ? 'text-white' : 'text-zinc-600'}`}>{legs ?? '—'}</span>
   </div>;
 }
@@ -271,11 +271,11 @@ function DoubleEliminationView({ tournament, matches, userId }: { tournament: To
   const activeRound = displayRoundEntry?.[0] ?? '—';
   const currentMatches = [...(pendingRoundEntry?.[1] ?? [])].sort((left, right) => left.match_number - right.match_number);
   const pendingMatches = matches.filter(match => match.status !== 'completed');
-  const isLowerBracketMatch = (match: TournamentMatch) => match.bracket_stage === 'lower' || (match.bracket_stage !== 'upper' && match.bracket_stage !== 'main' && Math.max(match.player1_losses ?? 0, match.player2_losses ?? 0) > 0);
-  const upperMatches = matches.filter(match => !isLowerBracketMatch(match));
-  const lowerMatches = matches.filter(isLowerBracketMatch);
-  const [selectedBracket, setSelectedBracket] = useState<'upper' | 'lower'>(lowerMatches.length > 0 && upperMatches.length === 0 ? 'lower' : 'upper');
-  const selectedMatches = selectedBracket === 'upper' ? upperMatches : lowerMatches;
+  const hasExplicitSplit = matches.some(match => match.bracket_stage === 'upper' || match.bracket_stage === 'lower');
+  const upperMatches = hasExplicitSplit ? matches.filter(match => match.bracket_stage === 'upper' || match.bracket_stage === 'main') : [];
+  const lowerMatches = hasExplicitSplit ? matches.filter(match => match.bracket_stage === 'lower') : [];
+  const [selectedBracket, setSelectedBracket] = useState<'combined' | 'upper' | 'lower'>(hasExplicitSplit ? 'upper' : 'combined');
+  const selectedMatches = selectedBracket === 'combined' ? matches : selectedBracket === 'upper' ? upperMatches : lowerMatches;
   const completedMatches = matches.filter(match => match.status === 'completed');
   const scheduledMatches = matches.filter(match => match.status === 'scheduled' && String(match.round_number) !== activeRound);
   const liveMatches = currentMatches.filter(match => match.status === 'ready');
@@ -289,32 +289,39 @@ function DoubleEliminationView({ tournament, matches, userId }: { tournament: To
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,.7fr)]">
       <section className="overflow-hidden border border-cyan-300/20 bg-cyan-300/[.035]">
         <header className="flex flex-col justify-between gap-3 border-b border-cyan-300/15 p-5 sm:flex-row sm:items-end">
-          <div><p className="text-[10px] font-black tracking-[.18em] text-cyan-200">TURNIERBAUM</p><h3 className="mt-1 text-xl font-black">Runde {activeRound}</h3><p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Wähle den Weg durch das Turnier. Die Zuordnung basiert auf der aktuellen Anzahl an Niederlagen und aktualisiert sich automatisch.</p></div>
+          <div><p className="text-[10px] font-black tracking-[.18em] text-cyan-200">TURNIERBAUM</p><h3 className="mt-1 text-xl font-black">Runde {activeRound}</h3><p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">{hasExplicitSplit ? 'Wähle den Upper- oder Lower-Bracket-Weg. Beide Bäume zeigen abgeschlossene und offene Matches an ihrer jeweiligen Position.' : 'Dieses Turnier wurde noch mit dem früheren gemeinsamen Double-Elimination-Baum erstellt. Alle Matches bleiben deshalb in einem vollständigen, chronologischen Baum sichtbar.'}</p></div>
           <span className="inline-flex w-fit items-center gap-2 border border-cyan-300/20 bg-cyan-400/10 px-3 py-2 text-[10px] font-black tracking-[.12em] text-cyan-100"><Swords size={14} /> {pendingMatches.length} OFFENE MATCHES</span>
         </header>
         <div className="flex flex-wrap gap-2 border-b border-white/10 p-4">
-          {(['upper', 'lower'] as const).map(bracket => { const count = bracket === 'upper' ? upperMatches.length : lowerMatches.length; const active = selectedBracket === bracket; return <button key={bracket} type="button" onClick={() => setSelectedBracket(bracket)} className={`inline-flex items-center gap-2 border px-4 py-2.5 text-[10px] font-black tracking-[.14em] transition ${active ? bracket === 'upper' ? 'border-cyan-200/50 bg-cyan-300/15 text-cyan-100' : 'border-amber-200/50 bg-amber-300/15 text-amber-100' : 'border-white/10 bg-black/15 text-zinc-500 hover:border-white/25 hover:text-zinc-300'}`}>{bracket === 'upper' ? 'UPPER BRACKET' : 'LOWER BRACKET'}<span className="text-[9px] opacity-70">{count}</span></button>; })}
+          <BracketTab active={selectedBracket === 'combined'} onClick={() => setSelectedBracket('combined')} label="GESAMTER BAUM" count={matches.length} tone="combined" />
+          {hasExplicitSplit && <><BracketTab active={selectedBracket === 'upper'} onClick={() => setSelectedBracket('upper')} label="UPPER BRACKET" count={upperMatches.length} tone="upper" /><BracketTab active={selectedBracket === 'lower'} onClick={() => setSelectedBracket('lower')} label="LOWER BRACKET" count={lowerMatches.length} tone="lower" /></>}
         </div>
         <DoubleBracketPane matches={selectedMatches} userId={userId} bestOf={tournament.best_of} bracket={selectedBracket} />
       </section>
       <aside className="border border-amber-300/20 bg-amber-300/[.045] p-5">
         <p className="text-[10px] font-black tracking-[.18em] text-amber-200">DOUBLE ELIMINATION</p>
         <h3 className="mt-2 text-xl font-black">Zwei Chancen. Ein Ziel.</h3>
-        <p className="mt-3 text-sm leading-6 text-zinc-400">Eine Niederlage beendet dein Turnier noch nicht. Erst nach der zweiten Niederlage scheidest du aus. Die Ansicht bleibt dabei bewusst auf die laufende Matchwelle fokussiert.</p>
+        <p className="mt-3 text-sm leading-6 text-zinc-400">Eine Niederlage beendet dein Turnier noch nicht. Erst nach der zweiten Niederlage scheidest du aus. {hasExplicitSplit ? 'Die neue Turnierstruktur trennt Upper und Lower sauber.' : 'Der vollständige Baum dieses älteren Turniers bleibt in einer Ansicht zusammengefasst.'}</p>
         <div className="mt-5 border-t border-white/10 pt-4"><div className="flex items-center justify-between text-xs"><span className="text-zinc-500">Ergebnisse</span><strong className="text-emerald-200">{completedMatches.length} beendet</strong></div><div className="mt-3 flex items-center justify-between text-xs"><span className="text-zinc-500">Nächste Welle</span><strong className="text-zinc-300">{scheduledMatches.length ? `${scheduledMatches.length} geplant` : 'wird vorbereitet'}</strong></div></div>
       </aside>
     </div>
   </div>;
 }
 
-function DoubleBracketPane({ matches, userId, bestOf, bracket }: { matches: TournamentMatch[]; userId: string | null; bestOf: number; bracket: 'upper' | 'lower' }) {
+function BracketTab({ active, onClick, label, count, tone }: { active: boolean; onClick: () => void; label: string; count: number; tone: 'combined' | 'upper' | 'lower' }) {
+  const activeClass = tone === 'lower' ? 'border-amber-200/50 bg-amber-300/15 text-amber-100' : tone === 'upper' ? 'border-cyan-200/50 bg-cyan-300/15 text-cyan-100' : 'border-white/35 bg-white/10 text-white';
+  return <button type="button" onClick={onClick} className={`inline-flex items-center gap-2 border px-4 py-2.5 text-[10px] font-black tracking-[.14em] transition ${active ? activeClass : 'border-white/10 bg-black/15 text-zinc-500 hover:border-white/25 hover:text-zinc-300'}`}>{label}<span className="text-[9px] opacity-70">{count}</span></button>;
+}
+
+function DoubleBracketPane({ matches, userId, bestOf, bracket }: { matches: TournamentMatch[]; userId: string | null; bestOf: number; bracket: 'combined' | 'upper' | 'lower' }) {
   const rounds = matches.reduce<Record<number, TournamentMatch[]>>((all, match) => { (all[match.round_number] ??= []).push(match); return all; }, {});
   const sortedRounds = Object.entries(rounds).sort(([left], [right]) => Number(left) - Number(right));
-  if (matches.length === 0) return <div className="p-8 text-center"><p className={`text-sm font-bold ${bracket === 'upper' ? 'text-cyan-100' : 'text-amber-100'}`}>{bracket === 'upper' ? 'Keine offenen Upper-Bracket-Matches' : 'Das Lower Bracket wird nach der ersten Niederlage sichtbar.'}</p><p className="mt-2 text-xs leading-5 text-zinc-500">Sobald eine Paarung freigeschaltet wird, erscheint sie hier in der passenden Runde.</p></div>;
+  if (matches.length === 0) return <div className="p-8 text-center"><p className={`text-sm font-bold ${bracket === 'upper' ? 'text-cyan-100' : bracket === 'lower' ? 'text-amber-100' : 'text-white'}`}>{bracket === 'upper' ? 'Keine Upper-Bracket-Matches vorhanden' : bracket === 'lower' ? 'Noch keine Lower-Bracket-Matches vorhanden' : 'Noch keine Paarungen vorhanden'}</p><p className="mt-2 text-xs leading-5 text-zinc-500">Sobald eine Paarung freigeschaltet wird, erscheint sie hier in der passenden Runde.</p></div>;
   const firstRoundMatchCount = sortedRounds[0]?.[1].length ?? 1;
   const treeRows = Math.max(1, firstRoundMatchCount * 2);
   const treeHeight = Math.max(300, treeRows * 54);
-  return <div className="overflow-x-auto p-4 md:overflow-visible"><div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-[repeat(var(--tree-columns),minmax(0,1fr))]" style={{ '--tree-columns': sortedRounds.length } as CSSProperties}>{sortedRounds.map(([round, roundMatches], roundIndex) => <section key={round} className="min-w-0"><div className="mb-2 flex items-center justify-between"><p className={`text-[9px] font-black tracking-[.15em] ${bracket === 'upper' ? 'text-cyan-200' : 'text-amber-200'}`}>RUNDE {round}</p><span className="text-[9px] font-bold text-zinc-600">{roundMatches.length} MATCHES</span></div><div className="grid gap-2 md:h-[var(--tree-height)] md:grid-rows-[repeat(var(--tree-rows),minmax(0,1fr))]" style={{ '--tree-height': `${treeHeight}px`, '--tree-rows': treeRows } as CSSProperties}>{[...roundMatches].sort((left, right) => left.match_number - right.match_number).map((match, matchIndex) => <div key={match.id} className="relative min-w-0 self-center" style={{ gridRowStart: Math.min(treeRows, 2 ** roundIndex + matchIndex * 2 ** (roundIndex + 1)) }}><BracketMatchCard match={match} userId={userId} bestOf={bestOf} isFinal={roundIndex === sortedRounds.length - 1} showConnector={roundIndex < sortedRounds.length - 1} tree /></div>)}</div></section>)}</div></div>;
+  const treeMinWidth = Math.max(820, sortedRounds.length * 224);
+  return <div className="overflow-x-auto p-4"><div className="grid gap-4" style={{ minWidth: `${treeMinWidth}px`, gridTemplateColumns: `repeat(${sortedRounds.length}, minmax(208px, 1fr))` }}>{sortedRounds.map(([round, roundMatches], roundIndex) => <section key={round} className="min-w-0"><div className="mb-2 flex items-center justify-between"><p className={`text-[9px] font-black tracking-[.15em] ${bracket === 'upper' ? 'text-cyan-200' : bracket === 'lower' ? 'text-amber-200' : 'text-zinc-300'}`}>RUNDE {round}</p><span className="text-[9px] font-bold text-zinc-600">{roundMatches.length} MATCHES</span></div><div className="grid h-[var(--tree-height)] gap-2" style={{ '--tree-height': `${treeHeight}px`, gridTemplateRows: `repeat(${treeRows}, minmax(0, 1fr))` } as CSSProperties}>{[...roundMatches].sort((left, right) => left.match_number - right.match_number).map((match, matchIndex) => <div key={match.id} className="relative min-w-0 self-center" style={{ gridRowStart: Math.min(treeRows, 2 ** roundIndex + matchIndex * 2 ** (roundIndex + 1)) }}><BracketMatchCard match={match} userId={userId} bestOf={bestOf} isFinal={roundIndex === sortedRounds.length - 1} showConnector={roundIndex < sortedRounds.length - 1} tree /></div>)}</div></section>)}</div></div>;
 }
 
 function DoubleMetric({ value, label }: { value: string; label: string }) {
