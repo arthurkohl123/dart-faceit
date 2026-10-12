@@ -13,12 +13,11 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: 'any',
     lang: 'de-DE',
     categories: ['sports', 'games'],
-    // Keep the installed PWA icon aligned with the current RankedDarts mark.
-    // The version query also nudges mobile browsers to refresh an icon that was
-    // cached from an earlier installation.
+    // Use the same generated mark as the website favicon so the installed PWA
+    // never drifts back to the old full-wordmark image.
     icons: [
-      { src: '/rankeddarts-logo-mark.png?v=2', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/rankeddarts-logo-mark.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icon?v=3', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icon?v=3', sizes: '512x512', type: 'image/png', purpose: 'any' },
     ],
   };
 }

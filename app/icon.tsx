@@ -1,13 +1,15 @@
 import { ImageResponse } from 'next/og';
 
-export const size = { width: 64, height: 64 };
+// Keep the generated favicon high-resolution so the same current brand mark
+// can also be used by the installable mobile PWA.
+export const size = { width: 512, height: 512 };
 export const contentType = 'image/png';
 
 export default function Icon() {
   return new ImageResponse(
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#07100d', borderRadius: 14 }}>
-        <svg width="58" height="58" viewBox="0 0 64 64" fill="none">
+        <svg width="460" height="460" viewBox="0 0 64 64" fill="none">
           <defs>
             <linearGradient id="board" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
               <stop stopColor="#a3ff4e" /><stop offset=".46" stopColor="#35d787" /><stop offset="1" stopColor="#08765a" />
