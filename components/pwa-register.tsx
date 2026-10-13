@@ -8,6 +8,37 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
 
+const INSTALL_DISMISSED_KEY = 'rankeddarts-install-prompt-dismissed-v2';
+const LEGACY_DISMISSED_KEYS = [
+  'rankeddarts-android-install-dismissed',
+  'rankeddarts-pwa-install-dismissed',
+];
+
+function hasDismissedInstallPrompt() {
+  try {
+    if (window.localStorage.getItem(INSTALL_DISMISSED_KEY) === '1') return true;
+    if (LEGACY_DISMISSED_KEYS.some((key) => window.localStorage.getItem(key) === '1')) return true;
+    // Older releases used sessionStorage. Migrate that choice so the prompt
+    // does not return as soon as the browser session is restarted.
+    if (LEGACY_DISMISSED_KEYS.some((key) => window.sessionStorage.getItem(key) === '1')) {
+      window.localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+      return true;
+    }
+  } catch {
+    // Storage can be unavailable in private browsing. The install flow still
+    // works; in that case the prompt is only suppressed for the current mount.
+  }
+  return false;
+}
+
+function rememberInstallPromptDismissal() {
+  try {
+    window.localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+  } catch {
+    // Ignore storage restrictions; state is still updated for this session.
+  }
+}
+
 export function PwaRegister() {
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
   const [isAndroid, setIsAndroid] = useState(false);
@@ -16,9 +47,13 @@ export function PwaRegister() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     const android = /Android/i.test(navigator.userAgent);
-    setIsAndroid(android);
-    const dismissalKey = android ? 'rankeddarts-android-install-dismissed' : 'rankeddarts-pwa-install-dismissed';
-    setDismissed(window.sessionStorage.getItem(dismissalKey) === '1');
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    const syncInstallState = () => {
+      setIsAndroid(android);
+      setDismissed(standalone || hasDismissedInstallPrompt());
+    };
+    const syncTimer = window.setTimeout(syncInstallState, 0);
     const register = () => {
       void navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => undefined);
     };
@@ -33,6 +68,7 @@ export function PwaRegister() {
     if (document.readyState === 'complete') register();
     else window.addEventListener('load', register, { once: true });
     return () => {
+      window.clearTimeout(syncTimer);
       if (!android) window.removeEventListener('beforeinstallprompt', onInstallPrompt);
       window.removeEventListener('load', register);
     };
@@ -43,13 +79,16 @@ export function PwaRegister() {
   const install = async () => {
     if (!installEvent) return;
     await installEvent.prompt();
-    const result = await installEvent.userChoice;
-    if (result.outcome === 'accepted') setInstallEvent(null);
+    await installEvent.userChoice;
+    // Whether the user installs or closes the native prompt, do not interrupt
+    // them with the same banner again on the next visit.
+    setInstallEvent(null);
+    rememberInstallPromptDismissal();
+    setDismissed(true);
   };
 
   const dismiss = () => {
-    const dismissalKey = isAndroid ? 'rankeddarts-android-install-dismissed' : 'rankeddarts-pwa-install-dismissed';
-    window.sessionStorage.setItem(dismissalKey, '1');
+    rememberInstallPromptDismissal();
     setDismissed(true);
   };
 
@@ -64,7 +103,7 @@ export function PwaRegister() {
           href="/download/rankeddarts-android.apk"
           download
           onClick={() => {
-            window.sessionStorage.setItem('rankeddarts-android-install-dismissed', '1');
+            rememberInstallPromptDismissal();
             setDismissed(true);
           }}
           className="shrink-0 bg-emerald-300 px-3 py-2 text-xs font-black text-black"
@@ -78,3 +117,4 @@ export function PwaRegister() {
     </div>
   );
 }
+
