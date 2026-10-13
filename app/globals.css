@@ -693,6 +693,19 @@ body {
 .profile-v2 .profile-v6-score { color: #fff; font-size: clamp(4.5rem, 9vw, 6.5rem); font-weight: 900; line-height: .86; letter-spacing: -.11em; }
 .profile-v2 .profile-v6-rank-name { display: flex; align-items: center; justify-content: flex-end; gap: .7rem; border-left: 2px solid rgba(154, 240, 188, .22); padding: .2rem 0 .15rem 1rem; text-align: right; }
 .profile-v2 .profile-v6-nav a { transition: color .16s ease; }
+.profile-v2 .profile-v6-identity { padding: clamp(1rem, 2.4vw, 1.7rem); border: 1px solid rgba(154, 240, 188, .14); background: linear-gradient(135deg, rgba(18, 35, 28, .68), rgba(6, 11, 9, .5)); box-shadow: 0 20px 55px rgba(0, 0, 0, .16); }
+.profile-v2 .profile-v6-rating { padding: clamp(1rem, 2.4vw, 1.7rem); border: 1px solid rgba(255, 255, 255, .1); background: rgba(6, 11, 9, .56); }
+.profile-v2 .profile-v6-score-row { flex-wrap: wrap; }
+.profile-v2 .profile-v6-rank-name { min-width: 0; max-width: 100%; }
+.profile-v2 .profile-v3-match-row { margin-top: .55rem; border: 1px solid rgba(255, 255, 255, .09); background: linear-gradient(110deg, rgba(17, 27, 23, .72), rgba(8, 12, 11, .38)); padding: 1rem 1.1rem; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.profile-v2 .profile-v3-match-row:hover { border-color: rgba(154, 240, 188, .28); background: linear-gradient(110deg, rgba(22, 42, 32, .74), rgba(8, 12, 11, .45)); transform: translateX(2px); }
+.profile-v2 .profile-v3-platform-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(7rem, auto) auto; align-items: center; gap: 1rem; margin-top: .55rem; border: 1px solid rgba(255, 255, 255, .09); background: linear-gradient(110deg, rgba(17, 27, 23, .7), rgba(8, 12, 11, .34)); padding: 1rem 1.1rem; }
+.profile-v2 .profile-v3-platform-row > div { min-width: 0; }
+.profile-v2 .profile-v3-platform-row > div:nth-of-type(2) { overflow-wrap: anywhere; text-align: right; }
+.profile-v2 .profile-v3-platform-row > input { min-width: 0; }
+.profile-v2 .profile-v3-discord { border: 1px solid rgba(165, 180, 252, .18); background: linear-gradient(110deg, rgba(33, 35, 66, .34), rgba(8, 12, 11, .42)); padding-inline: clamp(1rem, 3vw, 2rem); }
+.profile-v2 .profile-v3-discord > div:first-child { min-width: 0; }
+.profile-v2 .profile-v3-discord h2 { overflow-wrap: anywhere; }
 @media (max-width: 639px) {
   .profile-v2 .profile-v3-metrics > div:nth-child(odd)::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; content: ''; background: rgba(255, 255, 255, .1); }
   .profile-v2 .profile-v3-metrics > div:nth-child(even)::before { top: 0; bottom: 0; }
@@ -706,6 +719,20 @@ body {
   .profile-v2 .profile-v6-status-line { gap: .6rem; letter-spacing: .11em; }
   .profile-v2 .profile-v6-season { display: none; }
   .profile-v2 .profile-v6-nav span { width: 100%; margin-left: 0; }
+  .profile-v2 .profile-v6-layout { gap: 1.1rem; }
+  .profile-v2 .profile-v6-identity { grid-template-columns: minmax(0, 1fr); gap: 1.1rem; }
+  .profile-v2 .profile-v6-avatar-column { flex-direction: row; justify-content: flex-start; }
+  .profile-v2 .profile-v6-score-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); align-items: end; gap: .75rem; }
+  .profile-v2 .profile-v6-score { font-size: clamp(4rem, 19vw, 5.5rem); }
+  .profile-v2 .profile-v6-rank-name { gap: .45rem; padding-left: .65rem; }
+  .profile-v2 .profile-v6-rank-name > div:last-child { min-width: 0; }
+  .profile-v2 .profile-v6-rank-name > div:last-child > div:first-child { overflow-wrap: anywhere; font-size: 1.05rem; }
+  .profile-v2 .profile-v3-match-row { padding: .9rem; }
+  .profile-v2 .profile-v3-platform-row { grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: .6rem .75rem; padding: .9rem; }
+  .profile-v2 .profile-v3-platform-row > div:nth-of-type(2) { grid-column: 2 / -1; grid-row: 2; justify-self: start; max-width: 100%; text-align: left; }
+  .profile-v2 .profile-v3-platform-row > input { grid-column: 2 / -1; grid-row: 2; width: 100%; margin: 0; }
+  .profile-v2 .profile-v3-platform-row > span:last-child { grid-column: 3; grid-row: 1; }
+  .profile-v2 .profile-v3-discord { padding-inline: 1rem; }
 }
 
 /* Admin console: a dense, app-like workspace intentionally separated from the public site. */
