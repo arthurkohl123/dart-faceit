@@ -70,6 +70,9 @@ type DevMatch = {
   my_average: number | null;
   highest_checkout: number | null;
   one_eighties: number | null;
+  opponent_average: number | null;
+  opponent_highest_checkout: number | null;
+  opponent_one_eighties: number | null;
   elo_change: number | null;
   app: string | null;
 };
@@ -80,6 +83,9 @@ type MatchDraft = {
   my_average: string;
   highest_checkout: string;
   one_eighties: string;
+  opponent_average: string;
+  opponent_highest_checkout: string;
+  opponent_one_eighties: string;
   is_win: boolean;
 };
 
@@ -95,6 +101,9 @@ function toDraft(m: DevMatch): MatchDraft {
     my_average: m.my_average?.toString() ?? '',
     highest_checkout: m.highest_checkout?.toString() ?? '',
     one_eighties: m.one_eighties?.toString() ?? '',
+    opponent_average: m.opponent_average?.toString() ?? '',
+    opponent_highest_checkout: m.opponent_highest_checkout?.toString() ?? '',
+    opponent_one_eighties: m.opponent_one_eighties?.toString() ?? '',
     is_win: m.is_win,
   };
 }
@@ -399,6 +408,9 @@ export default function DeveloperDashboard() {
       p_highest_checkout: toIntOrNull(draft.highest_checkout),
       p_one_eighties: toIntOrNull(draft.one_eighties),
       p_is_win: draft.is_win,
+      p_opponent_average: toNumOrNull(draft.opponent_average),
+      p_opponent_highest_checkout: toIntOrNull(draft.opponent_highest_checkout),
+      p_opponent_one_eighties: toIntOrNull(draft.opponent_one_eighties),
     });
 
     setSavingMatch(false);
@@ -935,18 +947,19 @@ export default function DeveloperDashboard() {
                 Keine Matches gefunden.
               </div>
             ) : (
-              <div className="min-w-[960px] space-y-2">
-                <div className="grid grid-cols-[1fr_1.2fr_1.2fr_0.6fr_0.6fr_0.7fr_0.6fr_0.6fr_0.8fr] gap-2 px-3 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
+              <div className="min-w-[1040px] space-y-2">
+                <div className="grid grid-cols-[0.9fr_1.1fr_1.1fr_0.65fr_0.65fr_0.85fr_0.8fr_0.85fr_1.15fr] gap-2 px-3 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
                   <div>Datum / App</div>
                   <div>Spieler</div>
                   <div>Gegner</div>
                   <div>Legs</div>
                   <div>Win</div>
-                  <div>Avg</div>
-                  <div>180s</div>
-                  <div>HC</div>
+                  <div>Avg <span className="text-zinc-600">P/G</span></div>
+                  <div>180s <span className="text-zinc-600">P/G</span></div>
+                  <div>HC <span className="text-zinc-600">P/G</span></div>
                   <div>Aktionen</div>
                 </div>
+                <div className="px-3 text-[10px] font-bold text-zinc-600">P = Spieler · G = Gegner</div>
 
                 {matches.map((m) => {
                   const isEditing = editingMatchId === m.id;
@@ -955,7 +968,7 @@ export default function DeveloperDashboard() {
                       key={m.id}
                       className={`rounded-2xl border ${isEditing ? 'border-sky-300/40 bg-sky-400/[0.05]' : 'border-white/10 bg-black/20'} px-3 py-3`}
                     >
-                      <div className="grid grid-cols-[1fr_1.2fr_1.2fr_0.6fr_0.6fr_0.7fr_0.6fr_0.6fr_0.8fr] items-center gap-2 text-sm">
+                      <div className="grid grid-cols-[0.9fr_1.1fr_1.1fr_0.65fr_0.65fr_0.85fr_0.8fr_0.85fr_1.15fr] items-center gap-2 text-sm">
                         <div>
                           <div className="font-bold text-zinc-100">{formatMatchDate(m.created_at)}</div>
                           <div className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">{m.app ?? '—'}</div>
@@ -977,9 +990,36 @@ export default function DeveloperDashboard() {
                             >
                               {draft.is_win ? 'Sieg' : 'Niedrl.'}
                             </button>
-                            <input value={draft.my_average} onChange={(e) => setDraft({ ...draft, my_average: e.target.value })} className="w-16 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs" />
-                            <input value={draft.one_eighties} onChange={(e) => setDraft({ ...draft, one_eighties: e.target.value })} className="w-12 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs" />
-                            <input value={draft.highest_checkout} onChange={(e) => setDraft({ ...draft, highest_checkout: e.target.value })} className="w-14 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs" />
+                            <div className="space-y-1">
+                              <label className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.08em] text-zinc-500">
+                                <span className="w-3 text-center text-cyan-200">P</span>
+                                <input aria-label={`Average ${m.user_name ?? 'Spieler'}`} value={draft.my_average} onChange={(e) => setDraft({ ...draft, my_average: e.target.value })} className="w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs text-zinc-100" />
+                              </label>
+                              <label className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.08em] text-zinc-500">
+                                <span className="w-3 text-center text-amber-200">G</span>
+                                <input aria-label={`Average ${m.opponent_name}`} value={draft.opponent_average} onChange={(e) => setDraft({ ...draft, opponent_average: e.target.value })} className="w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs text-zinc-100" />
+                              </label>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.08em] text-zinc-500">
+                                <span className="w-3 text-center text-cyan-200">P</span>
+                                <input aria-label={`180er ${m.user_name ?? 'Spieler'}`} value={draft.one_eighties} onChange={(e) => setDraft({ ...draft, one_eighties: e.target.value })} className="w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs text-zinc-100" />
+                              </label>
+                              <label className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.08em] text-zinc-500">
+                                <span className="w-3 text-center text-amber-200">G</span>
+                                <input aria-label={`180er ${m.opponent_name}`} value={draft.opponent_one_eighties} onChange={(e) => setDraft({ ...draft, opponent_one_eighties: e.target.value })} className="w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs text-zinc-100" />
+                              </label>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.08em] text-zinc-500">
+                                <span className="w-3 text-center text-cyan-200">P</span>
+                                <input aria-label={`Checkout ${m.user_name ?? 'Spieler'}`} value={draft.highest_checkout} onChange={(e) => setDraft({ ...draft, highest_checkout: e.target.value })} className="w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs text-zinc-100" />
+                              </label>
+                              <label className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.08em] text-zinc-500">
+                                <span className="w-3 text-center text-amber-200">G</span>
+                                <input aria-label={`Checkout ${m.opponent_name}`} value={draft.opponent_highest_checkout} onChange={(e) => setDraft({ ...draft, opponent_highest_checkout: e.target.value })} className="w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-center text-xs text-zinc-100" />
+                              </label>
+                            </div>
                             <div className="flex items-center gap-1.5">
                               <button type="button" disabled={savingMatch} onClick={() => void saveMatch()} className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/30 bg-emerald-400/15 px-2 py-1 text-[10px] font-black text-emerald-100 transition hover:bg-emerald-400/25 disabled:opacity-50">
                                 <Save className="h-3 w-3" /> {savingMatch ? '…' : 'Speichern'}
@@ -997,9 +1037,18 @@ export default function DeveloperDashboard() {
                             <div className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${m.is_win ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-200' : 'border border-red-300/25 bg-red-500/10 text-red-200'}`}>
                               <Swords className="h-3 w-3" /> {m.is_win ? 'Sieg' : 'Niedrl.'}
                             </div>
-                            <div className="text-zinc-300">{m.my_average ?? '—'}</div>
-                            <div className="text-zinc-300">{m.one_eighties ?? 0}</div>
-                            <div className="text-zinc-300">{m.highest_checkout ?? '—'}</div>
+                            <div className="space-y-0.5 text-xs">
+                              <div className="text-cyan-100">{m.my_average ?? '—'}</div>
+                              <div className="text-amber-100">{m.opponent_average ?? '—'}</div>
+                            </div>
+                            <div className="space-y-0.5 text-xs">
+                              <div className="text-cyan-100">{m.one_eighties ?? 0}</div>
+                              <div className="text-amber-100">{m.opponent_one_eighties ?? '—'}</div>
+                            </div>
+                            <div className="space-y-0.5 text-xs">
+                              <div className="text-cyan-100">{m.highest_checkout ?? '—'}</div>
+                              <div className="text-amber-100">{m.opponent_highest_checkout ?? '—'}</div>
+                            </div>
                             <div>
                               <button type="button" onClick={() => startEditMatch(m)} className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-black text-zinc-100 transition hover:bg-white/[0.08]">
                                 <Pencil className="h-3 w-3" /> Bearbeiten
