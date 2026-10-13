@@ -65,6 +65,54 @@ type RpcStatusResponse = {
   elo_change?: number;
 };
 
+type EloPreview = {
+  winnerName: string;
+  loserName: string;
+  winnerElo: number;
+  loserElo: number;
+  change: number;
+};
+
+function calculateEloChange(winnerElo: number, loserElo: number): number {
+  const eloDiff = winnerElo - loserElo;
+  if (Math.abs(eloDiff) <= 50) return 25;
+  if (eloDiff < -50) return 25 + Math.min(25, Math.floor((Math.abs(eloDiff) - 50) / 10));
+  return Math.max(1, 25 - Math.floor((eloDiff - 50) / 10));
+}
+
+function EloPreviewCard({ preview }: { preview: EloPreview }) {
+  return (
+    <div className="border border-violet-300/20 bg-gradient-to-br from-violet-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-violet-950/20 sm:p-5">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-200">Elo-Vorschau</p>
+          <p className="mt-1 text-sm font-semibold text-zinc-400">So verändert sich die Wertung nach der Bestätigung.</p>
+        </div>
+        <span className="w-fit border border-violet-300/20 bg-violet-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-violet-200">Ranked</span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="border border-emerald-300/20 bg-emerald-400/[0.06] p-3.5">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300/70">Gewinner</p>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <p className="truncate font-black text-white" title={preview.winnerName}>{preview.winnerName}</p>
+            <p className="shrink-0 text-xl font-black tabular-nums text-emerald-200">+{preview.change}</p>
+          </div>
+          <p className="mt-1 text-xs font-bold tabular-nums text-zinc-500">{preview.winnerElo} → {preview.winnerElo + preview.change} Elo</p>
+        </div>
+        <div className="border border-rose-300/20 bg-rose-400/[0.06] p-3.5">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-300/70">Verlierer</p>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <p className="truncate font-black text-white" title={preview.loserName}>{preview.loserName}</p>
+            <p className="shrink-0 text-xl font-black tabular-nums text-rose-200">-{preview.change}</p>
+          </div>
+          <p className="mt-1 text-xs font-bold tabular-nums text-zinc-500">{preview.loserElo} → {Math.max(0, preview.loserElo - preview.change)} Elo</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getActionErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === 'object' && error !== null && 'message' in error) {
@@ -294,6 +342,33 @@ export default function MatchResult() {
       match.submitted_winner_id === match.player1_id ? match.player1_username : match.player2_username;
     return { myLegs, oppLegs, myAvg, oppAvg, my180s, opp180s, submitterName, winnerName };
   }, [currentUserId, iAmPlayer1, match]);
+
+  const resultPlayer1Id = match
+    ? (iAmParticipant ? (iAmPlayer1 ? match.player1_id : match.player2_id) : match.player1_id)
+    : null;
+  const pendingWinnerId = match && resultPlayer1Id && resultIsValid
+    ? (legsWon > legsLost
+      ? resultPlayer1Id
+      : resultPlayer1Id === match.player1_id ? match.player2_id : match.player1_id)
+    : null;
+  const eloWinnerId = match?.status === 'awaiting_confirmation' || match?.status === 'completed'
+    ? match.submitted_winner_id
+    : pendingWinnerId;
+  const eloPreview = useMemo<EloPreview | null>(() => {
+    if (!match || match.match_mode === 'private' || !eloWinnerId) return null;
+    if (!['pending_result', 'awaiting_confirmation', 'completed'].includes(match.status)) return null;
+    const winnerIsPlayer1 = eloWinnerId === match.player1_id;
+    const winnerElo = winnerIsPlayer1 ? match.player1_elo : match.player2_elo;
+    const loserElo = winnerIsPlayer1 ? match.player2_elo : match.player1_elo;
+    const change = calculateEloChange(winnerElo, loserElo);
+    return {
+      winnerName: winnerIsPlayer1 ? match.player1_username : match.player2_username,
+      loserName: winnerIsPlayer1 ? match.player2_username : match.player1_username,
+      winnerElo,
+      loserElo,
+      change,
+    };
+  }, [eloWinnerId, match]);
 
   // ── Countdown ────────────────────────────────────────────────────────────────
 
@@ -1466,6 +1541,8 @@ export default function MatchResult() {
                 </div>
               )}
 
+              {eloPreview && <EloPreviewCard preview={eloPreview} />}
+
               {/* Submit */}
               <button
                 onClick={submitResult}
@@ -1506,6 +1583,7 @@ export default function MatchResult() {
                   <p className="mt-1 font-black text-white">{submittedData?.oppAvg != null ? submittedData.oppAvg.toFixed(2) : '–'} · {submittedData?.opp180s ?? 0}×180</p>
                 </div>
               </div>
+              {eloPreview && <div className="mt-6 w-full max-w-2xl"><EloPreviewCard preview={eloPreview} /></div>}
             </div>
           </div>
         )}
@@ -1560,6 +1638,8 @@ export default function MatchResult() {
                   </p>
                 </div>
               </div>
+
+              {eloPreview && <div className="px-4 pt-5 sm:px-8 sm:pt-6"><EloPreviewCard preview={eloPreview} /></div>}
 
               {/* Confirm button */}
               <div className="px-4 pb-5 pt-5 sm:px-8 sm:pb-8 sm:pt-6">
