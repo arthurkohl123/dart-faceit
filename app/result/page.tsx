@@ -113,6 +113,40 @@ function EloPreviewCard({ preview }: { preview: EloPreview }) {
   );
 }
 
+function MatchEloPreviewCard({ match }: { match: ActiveMatch }) {
+  const player1WinsChange = calculateEloChange(match.player1_elo, match.player2_elo);
+  const player2WinsChange = calculateEloChange(match.player2_elo, match.player1_elo);
+
+  return (
+    <section className="mb-5 border border-emerald-300/20 bg-gradient-to-br from-emerald-400/[0.08] via-white/[0.025] to-transparent p-4 shadow-inner shadow-emerald-950/20 sm:mb-8 sm:p-5" aria-label="Elo-Vorschau vor dem Match">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-200">Elo vor dem Match</p>
+          <p className="mt-1 text-sm font-semibold text-zinc-400">Die genaue Änderung steht schon vor der Ergebniseingabe fest.</p>
+        </div>
+        <span className="w-fit border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Ranked</span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="border border-emerald-300/20 bg-emerald-400/[0.06] p-3.5">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300/70">Wenn {match.player1_username} gewinnt</p>
+          <div className="mt-2 space-y-1.5 text-sm font-bold">
+            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-white" title={match.player1_username}>{match.player1_username}</span><span className="shrink-0 tabular-nums text-emerald-200">+{player1WinsChange}</span></div>
+            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-zinc-400" title={match.player2_username}>{match.player2_username}</span><span className="shrink-0 tabular-nums text-rose-200">−{player1WinsChange}</span></div>
+          </div>
+        </div>
+        <div className="border border-cyan-300/20 bg-cyan-400/[0.05] p-3.5">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300/70">Wenn {match.player2_username} gewinnt</p>
+          <div className="mt-2 space-y-1.5 text-sm font-bold">
+            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-white" title={match.player2_username}>{match.player2_username}</span><span className="shrink-0 tabular-nums text-emerald-200">+{player2WinsChange}</span></div>
+            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-zinc-400" title={match.player1_username}>{match.player1_username}</span><span className="shrink-0 tabular-nums text-rose-200">−{player2WinsChange}</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function getActionErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === 'object' && error !== null && 'message' in error) {
@@ -1393,6 +1427,10 @@ export default function MatchResult() {
           );
         })()}
 
+        {match && match.match_mode !== 'private' && match.status === 'pending_result' && (
+          <MatchEloPreviewCard match={match} />
+        )}
+
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(21rem,0.65fr)] lg:items-start lg:gap-0">
           <div className="min-w-0 lg:border-x lg:border-b lg:border-white/10 lg:bg-[#090c0b]/55">
         {/* Countdown-Banner */}
@@ -1992,3 +2030,4 @@ export default function MatchResult() {
     </main>
   );
 }
+
