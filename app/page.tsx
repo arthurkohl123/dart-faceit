@@ -44,6 +44,28 @@ const homepageSteps = [
 
 const DISCORD_INVITE_URL = 'https://discord.gg/5qwUZQxjfV';
 
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': 'https://www.rankeddarts.de/#website',
+      url: 'https://www.rankeddarts.de/',
+      name: 'RankedDarts',
+      alternateName: 'RankedDarts',
+      inLanguage: 'de-DE',
+    },
+    {
+      '@type': 'Organization',
+      '@id': 'https://www.rankeddarts.de/#organization',
+      name: 'RankedDarts',
+      url: 'https://www.rankeddarts.de/',
+      logo: 'https://www.rankeddarts.de/rankeddarts-logo-mark.png',
+      sameAs: [DISCORD_INVITE_URL],
+    },
+  ],
+};
+
 export default function Home() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -84,6 +106,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#0a0d0d] text-[#f5f3ee]">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 sport-grid opacity-35" />
       <div aria-hidden className="pointer-events-none fixed -right-48 top-24 -z-10 h-[34rem] w-[34rem] sport-dartboard opacity-20" />
 
@@ -194,3 +217,4 @@ export default function Home() {
     </main>
   );
 }
+
