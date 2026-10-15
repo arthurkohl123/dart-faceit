@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, Check, Crown, Gauge, LifeBuoy, ShieldCheck, Sparkles, Star, Swords, Trophy, Zap } from 'lucide-react';
+import { ArrowUpRight, CalendarClock, Check, Crown, Gauge, LifeBuoy, ShieldCheck, Sparkles, Star, Swords, Trophy, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useRouter } from 'next/navigation';
+import { formatPremiumTimeRemaining, getManualPremiumState, getPremiumSubscriptionState, type PremiumSubscriptionData } from '@/lib/premium-subscription';
 
 type ProfileData = {
   username?: string;
@@ -13,9 +14,15 @@ type ProfileData = {
   gamesPlayed?: number;
   wins?: number;
   isPremium?: boolean;
-  stripe_subscription_status?: string | null;
-  stripe_current_period_end?: string | null;
-  stripe_cancel_at_period_end?: boolean;
+};
+
+type PremiumStatusResponse = {
+  premium: PremiumSubscriptionData | null;
+};
+
+type PremiumStatusFetchResult = {
+  data: PremiumStatusResponse | null;
+  unavailable: boolean;
 };
 
 const premiumBenefits = [
@@ -50,7 +57,10 @@ const comparisonRows = [
 
 export default function Premium() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [premiumStatus, setPremiumStatus] = useState<PremiumSubscriptionData | null>(null);
+  const [premiumStatusUnavailable, setPremiumStatusUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
@@ -68,6 +78,14 @@ export default function Premium() {
   }, []);
 
   useEffect(() => {
+    const refreshTime = () => setCurrentTime(new Date());
+    refreshTime();
+
+    const timer = window.setInterval(refreshTime, 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
 
     const getUser = async () => {
@@ -77,15 +95,25 @@ export default function Premium() {
         return;
       }
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('username, elo, gamesPlayed, wins, isPremium, stripe_subscription_status, stripe_current_period_end, stripe_cancel_at_period_end')
-        .eq('supabaseId', session.user.id)
-        .single();
+      const [profileResult, premiumResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('username, elo, gamesPlayed, wins, isPremium')
+          .eq('supabaseId', session.user.id)
+          .single(),
+        fetch('/api/premium-status', { cache: 'no-store' })
+          .then(async (response) => {
+            if (!response.ok) return { data: null, unavailable: true } satisfies PremiumStatusFetchResult;
+            return { data: await response.json() as PremiumStatusResponse, unavailable: false } satisfies PremiumStatusFetchResult;
+          })
+          .catch(() => ({ data: null, unavailable: true }) satisfies PremiumStatusFetchResult),
+      ]);
 
       if (!isMounted) return;
 
-      setProfile((data || null) as ProfileData | null);
+      setProfile((profileResult.data || null) as ProfileData | null);
+      setPremiumStatus(premiumResult.data?.premium || null);
+      setPremiumStatusUnavailable(premiumResult.unavailable);
       setLoading(false);
     };
 
@@ -105,6 +133,39 @@ export default function Premium() {
   }
 
   const winrate = profile?.gamesPlayed ? Math.round(((profile.wins || 0) / profile.gamesPlayed) * 100) : 0;
+  const subscriptionState = getPremiumSubscriptionState(premiumStatus, currentTime);
+  const manualPremiumState = getManualPremiumState(premiumStatus, currentTime);
+  const hasStripeSubscription = subscriptionState.kind !== 'none';
+  const isPremium = Boolean(premiumStatus?.isPremium) || Boolean(profile?.isPremium) || hasStripeSubscription;
+  const premiumPeriodEnd = subscriptionState.kind === 'renewing' || subscriptionState.kind === 'ending'
+    ? subscriptionState.periodEnd
+    : null;
+  const premiumPeriodEndLabel = premiumPeriodEnd
+    ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(premiumPeriodEnd))
+    : null;
+  const premiumTimeRemaining = premiumPeriodEnd
+    ? formatPremiumTimeRemaining(premiumPeriodEnd, currentTime)
+    : null;
+  const cancellationPending = subscriptionState.kind === 'ending';
+  const staleStripeStatus = subscriptionState.kind === 'stale';
+  const manualPremiumPeriodEnd = manualPremiumState.kind === 'ending' ? manualPremiumState.periodEnd : null;
+  const manualPremiumPeriodEndLabel = manualPremiumPeriodEnd
+    ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(manualPremiumPeriodEnd))
+    : null;
+  const manualPremiumExtendsPastStripe = Boolean(cancellationPending && premiumPeriodEnd && (
+    manualPremiumState.kind === 'unlimited'
+    || (manualPremiumState.kind === 'ending' && new Date(manualPremiumState.periodEnd).getTime() > new Date(premiumPeriodEnd).getTime())
+  ));
+  const cancellationMessage = manualPremiumExtendsPastStripe && manualPremiumState.kind === 'unlimited'
+    ? 'Danach endet dein Stripe-Abo. Dein manuell gewährter Premium-Zugang bleibt ohne Enddatum aktiv.'
+    : manualPremiumExtendsPastStripe && manualPremiumState.kind === 'ending' && manualPremiumPeriodEndLabel
+      ? `Danach endet dein Stripe-Abo. Dein manuell gewährter Premium-Zugang bleibt bis ${manualPremiumPeriodEndLabel} aktiv.`
+      : `Danach endet dein Premium-Zugang${premiumTimeRemaining ? ` · ${premiumTimeRemaining}` : ''}.`;
+  const manualPremiumDescription = manualPremiumState.kind === 'unlimited'
+    ? 'Dein Premium-Zugang wurde manuell und ohne Enddatum gewährt.'
+    : manualPremiumState.kind === 'ending' && manualPremiumPeriodEndLabel
+      ? `Dein manuell gewährter Premium-Zugang läuft ${formatPremiumTimeRemaining(manualPremiumState.periodEnd, currentTime) || 'noch'} und endet am ${manualPremiumPeriodEndLabel}.`
+      : 'Dein Profil ist bereits als Premium markiert.';
   const startCheckout = async () => {
     setCheckoutLoading(true);
     setCheckoutError(null);
@@ -213,15 +274,63 @@ export default function Premium() {
                 <div className="border border-white/10 bg-black/25 p-3.5"><span className="block text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Abrechnung</span><span className="mt-1 block text-lg font-black text-emerald-200">Monatlich</span></div>
               </div>
 
+              {hasStripeSubscription && (
+                <div className={`mt-5 border p-4 ${cancellationPending ? 'border-amber-300/30 bg-amber-300/[0.07]' : 'border-emerald-300/20 bg-emerald-400/[0.06]'}`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`grid h-10 w-10 shrink-0 place-items-center border ${cancellationPending ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-emerald-300/20 bg-emerald-400/10 text-emerald-200'}`}>
+                      <CalendarClock className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${cancellationPending ? 'text-amber-100' : 'text-emerald-200'}`}>{cancellationPending ? 'Kündigung vorgemerkt' : staleStripeStatus ? 'Abo-Status wird aktualisiert' : 'Premium aktiv'}</p>
+                      </div>
+                      {premiumPeriodEnd && premiumPeriodEndLabel ? (
+                        <>
+                          <p className="mt-2 text-sm font-bold text-zinc-200">{cancellationPending ? manualPremiumExtendsPastStripe ? 'Stripe-Abo aktiv bis' : 'Premium aktiv bis' : 'Nächste Verlängerung'}</p>
+                          <time dateTime={premiumPeriodEnd} className="mt-1 block text-xl font-black tracking-[-0.03em] text-white">{premiumPeriodEndLabel}</time>
+                          <p className="mt-2 text-xs leading-5 text-zinc-300">
+                            {cancellationPending
+                              ? cancellationMessage
+                              : <>{premiumTimeRemaining ? `${premiumTimeRemaining} im aktuellen Zeitraum. ` : ''}Verlängert sich monatlich automatisch.</>}
+                          </p>
+                        </>
+                      ) : staleStripeStatus ? (
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">Der gespeicherte Verlängerungstermin ist bereits abgelaufen. Wir aktualisieren gerade deinen Stripe-Status.</p>
+                      ) : (
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">Dein Abo ist aktiv. Die Abrechnungsdaten werden gerade aktualisiert.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isPremium && premiumStatusUnavailable && (
+                <div className="mt-5 border border-amber-300/25 bg-amber-300/[0.07] p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center border border-amber-300/25 bg-amber-300/10 text-amber-100">
+                      <CalendarClock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-100">Abrechnungsdaten nicht verfügbar</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">Dein Premium-Status ist gespeichert. Die genaue Laufzeit konnte gerade nicht geladen werden – bitte lade die Seite gleich noch einmal.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <button
-                onClick={startCheckout}
-                disabled={checkoutLoading || Boolean(profile?.isPremium)}
+                type="button"
+                onClick={hasStripeSubscription ? openBillingPortal : startCheckout}
+                disabled={hasStripeSubscription ? portalLoading : checkoutLoading || isPremium}
                 className="group mt-7 w-full border border-emerald-200 bg-emerald-300 px-8 py-5 font-black uppercase tracking-[0.18em] text-black transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.06] disabled:text-zinc-500"
               >
-                {profile?.isPremium ? 'Premium ist aktiv' : checkoutLoading ? 'Checkout wird geöffnet...' : <span>Premium freischalten <ArrowUpRight className="ml-2 inline-block h-4 w-4 transition group-hover:-translate-y-1 group-hover:translate-x-1" /></span>}
+                {hasStripeSubscription
+                  ? portalLoading ? 'Portal wird geöffnet...' : <span>Premium verwalten <ArrowUpRight className="ml-2 inline-block h-4 w-4 transition group-hover:-translate-y-1 group-hover:translate-x-1" /></span>
+                  : isPremium ? 'Premium ist aktiv' : checkoutLoading ? 'Checkout wird geöffnet...' : <span>Premium freischalten <ArrowUpRight className="ml-2 inline-block h-4 w-4 transition group-hover:-translate-y-1 group-hover:translate-x-1" /></span>}
               </button>
 
               {checkoutError && <p className="mt-4 text-center text-sm font-semibold text-rose-300">{checkoutError}</p>}
+              {portalError && <p className="mt-4 text-center text-sm font-semibold text-rose-300">{portalError}</p>}
               {checkoutStatus === 'success' && <p className="mt-4 text-center text-sm font-semibold text-emerald-200">Danke! Deine Zahlung wird bestätigt. Aktualisiere die Seite in wenigen Sekunden, falls der Status noch nicht erscheint.</p>}
               {checkoutStatus === 'cancelled' && <p className="mt-4 text-center text-sm text-zinc-400">Der Checkout wurde abgebrochen. Dein Account bleibt unverändert.</p>}
               <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Sichere Zahlung über Stripe · monatlich abrechenbar</p>
@@ -254,12 +363,28 @@ export default function Premium() {
               </div>
               <div>
                 <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Status</div>
-                <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{profile?.isPremium ? 'Premium aktiv' : 'Free Account'}</h2>
+                <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{isPremium ? 'Premium aktiv' : 'Free Account'}</h2>
               </div>
             </div>
-            <p className="mt-6 text-lg leading-8 text-zinc-300">{profile?.isPremium ? profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? `Dein Abo endet am ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(profile.stripe_current_period_end))}. Bis dahin bleiben deine Vorteile aktiv.` : 'Dein Profil ist bereits als Premium markiert.' : 'Du nutzt aktuell den kostenlosen Zugang. Wähle Premium, um den sicheren Stripe-Checkout zu öffnen.'}</p>
-            {profile?.isPremium ? <div className="mt-7 flex flex-wrap gap-3"><button onClick={openBillingPortal} disabled={portalLoading} className="border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-60">{portalLoading ? 'Portal wird geöffnet …' : 'Premium verwalten'}</button><Link href="/premium/kuendigung" className="border border-white/15 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:bg-white/10">Kündigen</Link></div> : <Link href="/updates" className="mt-7 inline-flex border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20">Updates ansehen</Link>}
-            {portalError && <p className="mt-4 text-sm font-semibold text-rose-300">{portalError}</p>}
+            <p className="mt-6 text-lg leading-8 text-zinc-300">
+              {hasStripeSubscription
+                ? subscriptionState.kind === 'syncing'
+                  ? 'Dein Stripe-Abo ist aktiv. Die Abrechnungsdaten werden gerade aktualisiert.'
+                  : staleStripeStatus
+                    ? 'Der gespeicherte Verlängerungstermin ist bereits abgelaufen. Wir aktualisieren gerade deinen Stripe-Status. Öffne Premium verwalten, falls diese Anzeige gleich bleibt.'
+                  : cancellationPending
+                    ? `Dein Abo endet am ${premiumPeriodEndLabel}. ${cancellationMessage}`
+                    : `Dein aktueller Abrechnungszeitraum läuft ${premiumTimeRemaining || 'noch'}. Die nächste Verlängerung ist am ${premiumPeriodEndLabel}.`
+                : isPremium
+                  ? premiumStatusUnavailable ? 'Dein Premium-Status ist gespeichert, die genaue Laufzeit konnte gerade aber nicht geladen werden. Bitte lade die Seite gleich noch einmal.' : manualPremiumDescription
+                  : 'Du nutzt aktuell den kostenlosen Zugang. Wähle Premium, um den sicheren Stripe-Checkout zu öffnen.'}
+            </p>
+            {hasStripeSubscription ? (
+              <div className="mt-7 flex flex-wrap gap-3">
+                <button type="button" onClick={openBillingPortal} disabled={portalLoading} className="border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-60">{portalLoading ? 'Portal wird geöffnet …' : 'Premium verwalten'}</button>
+                <Link href="/premium/kuendigung" className="border border-white/15 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:bg-white/10">Kündigen</Link>
+              </div>
+            ) : !isPremium ? <Link href="/updates" className="mt-7 inline-flex border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/20">Updates ansehen</Link> : null}
           </div>
 
           <div className="overflow-hidden border border-white/10 bg-[#0d1110]">
@@ -303,16 +428,20 @@ export default function Premium() {
           <h2 className="mt-6 text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für die nächste Stufe?</h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-zinc-300">Dein Premium-Status wird nach erfolgreicher Zahlung automatisch über Stripe und Supabase aktiviert.</p>
           <button
-            onClick={startCheckout}
-            disabled={checkoutLoading || Boolean(profile?.isPremium)}
+            type="button"
+            onClick={hasStripeSubscription ? openBillingPortal : startCheckout}
+            disabled={hasStripeSubscription ? portalLoading : checkoutLoading || isPremium}
             className="group mt-8 border border-emerald-200 bg-emerald-300 px-8 py-5 text-sm font-black uppercase tracking-[0.18em] text-black transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-zinc-500"
           >
-            {profile?.isPremium ? 'Premium ist aktiv' : checkoutLoading ? 'Checkout wird geöffnet...' : <span>Jetzt Premium werden <ArrowUpRight className="ml-2 inline-block h-4 w-4 transition group-hover:-translate-y-1 group-hover:translate-x-1" /></span>}
+            {hasStripeSubscription
+              ? portalLoading ? 'Portal wird geöffnet...' : <span>Premium verwalten <ArrowUpRight className="ml-2 inline-block h-4 w-4 transition group-hover:-translate-y-1 group-hover:translate-x-1" /></span>
+              : isPremium ? 'Premium ist aktiv' : checkoutLoading ? 'Checkout wird geöffnet...' : <span>Jetzt Premium werden <ArrowUpRight className="ml-2 inline-block h-4 w-4 transition group-hover:-translate-y-1 group-hover:translate-x-1" /></span>}
           </button>
         </section>
       </section>
     </main>
   );
 }
+
 
 
