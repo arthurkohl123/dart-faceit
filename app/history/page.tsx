@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
-import { Activity, ArrowUpRight, CalendarDays, ChevronDown, CircleDot, Flame, Menu, Search, SlidersHorizontal, Target, TrendingDown, TrendingUp, X, Zap } from 'lucide-react';
+import { eloPeriodMeta, getEloPeriodSummary, type EloPeriod } from '@/lib/elo-period-summary';
+import { Activity, ArrowUpRight, CalendarDays, ChevronDown, CircleDot, Menu, Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Zap } from 'lucide-react';
 
 type Platform = 'scolia' | 'dartcounter' | 'autodarts';
 type ResultFilter = 'all' | 'wins' | 'losses';
@@ -94,12 +95,18 @@ function Detail({ label, value }: { label: string; value: string }) {
   return <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-600">{label}</p><p className="mt-1 font-bold text-zinc-300">{value}</p></div>;
 }
 
+function EloPeriodMetric({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: string }) {
+  return <div className="border-b border-white/10 px-5 py-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 sm:px-6"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">{label}</p><p className={`mt-2 text-4xl font-black tracking-[-0.06em] ${tone}`}>{value}</p><p className="mt-1 text-xs text-zinc-400">{detail}</p></div>;
+}
+
 export default function MatchHistory() {
   const [matches, setMatches] = useState<MatchEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [resultFilter, setResultFilter] = useState<ResultFilter>('all');
   const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
   const [platformFilter, setPlatformFilter] = useState<'all' | Platform>('all');
+  const [eloPeriod, setEloPeriod] = useState<EloPeriod>('24h');
+  const [summaryNow, setSummaryNow] = useState(() => new Date());
   const [search, setSearch] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const supabase = useMemo(() => createClient(), []);
@@ -110,7 +117,7 @@ export default function MatchHistory() {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/auth/login'); return; }
-      const { data, error } = await supabase.from('matches').select('*').eq('user_id', session.user.id).order('completed_at', { ascending: false });
+      const { data, error } = await supabase.from('matches').select('*').eq('user_id', session.user.id).eq('status', 'completed').order('completed_at', { ascending: false });
       if (!mounted) return;
       if (error) console.error('Match History konnte nicht geladen werden:', error);
       else setMatches((data || []) as MatchEntry[]);
@@ -120,14 +127,19 @@ export default function MatchHistory() {
     return () => { mounted = false; };
   }, [router, supabase]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => setSummaryNow(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
   const ranked = matches.filter((match) => match.match_mode !== 'private');
   const wins = ranked.filter((match) => match.is_win);
-  const losses = ranked.filter((match) => !match.is_win);
   const winrate = ranked.length ? Math.round((wins.length / ranked.length) * 100) : 0;
   const averageMatches = ranked.filter((match) => match.my_average !== null);
   const average = averageMatches.length ? averageMatches.reduce((total, match) => total + Number(match.my_average), 0) / averageMatches.length : null;
   const total180s = ranked.reduce((total, match) => total + Number(match.one_eighties ?? 0), 0);
   const eloDelta = ranked.reduce((total, match) => total + Number(match.elo_change ?? 0), 0);
+  const eloPeriodSummary = useMemo(() => getEloPeriodSummary(matches, eloPeriod, summaryNow), [eloPeriod, matches, summaryNow]);
   const form = ranked.slice(0, 10).reverse();
   const activePlatforms = new Set(ranked.map((match) => match.app).filter(Boolean)).size;
   let streak = 0;
@@ -170,9 +182,43 @@ export default function MatchHistory() {
             <div className="border-l-2 border-emerald-300 bg-emerald-400/[0.05] p-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Aktuelle Form</p><div className="mt-4 flex min-h-9 items-center gap-1.5">{form.length ? form.map((match) => <span key={match.id} title={match.is_win ? 'Sieg' : 'Niederlage'} className={`h-8 flex-1 border ${match.is_win ? 'border-emerald-300/40 bg-emerald-400/25' : 'border-red-400/35 bg-red-400/20'}`} />) : <span className="text-sm text-zinc-500">Noch keine Ranked-Matches</span>}</div><div className="mt-3 flex items-center justify-between text-xs"><span className="text-zinc-500">Letzte {form.length} Ranked-Matches</span><span className="font-black text-emerald-200">{streak ? `${streak} Winstreak` : 'Neue Serie starten'}</span></div></div>
           </div>
           <div className="grid grid-cols-2 border-t border-white/10 sm:grid-cols-3 lg:grid-cols-6">{[
-            { label: 'Ranked', value: ranked.length, tone: 'text-white' }, { label: 'Siege', value: wins.length, tone: 'text-emerald-300' }, { label: 'Winrate', value: `${winrate}%`, tone: 'text-cyan-200' }, { label: 'Ø Average', value: average ? average.toFixed(1) : '—', tone: 'text-violet-200' }, { label: '180er', value: total180s, tone: 'text-amber-200' }, { label: 'Elo-Bilanz', value: `${eloDelta > 0 ? '+' : ''}${eloDelta}`, tone: eloDelta >= 0 ? 'text-emerald-300' : 'text-red-300' },
+            { label: 'Ranked', value: ranked.length, tone: 'text-white' }, { label: 'Siege', value: wins.length, tone: 'text-emerald-300' }, { label: 'Winrate', value: `${winrate}%`, tone: 'text-cyan-200' }, { label: 'Ø Average', value: average ? average.toFixed(1) : '—', tone: 'text-violet-200' }, { label: '180er', value: total180s, tone: 'text-amber-200' }, { label: 'Elo-Bilanz gesamt', value: `${eloDelta > 0 ? '+' : ''}${eloDelta}`, tone: eloDelta >= 0 ? 'text-emerald-300' : 'text-red-300' },
           ].map((stat) => <div key={stat.label} className="border-b border-r border-white/10 px-5 py-4 last:border-r-0 lg:border-b-0"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">{stat.label}</p><p className={`mt-1 text-2xl font-black tracking-[-0.05em] ${stat.tone}`}>{stat.value}</p></div>)}</div>
         </header>
+
+        <section className="arena-panel mt-5 overflow-hidden" aria-label="Elo-Entwicklung nach Zeitraum">
+          <div className="flex flex-col gap-5 border-b border-white/10 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-cyan-200"><Activity className="h-3.5 w-3.5" /> Elo-Entwicklung</div>
+              <h2 className="mt-2 text-2xl font-black tracking-[-0.05em] text-white">Deine Elo im gewählten Zeitraum.</h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Gewonnene und verlorene Elo aus bestätigten Ranked-Matches in den {eloPeriodMeta[eloPeriod].description}.</p>
+            </div>
+            <div className="grid w-full grid-cols-3 gap-2 lg:w-auto" role="group" aria-label="Elo-Zeitraum auswählen">
+              {(Object.keys(eloPeriodMeta) as EloPeriod[]).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  aria-pressed={eloPeriod === period}
+                  onClick={() => setEloPeriod(period)}
+                  className={`whitespace-nowrap border px-2 py-2.5 text-xs font-black transition ${eloPeriod === period ? 'border-cyan-300 bg-cyan-300 text-black' : 'border-white/10 bg-black/20 text-zinc-400 hover:border-white/25 hover:text-white'}`}
+                >
+                  {eloPeriodMeta[period].label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid border-b border-white/10 sm:grid-cols-3">
+            <EloPeriodMetric label="Elo gewonnen" value={`+${eloPeriodSummary.gained}`} detail="aus gewerteten Matches" tone="text-emerald-300" />
+            <EloPeriodMetric label="Elo verloren" value={`−${eloPeriodSummary.lost}`} detail="aus gewerteten Matches" tone="text-red-300" />
+            <EloPeriodMetric
+              label="Bilanz"
+              value={`${eloPeriodSummary.net > 0 ? '+' : ''}${eloPeriodSummary.net}`}
+              detail={`${eloPeriodSummary.ratedMatches} gewertete${eloPeriodSummary.ratedMatches === 1 ? 's' : ''} Match${eloPeriodSummary.ratedMatches === 1 ? '' : 'es'}`}
+              tone={eloPeriodSummary.net > 0 ? 'text-emerald-300' : eloPeriodSummary.net < 0 ? 'text-red-300' : 'text-zinc-300'}
+            />
+          </div>
+          <p className="px-5 py-3 text-xs text-zinc-400 sm:px-6">Private Freundschaftsspiele und Matches ohne Elo-Wertung fließen nicht ein. Alle Zeiträume laufen fortlaufend; der 24-Stunden-Filter endet nicht um Mitternacht. Die Matchliste bleibt unverändert.</p>
+        </section>
 
         <div className="arena-panel mt-5 p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-zinc-400"><SlidersHorizontal className="h-4 w-4 text-emerald-300" /> Filter <span className="text-zinc-600">·</span> {filtered.length} Treffer</div><label className="flex h-10 items-center gap-2 border border-white/10 bg-black/20 px-3 lg:w-72"><Search className="h-4 w-4 text-zinc-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Gegner suchen" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600" /></label></div>
@@ -193,3 +239,4 @@ export default function MatchHistory() {
     </main>
   );
 }
+
