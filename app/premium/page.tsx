@@ -152,6 +152,9 @@ export default function Premium() {
   const manualPremiumPeriodEndLabel = manualPremiumPeriodEnd
     ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(manualPremiumPeriodEnd))
     : null;
+  const manualPremiumTimeRemaining = manualPremiumPeriodEnd
+    ? formatPremiumTimeRemaining(manualPremiumPeriodEnd, currentTime)
+    : null;
   const manualPremiumExtendsPastStripe = Boolean(cancellationPending && premiumPeriodEnd && (
     manualPremiumState.kind === 'unlimited'
     || (manualPremiumState.kind === 'ending' && new Date(manualPremiumState.periodEnd).getTime() > new Date(premiumPeriodEnd).getTime())
@@ -164,7 +167,7 @@ export default function Premium() {
   const manualPremiumDescription = manualPremiumState.kind === 'unlimited'
     ? 'Dein Premium-Zugang wurde manuell und ohne Enddatum gewährt.'
     : manualPremiumState.kind === 'ending' && manualPremiumPeriodEndLabel
-      ? `Dein manuell gewährter Premium-Zugang läuft ${formatPremiumTimeRemaining(manualPremiumState.periodEnd, currentTime) || 'noch'} und endet am ${manualPremiumPeriodEndLabel}.`
+      ? `Dein manuell gewährter Premium-Zugang läuft ${manualPremiumTimeRemaining || 'noch'} und endet am ${manualPremiumPeriodEndLabel}.`
       : 'Dein Profil ist bereits als Premium markiert.';
   const startCheckout = async () => {
     setCheckoutLoading(true);
@@ -299,6 +302,17 @@ export default function Premium() {
                       ) : (
                         <p className="mt-2 text-sm leading-6 text-zinc-300">Dein Abo ist aktiv. Die Abrechnungsdaten werden gerade aktualisiert.</p>
                       )}
+                      {manualPremiumState.kind === 'ending' && manualPremiumPeriodEnd && manualPremiumPeriodEndLabel ? (
+                        <div className="mt-3 border-t border-white/10 pt-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Zusätzliche manuelle Freigabe</p>
+                          <p className="mt-1 text-xs leading-5 text-zinc-300">Bis <time dateTime={manualPremiumPeriodEnd}>{manualPremiumPeriodEndLabel}</time>{manualPremiumTimeRemaining ? ` · ${manualPremiumTimeRemaining}` : ''}</p>
+                        </div>
+                      ) : manualPremiumState.kind === 'unlimited' ? (
+                        <div className="mt-3 border-t border-white/10 pt-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Zusätzliche manuelle Freigabe</p>
+                          <p className="mt-1 text-xs leading-5 text-zinc-300">Ohne Enddatum aktiv.</p>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -369,7 +383,11 @@ export default function Premium() {
             <p className="mt-6 text-lg leading-8 text-zinc-300">
               {hasStripeSubscription
                 ? subscriptionState.kind === 'syncing'
-                  ? 'Dein Stripe-Abo ist aktiv. Die Abrechnungsdaten werden gerade aktualisiert.'
+                  ? manualPremiumState.kind === 'ending' && manualPremiumPeriodEndLabel
+                    ? `Dein Stripe-Abo ist aktiv. Die Abrechnungsdaten werden gerade aktualisiert. Zusätzlich ist dein Zugang manuell bis ${manualPremiumPeriodEndLabel} freigegeben${manualPremiumTimeRemaining ? ` (${manualPremiumTimeRemaining})` : ''}.`
+                    : manualPremiumState.kind === 'unlimited'
+                      ? 'Dein Stripe-Abo ist aktiv. Die Abrechnungsdaten werden gerade aktualisiert. Zusätzlich ist dein Zugang manuell ohne Enddatum freigegeben.'
+                      : 'Dein Stripe-Abo ist aktiv. Die Abrechnungsdaten werden gerade aktualisiert.'
                   : staleStripeStatus
                     ? 'Der gespeicherte Verlängerungstermin ist bereits abgelaufen. Wir aktualisieren gerade deinen Stripe-Status. Öffne Premium verwalten, falls diese Anzeige gleich bleibt.'
                   : cancellationPending
