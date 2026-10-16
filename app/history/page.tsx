@@ -5,30 +5,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
-import { eloPeriodMeta, getEloPeriodSummary, type EloPeriod } from '@/lib/elo-period-summary';
+import { eloPeriodMeta, getEloPeriodInsights, type EloTrendPoint } from '@/lib/elo-period-summary';
+import { filterMatchHistory, getMatchFinishedAt as finishedAt, type MatchHistoryEntry, type MatchHistoryModeFilter, type MatchHistoryPeriod, type MatchHistoryPlatform, type MatchHistoryResultFilter } from '@/lib/match-history';
 import { Activity, ArrowUpRight, CalendarDays, ChevronDown, CircleDot, Menu, Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Zap } from 'lucide-react';
 
-type Platform = 'scolia' | 'dartcounter' | 'autodarts';
-type ResultFilter = 'all' | 'wins' | 'losses';
-type ModeFilter = 'all' | 'ranked' | 'private';
-
-type MatchEntry = {
-  id: string;
-  created_at: string;
-  completed_at?: string | null;
-  opponent_name: string | null;
-  opponent_elo: number | null;
-  is_win: boolean;
-  result: string | null;
-  legs_won: number | null;
-  legs_lost: number | null;
-  my_average: number | null;
-  highest_checkout: number | null;
-  elo_change: number | null;
-  one_eighties?: number | null;
-  app?: Platform | null;
-  match_mode?: 'ranked' | 'private' | null;
-};
+type Platform = MatchHistoryPlatform;
+type ResultFilter = MatchHistoryResultFilter;
+type ModeFilter = MatchHistoryModeFilter;
+type MatchEntry = MatchHistoryEntry;
 
 const platformMeta: Record<Platform, { label: string; className: string }> = {
   scolia: { label: 'Scolia', className: 'border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-200' },
@@ -36,7 +20,12 @@ const platformMeta: Record<Platform, { label: string; className: string }> = {
   autodarts: { label: 'AutoDarts', className: 'border-violet-300/25 bg-violet-400/[0.08] text-violet-200' },
 };
 
-function finishedAt(match: MatchEntry) { return match.completed_at ?? match.created_at; }
+const historyPeriodMeta: Record<MatchHistoryPeriod, { label: string; description: string }> = {
+  all: { label: 'Gesamt', description: 'gesamten Match-Verlauf' },
+  ...eloPeriodMeta,
+};
+
+const historyPeriodOptions: MatchHistoryPeriod[] = ['all', '24h', '7d', '30d'];
 
 function formatDate(value: string, includeYear = false) {
   return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short', ...(includeYear ? { year: 'numeric' } : {}), hour: '2-digit', minute: '2-digit' }).format(new Date(value));
@@ -95,8 +84,55 @@ function Detail({ label, value }: { label: string; value: string }) {
   return <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-600">{label}</p><p className="mt-1 font-bold text-zinc-300">{value}</p></div>;
 }
 
-function EloPeriodMetric({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: string }) {
-  return <div className="border-b border-white/10 px-5 py-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 sm:px-6"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">{label}</p><p className={`mt-2 text-4xl font-black tracking-[-0.06em] ${tone}`}>{value}</p><p className="mt-1 text-xs text-zinc-400">{detail}</p></div>;
+function formatChartDate(value: string) {
+  return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' }).format(new Date(value));
+}
+
+function EloMetric({ label, value, detail, tone, className = '' }: { label: string; value: string; detail: string; tone: string; className?: string }) {
+  return <div className={`min-w-0 p-4 sm:p-5 ${className}`}><p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">{label}</p><p className={`mt-2 truncate text-3xl font-black tracking-[-0.06em] sm:text-4xl ${tone}`}>{value}</p><p className="mt-1 truncate text-[11px] text-zinc-500">{detail}</p></div>;
+}
+
+function EloTrendChart({ points, startAt, endAt, hasEvents }: { points: EloTrendPoint[]; startAt: string; endAt: string; hasEvents: boolean }) {
+  if (!hasEvents) return <div className="mt-5 grid min-h-44 place-items-center border border-dashed border-white/10 bg-black/20 px-6 text-center text-sm text-zinc-500">Noch keine gewerteten Ranked-Matches in diesem Zeitraum.</div>;
+
+  const width = 640;
+  const height = 196;
+  const paddingX = 20;
+  const paddingY = 22;
+  const start = new Date(startAt).getTime();
+  const end = new Date(endAt).getTime();
+  const timeSpan = Math.max(1, end - start);
+  const largestMagnitude = Math.max(8, ...points.map((point) => Math.abs(point.cumulative)));
+  const baseline = height / 2;
+  const toX = (timestamp: string) => paddingX + Math.max(0, Math.min(1, (new Date(timestamp).getTime() - start) / timeSpan)) * (width - paddingX * 2);
+  const toY = (value: number) => baseline - (value / largestMagnitude) * (baseline - paddingY);
+  const coordinates = points.map((point) => ({ ...point, x: toX(point.timestamp), y: toY(point.cumulative) }));
+  const linePath = coordinates.map((point, index) => `${index ? 'L' : 'M'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+  const areaPath = `${linePath} L ${coordinates[coordinates.length - 1].x.toFixed(2)} ${baseline} L ${coordinates[0].x.toFixed(2)} ${baseline} Z`;
+  const endingValue = coordinates[coordinates.length - 1]?.cumulative ?? 0;
+  const isPositive = endingValue >= 0;
+  const lineColor = isPositive ? '#9af0bc' : '#fda4af';
+  const gradientId = isPositive ? 'history-elo-positive-fill' : 'history-elo-negative-fill';
+
+  return <div className="mt-5 overflow-hidden border border-white/10 bg-black/20 p-3 sm:p-4">
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Kumulierte Elo-Veränderung im ausgewählten Zeitraum" className="block h-auto w-full overflow-visible">
+      <defs>
+        <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={lineColor} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {[paddingY, baseline, height - paddingY].map((y) => <line key={y} x1={paddingX} x2={width - paddingX} y1={y} y2={y} stroke="rgba(255,255,255,.12)" strokeDasharray="3 5" />)}
+      <path d={areaPath} fill={`url(#${gradientId})`} />
+      <path d={linePath} fill="none" stroke={lineColor} strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+      {coordinates.filter((point) => point.eloChange !== 0).map((point, index) => <circle key={`${point.timestamp}-${index}`} cx={point.x} cy={point.y} r="3.75" fill={point.eloChange > 0 ? '#9af0bc' : '#fda4af'} stroke="#0d1110" strokeWidth="2" />)}
+    </svg>
+    <div className="mt-2 flex items-center justify-between gap-4 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-600"><span>{formatChartDate(startAt)}</span><span className={isPositive ? 'text-emerald-200' : 'text-rose-200'}>{endingValue > 0 ? '+' : ''}{endingValue} Elo</span><span>{formatChartDate(endAt)}</span></div>
+  </div>;
+}
+
+function FilterPill({ active, onClick, children, activeClass }: { active: boolean; onClick: () => void; children: React.ReactNode; activeClass: string }) {
+  return <button type="button" aria-pressed={active} onClick={onClick} className={`shrink-0 border px-3 py-2 text-xs font-black transition ${active ? activeClass : 'border-white/10 bg-black/15 text-zinc-500 hover:border-white/25 hover:text-zinc-200'}`}>{children}</button>;
 }
 
 export default function MatchHistory() {
@@ -105,7 +141,7 @@ export default function MatchHistory() {
   const [resultFilter, setResultFilter] = useState<ResultFilter>('all');
   const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
   const [platformFilter, setPlatformFilter] = useState<'all' | Platform>('all');
-  const [eloPeriod, setEloPeriod] = useState<EloPeriod>('24h');
+  const [historyPeriod, setHistoryPeriod] = useState<MatchHistoryPeriod>('all');
   const [summaryNow, setSummaryNow] = useState(() => new Date());
   const [search, setSearch] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -139,19 +175,28 @@ export default function MatchHistory() {
   const average = averageMatches.length ? averageMatches.reduce((total, match) => total + Number(match.my_average), 0) / averageMatches.length : null;
   const total180s = ranked.reduce((total, match) => total + Number(match.one_eighties ?? 0), 0);
   const eloDelta = ranked.reduce((total, match) => total + Number(match.elo_change ?? 0), 0);
-  const eloPeriodSummary = useMemo(() => getEloPeriodSummary(matches, eloPeriod, summaryNow), [eloPeriod, matches, summaryNow]);
+  const eloInsights = useMemo(() => getEloPeriodInsights(matches, historyPeriod, summaryNow), [historyPeriod, matches, summaryNow]);
+  const eloPeriodSummary = eloInsights.summary;
   const form = ranked.slice(0, 10).reverse();
   const activePlatforms = new Set(ranked.map((match) => match.app).filter(Boolean)).size;
   let streak = 0;
   for (const match of ranked) { if (!match.is_win) break; streak += 1; }
 
-  const filtered = matches.filter((match) => {
-    if (resultFilter === 'wins' && !match.is_win) return false;
-    if (resultFilter === 'losses' && match.is_win) return false;
-    if (modeFilter !== 'all' && (match.match_mode === 'private' ? 'private' : 'ranked') !== modeFilter) return false;
-    if (platformFilter !== 'all' && match.app !== platformFilter) return false;
-    return !search.trim() || (match.opponent_name || '').toLocaleLowerCase('de-DE').includes(search.trim().toLocaleLowerCase('de-DE'));
-  });
+  const filtered = useMemo(() => filterMatchHistory(matches, {
+    result: resultFilter,
+    mode: modeFilter,
+    platform: platformFilter,
+    period: historyPeriod,
+    opponentQuery: search,
+  }, summaryNow), [historyPeriod, matches, modeFilter, platformFilter, resultFilter, search, summaryNow]);
+  const hasActiveFilters = resultFilter !== 'all' || modeFilter !== 'all' || platformFilter !== 'all' || historyPeriod !== 'all' || Boolean(search.trim());
+  const resetFilters = () => {
+    setResultFilter('all');
+    setModeFilter('all');
+    setPlatformFilter('all');
+    setHistoryPeriod('all');
+    setSearch('');
+  };
 
   const groups = filtered.reduce<Array<{ label: string; matches: MatchEntry[] }>>((all, match) => {
     const label = dateLabel(finishedAt(match));
@@ -186,50 +231,41 @@ export default function MatchHistory() {
           ].map((stat) => <div key={stat.label} className="border-b border-r border-white/10 px-5 py-4 last:border-r-0 lg:border-b-0"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">{stat.label}</p><p className={`mt-1 text-2xl font-black tracking-[-0.05em] ${stat.tone}`}>{stat.value}</p></div>)}</div>
         </header>
 
-        <section className="arena-panel mt-5 overflow-hidden" aria-label="Elo-Entwicklung nach Zeitraum">
+        <section className="arena-panel mt-5 overflow-hidden" aria-label="Elo-Bilanz und Zeitraum">
           <div className="flex flex-col gap-5 border-b border-white/10 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-cyan-200"><Activity className="h-3.5 w-3.5" /> Elo-Entwicklung</div>
-              <h2 className="mt-2 text-2xl font-black tracking-[-0.05em] text-white">Deine Elo im gewählten Zeitraum.</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Gewonnene und verlorene Elo aus bestätigten Ranked-Matches in den {eloPeriodMeta[eloPeriod].description}.</p>
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-cyan-200"><Activity className="h-3.5 w-3.5" /> Elo-Verlauf</div>
+              <h2 className="mt-2 text-2xl font-black tracking-[-0.05em] text-white">Deine Entwicklung. In einer Linie.</h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Gewonnene und verlorene Elo aus bestätigten Ranked-Matches im {historyPeriodMeta[historyPeriod].description}. Die Auswahl filtert zugleich deine Matchliste.</p>
             </div>
-            <div className="grid w-full grid-cols-3 gap-2 lg:w-auto" role="group" aria-label="Elo-Zeitraum auswählen">
-              {(Object.keys(eloPeriodMeta) as EloPeriod[]).map((period) => (
-                <button
-                  key={period}
-                  type="button"
-                  aria-pressed={eloPeriod === period}
-                  onClick={() => setEloPeriod(period)}
-                  className={`whitespace-nowrap border px-2 py-2.5 text-xs font-black transition ${eloPeriod === period ? 'border-cyan-300 bg-cyan-300 text-black' : 'border-white/10 bg-black/20 text-zinc-400 hover:border-white/25 hover:text-white'}`}
-                >
-                  {eloPeriodMeta[period].label}
-                </button>
-              ))}
+            <div className="w-full lg:w-[24rem]"><p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Zeitraum</p><div className="grid grid-cols-4 gap-2" role="group" aria-label="Zeitraum für Match-History und Elo auswählen">
+              {historyPeriodOptions.map((period) => <FilterPill key={period} active={historyPeriod === period} onClick={() => setHistoryPeriod(period)} activeClass="border-cyan-300 bg-cyan-300 text-black">{historyPeriodMeta[period].label}</FilterPill>)}
+            </div></div>
+          </div>
+          <div className="grid lg:grid-cols-[minmax(0,1.45fr)_22rem]">
+            <div className="border-b border-white/10 p-5 sm:p-6 lg:border-b-0 lg:border-r">
+              <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Kumulierte Veränderung</p><p className="mt-1 text-sm font-bold text-zinc-300">Elo-Bilanz ab dem Start des Zeitraums</p></div><span className={`shrink-0 border px-2.5 py-1 text-xs font-black ${eloPeriodSummary.net >= 0 ? 'border-emerald-300/30 bg-emerald-400/10 text-emerald-200' : 'border-rose-300/30 bg-rose-400/10 text-rose-200'}`}>{eloPeriodSummary.net > 0 ? '+' : ''}{eloPeriodSummary.net} Elo</span></div>
+              <EloTrendChart points={eloInsights.points} startAt={eloInsights.startAt} endAt={eloInsights.endAt} hasEvents={eloPeriodSummary.ratedMatches > 0} />
+            </div>
+            <div className="grid grid-cols-2 bg-black/[0.08]">
+              <EloMetric label="Elo gewonnen" value={`+${eloPeriodSummary.gained}`} detail="aus gewerteten Matches" tone="text-emerald-300" className="border-b border-r border-white/10" />
+              <EloMetric label="Elo verloren" value={`−${eloPeriodSummary.lost}`} detail="aus gewerteten Matches" tone="text-rose-300" className="border-b border-white/10" />
+              <EloMetric label="Bilanz" value={`${eloPeriodSummary.net > 0 ? '+' : ''}${eloPeriodSummary.net}`} detail={`${eloPeriodSummary.ratedMatches} gewertete${eloPeriodSummary.ratedMatches === 1 ? 's' : ''} Match${eloPeriodSummary.ratedMatches === 1 ? '' : 'es'}`} tone={eloPeriodSummary.net > 0 ? 'text-emerald-300' : eloPeriodSummary.net < 0 ? 'text-rose-300' : 'text-zinc-300'} className="border-r border-white/10" />
+              <EloMetric label="Größter Gewinn" value={eloInsights.largestGain ? `+${eloInsights.largestGain.value}` : '—'} detail={eloInsights.largestGain ? `vs. ${eloInsights.largestGain.opponentName || 'Unbekannt'}` : 'Noch kein Elo-Gewinn'} tone="text-cyan-200" />
+              <div className="col-span-2 flex items-center gap-3 border-t border-white/10 px-4 py-3 text-xs text-zinc-500"><TrendingDown className="h-4 w-4 shrink-0 text-rose-300" /><span>{eloInsights.largestLoss ? <>Größter Rückschlag: <strong className="font-black text-rose-200">−{eloInsights.largestLoss.value} Elo</strong> vs. {eloInsights.largestLoss.opponentName || 'unbekanntem Gegner'}</> : 'Noch kein Elo-Verlust im ausgewählten Zeitraum.'}</span></div>
             </div>
           </div>
-          <div className="grid border-b border-white/10 sm:grid-cols-3">
-            <EloPeriodMetric label="Elo gewonnen" value={`+${eloPeriodSummary.gained}`} detail="aus gewerteten Matches" tone="text-emerald-300" />
-            <EloPeriodMetric label="Elo verloren" value={`−${eloPeriodSummary.lost}`} detail="aus gewerteten Matches" tone="text-red-300" />
-            <EloPeriodMetric
-              label="Bilanz"
-              value={`${eloPeriodSummary.net > 0 ? '+' : ''}${eloPeriodSummary.net}`}
-              detail={`${eloPeriodSummary.ratedMatches} gewertete${eloPeriodSummary.ratedMatches === 1 ? 's' : ''} Match${eloPeriodSummary.ratedMatches === 1 ? '' : 'es'}`}
-              tone={eloPeriodSummary.net > 0 ? 'text-emerald-300' : eloPeriodSummary.net < 0 ? 'text-red-300' : 'text-zinc-300'}
-            />
-          </div>
-          <p className="px-5 py-3 text-xs text-zinc-400 sm:px-6">Private Freundschaftsspiele und Matches ohne Elo-Wertung fließen nicht ein. Alle Zeiträume laufen fortlaufend; der 24-Stunden-Filter endet nicht um Mitternacht. Die Matchliste bleibt unverändert.</p>
+          <p className="border-t border-white/10 px-5 py-3 text-xs leading-5 text-zinc-500 sm:px-6">Die Kurve zeigt die kumulierte Elo-Veränderung ab 0 – nicht deinen absoluten Elo-Stand. Private Freundschaftsspiele und Matches ohne Elo-Wertung fließen nicht ein. Der 24-Stunden-Zeitraum läuft fortlaufend und endet nicht um Mitternacht.</p>
         </section>
 
-        <div className="arena-panel mt-5 p-4 sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-zinc-400"><SlidersHorizontal className="h-4 w-4 text-emerald-300" /> Filter <span className="text-zinc-600">·</span> {filtered.length} Treffer</div><label className="flex h-10 items-center gap-2 border border-white/10 bg-black/20 px-3 lg:w-72"><Search className="h-4 w-4 text-zinc-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Gegner suchen" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600" /></label></div>
-          <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.07] pt-4">
-            {([['all', 'Alle'], ['wins', 'Siege'], ['losses', 'Niederlagen']] as const).map(([value, label]) => <button key={value} onClick={() => setResultFilter(value)} className={`border px-3 py-2 text-xs font-black ${resultFilter === value ? 'border-emerald-300 bg-emerald-300 text-black' : 'border-white/10 text-zinc-400 hover:border-white/25'}`}>{label}</button>)}
-            <span className="mx-1 hidden h-8 w-px bg-white/10 sm:block" />
-            {([['all', 'Alle Modi'], ['ranked', 'Ranked'], ['private', 'Unrated']] as const).map(([value, label]) => <button key={value} onClick={() => setModeFilter(value)} className={`border px-3 py-2 text-xs font-black ${modeFilter === value ? 'border-cyan-300/60 bg-cyan-400/10 text-cyan-100' : 'border-white/10 text-zinc-500 hover:border-white/25'}`}>{label}</button>)}
-            <span className="mx-1 hidden h-8 w-px bg-white/10 sm:block" />
-            {(['all', 'scolia', 'dartcounter', 'autodarts'] as const).map((value) => <button key={value} onClick={() => setPlatformFilter(value)} className={`border px-3 py-2 text-xs font-black ${platformFilter === value ? 'border-violet-300/60 bg-violet-400/10 text-violet-100' : 'border-white/10 text-zinc-500 hover:border-white/25'}`}>{value === 'all' ? `Plattformen (${activePlatforms})` : platformMeta[value].label}</button>)}
+        <section className="arena-panel mt-5 overflow-hidden" aria-label="Match-History filtern">
+          <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-zinc-400"><SlidersHorizontal className="h-4 w-4 text-emerald-300" /> Filter <span className="text-zinc-600">·</span> {filtered.length} Treffer <span className="inline-flex items-center gap-1 border border-cyan-300/20 bg-cyan-400/[0.07] px-2 py-1 text-[9px] text-cyan-100"><CalendarDays className="h-3 w-3" /> {historyPeriodMeta[historyPeriod].label}</span></div><p className="mt-2 text-xs text-zinc-500">Kombiniere Ergebnis, Spieltyp, Plattform und Gegner.</p></div><div className="flex flex-col gap-2 sm:flex-row sm:items-center"><label htmlFor="history-opponent-search" className="flex h-10 items-center gap-2 border border-white/10 bg-black/20 px-3 sm:w-72"><Search className="h-4 w-4 text-zinc-500" /><input id="history-opponent-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Gegner suchen" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600" /></label>{hasActiveFilters && <button type="button" onClick={resetFilters} className="h-10 whitespace-nowrap border border-white/10 px-3 text-xs font-black text-zinc-400 transition hover:border-white/25 hover:text-white">Zurücksetzen</button>}</div></div>
+          <div className="grid gap-px border-t border-white/10 bg-white/10 lg:grid-cols-3">
+            <div className="bg-[#0d1110] p-4 sm:p-5"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Ergebnis</p><div className="mt-3 flex gap-2 overflow-x-auto pb-1">{([['all', 'Alle'], ['wins', 'Siege'], ['losses', 'Niederlagen']] as const).map(([value, label]) => <FilterPill key={value} active={resultFilter === value} onClick={() => setResultFilter(value)} activeClass="border-emerald-300 bg-emerald-300 text-black">{label}</FilterPill>)}</div></div>
+            <div className="bg-[#0d1110] p-4 sm:p-5"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Spieltyp</p><div className="mt-3 flex gap-2 overflow-x-auto pb-1">{([['all', 'Alle Modi'], ['ranked', 'Ranked'], ['private', 'Unrated']] as const).map(([value, label]) => <FilterPill key={value} active={modeFilter === value} onClick={() => setModeFilter(value)} activeClass="border-cyan-300/70 bg-cyan-400/10 text-cyan-100">{label}</FilterPill>)}</div></div>
+            <div className="bg-[#0d1110] p-4 sm:p-5"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Plattform</p><div className="mt-3 flex gap-2 overflow-x-auto pb-1">{(['all', 'scolia', 'dartcounter', 'autodarts'] as const).map((value) => <FilterPill key={value} active={platformFilter === value} onClick={() => setPlatformFilter(value)} activeClass="border-violet-300/70 bg-violet-400/10 text-violet-100">{value === 'all' ? `Alle (${activePlatforms})` : platformMeta[value].label}</FilterPill>)}</div></div>
           </div>
-        </div>
+        </section>
 
         <div className="mt-8">
           <div className="hidden grid-cols-[88px_minmax(190px,1.35fr)_112px_88px_95px_72px_90px_42px] gap-3 border-b border-white/10 px-5 pb-3 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600 lg:grid"><span>Ergebnis</span><span>Gegner / Zeit</span><span>Plattform</span><span>Legs</span><span>Average</span><span>180er</span><span>Elo</span><span /></div>
