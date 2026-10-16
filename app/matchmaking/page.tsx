@@ -784,6 +784,11 @@ export default function Matchmaking() {
       return;
     }
 
+    // Muss direkt im Klick-Handler passieren: Nach einem Netzwerk-await darf
+    // der Browser die Audio-Wiedergabe als Autoplay blockieren.
+    unlockMatchFoundSound();
+    lastMatchSoundIdRef.current = null;
+
     // Clear invitations whose deadline elapsed while a browser was closed.
     // This is best-effort so a short migration/cache delay never prevents a
     // player from searching for a match.
@@ -798,8 +803,6 @@ export default function Matchmaking() {
       }
     }
 
-    unlockMatchFoundSound();
-    lastMatchSoundIdRef.current = null;
     setSelectedApps(apps);
     selectedAppsRef.current = apps;
     setSelectedApp(apps[0]);
@@ -1800,3 +1803,4 @@ export default function Matchmaking() {
     </main>
   );
 }
+
