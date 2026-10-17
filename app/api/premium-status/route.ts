@@ -19,15 +19,22 @@ export async function GET() {
       );
     }
 
-    const { data: premium, error } = await createAdminClient()
+    const [{ data: premium, error }, { data: activePremium, error: activePremiumError }, { data: overview, error: overviewError }] = await Promise.all([
+      createAdminClient()
       .from('profiles')
-      .select('isPremium, stripe_subscription_status, stripe_current_period_end, stripe_cancel_at_period_end, premium_manual_granted_at, premium_manual_until')
+      .select('isPremium, stripe_subscription_status, stripe_current_period_end, stripe_cancel_at_period_end, premium_manual_granted_at, premium_manual_until, premium_first_activated_at, premium_cosmetic')
       .eq('supabaseId', user.id)
-      .maybeSingle();
+      .maybeSingle(),
+      supabase.rpc('has_active_premium'),
+      supabase.rpc('get_my_premium_overview'),
+    ]);
 
-    if (error) throw error;
+    if (error || activePremiumError || overviewError) throw error || activePremiumError || overviewError;
 
-    return NextResponse.json({ premium }, { headers: privateNoStoreHeaders });
+    return NextResponse.json({
+      premium: premium ? { ...premium, isPremium: Boolean(activePremium) } : null,
+      overview,
+    }, { headers: privateNoStoreHeaders });
   } catch (error) {
     console.error('Premium status error:', error);
     return NextResponse.json(

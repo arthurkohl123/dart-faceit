@@ -10,12 +10,15 @@ import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDarts
 import { getRankProgress } from '@/lib/ranks';
 import { ArrowUpRight, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
+type PremiumCosmetic = 'emerald' | 'violet' | 'gold' | 'cyan';
+
 type PublicProfile = {
   username: string;
   elo: number;
   gamesPlayed: number;
   wins: number;
   isPremium: boolean;
+  premium_cosmetic: PremiumCosmetic | null;
   isAdmin: boolean;
   supabaseId: string;
 };
@@ -38,6 +41,43 @@ type TournamentHistory = {
   scoring_platform: string; participant_status: string; wins: number; losses: number; points: number;
   placement: number | null; is_winner: boolean; prize_title: string | null;
 };
+
+const premiumCosmeticStyles: Record<PremiumCosmetic, { avatar: string; badge: string; icon: string; name: string; hero: string }> = {
+  emerald: {
+    avatar: '!border-emerald-300/70 !bg-emerald-400/[0.08] shadow-[0_0_34px_rgba(110,231,183,.22)]',
+    badge: '!border-emerald-300/35 !bg-emerald-400/10 !text-emerald-100',
+    icon: 'text-emerald-300',
+    name: 'text-emerald-50',
+    hero: 'ring-1 ring-inset ring-emerald-300/20',
+  },
+  violet: {
+    avatar: '!border-violet-300/70 !bg-violet-400/[0.08] shadow-[0_0_34px_rgba(196,181,253,.22)]',
+    badge: '!border-violet-300/40 !bg-violet-400/10 !text-violet-100',
+    icon: 'text-violet-300',
+    name: 'text-violet-100',
+    hero: 'ring-1 ring-inset ring-violet-300/20',
+  },
+  gold: {
+    avatar: '!border-amber-300/75 !bg-amber-300/[0.08] shadow-[0_0_34px_rgba(252,211,77,.24)]',
+    badge: '!border-amber-300/40 !bg-amber-300/10 !text-amber-100',
+    icon: 'text-amber-300',
+    name: 'text-amber-100',
+    hero: 'ring-1 ring-inset ring-amber-300/20',
+  },
+  cyan: {
+    avatar: '!border-cyan-300/70 !bg-cyan-400/[0.08] shadow-[0_0_34px_rgba(103,232,249,.22)]',
+    badge: '!border-cyan-300/40 !bg-cyan-400/10 !text-cyan-100',
+    icon: 'text-cyan-300',
+    name: 'text-cyan-100',
+    hero: 'ring-1 ring-inset ring-cyan-300/20',
+  },
+};
+
+function getPremiumCosmeticStyle(isPremium: boolean, cosmetic: PremiumCosmetic | null | undefined) {
+  if (!isPremium) return null;
+  if (cosmetic === 'violet' || cosmetic === 'gold' || cosmetic === 'cyan') return premiumCosmeticStyles[cosmetic];
+  return premiumCosmeticStyles.emerald;
+}
 
 export default function PlayerProfile() {
   const params = useParams();
@@ -68,7 +108,7 @@ export default function PlayerProfile() {
       const [{ data: profileData }, { data: adminRows, error: adminError }] = await Promise.all([
         supabase
           .from('public_visible_profiles')
-          .select('username, elo, gamesPlayed, wins, isPremium, supabaseId')
+          .select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, supabaseId')
           .eq('username', username)
           .maybeSingle(),
         supabase.rpc('get_public_admin_profile_ids'),
@@ -87,6 +127,7 @@ export default function PlayerProfile() {
         gamesPlayed: profileData.gamesPlayed ?? 0,
         wins: profileData.wins ?? 0,
         isPremium: Boolean(profileData.isPremium),
+        premium_cosmetic: profileData.premium_cosmetic ?? null,
         isAdmin,
         supabaseId: profileData.supabaseId,
       };
@@ -165,6 +206,7 @@ export default function PlayerProfile() {
 
   const { current: currentRank, upcoming, eloToNext, progress } = getRankProgress(elo);
   const nextRank = upcoming ?? currentRank;
+  const premiumCosmetic = getPremiumCosmeticStyle(profile!.isPremium, profile!.premium_cosmetic);
 
   return (
     <main className="arena-page relative overflow-hidden text-white">
@@ -206,21 +248,21 @@ export default function PlayerProfile() {
       <section className="arena-content relative z-10 mx-auto px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32">
 
         {/* Profil-Header */}
-        <div className="arena-hero relative p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12">
+        <div className={'arena-hero relative p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12 ' + (premiumCosmetic?.hero || '')}>
           <div className={`absolute inset-x-0 top-0 h-[2px] ${currentRank.level >= 8 ? 'bg-amber-300' : 'bg-emerald-300'}`} />
           <div className="relative z-10 flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-7 sm:text-left">
-            <div className="relative grid h-24 w-24 shrink-0 place-items-center border border-white/20 bg-black/35 sm:h-28 sm:w-28">
+            <div className={'relative grid h-24 w-24 shrink-0 place-items-center border border-white/20 bg-black/35 sm:h-28 sm:w-28 ' + (premiumCosmetic?.avatar || '')}>
               <RankBadge level={currentRank.level} size="xl" priority />
               <span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center border border-emerald-200/40 bg-emerald-400 text-black"><Zap className="h-4 w-4 fill-current" /></span>
             </div>
             <div className="flex-1 min-w-0">
               <div className="mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80 sm:justify-start"><Sparkles className="h-3.5 w-3.5" /> Spielerprofil · Season 01 · bis 01.11.2026</div>
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                {profile!.isPremium && <Star className="h-5 w-5 fill-current text-emerald-300" />}
-                <h1 className="text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl">{profile!.username}</h1>
+                {profile!.isPremium && <Star className={'h-5 w-5 fill-current ' + (premiumCosmetic?.icon || 'text-emerald-300')} />}
+                <h1 className={'text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl ' + (premiumCosmetic?.name || '')}>{profile!.username}</h1>
                 {profile!.isAdmin && <AdminBadge />}
               </div>
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className="border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">PREMIUM</span>}</div>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className={'border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100 ' + (premiumCosmetic?.badge || '')}>PREMIUM</span>}</div>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-zinc-400 sm:justify-start"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Bestätigte Ranked-Stats</span><span className="hidden h-3 w-px bg-white/15 sm:block" /><span>{gamesPlayed} Matches gespielt</span></div>
             </div>
             <div className="relative shrink-0 overflow-hidden border border-emerald-300/25 bg-[#07120e]/95 px-7 py-5 text-center">

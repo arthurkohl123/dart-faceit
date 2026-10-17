@@ -38,6 +38,41 @@ import { getRankProgress } from '@/lib/ranks';
 
 const DISCORD_INVITE_URL = 'https://discord.gg/5qwUZQxjfV';
 
+type PremiumCosmetic = 'emerald' | 'violet' | 'gold' | 'cyan';
+
+const premiumCosmeticStyles: Record<PremiumCosmetic, { avatar: string; badge: string; marker: string; name: string }> = {
+  emerald: {
+    avatar: '!border-emerald-300/65 shadow-[0_0_34px_rgba(110,231,183,.22)]',
+    badge: '!border-emerald-300/35 !bg-emerald-400/10 !text-emerald-100',
+    marker: '!border-emerald-200/50 !bg-emerald-300 !text-black',
+    name: 'text-emerald-50',
+  },
+  violet: {
+    avatar: '!border-violet-300/70 shadow-[0_0_34px_rgba(196,181,253,.22)]',
+    badge: '!border-violet-300/40 !bg-violet-400/10 !text-violet-100',
+    marker: '!border-violet-200/55 !bg-violet-300 !text-[#180b2d]',
+    name: 'text-violet-100',
+  },
+  gold: {
+    avatar: '!border-amber-300/75 shadow-[0_0_34px_rgba(252,211,77,.24)]',
+    badge: '!border-amber-300/40 !bg-amber-300/10 !text-amber-100',
+    marker: '!border-amber-200/55 !bg-amber-300 !text-[#201707]',
+    name: 'text-amber-100',
+  },
+  cyan: {
+    avatar: '!border-cyan-300/70 shadow-[0_0_34px_rgba(103,232,249,.22)]',
+    badge: '!border-cyan-300/40 !bg-cyan-400/10 !text-cyan-100',
+    marker: '!border-cyan-200/55 !bg-cyan-300 !text-[#06222a]',
+    name: 'text-cyan-100',
+  },
+};
+
+function getPremiumCosmeticStyle(isPremium: boolean | null | undefined, cosmetic: string | null | undefined) {
+  if (!isPremium) return null;
+  const selected: PremiumCosmetic = cosmetic === 'violet' || cosmetic === 'gold' || cosmetic === 'cyan' ? cosmetic : 'emerald';
+  return premiumCosmeticStyles[selected];
+}
+
 type ProfileData = {
   username: string | null;
   elo: number;
@@ -47,6 +82,7 @@ type ProfileData = {
   phone_number: string | null;
   is_admin: boolean;
   isPremium: boolean;
+  premium_cosmetic?: PremiumCosmetic | null;
   scolia_username: string | null;
   dartcounter_username: string | null;
   autodarts_username: string | null;
@@ -143,6 +179,7 @@ export function ProfileV2(props: Props) {
   const phoneVerified = Boolean(profile?.phone_verified);
   const hasPlatform = Boolean(profile?.scolia_username || profile?.dartcounter_username || profile?.autodarts_username);
   const queueReady = phoneVerified && hasPlatform;
+  const premiumCosmetic = getPremiumCosmeticStyle(profile?.isPremium, profile?.premium_cosmetic);
   const totalMatches = platformStatistics.reduce((sum, row) => sum + Number(row.match_count || 0), 0);
   const platformAverage = totalMatches > 0
     ? platformStatistics.reduce((sum, row) => sum + Number(row.average || 0) * Number(row.match_count || 0), 0) / totalMatches
@@ -201,8 +238,8 @@ export function ProfileV2(props: Props) {
           <div className="relative flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4"><div className="profile-v2-eyebrow"><Sparkles className="h-3.5 w-3.5" /> Spielerprofil</div><span className="profile-v6-season">RANKED PLAYER / SEASON 01</span></div>
           <div className="profile-v6-layout relative mt-8 grid gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(21rem,.75fr)] lg:items-center">
             <div className="profile-v6-identity min-w-0">
-              <div className="profile-v6-avatar-column"><div className={'profile-v7-avatar relative grid h-20 w-20 shrink-0 place-items-center sm:h-24 sm:w-24 ' + currentRank.ringColor}><RankBadge level={currentRank.level} size="lg" priority className="relative z-10" /><span className="absolute -bottom-1 -right-1 z-20 grid h-7 w-7 place-items-center rounded-full border border-emerald-200/50 bg-emerald-300 text-black"><Zap className="h-3.5 w-3.5 fill-current" /></span></div><span className="profile-v7-level-mark">LEVEL {String(currentRank.level).padStart(2, '0')}</span></div>
-              <div className="min-w-0"><div className="profile-v6-name-line"><h1 className="break-words text-4xl font-black leading-[.95] tracking-[-0.08em] [overflow-wrap:anywhere] sm:text-6xl lg:text-[4.25rem]">{profile?.username || 'Spieler'}</h1></div><div className="mt-3 flex flex-wrap items-center gap-2">{profile?.isPremium && <span className="profile-v3-status profile-v3-status-premium"><Sparkles className="h-3.5 w-3.5 fill-current" />Premium</span>}{profile?.is_admin && <AdminBadge />}</div><p className="mt-3 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">Dein Wettbewerbsprofil für Ranked-Matches, Turniere und die nächste Runde.</p><div className="profile-v6-status-line mt-4"><span className={currentRank.color}>Level {currentRank.level} · {currentRank.name}</span><span className="profile-v6-status-divider" /><span className={queueReady ? 'text-emerald-200' : 'text-amber-200'}><span className={'mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ' + (queueReady ? 'animate-pulse bg-emerald-300' : 'bg-amber-300')} />{queueReady ? 'Queue bereit' : 'Profil vervollständigen'}</span></div><div className="mt-6 flex flex-wrap gap-3"><button type="button" onClick={primaryAction} className="arena-primary-action inline-flex items-center px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em]">{!phoneVerified ? 'Verifizieren' : hasPlatform ? 'Match suchen' : 'Plattform einrichten'}<ArrowUpRight className="ml-2 h-4 w-4" /></button><Link href="/history" className="profile-v3-quiet-action inline-flex items-center gap-2 px-5 py-3.5 text-sm font-bold"><Activity className="h-4 w-4" />Match-Verlauf</Link></div></div>
+              <div className="profile-v6-avatar-column"><div className={'profile-v7-avatar relative grid h-20 w-20 shrink-0 place-items-center sm:h-24 sm:w-24 ' + currentRank.ringColor + (premiumCosmetic ? ' ' + premiumCosmetic.avatar : '')}><RankBadge level={currentRank.level} size="lg" priority className="relative z-10" /><span className={'absolute -bottom-1 -right-1 z-20 grid h-7 w-7 place-items-center rounded-full border border-emerald-200/50 bg-emerald-300 text-black ' + (premiumCosmetic?.marker || '')}><Zap className="h-3.5 w-3.5 fill-current" /></span></div><span className="profile-v7-level-mark">LEVEL {String(currentRank.level).padStart(2, '0')}</span></div>
+              <div className="min-w-0"><div className="profile-v6-name-line"><h1 className={'break-words text-4xl font-black leading-[.95] tracking-[-0.08em] [overflow-wrap:anywhere] sm:text-6xl lg:text-[4.25rem] ' + (premiumCosmetic?.name || '')}>{profile?.username || 'Spieler'}</h1></div><div className="mt-3 flex flex-wrap items-center gap-2">{profile?.isPremium && <span className={'profile-v3-status profile-v3-status-premium ' + (premiumCosmetic?.badge || '')}><Sparkles className="h-3.5 w-3.5 fill-current" />Premium</span>}{profile?.is_admin && <AdminBadge />}</div><p className="mt-3 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">Dein Wettbewerbsprofil für Ranked-Matches, Turniere und die nächste Runde.</p><div className="profile-v6-status-line mt-4"><span className={currentRank.color}>Level {currentRank.level} · {currentRank.name}</span><span className="profile-v6-status-divider" /><span className={queueReady ? 'text-emerald-200' : 'text-amber-200'}><span className={'mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ' + (queueReady ? 'animate-pulse bg-emerald-300' : 'bg-amber-300')} />{queueReady ? 'Queue bereit' : 'Profil vervollständigen'}</span></div><div className="mt-6 flex flex-wrap gap-3"><button type="button" onClick={primaryAction} className="arena-primary-action inline-flex items-center px-6 py-3.5 text-sm font-black uppercase tracking-[0.16em]">{!phoneVerified ? 'Verifizieren' : hasPlatform ? 'Match suchen' : 'Plattform einrichten'}<ArrowUpRight className="ml-2 h-4 w-4" /></button><Link href="/history" className="profile-v3-quiet-action inline-flex items-center gap-2 px-5 py-3.5 text-sm font-bold"><Activity className="h-4 w-4" />Match-Verlauf</Link></div></div>
             </div>
             <div className="profile-v6-rating relative lg:border-l lg:border-white/15 lg:pl-9 lg:pr-8"><div className="profile-v2-label">Aktuelles Rating</div><div className="profile-v6-score-row mt-2"><div><div className="profile-v6-score">{elo}</div><div className="mt-2 text-sm font-bold text-zinc-500">Elo-Punkte</div></div><div className="profile-v6-rank-name"><RankBadge level={currentRank.level} size="sm" /><div><div className={'text-2xl font-black ' + currentRank.color}>{currentRank.name}</div><div className="mt-1 text-xs text-zinc-500">Level {currentRank.level}</div></div></div></div><div className="mt-6"><div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500"><span>Fortschritt zum nächsten Rang</span><span className="text-emerald-200">{Math.round(progress)}%</span></div><div className="mt-2 h-1.5 overflow-hidden bg-white/10"><div className="h-full bg-emerald-300" style={{ width: progress + '%' }} /></div><div className="mt-2 flex items-center justify-between text-xs text-zinc-500"><span>{currentRank.min} {currentRank.name}</span><span>{upcoming ? nextRank.name + ' · ' + nextRank.min : 'Maximal'}</span></div></div></div>
           </div>

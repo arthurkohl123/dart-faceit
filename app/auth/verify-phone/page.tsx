@@ -44,14 +44,14 @@ export default function VerifyPhone() {
       setSmsVerificationEnabled(smsEnabled);
 
       if (!smsEnabled) {
-        if (data.session?.user.id) {
-          await supabase
-            .from('profiles')
-            .update({
-              phone_verified: true,
-              phone_verified_at: new Date().toISOString(),
-            })
-            .eq('supabaseId', data.session.user.id);
+        if (!data.session?.user.id) {
+          setErrorMessage('Bitte melde dich an, damit dein Ranked-Profil freigeschaltet werden kann.');
+          return;
+        }
+        const { error: profileError } = await supabase.rpc('mark_my_phone_verification_skipped');
+        if (profileError) {
+          setErrorMessage(`Dein Ranked-Profil konnte nicht freigeschaltet werden: ${profileError.message}`);
+          return;
         }
         setVerified(true);
         setMessage('Die SMS-Verifizierung ist aktuell deaktiviert. Dein Ranked-Profil ist freigeschaltet.');

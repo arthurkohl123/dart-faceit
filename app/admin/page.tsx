@@ -358,6 +358,36 @@ type TournamentScheduleDraft = {
   startsAt: string;
 };
 
+type PremiumCodeKind = 'gift' | 'promo' | 'trial';
+
+type PremiumCode = {
+  id: string;
+  label: string;
+  kind: PremiumCodeKind;
+  duration_days: number;
+  max_redemptions: number;
+  redemption_count: number;
+  active: boolean;
+  expires_at: string | null;
+  created_at: string;
+};
+
+type CreatedPremiumCode = {
+  code: string;
+  code_id: string;
+  label: string;
+  kind: PremiumCodeKind;
+  duration_days: number;
+  max_redemptions: number;
+  expires_at: string | null;
+};
+
+const premiumCodeKindLabels: Record<PremiumCodeKind, string> = {
+  gift: 'Geschenk',
+  promo: 'Promo',
+  trial: 'Testzugang',
+};
+
 type ResolveFormState = {
   winnerId: string;
   player1Legs: string;
@@ -464,6 +494,18 @@ export default function AdminPanel() {
   const [premiumDuration, setPremiumDuration] = useState<'7' | '14' | '30' | '60' | '90' | 'unlimited'>('30');
   const [premiumReason, setPremiumReason] = useState('');
   const [premiumSavingUserId, setPremiumSavingUserId] = useState<string | null>(null);
+  const [premiumCodes, setPremiumCodes] = useState<PremiumCode[]>([]);
+  const [premiumCodesLoading, setPremiumCodesLoading] = useState(false);
+  const [premiumCodesError, setPremiumCodesError] = useState<string | null>(null);
+  const [premiumCodeLabel, setPremiumCodeLabel] = useState('');
+  const [premiumCodeKind, setPremiumCodeKind] = useState<PremiumCodeKind>('gift');
+  const [premiumCodeDurationDays, setPremiumCodeDurationDays] = useState('30');
+  const [premiumCodeMaxRedemptions, setPremiumCodeMaxRedemptions] = useState('1');
+  const [premiumCodeExpiresAt, setPremiumCodeExpiresAt] = useState('');
+  const [premiumCodeCreating, setPremiumCodeCreating] = useState(false);
+  const [premiumGeneratedCode, setPremiumGeneratedCode] = useState<CreatedPremiumCode | null>(null);
+  const [premiumCodeCopied, setPremiumCodeCopied] = useState(false);
+  const [premiumCodeUpdatingId, setPremiumCodeUpdatingId] = useState<string | null>(null);
   const [softResetSeasonLabel, setSoftResetSeasonLabel] = useState('Season 01');
   const [softResetConfirming, setSoftResetConfirming] = useState(false);
   const [softResetLoading, setSoftResetLoading] = useState(false);
@@ -523,6 +565,20 @@ export default function AdminPanel() {
     }
 
     setProfiles((data || []) as Profile[]);
+  }, [supabase]);
+
+  const loadPremiumCodes = useCallback(async () => {
+    setPremiumCodesLoading(true);
+    const { data, error } = await supabase.rpc('admin_list_premium_codes');
+    setPremiumCodesLoading(false);
+
+    if (error) {
+      setPremiumCodesError(`Premium-Codes konnten nicht geladen werden: ${error.message}`);
+      return;
+    }
+
+    setPremiumCodesError(null);
+    setPremiumCodes((data || []) as PremiumCode[]);
   }, [supabase]);
 
   const loadLiveMatches = useCallback(async () => {
@@ -1096,6 +1152,19 @@ export default function AdminPanel() {
     return () => { isMounted = false; };
   }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs, loadFlaggedPlayers, loadFairnessRiskFlags, loadTickets, loadPayouts, loadPayoutCandidates, loadTournaments]);
 
+  useEffect(() => {
+    if (!loading && activeTab === 'players') {
+      // Defer the request until after this render has committed. The loader
+      // owns state for the request lifecycle, so invoking it synchronously
+      // from the effect would create a cascading render.
+      const timer = window.setTimeout(() => {
+        void loadPremiumCodes();
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, [activeTab, loading, loadPremiumCodes]);
+
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
     await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(ticketFilter), loadPayouts(payoutFilter), loadPayoutCandidates(), loadTournaments()]);
@@ -1346,6 +1415,106 @@ export default function AdminPanel() {
       ? `Premium wurde für ${user.username || 'den Spieler'} aktiviert.`
       : `Die manuelle Premium-Freigabe für ${user.username || 'den Spieler'} wurde beendet.`);
     await Promise.all([loadProfiles(), loadAdminLogs()]);
+  };
+
+  const createPremiumCode = async () => {
+    const label = premiumCodeLabel.trim();
+    const durationDays = Number(premiumCodeDurationDays);
+    const maxRedemptions = Number(premiumCodeMaxRedemptions);
+
+    if (label.length < 3 || label.length > 100) {
+      setPremiumCodesError('Bitte gib eine Bezeichnung mit 3 bis 100 Zeichen ein.');
+      return;
+    }
+    if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 730) {
+      setPremiumCodesError('Die Laufzeit muss eine ganze Zahl zwischen 1 und 730 Tagen sein.');
+      return;
+    }
+    if (!Number.isInteger(maxRedemptions) || maxRedemptions < 1 || maxRedemptions > 10000) {
+      setPremiumCodesError('Die Einlösungen müssen eine ganze Zahl zwischen 1 und 10.000 sein.');
+      return;
+    }
+
+    let expiresAt: string | null = null;
+    if (premiumCodeExpiresAt) {
+      const parsedExpiresAt = new Date(premiumCodeExpiresAt);
+      if (Number.isNaN(parsedExpiresAt.getTime()) || parsedExpiresAt.getTime() <= Date.now()) {
+        setPremiumCodesError('Das Ablaufdatum muss in der Zukunft liegen.');
+        return;
+      }
+      expiresAt = parsedExpiresAt.toISOString();
+    }
+
+    setPremiumCodeCreating(true);
+    setPremiumCodesError(null);
+    const { data, error } = await supabase.rpc('admin_create_premium_code', {
+      p_label: label,
+      p_kind: premiumCodeKind,
+      p_duration_days: durationDays,
+      p_max_redemptions: maxRedemptions,
+      p_expires_at: expiresAt,
+    });
+    setPremiumCodeCreating(false);
+
+    if (error) {
+      setPremiumCodesError(`Premium-Code konnte nicht erstellt werden: ${error.message}`);
+      return;
+    }
+
+    const created = (Array.isArray(data) ? data[0] : data) as CreatedPremiumCode | null;
+    if (!created?.code || !created.code_id) {
+      setPremiumCodesError('Der Premium-Code wurde erstellt, konnte aber nicht sicher angezeigt werden. Bitte erstelle keinen zweiten Code und prüfe das Audit-Log.');
+      void loadPremiumCodes();
+      return;
+    }
+
+    setPremiumGeneratedCode(created);
+    setPremiumCodeCopied(false);
+    setPremiumCodeLabel('');
+    setPremiumCodeExpiresAt('');
+    setActionMessage(`Premium-Code „${created.label}“ wurde erstellt.`);
+    await Promise.all([loadPremiumCodes(), loadAdminLogs()]);
+  };
+
+  const copyGeneratedPremiumCode = async () => {
+    if (!premiumGeneratedCode?.code) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(premiumGeneratedCode.code);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = premiumGeneratedCode.code;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        textarea.remove();
+        if (!copied) throw new Error('Kopieren wird vom Browser nicht unterstützt.');
+      }
+      setPremiumCodeCopied(true);
+    } catch {
+      setPremiumCodesError('Der Code konnte nicht automatisch kopiert werden. Bitte kopiere ihn manuell, solange er hier sichtbar ist.');
+    }
+  };
+
+  const setPremiumCodeActive = async (code: PremiumCode, active: boolean) => {
+    setPremiumCodeUpdatingId(code.id);
+    setPremiumCodesError(null);
+    const { error } = await supabase.rpc('admin_set_premium_code_active', {
+      p_code_id: code.id,
+      p_active: active,
+    });
+    setPremiumCodeUpdatingId(null);
+
+    if (error) {
+      setPremiumCodesError(`Premium-Code konnte nicht aktualisiert werden: ${error.message}`);
+      return;
+    }
+
+    setActionMessage(active ? `Premium-Code „${code.label}“ wurde aktiviert.` : `Premium-Code „${code.label}“ wurde deaktiviert.`);
+    await Promise.all([loadPremiumCodes(), loadAdminLogs()]);
   };
 
   const updateResolveForm = (matchId: string, patch: Partial<ResolveFormState>) => {
@@ -2194,6 +2363,90 @@ export default function AdminPanel() {
             </div>
           )}
           <p className="mt-4 flex items-center gap-2 text-[11px] text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-cyan-300" /> Vor der Änderung wird jeder Elo-Wert gespeichert. Bei laufenden Ranked-Matches blockiert die Datenbank den Reset automatisch.</p>
+        </section>
+
+        <section className="overflow-hidden rounded-[2.4rem] border border-amber-300/20 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.14),transparent_48%),rgba(9,9,11,0.8)] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+          <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber-200"><Crown className="h-4 w-4" /> Premium-Codes</div>
+              <h2 className="mt-2 text-3xl font-black tracking-[-0.045em] text-white">Geschenke, Promos & Testzugänge</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">Codes werden nur als Hash gespeichert. Der Klartext erscheint nach dem Erstellen einmalig und kann danach nicht erneut abgerufen werden.</p>
+            </div>
+            <button onClick={() => void loadPremiumCodes()} disabled={premiumCodesLoading} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300/25 bg-amber-300/[0.07] px-4 py-2.5 text-xs font-black text-amber-100 transition hover:bg-amber-300/[0.14] disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${premiumCodesLoading ? 'animate-spin' : ''}`} />Aktualisieren</button>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500 xl:col-span-2">Interne Bezeichnung
+              <input value={premiumCodeLabel} onChange={(event) => setPremiumCodeLabel(event.target.value)} maxLength={100} placeholder="z. B. Discord-Gewinnspiel Oktober" className={`${inputClassName} mt-2`} />
+            </label>
+            <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">Art
+              <select value={premiumCodeKind} onChange={(event) => setPremiumCodeKind(event.target.value as PremiumCodeKind)} className={`${inputClassName} mt-2 [color-scheme:dark]`}>
+                <option className={selectOptionClassName} value="gift">Geschenk</option>
+                <option className={selectOptionClassName} value="promo">Promo</option>
+                <option className={selectOptionClassName} value="trial">Testzugang</option>
+              </select>
+            </label>
+            <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">Laufzeit in Tagen
+              <input type="number" min="1" max="730" inputMode="numeric" value={premiumCodeDurationDays} onChange={(event) => setPremiumCodeDurationDays(event.target.value)} className={`${inputClassName} mt-2`} />
+            </label>
+            <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">Max. Einlösungen
+              <input type="number" min="1" max="10000" inputMode="numeric" value={premiumCodeMaxRedemptions} onChange={(event) => setPremiumCodeMaxRedemptions(event.target.value)} className={`${inputClassName} mt-2`} />
+            </label>
+            <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500 xl:col-span-2">Ablaufdatum <span className="font-normal normal-case tracking-normal text-zinc-600">(optional)</span>
+              <input type="datetime-local" value={premiumCodeExpiresAt} onChange={(event) => setPremiumCodeExpiresAt(event.target.value)} className={`${inputClassName} mt-2 [color-scheme:dark]`} />
+            </label>
+            <div className="flex items-end xl:col-span-3">
+              <button onClick={() => void createPremiumCode()} disabled={premiumCodeCreating} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-300 to-orange-300 px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"><Crown className="h-4 w-4" />{premiumCodeCreating ? 'Wird erstellt …' : 'Premium-Code erstellen'}</button>
+            </div>
+          </div>
+
+          {premiumCodesError && <div className="mt-4 rounded-2xl border border-rose-300/20 bg-rose-400/[0.08] px-4 py-3 text-sm font-semibold text-rose-100">{premiumCodesError}</div>}
+
+          {premiumGeneratedCode && (
+            <div className="mt-5 rounded-[1.5rem] border border-emerald-300/30 bg-emerald-400/[0.09] p-4 shadow-[0_0_38px_rgba(52,211,153,0.08)] sm:p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">Code jetzt sichern</p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-100">{premiumGeneratedCode.label} · {premiumCodeKindLabels[premiumGeneratedCode.kind]} · {premiumGeneratedCode.duration_days} Tage</p>
+                </div>
+                <span className="inline-flex w-fit items-center rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">Nur einmal sichtbar</span>
+              </div>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <code className="min-w-0 flex-1 break-all rounded-xl border border-emerald-300/25 bg-black/35 px-4 py-3 font-mono text-base font-black tracking-[0.12em] text-emerald-100">{premiumGeneratedCode.code}</code>
+                <div className="flex shrink-0 gap-2">
+                  <button onClick={() => void copyGeneratedPremiumCode()} className="rounded-xl bg-emerald-300 px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-black transition hover:bg-emerald-200">{premiumCodeCopied ? 'Kopiert' : 'Kopieren'}</button>
+                  <button onClick={() => { setPremiumGeneratedCode(null); setPremiumCodeCopied(false); }} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-200 transition hover:bg-white/10">Ausblenden</button>
+                </div>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-emerald-100/80">Sende den Code nur über einen passenden, sicheren Kanal. Nach dem Ausblenden oder Neuladen kann er nicht wiederhergestellt werden.</p>
+            </div>
+          )}
+
+          <div className="mt-7 border-t border-white/10 pt-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Letzte Codes</p><h3 className="mt-1 text-xl font-black text-white">Status & Einlösungen</h3></div>
+              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-bold text-zinc-400">{premiumCodes.length} angezeigt</span>
+            </div>
+            {premiumCodesLoading ? (
+              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-5 text-sm font-semibold text-zinc-400"><Loader2 className="h-4 w-4 animate-spin text-amber-200" />Premium-Codes werden geladen …</div>
+            ) : premiumCodes.length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-white/15 bg-black/15 p-6 text-center text-sm text-zinc-500">Noch keine Premium-Codes erstellt.</div>
+            ) : (
+              <div className="mt-4 max-h-[29rem] space-y-2 overflow-y-auto pr-1">
+                {premiumCodes.map((code) => {
+                  const expired = Boolean(code.expires_at && new Date(code.expires_at).getTime() <= (lastRefreshedAt?.getTime() ?? 0));
+                  const exhausted = code.redemption_count >= code.max_redemptions;
+                  const status = !code.active ? { label: 'Deaktiviert', className: 'border-zinc-400/20 bg-zinc-400/10 text-zinc-300' }
+                    : expired ? { label: 'Abgelaufen', className: 'border-rose-300/20 bg-rose-400/10 text-rose-100' }
+                      : exhausted ? { label: 'Ausgeschöpft', className: 'border-violet-300/20 bg-violet-400/10 text-violet-100' }
+                        : { label: 'Aktiv', className: 'border-emerald-300/20 bg-emerald-400/10 text-emerald-100' };
+                  const canToggle = !expired && !exhausted;
+                  const isUpdating = premiumCodeUpdatingId === code.id;
+                  return <article key={code.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="truncate font-black text-zinc-100">{code.label}</p><span className="rounded-full border border-amber-300/20 bg-amber-300/[0.08] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">{premiumCodeKindLabels[code.kind]}</span><span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${status.className}`}>{status.label}</span></div><p className="mt-2 text-xs text-zinc-500">{code.duration_days} Tage · {code.redemption_count}/{code.max_redemptions} Einlösungen · {code.expires_at ? `gültig bis ${formatDate(code.expires_at)}` : 'ohne Ablaufdatum'}</p></div><div className="flex shrink-0 items-center gap-2">{canToggle ? <button onClick={() => void setPremiumCodeActive(code, !code.active)} disabled={isUpdating} className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] transition disabled:opacity-50 ${code.active ? 'border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/15' : 'border border-emerald-300/20 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15'}`}>{isUpdating ? 'Speichert …' : code.active ? 'Deaktivieren' : 'Aktivieren'}</button> : <span className="text-[10px] font-bold text-zinc-600">{expired ? 'Nicht mehr aktivierbar' : 'Limit erreicht'}</span>}</div></article>;
+                })}
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="rounded-[2.4rem] border border-white/10 bg-zinc-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">

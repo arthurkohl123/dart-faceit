@@ -6,6 +6,7 @@ export const RATE_LIMITS = {
   resend_confirmation: { limit: 3, windowSeconds: 15 * 60 },
   support: { limit: 8, windowSeconds: 10 * 60 },
   checkout: { limit: 3, windowSeconds: 15 * 60 },
+  premium_gift_code: { limit: 12, windowSeconds: 15 * 60 },
   monitoring: { limit: 20, windowSeconds: 10 * 60 },
   account: { limit: 5, windowSeconds: 60 * 60 },
 } as const;

@@ -26,6 +26,7 @@ type ProfileData = {
   phone_number: string | null;
   is_admin: boolean;
   isPremium: boolean;
+  premium_cosmetic?: 'emerald' | 'violet' | 'gold' | 'cyan' | null;
   scolia_username: string | null;
   dartcounter_username: string | null;
   autodarts_username: string | null;

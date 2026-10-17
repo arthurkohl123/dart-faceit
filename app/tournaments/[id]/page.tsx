@@ -41,6 +41,7 @@ export default function TournamentDetailPage() {
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<'join' | 'checkin' | 'leave' | null>(null);
@@ -78,7 +79,13 @@ export default function TournamentDetailPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.replace(`/auth/login?redirectTo=${encodeURIComponent(`/tournaments/${params.id}`)}`); return; }
       setUserId(user.id);
-      await loadTournament();
+      const [premiumResult] = await Promise.all([
+        fetch('/api/premium-status', { cache: 'no-store' })
+          .then(async (response) => response.ok ? await response.json() as { premium?: { isPremium?: boolean | null } | null } : null)
+          .catch(() => null),
+        loadTournament(),
+      ]);
+      setIsPremium(Boolean(premiumResult?.premium?.isPremium));
       setLoading(false);
     })();
   }, [loadTournament, params.id, router, supabase]);
@@ -128,7 +135,7 @@ export default function TournamentDetailPage() {
 
   return <main className="sport-grid min-h-screen bg-[#0a0d0d] text-white">
     <nav className="mx-auto flex max-w-7xl items-center justify-between border-b border-white/10 px-5 py-5 md:px-8"><Link href="/tournaments" className="inline-flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-white"><ArrowLeft size={16} /> Turnierübersicht</Link><div className="flex items-center gap-3"><NotificationBell /><Link href="/premium" className="border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs font-black text-amber-200"><Crown size={14} className="mr-1 inline" /> PREMIUM</Link></div></nav>
-    <section className="mx-auto max-w-7xl px-5 pb-10 pt-12 md:px-8 md:pt-16"><div className="grid gap-8 lg:grid-cols-[1fr_auto]"><div><div className="inline-flex items-center gap-2 border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black tracking-[.18em] text-amber-200"><Sparkles size={13} /> {formatMeta[tournament.tournament_format].toUpperCase()}</div><h1 className="mt-5 text-4xl font-black tracking-[-.05em] sm:text-6xl">{tournament.title}</h1><p className="mt-4 max-w-3xl text-base leading-7 text-zinc-400">{tournament.description || 'Alle Paarungen, Ergebnisse und der aktuelle Stand auf einen Blick.'}</p><TournamentAction tournament={tournament} currentTime={currentTime} pendingAction={pendingAction} accessCode={accessCode} notice={notice} setAccessCode={setAccessCode} setNotice={setNotice} onAction={runRegistrationAction} /></div><div className="grid grid-cols-2 gap-px self-start border border-white/10 bg-white/10 sm:grid-cols-4"><Metric icon={<Users size={17} />} value={`${tournament.checked_in_count}/${tournament.max_players}`} label="Eingecheckt" /><Metric icon={<Swords size={17} />} value={`Bo ${tournament.best_of}`} label="Format" /><Metric icon={<CalendarDays size={17} />} value={formatDate(tournament.starts_at).split(',')[0]} label="Start" /><Metric icon={<Trophy size={17} />} value={tournament.winner_username || '—'} label="Champion" /></div></div></section>
+    <section className="mx-auto max-w-7xl px-5 pb-10 pt-12 md:px-8 md:pt-16"><div className="grid gap-8 lg:grid-cols-[1fr_auto]"><div><div className="inline-flex items-center gap-2 border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black tracking-[.18em] text-amber-200"><Sparkles size={13} /> {formatMeta[tournament.tournament_format].toUpperCase()}</div><h1 className="mt-5 text-4xl font-black tracking-[-.05em] sm:text-6xl">{tournament.title}</h1><p className="mt-4 max-w-3xl text-base leading-7 text-zinc-400">{tournament.description || 'Alle Paarungen, Ergebnisse und der aktuelle Stand auf einen Blick.'}</p><TournamentAction tournament={tournament} isPremium={isPremium} currentTime={currentTime} pendingAction={pendingAction} accessCode={accessCode} notice={notice} setAccessCode={setAccessCode} setNotice={setNotice} onAction={runRegistrationAction} /></div><div className="grid grid-cols-2 gap-px self-start border border-white/10 bg-white/10 sm:grid-cols-4"><Metric icon={<Users size={17} />} value={`${tournament.checked_in_count}/${tournament.max_players}`} label="Eingecheckt" /><Metric icon={<Swords size={17} />} value={`Bo ${tournament.best_of}`} label="Format" /><Metric icon={<CalendarDays size={17} />} value={formatDate(tournament.starts_at).split(',')[0]} label="Start" /><Metric icon={<Trophy size={17} />} value={tournament.winner_username || '—'} label="Champion" /></div></div></section>
     <section className="mx-auto max-w-7xl px-5 pb-16 md:px-8"><div className="grid gap-4 border-y border-white/10 py-5 md:grid-cols-3"><InfoCard icon={<TicketCheck size={18} />} title="Check-in" body={`${formatDate(tournament.check_in_opens_at)} bis ${formatDate(tournament.check_in_closes_at)}`} /><InfoCard icon={<Trophy size={18} />} title="Preis" body={tournament.prize_title ? `${tournament.prize_title}${tournament.prize_details ? ` · ${tournament.prize_details}` : ''}` : 'Noch kein Preis hinterlegt'} /><InfoCard icon={<ShieldAlert size={18} />} title="Streitfälle & Verbindung" body={tournament.dispute_policy} /></div>
       {tournament.status === 'cancelled' && <div className="mt-6 border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100"><b>Turnier abgesagt:</b> {tournament.cancellation_reason}</div>}
       <div className="mt-8">{tournament.tournament_format === 'group_stage' ? <GroupStage tournament={tournament} matches={matches} standings={standings} userId={userId} /> : <KnockoutBracket tournament={tournament} matches={matches} userId={userId} />}</div>
@@ -138,6 +145,7 @@ export default function TournamentDetailPage() {
 
 function TournamentAction({
   tournament,
+  isPremium,
   currentTime,
   pendingAction,
   accessCode,
@@ -147,6 +155,7 @@ function TournamentAction({
   onAction,
 }: {
   tournament: Tournament;
+  isPremium: boolean;
   currentTime: number;
   pendingAction: 'join' | 'checkin' | 'leave' | null;
   accessCode: string;
@@ -157,7 +166,8 @@ function TournamentAction({
 }) {
   const registrationOpen = tournament.status === 'registration' && currentTime > 0 && currentTime <= new Date(tournament.registration_closes_at).getTime();
   const checkInOpen = tournament.status === 'registration' && currentTime > 0 && currentTime >= new Date(tournament.check_in_opens_at).getTime() && currentTime <= new Date(tournament.check_in_closes_at).getTime();
-  const canJoin = registrationOpen && !tournament.joined;
+  const lockedPremium = tournament.premium_only && !isPremium;
+  const canJoin = registrationOpen && !tournament.joined && !lockedPremium;
   const isWaitlisted = tournament.participant_status === 'waitlisted';
   const isRegistered = tournament.participant_status === 'registered';
   const isCheckedIn = tournament.checked_in || tournament.participant_status === 'checked_in';
@@ -169,10 +179,11 @@ function TournamentAction({
       <div>
         <p className="text-[10px] font-black tracking-[.18em] text-amber-200">DEIN TURNIER-STATUS</p>
         <p className="mt-1 text-sm font-semibold text-zinc-200">
-          {isCheckedIn ? 'Du bist eingecheckt – dein Platz ist sicher.' : isWaitlisted ? 'Du stehst auf der Warteliste.' : isRegistered ? 'Du bist angemeldet. Den Check-in nicht vergessen.' : tournament.status === 'registration' ? 'Melde dich direkt hier für das Turnier an.' : 'Die Anmeldung ist geschlossen.'}
+          {isCheckedIn ? 'Du bist eingecheckt – dein Platz ist sicher.' : isWaitlisted ? 'Du stehst auf der Warteliste.' : isRegistered ? 'Du bist angemeldet. Den Check-in nicht vergessen.' : lockedPremium ? 'Dieses Turnier ist exklusiv für Premium-Mitglieder.' : tournament.status === 'registration' ? 'Melde dich direkt hier für das Turnier an.' : 'Die Anmeldung ist geschlossen.'}
         </p>
       </div>
       {canJoin && <button type="button" disabled={pendingAction === 'join'} onClick={() => onAction('join')} className="inline-flex shrink-0 items-center justify-center border border-amber-200 bg-amber-300 px-5 py-3 text-xs font-black text-black transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-60">{pendingAction === 'join' ? 'WIRD ANGEMELDET …' : actionLabel}</button>}
+      {lockedPremium && <Link href="/premium" className="inline-flex shrink-0 items-center justify-center border border-amber-300/30 bg-amber-300/10 px-5 py-3 text-xs font-black text-amber-100 transition hover:bg-amber-300/20">PREMIUM FREISCHALTEN</Link>}
       {isRegistered && checkInOpen && <button type="button" disabled={pendingAction === 'checkin'} onClick={() => onAction('checkin')} className="inline-flex shrink-0 items-center justify-center border border-emerald-200 bg-emerald-300 px-5 py-3 text-xs font-black text-black transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">{pendingAction === 'checkin' ? 'WIRD BESTÄTIGT …' : 'JETZT CHECK-IN'}</button>}
       {isCheckedIn && <span className="inline-flex shrink-0 items-center justify-center border border-emerald-300/30 bg-emerald-400/10 px-5 py-3 text-xs font-black text-emerald-100">EINGECHECKT</span>}
     </div>

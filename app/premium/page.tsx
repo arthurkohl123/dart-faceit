@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, CalendarClock, Check, Crown, Gauge, LifeBuoy, ShieldCheck, Sparkles, Star, Swords, Trophy, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -18,7 +18,44 @@ type ProfileData = {
 
 type PremiumStatusResponse = {
   premium: PremiumSubscriptionData | null;
+  overview?: PremiumOverview | null;
 };
+
+type PremiumOverview = {
+  active?: boolean;
+  premium_since?: string | null;
+  premium_cosmetic?: PremiumCosmetic | null;
+  fixed_access_until?: string | null;
+  code_redemptions?: number;
+  premium_tournaments?: number;
+  ranked_matches_since?: number;
+};
+
+type PremiumOffer = {
+  plan: 'monthly' | 'yearly';
+  configured: boolean;
+  available: boolean;
+  unitAmount: number | null;
+  currency: string | null;
+  interval: string | null;
+  intervalCount: number | null;
+};
+
+type PremiumGiftOffer = {
+  durationDays: 30 | 90 | 365;
+  configured: boolean;
+  available: boolean;
+  unitAmount: number | null;
+  currency: string | null;
+};
+
+type PremiumOffersResponse = {
+  offers?: PremiumOffer[];
+  giftOffers?: PremiumGiftOffer[];
+};
+
+type PremiumPlan = 'monthly' | 'yearly';
+type PremiumCosmetic = 'emerald' | 'violet' | 'gold' | 'cyan';
 
 type PremiumStatusFetchResult = {
   data: PremiumStatusResponse | null;
@@ -55,9 +92,40 @@ const comparisonRows = [
   { label: 'Premium-Auszeichnung', free: '—', premium: 'Sichtbar im Profil' },
 ];
 
+const premiumCosmetics: Array<{ value: PremiumCosmetic; label: string; className: string }> = [
+  { value: 'emerald', label: 'Emerald', className: 'border-emerald-300 bg-emerald-300/20 text-emerald-100' },
+  { value: 'violet', label: 'Violet', className: 'border-violet-300 bg-violet-400/20 text-violet-100' },
+  { value: 'gold', label: 'Gold', className: 'border-amber-300 bg-amber-300/20 text-amber-100' },
+  { value: 'cyan', label: 'Cyan', className: 'border-cyan-300 bg-cyan-400/20 text-cyan-100' },
+];
+
+function formatPrice(offer: Pick<PremiumOffer, 'available' | 'unitAmount' | 'currency'> | undefined) {
+  if (!offer?.available || offer.unitAmount === null || !offer.currency) return null;
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: offer.currency.toUpperCase(),
+    minimumFractionDigits: 2,
+  }).format(offer.unitAmount / 100);
+}
+
+function giftDurationLabel(durationDays: PremiumGiftOffer['durationDays']) {
+  if (durationDays === 365) return '1 Jahr';
+  return `${durationDays} Tage`;
+}
+
+function formatPremiumDate(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+}
+
 export default function Premium() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [premiumStatus, setPremiumStatus] = useState<PremiumSubscriptionData | null>(null);
+  const [premiumOverview, setPremiumOverview] = useState<PremiumOverview | null>(null);
+  const [offers, setOffers] = useState<PremiumOffer[]>([]);
+  const [giftOffers, setGiftOffers] = useState<PremiumGiftOffer[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<PremiumPlan>('monthly');
   const [premiumStatusUnavailable, setPremiumStatusUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -66,16 +134,77 @@ export default function Premium() {
   const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
+  const [redemptionCode, setRedemptionCode] = useState('');
+  const [redemptionLoading, setRedemptionLoading] = useState(false);
+  const [redemptionMessage, setRedemptionMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [cosmeticSaving, setCosmeticSaving] = useState<PremiumCosmetic | null>(null);
+  const [giftCheckoutLoading, setGiftCheckoutLoading] = useState<PremiumGiftOffer['durationDays'] | null>(null);
+  const [giftSessionId, setGiftSessionId] = useState<string | null>(null);
+  const [giftCodeLoading, setGiftCodeLoading] = useState(false);
+  const [giftCode, setGiftCode] = useState<string | null>(null);
+  const [giftCodeCopied, setGiftCodeCopied] = useState(false);
+  const [giftMessage, setGiftMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
+  const retrieveGiftCode = useCallback(async (sessionId: string) => {
+    setGiftCodeLoading(true);
+    setGiftMessage({ kind: 'info', text: 'Dein Geschenkcode wird sicher abgerufen …' });
+    try {
+      const response = await fetch('/api/premium-gifts/code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      const payload = await response.json().catch(() => ({})) as { code?: string; durationDays?: number; error?: string };
+
+      if (!response.ok || !payload.code) {
+        const isPending = response.status === 202 || response.status === 409;
+        setGiftMessage({
+          kind: isPending ? 'info' : 'error',
+          text: payload.error || (isPending
+            ? 'Die Zahlung wird noch bestätigt. Bitte versuche es gleich noch einmal.'
+            : 'Dein Geschenkcode konnte nicht geladen werden.'),
+        });
+        return;
+      }
+
+      setGiftCode(payload.code);
+      setGiftCodeCopied(false);
+      const duration = payload.durationDays === 30 || payload.durationDays === 90 || payload.durationDays === 365
+        ? giftDurationLabel(payload.durationDays)
+        : 'die ausgewählte Laufzeit';
+      setGiftMessage({ kind: 'success', text: `Dein Geschenkcode für ${duration} ist bereit. Teile ihn nur mit der Person, die Premium erhalten soll.` });
+    } catch {
+      setGiftMessage({ kind: 'error', text: 'Dein Geschenkcode konnte gerade nicht geladen werden. Bitte versuche es gleich noch einmal.' });
+    } finally {
+      setGiftCodeLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setCheckoutStatus(new URLSearchParams(window.location.search).get('checkout'));
+      const parameters = new URLSearchParams(window.location.search);
+      setCheckoutStatus(parameters.get('checkout'));
+      if (parameters.get('gift') === 'success' && parameters.get('session_id')) {
+        setGiftSessionId(parameters.get('session_id'));
+      } else if (parameters.get('gift') === 'cancelled') {
+        setGiftMessage({ kind: 'info', text: 'Der Geschenk-Checkout wurde abgebrochen. Es wurde nichts verändert.' });
+      }
     }, 0);
 
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!giftSessionId || loading) return;
+    // The request changes several loading states. Schedule it after the
+    // current render rather than causing a synchronous effect cascade.
+    const timer = window.setTimeout(() => {
+      void retrieveGiftCode(giftSessionId);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [giftSessionId, loading, retrieveGiftCode]);
 
   useEffect(() => {
     const refreshTime = () => setCurrentTime(new Date());
@@ -95,7 +224,7 @@ export default function Premium() {
         return;
       }
 
-      const [profileResult, premiumResult] = await Promise.all([
+      const [profileResult, premiumResult, offersResult] = await Promise.all([
         supabase
           .from('profiles')
           .select('username, elo, gamesPlayed, wins, isPremium')
@@ -107,12 +236,18 @@ export default function Premium() {
             return { data: await response.json() as PremiumStatusResponse, unavailable: false } satisfies PremiumStatusFetchResult;
           })
           .catch(() => ({ data: null, unavailable: true }) satisfies PremiumStatusFetchResult),
+        fetch('/api/premium-offers', { cache: 'no-store' })
+          .then(async (response) => response.ok ? await response.json() as PremiumOffersResponse : null)
+          .catch(() => null),
       ]);
 
       if (!isMounted) return;
 
       setProfile((profileResult.data || null) as ProfileData | null);
       setPremiumStatus(premiumResult.data?.premium || null);
+      setPremiumOverview(premiumResult.data?.overview || null);
+      setOffers(offersResult?.offers || []);
+      setGiftOffers(offersResult?.giftOffers || []);
       setPremiumStatusUnavailable(premiumResult.unavailable);
       setLoading(false);
     };
@@ -136,7 +271,14 @@ export default function Premium() {
   const subscriptionState = getPremiumSubscriptionState(premiumStatus, currentTime);
   const manualPremiumState = getManualPremiumState(premiumStatus, currentTime);
   const hasStripeSubscription = subscriptionState.kind !== 'none';
-  const isPremium = Boolean(premiumStatus?.isPremium) || Boolean(profile?.isPremium) || hasStripeSubscription;
+  const isPremium = Boolean(premiumOverview?.active) || Boolean(premiumStatus?.isPremium) || Boolean(profile?.isPremium) || hasStripeSubscription;
+  const monthlyOffer = offers.find((offer) => offer.plan === 'monthly');
+  const yearlyOffer = offers.find((offer) => offer.plan === 'yearly');
+  const selectedOffer = selectedPlan === 'yearly' ? yearlyOffer : monthlyOffer;
+  const selectedOfferPrice = formatPrice(selectedOffer) || (selectedPlan === 'monthly' ? '4,99€' : null);
+  const selectedCosmetic = premiumOverview?.premium_cosmetic || 'emerald';
+  const premiumSinceLabel = formatPremiumDate(premiumOverview?.premium_since);
+  const fixedAccessUntilLabel = formatPremiumDate(premiumOverview?.fixed_access_until);
   const premiumPeriodEnd = subscriptionState.kind === 'renewing' || subscriptionState.kind === 'ending'
     ? subscriptionState.periodEnd
     : null;
@@ -174,7 +316,11 @@ export default function Premium() {
     setCheckoutError(null);
 
     try {
-      const response = await fetch('/api/checkout', { method: 'POST' });
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: selectedPlan }),
+      });
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok || !payload.url) {
@@ -186,6 +332,96 @@ export default function Premium() {
       setCheckoutError(error instanceof Error ? error.message : 'Der Checkout konnte nicht gestartet werden.');
       setCheckoutLoading(false);
     }
+  };
+
+  const startGiftCheckout = async (duration: PremiumGiftOffer['durationDays']) => {
+    setGiftCheckoutLoading(duration);
+    setGiftCode(null);
+    setGiftCodeCopied(false);
+    setGiftMessage(null);
+
+    try {
+      const response = await fetch('/api/premium-gifts/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration }),
+      });
+      const payload = await response.json().catch(() => ({})) as { url?: string; error?: string };
+      if (!response.ok || !payload.url) {
+        throw new Error(payload.error || 'Der Geschenk-Checkout konnte nicht gestartet werden.');
+      }
+      window.location.assign(payload.url);
+    } catch (error) {
+      setGiftMessage({ kind: 'error', text: error instanceof Error ? error.message : 'Der Geschenk-Checkout konnte nicht gestartet werden.' });
+      setGiftCheckoutLoading(null);
+    }
+  };
+
+  const copyGiftCode = async () => {
+    if (!giftCode) return;
+    try {
+      await navigator.clipboard.writeText(giftCode);
+      setGiftCodeCopied(true);
+    } catch {
+      setGiftMessage({ kind: 'error', text: 'Der Code konnte nicht automatisch kopiert werden. Bitte kopiere ihn manuell.' });
+    }
+  };
+
+  const refreshPremiumStatus = async () => {
+    const response = await fetch('/api/premium-status', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Dein Premium-Status konnte nicht aktualisiert werden.');
+    const payload = await response.json() as PremiumStatusResponse;
+    setPremiumStatus(payload.premium || null);
+    setPremiumOverview(payload.overview || null);
+    setProfile((current) => current ? { ...current, isPremium: Boolean(payload.premium?.isPremium) } : current);
+  };
+
+  const redeemCode = async () => {
+    const code = redemptionCode.trim();
+    if (!code) {
+      setRedemptionMessage({ kind: 'error', text: 'Gib zuerst deinen Premium-Code ein.' });
+      return;
+    }
+
+    setRedemptionLoading(true);
+    setRedemptionMessage(null);
+    const { data, error } = await supabase.rpc('redeem_premium_code', { p_code: code });
+    setRedemptionLoading(false);
+
+    if (error) {
+      setRedemptionMessage({ kind: 'error', text: error.message });
+      return;
+    }
+
+    const redeemed = data as { starts_at?: string; ends_at?: string } | null;
+    const startsAt = typeof redeemed?.starts_at === 'string' ? new Date(redeemed.starts_at) : null;
+    const startsLater = Boolean(startsAt && !Number.isNaN(startsAt.getTime()) && startsAt.getTime() > Date.now() + 1_000);
+    const startsAtLabel = startsAt && !Number.isNaN(startsAt.getTime()) ? formatPremiumDate(startsAt.toISOString()) : null;
+    const endsAt = typeof redeemed?.ends_at === 'string' ? formatPremiumDate(redeemed.ends_at) : null;
+    setRedemptionCode('');
+    setRedemptionMessage({
+      kind: 'success',
+      text: startsLater && startsAtLabel
+        ? `Premium-Zeit sicher vorgemerkt – sie startet am ${startsAtLabel}${endsAt ? ` und läuft bis ${endsAt}.` : '.'}`
+        : endsAt ? `Premium freigeschaltet – dein Zugang läuft bis ${endsAt}.` : 'Premium-Code erfolgreich eingelöst.',
+    });
+    try {
+      await refreshPremiumStatus();
+    } catch (refreshError) {
+      console.warn('Premium-Status nach Code-Einlösung konnte nicht aktualisiert werden:', refreshError);
+    }
+  };
+
+  const setCosmetic = async (cosmetic: PremiumCosmetic) => {
+    if (!isPremium || cosmetic === selectedCosmetic) return;
+    setCosmeticSaving(cosmetic);
+    const { error } = await supabase.rpc('set_my_premium_cosmetic', { p_cosmetic: cosmetic });
+    setCosmeticSaving(null);
+    if (error) {
+      setRedemptionMessage({ kind: 'error', text: error.message });
+      return;
+    }
+    setPremiumOverview((current) => ({ ...(current || {}), premium_cosmetic: cosmetic }));
   };
 
   const openBillingPortal = async () => {
@@ -260,21 +496,28 @@ export default function Premium() {
                 <div className="grid h-16 w-16 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-emerald-200">
                   <Crown className="h-8 w-8" />
                 </div>
-                <span className="border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100">Monatsabo</span>
+                <span className="border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100">{selectedPlan === 'yearly' ? 'Jahresabo' : 'Monatsabo'}</span>
               </div>
 
               <div className="mt-8">
                 <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.3em] text-emerald-300"><Star className="h-4 w-4 fill-current" /> RankedDarts Premium</div>
                 <div className="mt-3 flex items-end gap-3">
-                  <span className="text-7xl font-black tracking-[-0.08em]">4,99€</span>
-                  <span className="pb-3 text-zinc-400">/ Monat</span>
+                  <span className="text-7xl font-black tracking-[-0.08em]">{selectedOfferPrice || '—'}</span>
+                  <span className="pb-3 text-zinc-400">/ {selectedPlan === 'yearly' ? 'Jahr' : 'Monat'}</span>
                 </div>
                 <p className="mt-4 max-w-sm text-zinc-300">Dein Zugang zu mehr Ranked-Matches, exklusiven Turnieren und einer sichtbaren Premium-Identität.</p>
               </div>
 
+              {!isPremium && !hasStripeSubscription && yearlyOffer?.available && (
+                <div className="mt-6 grid grid-cols-2 gap-2 border border-white/10 bg-black/20 p-2">
+                  <button type="button" onClick={() => setSelectedPlan('monthly')} className={`border px-3 py-3 text-left transition ${selectedPlan === 'monthly' ? 'border-emerald-300 bg-emerald-300/15 text-emerald-100' : 'border-white/10 text-zinc-400 hover:border-white/25'}`}><span className="block text-[10px] font-black uppercase tracking-[.16em]">Monatlich</span><span className="mt-1 block text-sm font-bold">{formatPrice(monthlyOffer) || '4,99€'} / Monat</span></button>
+                  <button type="button" onClick={() => setSelectedPlan('yearly')} className={`border px-3 py-3 text-left transition ${selectedPlan === 'yearly' ? 'border-emerald-300 bg-emerald-300/15 text-emerald-100' : 'border-white/10 text-zinc-400 hover:border-white/25'}`}><span className="block text-[10px] font-black uppercase tracking-[.16em]">Jährlich</span><span className="mt-1 block text-sm font-bold">{formatPrice(yearlyOffer)} / Jahr</span></button>
+                </div>
+              )}
+
               <div className="mt-6 grid grid-cols-2 gap-3">
                 <div className="border border-white/10 bg-black/25 p-3.5"><span className="block text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Matches</span><span className="mt-1 block text-lg font-black text-emerald-200">Ohne Limit</span></div>
-                <div className="border border-white/10 bg-black/25 p-3.5"><span className="block text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Abrechnung</span><span className="mt-1 block text-lg font-black text-emerald-200">Monatlich</span></div>
+                <div className="border border-white/10 bg-black/25 p-3.5"><span className="block text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Abrechnung</span><span className="mt-1 block text-lg font-black text-emerald-200">{selectedPlan === 'yearly' ? 'Jährlich' : 'Monatlich'}</span></div>
               </div>
 
               {hasStripeSubscription && (
@@ -294,7 +537,7 @@ export default function Premium() {
                           <p className="mt-2 text-xs leading-5 text-zinc-300">
                             {cancellationPending
                               ? cancellationMessage
-                              : <>{premiumTimeRemaining ? `${premiumTimeRemaining} im aktuellen Zeitraum. ` : ''}Verlängert sich monatlich automatisch.</>}
+                              : <>{premiumTimeRemaining ? `${premiumTimeRemaining} im aktuellen Zeitraum. ` : ''}Verlängert sich automatisch.</>}
                           </p>
                         </>
                       ) : staleStripeStatus ? (
@@ -313,6 +556,19 @@ export default function Premium() {
                           <p className="mt-1 text-xs leading-5 text-zinc-300">Ohne Enddatum aktiv.</p>
                         </div>
                       ) : null}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isPremium && fixedAccessUntilLabel && (
+                <div className="mt-5 border border-violet-300/25 bg-violet-400/[0.07] p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center border border-violet-300/25 bg-violet-400/10 text-violet-100"><Sparkles className="h-5 w-5" /></div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-100">Geschenk- oder Aktionszeit</p>
+                      <p className="mt-2 text-sm font-bold text-zinc-100">Vormerkung bis {fixedAccessUntilLabel}</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-400">Eingelöste Premium-Zeit wird sicher gespeichert und an bestehende feste Freigaben angehängt.</p>
                     </div>
                   </div>
                 </div>
@@ -347,7 +603,7 @@ export default function Premium() {
               {portalError && <p className="mt-4 text-center text-sm font-semibold text-rose-300">{portalError}</p>}
               {checkoutStatus === 'success' && <p className="mt-4 text-center text-sm font-semibold text-emerald-200">Danke! Deine Zahlung wird bestätigt. Aktualisiere die Seite in wenigen Sekunden, falls der Status noch nicht erscheint.</p>}
               {checkoutStatus === 'cancelled' && <p className="mt-4 text-center text-sm text-zinc-400">Der Checkout wurde abgebrochen. Dein Account bleibt unverändert.</p>}
-              <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Sichere Zahlung über Stripe · monatlich abrechenbar</p>
+              <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Sichere Zahlung über Stripe · {selectedPlan === 'yearly' ? 'jährlich' : 'monatlich'} abrechenbar</p>
               <Link href="/premium/kuendigung" className="mt-3 block text-center text-xs font-bold text-emerald-200 underline decoration-emerald-300/40 underline-offset-4 transition hover:text-emerald-100">Informationen zu Laufzeit &amp; Kündigung</Link>
             </div>
           </aside>
@@ -367,6 +623,85 @@ export default function Premium() {
               </article>
             );
           })}
+        </section>
+
+        {giftOffers.some((offer) => offer.available) && (
+          <section className="mt-10 overflow-hidden border border-amber-300/25 bg-[linear-gradient(135deg,rgba(251,191,36,.12),transparent_52%),#0d1110] p-6 md:p-8">
+            <div className="flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-2xl">
+                <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.2em] text-amber-200"><Crown className="h-4 w-4" /> Geschenk-Arena</p>
+                <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">Premium verschenken</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">Schenke einer Person Premium-Zeit. Nach der Zahlung erhältst du einen persönlichen Code zum Weitergeben – ohne Abo und ohne automatische Verlängerung.</p>
+              </div>
+              <span className="w-fit border border-amber-300/25 bg-amber-300/[.08] px-3 py-2 text-[10px] font-black uppercase tracking-[.14em] text-amber-100">Einmalzahlung</span>
+            </div>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-3">
+              {giftOffers.filter((offer) => offer.available).map((offer) => (
+                <article key={offer.durationDays} className="flex flex-col border border-white/10 bg-black/25 p-5 transition hover:border-amber-300/35 hover:bg-amber-300/[.05]">
+                  <span className="text-[10px] font-black uppercase tracking-[.16em] text-amber-200">Premium-Geschenk</span>
+                  <strong className="mt-3 text-3xl font-black tracking-[-.05em] text-white">{giftDurationLabel(offer.durationDays)}</strong>
+                  <span className="mt-2 text-sm font-bold text-zinc-400">{formatPrice(offer)} · einmalig</span>
+                  <p className="mt-4 text-xs leading-5 text-zinc-500">Der Code wird erst nach bestätigter Zahlung erzeugt und kann von einer Person eingelöst werden.</p>
+                  <button type="button" onClick={() => void startGiftCheckout(offer.durationDays)} disabled={giftCheckoutLoading !== null} className="mt-6 border border-amber-200 bg-amber-300 px-4 py-3 text-xs font-black uppercase tracking-[.12em] text-black transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60">
+                    {giftCheckoutLoading === offer.durationDays ? 'Checkout wird geöffnet …' : 'Verschenken'}
+                  </button>
+                </article>
+              ))}
+            </div>
+
+            {giftMessage && (
+              <div className={`mt-5 border px-4 py-3 text-sm font-semibold ${giftMessage.kind === 'success' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : giftMessage.kind === 'error' ? 'border-rose-300/25 bg-rose-400/10 text-rose-100' : 'border-amber-300/25 bg-amber-300/[.08] text-amber-100'}`}>{giftMessage.text}</div>
+            )}
+            {giftCode && (
+              <div className="mt-4 flex flex-col gap-3 border border-emerald-300/30 bg-emerald-400/[.09] p-4 sm:flex-row sm:items-center">
+                <code className="min-w-0 flex-1 break-all border border-emerald-300/20 bg-black/30 px-4 py-3 font-mono text-sm font-black tracking-[.12em] text-emerald-100">{giftCode}</code>
+                <button type="button" onClick={() => void copyGiftCode()} className="shrink-0 border border-emerald-200 bg-emerald-300 px-4 py-3 text-xs font-black uppercase tracking-[.1em] text-black transition hover:bg-emerald-200">{giftCodeCopied ? 'Kopiert' : 'Code kopieren'}</button>
+              </div>
+            )}
+            {!giftCode && giftSessionId && (
+              <button type="button" onClick={() => void retrieveGiftCode(giftSessionId)} disabled={giftCodeLoading} className="mt-4 text-xs font-black text-amber-100 underline decoration-amber-300/40 underline-offset-4 transition hover:text-amber-50 disabled:opacity-60">{giftCodeLoading ? 'Code wird geprüft …' : 'Geschenkcode erneut prüfen'}</button>
+            )}
+          </section>
+        )}
+
+        <section className="mt-10 grid gap-5 lg:grid-cols-[0.88fr_1.12fr]">
+          <article className="border border-violet-300/20 bg-[#0d1110] p-6 md:p-7">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center border border-violet-300/25 bg-violet-400/10 text-violet-100"><Sparkles className="h-6 w-6" /></div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-200">Code Center</p>
+                <h2 className="mt-1 text-2xl font-black tracking-[-.04em]">Premium-Code einlösen</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">Für Geschenke, Discord-Aktionen und zeitlich begrenzte Community-Kampagnen.</p>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+              <input value={redemptionCode} onChange={(event) => setRedemptionCode(event.target.value.toUpperCase())} onKeyDown={(event) => { if (event.key === 'Enter') void redeemCode(); }} placeholder="RD-XXXXX-XXXXX-XXXXX" autoComplete="off" className="min-w-0 flex-1 border border-white/10 bg-black/25 px-4 py-3 text-sm font-black uppercase tracking-[.12em] text-white outline-none placeholder:text-zinc-600 focus:border-violet-300/60" />
+              <button type="button" onClick={() => void redeemCode()} disabled={redemptionLoading} className="border border-violet-200 bg-violet-300 px-5 py-3 text-xs font-black uppercase tracking-[.12em] text-black transition hover:bg-violet-200 disabled:opacity-60">{redemptionLoading ? 'Prüft …' : 'Einlösen'}</button>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">Ein Code kann pro Account nur einmal verwendet werden. Bei einem laufenden Stripe-Abo wird die Einlösung bewusst gesperrt, damit keine bezahlte Laufzeit verloren geht.</p>
+            {redemptionMessage && <p className={`mt-4 border px-3 py-3 text-sm font-semibold ${redemptionMessage.kind === 'success' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-rose-300/25 bg-rose-400/10 text-rose-100'}`}>{redemptionMessage.text}</p>}
+          </article>
+
+          <article className={`border p-6 md:p-7 ${isPremium ? 'border-emerald-300/25 bg-[linear-gradient(135deg,rgba(16,185,129,.12),transparent_55%),#0d1110]' : 'border-white/10 bg-[#0d1110]'}`}>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-300">Member Center</p>
+                <h2 className="mt-1 text-2xl font-black tracking-[-.04em]">{isPremium ? 'Dein Premium-Profil' : 'Deine Premium-Vorteile'}</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">{isPremium ? (premiumSinceLabel ? `Premium seit ${premiumSinceLabel}.` : 'Dein Premium-Zugang ist aktiv.') : 'Aktiviere Premium oder löse einen Code ein, um deine persönliche Identität freizuschalten.'}</p>
+              </div>
+              <span className={`w-fit border px-3 py-2 text-[10px] font-black uppercase tracking-[.16em] ${isPremium ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.04] text-zinc-500'}`}>{isPremium ? 'Aktiv' : 'Free'}</span>
+            </div>
+
+            {isPremium ? <>
+              <div className="mt-6 grid grid-cols-3 gap-2 border border-white/10 bg-black/20 p-2">
+                <div className="p-3"><span className="block text-[9px] font-black uppercase tracking-[.12em] text-zinc-500">Premium Cups</span><strong className="mt-2 block text-2xl font-black text-emerald-100">{premiumOverview?.premium_tournaments || 0}</strong></div>
+                <div className="border-x border-white/10 p-3"><span className="block text-[9px] font-black uppercase tracking-[.12em] text-zinc-500">Ranked seitdem</span><strong className="mt-2 block text-2xl font-black text-emerald-100">{premiumOverview?.ranked_matches_since || 0}</strong></div>
+                <div className="p-3"><span className="block text-[9px] font-black uppercase tracking-[.12em] text-zinc-500">Codes</span><strong className="mt-2 block text-2xl font-black text-emerald-100">{premiumOverview?.code_redemptions || 0}</strong></div>
+              </div>
+              <div className="mt-6"><div className="flex items-center justify-between gap-3"><p className="text-[10px] font-black uppercase tracking-[.16em] text-zinc-500">Premium-Auszeichnung</p><span className="text-xs text-zinc-500">Sichtbar im Profil &amp; Leaderboard</span></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{premiumCosmetics.map((cosmetic) => <button key={cosmetic.value} type="button" onClick={() => void setCosmetic(cosmetic.value)} disabled={cosmeticSaving !== null} className={`border px-3 py-3 text-left text-xs font-black transition ${selectedCosmetic === cosmetic.value ? cosmetic.className : 'border-white/10 bg-black/20 text-zinc-400 hover:border-white/30'} disabled:opacity-60`}><span className="block text-[9px] uppercase tracking-[.12em] opacity-70">Design</span><span className="mt-1 block">{cosmeticSaving === cosmetic.value ? 'Speichert …' : cosmetic.label}</span></button>)}</div></div>
+            </> : <div className="mt-6 border border-dashed border-white/15 bg-black/20 p-5 text-sm leading-6 text-zinc-400">Mit Premium erhältst du eine sichtbare Auszeichnung, wählst dein Farbschema und siehst deinen persönlichen Premium-Run an einem Ort.</div>}
+          </article>
         </section>
 
         <section className="mt-10 grid gap-8 lg:grid-cols-[0.82fr_1.18fr]">

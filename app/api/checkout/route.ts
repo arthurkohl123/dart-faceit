@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { consumeRateLimit } from '@/lib/rate-limit';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
+import { getPremiumPlanPriceId, parsePremiumCheckoutPayload } from '@/lib/premium-offers';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,8 @@ type StripeCheckoutSession = {
   url?: string | null;
   error?: { message?: string };
 };
+
+const privateNoStoreHeaders = { 'Cache-Control': 'private, no-store' };
 
 function getRequiredEnvironment(name: string) {
   const value = process.env[name];
@@ -31,6 +34,40 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Bitte melde dich an, bevor du Premium kaufst.' }, { status: 401 });
     }
 
+    const rawBody = await request.text();
+    let checkoutPayload: unknown = {};
+    if (rawBody.trim()) {
+      try {
+        checkoutPayload = JSON.parse(rawBody) as unknown;
+      } catch {
+        return NextResponse.json(
+          { error: 'Die Checkout-Anfrage ist ungültig.' },
+          { status: 400, headers: privateNoStoreHeaders },
+        );
+      }
+    }
+
+    const plan = parsePremiumCheckoutPayload(checkoutPayload);
+    if (!plan) {
+      return NextResponse.json(
+        { error: 'Das ausgewählte Premium-Angebot ist ungültig.' },
+        { status: 400, headers: privateNoStoreHeaders },
+      );
+    }
+
+    const priceId = getPremiumPlanPriceId(plan);
+    if (!priceId) {
+      return NextResponse.json(
+        {
+          error: plan === 'yearly'
+            ? 'Das Jahresabo ist aktuell noch nicht verfügbar.'
+            : 'Premium ist aktuell nicht verfügbar. Bitte versuche es später erneut.',
+          code: plan === 'yearly' ? 'YEARLY_PLAN_UNAVAILABLE' : 'PREMIUM_PLAN_UNAVAILABLE',
+        },
+        { status: 503, headers: privateNoStoreHeaders },
+      );
+    }
+
     const rateLimit = await consumeRateLimit('checkout', request, user.id);
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -40,7 +77,6 @@ export async function POST(request: Request) {
     }
 
     const stripeSecretKey = getRequiredEnvironment('STRIPE_SECRET_KEY');
-    const priceId = getRequiredEnvironment('STRIPE_PREMIUM_PRICE_ID');
     const appUrl = new URL(getRequiredEnvironment('NEXT_PUBLIC_APP_URL')).origin;
 
     const { data: profile } = await createAdminClient()
@@ -57,7 +93,11 @@ export async function POST(request: Request) {
       cancel_url: `${appUrl}/premium?checkout=cancelled`,
       client_reference_id: user.id,
       'metadata[supabaseUserId]': user.id,
+      'metadata[purchase_type]': 'subscription',
+      'metadata[plan]': plan,
       'subscription_data[metadata][supabaseUserId]': user.id,
+      'subscription_data[metadata][purchase_type]': 'subscription',
+      'subscription_data[metadata][plan]': plan,
     });
 
     if (profile?.stripe_customer_id) {
