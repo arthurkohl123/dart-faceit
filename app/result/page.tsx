@@ -73,12 +73,10 @@ type EloPreview = {
   change: number;
 };
 
-function calculateEloChange(winnerElo: number, loserElo: number): number {
-  const eloDiff = winnerElo - loserElo;
-  if (Math.abs(eloDiff) <= 50) return 25;
-  if (eloDiff < -50) return 25 + Math.min(25, Math.floor((Math.abs(eloDiff) - 50) / 10));
-  return Math.max(1, 25 - Math.floor((eloDiff - 50) / 10));
-}
+type MatchEloPreview = {
+  player1WinChange: number;
+  player2WinChange: number;
+};
 
 function EloPreviewCard({ preview }: { preview: EloPreview }) {
   return (
@@ -113,16 +111,15 @@ function EloPreviewCard({ preview }: { preview: EloPreview }) {
   );
 }
 
-function MatchEloPreviewCard({ match }: { match: ActiveMatch }) {
-  const player1WinsChange = calculateEloChange(match.player1_elo, match.player2_elo);
-  const player2WinsChange = calculateEloChange(match.player2_elo, match.player1_elo);
+function MatchEloPreviewCard({ match, preview }: { match: ActiveMatch; preview: MatchEloPreview }) {
+  const { player1WinChange, player2WinChange } = preview;
 
   return (
     <section className="mb-5 border border-emerald-300/20 bg-gradient-to-br from-emerald-400/[0.08] via-white/[0.025] to-transparent p-4 shadow-inner shadow-emerald-950/20 sm:mb-8 sm:p-5" aria-label="Elo-Vorschau vor dem Match">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-200">Elo vor dem Match</p>
-          <p className="mt-1 text-sm font-semibold text-zinc-400">Die genaue Änderung steht schon vor der Ergebniseingabe fest.</p>
+          <p className="mt-1 text-sm font-semibold text-zinc-400">Direkt aus der finalen Serverregel berechnet.</p>
         </div>
         <span className="w-fit border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Ranked</span>
       </div>
@@ -131,15 +128,15 @@ function MatchEloPreviewCard({ match }: { match: ActiveMatch }) {
         <div className="border border-emerald-300/20 bg-emerald-400/[0.06] p-3.5">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300/70">Wenn {match.player1_username} gewinnt</p>
           <div className="mt-2 space-y-1.5 text-sm font-bold">
-            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-white" title={match.player1_username}>{match.player1_username}</span><span className="shrink-0 tabular-nums text-emerald-200">+{player1WinsChange}</span></div>
-            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-zinc-400" title={match.player2_username}>{match.player2_username}</span><span className="shrink-0 tabular-nums text-rose-200">−{player1WinsChange}</span></div>
+            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-white" title={match.player1_username}>{match.player1_username}</span><span className="shrink-0 tabular-nums text-emerald-200">+{player1WinChange}</span></div>
+            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-zinc-400" title={match.player2_username}>{match.player2_username}</span><span className="shrink-0 tabular-nums text-rose-200">−{player1WinChange}</span></div>
           </div>
         </div>
         <div className="border border-cyan-300/20 bg-cyan-400/[0.05] p-3.5">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300/70">Wenn {match.player2_username} gewinnt</p>
           <div className="mt-2 space-y-1.5 text-sm font-bold">
-            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-white" title={match.player2_username}>{match.player2_username}</span><span className="shrink-0 tabular-nums text-emerald-200">+{player2WinsChange}</span></div>
-            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-zinc-400" title={match.player1_username}>{match.player1_username}</span><span className="shrink-0 tabular-nums text-rose-200">−{player2WinsChange}</span></div>
+            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-white" title={match.player2_username}>{match.player2_username}</span><span className="shrink-0 tabular-nums text-emerald-200">+{player2WinChange}</span></div>
+            <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-zinc-400" title={match.player1_username}>{match.player1_username}</span><span className="shrink-0 tabular-nums text-rose-200">−{player2WinChange}</span></div>
           </div>
         </div>
       </div>
@@ -285,6 +282,7 @@ export default function MatchResult() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [match, setMatch] = useState<ActiveMatch | null>(null);
+  const [matchEloPreview, setMatchEloPreview] = useState<MatchEloPreview | null>(null);
   const [currentUserId, setCurrentUserId] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
@@ -389,12 +387,12 @@ export default function MatchResult() {
     ? match.submitted_winner_id
     : pendingWinnerId;
   const eloPreview = useMemo<EloPreview | null>(() => {
-    if (!match || match.match_mode === 'private' || !eloWinnerId) return null;
+    if (!match || !matchEloPreview || match.match_mode === 'private' || !eloWinnerId) return null;
     if (!['pending_result', 'awaiting_confirmation', 'completed'].includes(match.status)) return null;
     const winnerIsPlayer1 = eloWinnerId === match.player1_id;
     const winnerElo = winnerIsPlayer1 ? match.player1_elo : match.player2_elo;
     const loserElo = winnerIsPlayer1 ? match.player2_elo : match.player1_elo;
-    const change = calculateEloChange(winnerElo, loserElo);
+    const change = winnerIsPlayer1 ? matchEloPreview.player1WinChange : matchEloPreview.player2WinChange;
     return {
       winnerName: winnerIsPlayer1 ? match.player1_username : match.player2_username,
       loserName: winnerIsPlayer1 ? match.player2_username : match.player1_username,
@@ -402,7 +400,7 @@ export default function MatchResult() {
       loserElo,
       change,
     };
-  }, [eloWinnerId, match]);
+  }, [eloWinnerId, match, matchEloPreview]);
 
   // ── Countdown ────────────────────────────────────────────────────────────────
 
@@ -450,6 +448,7 @@ export default function MatchResult() {
       if (!session) { router.push('/auth/login'); return; }
       const userId = session.user.id;
       setCurrentUserId(userId);
+      setMatchEloPreview(null);
 
       const { data, error } = await supabase
         .from('active_matches')
@@ -489,7 +488,12 @@ export default function MatchResult() {
         m.status = payload?.status ?? 'pending_result';
       }
       // Plattform-Usernamen immer aus Profilen laden (active_matches hat diese Felder ggf. nicht)
-      const [{ data: platformNames }, { data: p1Stats }, { data: p2Stats }] = await Promise.all([
+      const [
+        { data: platformNames },
+        { data: p1Stats },
+        { data: p2Stats },
+        { data: serverEloPreview, error: serverEloPreviewError },
+      ] = await Promise.all([
         supabase.rpc('get_match_platform_usernames', { p_match_id: m.id }),
         supabase.from('active_matches')
           .select('submitted_player1_average, submitted_player2_average, player1_id')
@@ -501,7 +505,26 @@ export default function MatchResult() {
           .eq('status', 'completed')
           .or(`player1_id.eq.${m.player2_id},player2_id.eq.${m.player2_id}`)
           .not('submitted_player1_average', 'is', null),
+        supabase.rpc('get_match_elo_preview', { p_match_id: m.id }),
       ]);
+      if (serverEloPreviewError) {
+        // Do not fall back to a browser-side approximation: the matchroom
+        // should rather omit a preview than promise a wrong Elo amount.
+        console.warn('Serverseitige Elo-Vorschau konnte nicht geladen werden:', serverEloPreviewError.message);
+      } else {
+        const previewRow = (Array.isArray(serverEloPreview) ? serverEloPreview[0] : serverEloPreview) as {
+          player1_win_change?: number | null;
+          player2_win_change?: number | null;
+        } | null;
+        const player1WinChange = Number(previewRow?.player1_win_change);
+        const player2WinChange = Number(previewRow?.player2_win_change);
+        if (
+          Number.isInteger(player1WinChange) && player1WinChange >= 1 && player1WinChange <= 32 &&
+          Number.isInteger(player2WinChange) && player2WinChange >= 1 && player2WinChange <= 32
+        ) {
+          setMatchEloPreview({ player1WinChange, player2WinChange });
+        }
+      }
       const platformProfile = Array.isArray(platformNames) ? platformNames[0] : platformNames;
       if (platformProfile) {
         m.player1_scolia_username = platformProfile.player1_scolia_username ?? null;
@@ -1427,8 +1450,8 @@ export default function MatchResult() {
           );
         })()}
 
-        {match && match.match_mode !== 'private' && match.status === 'pending_result' && (
-          <MatchEloPreviewCard match={match} />
+        {match && matchEloPreview && match.match_mode !== 'private' && match.status === 'pending_result' && (
+          <MatchEloPreviewCard match={match} preview={matchEloPreview} />
         )}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(21rem,0.65fr)] lg:items-start lg:gap-0">
