@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 
 const migration = readFileSync(new URL('../../supabase/migrations/20260918003000_add_admin_operations_workspace.sql', import.meta.url), 'utf8');
+const platformStatsMigration = readFileSync(new URL('../../supabase/migrations/20261017171538_admin_platform_match_stats.sql', import.meta.url), 'utf8');
 const hardening = readFileSync(new URL('../../supabase/migrations/20260918003100_harden_operations_list_access.sql', import.meta.url), 'utf8');
 const workspace = readFileSync(new URL('../../components/admin-operations-workspace.tsx', import.meta.url), 'utf8');
 
@@ -25,4 +26,26 @@ test('admin operations hub covers triage, player records and controlled communic
   }
   assert.match(workspace, /admin_send_broadcast/);
   assert.match(workspace, /admin_set_staff_role/);
+});
+
+test('platform activity counts completed matchrooms once per scoring platform', () => {
+  assert.match(platformStatsMigration, /create or replace function public\.admin_get_operations_workspace\(\)/i);
+  assert.match(platformStatsMigration, /perform public\.admin_require_operations_access\('read'\)/i);
+  assert.match(platformStatsMigration, /language plpgsql security definer set search_path = public/i);
+  assert.match(platformStatsMigration, /from public\.active_matches m/i);
+  assert.match(platformStatsMigration, /m\.status = 'completed'/i);
+  assert.match(platformStatsMigration, /m\.completed_at >= now\(\) - interval '24 hours'/i);
+  for (const platform of ['scolia', 'dartcounter', 'autodarts']) {
+    assert.match(platformStatsMigration, new RegExp(`'${platform}'`));
+  }
+  assert.match(platformStatsMigration, /revoke all on function public\.admin_get_operations_workspace\(\) from public, anon/i);
+  assert.match(platformStatsMigration, /grant execute on function public\.admin_get_operations_workspace\(\) to authenticated/i);
+});
+
+test('operations inbox renders the 24-hour platform breakdown', () => {
+  assert.match(workspace, /platform_matches_24h/);
+  assert.match(workspace, /Abgeschlossene Matches · letzte 24 Stunden/);
+  for (const label of ['Scolia', 'DartCounter', 'AutoDarts']) {
+    assert.match(workspace, new RegExp(label));
+  }
 });
