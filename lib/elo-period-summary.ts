@@ -1,4 +1,4 @@
-export type EloPeriod = '24h' | '7d' | '30d';
+export type EloPeriod = '24h' | '7d' | '30d' | '90d';
 export type EloRange = EloPeriod | 'all';
 
 export type EloPeriodMatch = {
@@ -14,6 +14,7 @@ export const eloPeriodMeta: Record<EloPeriod, { label: string; hours: number; de
   '24h': { label: '24 Stunden', hours: 24, description: 'letzten 24 Stunden' },
   '7d': { label: '7 Tage', hours: 24 * 7, description: 'letzten 7 Tagen' },
   '30d': { label: '30 Tage', hours: 24 * 30, description: 'letzten 30 Tagen' },
+  '90d': { label: '90 Tage', hours: 24 * 90, description: 'letzten 90 Tagen' },
 };
 
 export type EloPeriodSummary = {

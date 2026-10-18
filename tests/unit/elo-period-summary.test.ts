@@ -15,7 +15,7 @@ test('summarizes Elo gains and losses over a rolling 24-hour window', () => {
   assert.deepEqual(summary, { ratedMatches: 2, gained: 18, lost: 9, net: 9 });
 });
 
-test('uses completed_at and supports the seven- and thirty-day filters', () => {
+test('uses completed_at and supports the seven-, thirty-, and ninety-day filters', () => {
   const matches: EloPeriodMatch[] = [
     { created_at: '2026-09-01T09:00:00.000Z', completed_at: '2026-10-12T12:00:00.000Z', elo_change: 12, match_mode: 'ranked' },
     { created_at: '2026-10-10T12:00:00.000Z', elo_change: -15, match_mode: 'ranked' },
@@ -25,6 +25,7 @@ test('uses completed_at and supports the seven- and thirty-day filters', () => {
 
   assert.deepEqual(getEloPeriodSummary(matches, '7d', now), { ratedMatches: 2, gained: 12, lost: 15, net: -3 });
   assert.deepEqual(getEloPeriodSummary(matches, '30d', now), { ratedMatches: 3, gained: 20, lost: 15, net: 5 });
+  assert.deepEqual(getEloPeriodSummary(matches, '90d', now), { ratedMatches: 4, gained: 40, lost: 15, net: 25 });
 });
 
 test('builds a chronological cumulative Elo trend and highlights the largest gains and losses', () => {

@@ -27,6 +27,7 @@ test('uses completed_at for the visible history date and rolling period filter',
   assert.equal(getMatchFinishedAt(matches[2]), '2026-10-15T13:00:00.000Z');
   assert.equal(isMatchInPeriod(matches[2], '24h', now), true);
   assert.equal(isMatchInPeriod(matches[3], '30d', now), false);
+  assert.equal(isMatchInPeriod(matches[3], '90d', now), true);
 });
 
 test('combines time, result, mode, platform, and opponent filters', () => {

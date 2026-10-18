@@ -5,14 +5,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
-import { eloPeriodMeta, getEloPeriodInsights, type EloTrendPoint } from '@/lib/elo-period-summary';
-import { filterMatchHistory, getMatchFinishedAt as finishedAt, type MatchHistoryEntry, type MatchHistoryModeFilter, type MatchHistoryPeriod, type MatchHistoryPlatform, type MatchHistoryResultFilter } from '@/lib/match-history';
-import { Activity, ArrowUpRight, CalendarDays, ChevronDown, CircleDot, Menu, Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Zap } from 'lucide-react';
+import { eloPeriodMeta, getEloPeriodInsights, type EloPeriod, type EloTrendPoint } from '@/lib/elo-period-summary';
+import { filterMatchHistory, getMatchFinishedAt as finishedAt, type MatchHistoryEntry, type MatchHistoryModeFilter, type MatchHistoryPlatform, type MatchHistoryResultFilter } from '@/lib/match-history';
+import { Activity, ArrowUpRight, CalendarDays, ChevronDown, CircleDot, Crown, LockKeyhole, Menu, Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Zap } from 'lucide-react';
 
 type Platform = MatchHistoryPlatform;
 type ResultFilter = MatchHistoryResultFilter;
 type ModeFilter = MatchHistoryModeFilter;
 type MatchEntry = MatchHistoryEntry;
+type HistoryPeriod = Extract<EloPeriod, '7d' | '30d' | '90d'>;
 
 const platformMeta: Record<Platform, { label: string; className: string }> = {
   scolia: { label: 'Scolia', className: 'border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-200' },
@@ -20,12 +21,13 @@ const platformMeta: Record<Platform, { label: string; className: string }> = {
   autodarts: { label: 'AutoDarts', className: 'border-violet-300/25 bg-violet-400/[0.08] text-violet-200' },
 };
 
-const historyPeriodMeta: Record<MatchHistoryPeriod, { label: string; description: string }> = {
-  all: { label: 'Gesamt', description: 'gesamten Match-Verlauf' },
-  ...eloPeriodMeta,
+const historyPeriodMeta: Record<HistoryPeriod, { label: string; description: string }> = {
+  '7d': eloPeriodMeta['7d'],
+  '30d': eloPeriodMeta['30d'],
+  '90d': eloPeriodMeta['90d'],
 };
 
-const historyPeriodOptions: MatchHistoryPeriod[] = ['all', '24h', '7d', '30d'];
+const historyPeriodOptions: HistoryPeriod[] = ['7d', '30d', '90d'];
 
 function formatDate(value: string, includeYear = false) {
   return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short', ...(includeYear ? { year: 'numeric' } : {}), hour: '2-digit', minute: '2-digit' }).format(new Date(value));
@@ -135,13 +137,32 @@ function FilterPill({ active, onClick, children, activeClass }: { active: boolea
   return <button type="button" aria-pressed={active} onClick={onClick} className={`shrink-0 border px-3 py-2 text-xs font-black transition ${active ? activeClass : 'border-white/10 bg-black/15 text-zinc-500 hover:border-white/25 hover:text-zinc-200'}`}>{children}</button>;
 }
 
+function HistoryPeriodPill({ period, active, isPremium, onClick }: { period: HistoryPeriod; active: boolean; isPremium: boolean; onClick: () => void }) {
+  const premiumOnly = period !== '7d';
+  const locked = premiumOnly && !isPremium;
+
+  return <button
+    type="button"
+    aria-pressed={active}
+    aria-label={locked ? `${historyPeriodMeta[period].label} mit Premium freischalten` : historyPeriodMeta[period].label}
+    onClick={onClick}
+    className={`flex min-w-0 items-center justify-center gap-1.5 border px-3 py-2 text-xs font-black transition ${active ? 'border-cyan-300 bg-cyan-300 text-black' : locked ? 'border-amber-300/20 bg-amber-300/[.05] text-amber-100 hover:border-amber-300/45' : 'border-white/10 bg-black/15 text-zinc-500 hover:border-white/25 hover:text-zinc-200'}`}
+  >
+    {locked && <LockKeyhole className="h-3 w-3 shrink-0" aria-hidden />}
+    <span className="truncate">{historyPeriodMeta[period].label}</span>
+  </button>;
+}
+
 export default function MatchHistory() {
   const [matches, setMatches] = useState<MatchEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [resultFilter, setResultFilter] = useState<ResultFilter>('all');
   const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
   const [platformFilter, setPlatformFilter] = useState<'all' | Platform>('all');
-  const [historyPeriod, setHistoryPeriod] = useState<MatchHistoryPeriod>('all');
+  const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('7d');
+  const [isPremium, setIsPremium] = useState(false);
+  const [periodLoading, setPeriodLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [summaryNow, setSummaryNow] = useState(() => new Date());
   const [search, setSearch] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -150,18 +171,66 @@ export default function MatchHistory() {
 
   useEffect(() => {
     let mounted = true;
+
     async function load() {
+      setPeriodLoading(true);
+      setHistoryError(null);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/auth/login'); return; }
-      const { data, error } = await supabase.from('matches').select('*').eq('user_id', session.user.id).eq('status', 'completed').order('completed_at', { ascending: false });
+
+      // `get_my_premium_overview` is self-scoped in the database. Its active
+      // value is only used for the interface; RLS below is the final source of
+      // truth for the 7/90-day data boundary.
+      const { data: overview, error: overviewError } = await supabase.rpc('get_my_premium_overview');
+      const premiumActive = !overviewError
+        && typeof overview === 'object'
+        && overview !== null
+        && !Array.isArray(overview)
+        && (overview as { active?: unknown }).active === true;
+
       if (!mounted) return;
-      if (error) console.error('Match History konnte nicht geladen werden:', error);
-      else setMatches((data || []) as MatchEntry[]);
+      if (overviewError) console.error('Premium-Status für Match History konnte nicht geladen werden:', overviewError);
+      setIsPremium(premiumActive);
+
+      if (!premiumActive && historyPeriod !== '7d') {
+        setMatches([]);
+        setHistoryPeriod('7d');
+        setLoading(false);
+        setPeriodLoading(false);
+        return;
+      }
+
+      const periodStart = new Date(Date.now() - eloPeriodMeta[historyPeriod].hours * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('status', 'completed')
+        .gte('completed_at', periodStart)
+        .order('completed_at', { ascending: false });
+
+      if (!mounted) return;
+      if (error) {
+        console.error('Match History konnte nicht geladen werden:', error);
+        setMatches([]);
+        setHistoryError('Dein Match-Verlauf konnte gerade nicht geladen werden. Bitte versuche es gleich noch einmal.');
+      } else {
+        setMatches((data || []) as MatchEntry[]);
+      }
       setLoading(false);
+      setPeriodLoading(false);
     }
-    void load();
+
+    void load().catch((error: unknown) => {
+      if (!mounted) return;
+      console.error('Match History konnte nicht geladen werden:', error);
+      setMatches([]);
+      setHistoryError('Dein Match-Verlauf konnte gerade nicht geladen werden. Bitte versuche es gleich noch einmal.');
+      setLoading(false);
+      setPeriodLoading(false);
+    });
     return () => { mounted = false; };
-  }, [router, supabase]);
+  }, [historyPeriod, router, supabase]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setSummaryNow(new Date()), 60_000);
@@ -189,12 +258,12 @@ export default function MatchHistory() {
     period: historyPeriod,
     opponentQuery: search,
   }, summaryNow), [historyPeriod, matches, modeFilter, platformFilter, resultFilter, search, summaryNow]);
-  const hasActiveFilters = resultFilter !== 'all' || modeFilter !== 'all' || platformFilter !== 'all' || historyPeriod !== 'all' || Boolean(search.trim());
+  const hasActiveFilters = resultFilter !== 'all' || modeFilter !== 'all' || platformFilter !== 'all' || Boolean(search.trim());
   const resetFilters = () => {
     setResultFilter('all');
     setModeFilter('all');
     setPlatformFilter('all');
-    setHistoryPeriod('all');
+    setHistoryPeriod('7d');
     setSearch('');
   };
 
@@ -223,11 +292,11 @@ export default function MatchHistory() {
       <section className="arena-content relative mx-auto px-4 pb-20 pt-8 sm:px-5 md:px-8 md:pt-12">
         <header className="arena-hero">
           <div className="grid gap-7 p-6 sm:p-8 lg:grid-cols-[1.25fr_.75fr] lg:items-end lg:p-10">
-            <div><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300"><CalendarDays className="h-3.5 w-3.5" /> Persönliches Match-Archiv</div><h1 className="mt-4 text-4xl font-black tracking-[-0.075em] sm:text-6xl">Deine Spiele.<br /><span className="text-emerald-300">Ohne Rauschen.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Alle bestätigten Ergebnisse, sauber nach Plattform und Spielmodus sortiert. Private Duelle bleiben unrated.</p></div>
+            <div><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300"><CalendarDays className="h-3.5 w-3.5" /> Persönliches Match-Archiv</div><h1 className="mt-4 text-4xl font-black tracking-[-0.075em] sm:text-6xl">Deine Spiele.<br /><span className="text-emerald-300">Ohne Rauschen.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Bestätigte Ergebnisse aus den {historyPeriodMeta[historyPeriod].description}, sauber nach Plattform und Spielmodus sortiert. Private Duelle bleiben unrated.</p></div>
             <div className="border-l-2 border-emerald-300 bg-emerald-400/[0.05] p-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Aktuelle Form</p><div className="mt-4 flex min-h-9 items-center gap-1.5">{form.length ? form.map((match) => <span key={match.id} title={match.is_win ? 'Sieg' : 'Niederlage'} className={`h-8 flex-1 border ${match.is_win ? 'border-emerald-300/40 bg-emerald-400/25' : 'border-red-400/35 bg-red-400/20'}`} />) : <span className="text-sm text-zinc-500">Noch keine Ranked-Matches</span>}</div><div className="mt-3 flex items-center justify-between text-xs"><span className="text-zinc-500">Letzte {form.length} Ranked-Matches</span><span className="font-black text-emerald-200">{streak ? `${streak} Winstreak` : 'Neue Serie starten'}</span></div></div>
           </div>
           <div className="grid grid-cols-2 border-t border-white/10 sm:grid-cols-3 lg:grid-cols-6">{[
-            { label: 'Ranked', value: ranked.length, tone: 'text-white' }, { label: 'Siege', value: wins.length, tone: 'text-emerald-300' }, { label: 'Winrate', value: `${winrate}%`, tone: 'text-cyan-200' }, { label: 'Ø Average', value: average ? average.toFixed(1) : '—', tone: 'text-violet-200' }, { label: '180er', value: total180s, tone: 'text-amber-200' }, { label: 'Elo-Bilanz gesamt', value: `${eloDelta > 0 ? '+' : ''}${eloDelta}`, tone: eloDelta >= 0 ? 'text-emerald-300' : 'text-red-300' },
+            { label: `Ranked · ${historyPeriodMeta[historyPeriod].label}`, value: ranked.length, tone: 'text-white' }, { label: 'Siege', value: wins.length, tone: 'text-emerald-300' }, { label: 'Winrate', value: `${winrate}%`, tone: 'text-cyan-200' }, { label: 'Ø Average', value: average ? average.toFixed(1) : '—', tone: 'text-violet-200' }, { label: '180er', value: total180s, tone: 'text-amber-200' }, { label: `Elo-Bilanz · ${historyPeriodMeta[historyPeriod].label}`, value: `${eloDelta > 0 ? '+' : ''}${eloDelta}`, tone: eloDelta >= 0 ? 'text-emerald-300' : 'text-red-300' },
           ].map((stat) => <div key={stat.label} className="border-b border-r border-white/10 px-5 py-4 last:border-r-0 lg:border-b-0"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">{stat.label}</p><p className={`mt-1 text-2xl font-black tracking-[-0.05em] ${stat.tone}`}>{stat.value}</p></div>)}</div>
         </header>
 
@@ -238,9 +307,12 @@ export default function MatchHistory() {
               <h2 className="mt-2 text-2xl font-black tracking-[-0.05em] text-white">Deine Entwicklung. In einer Linie.</h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Gewonnene und verlorene Elo aus bestätigten Ranked-Matches im {historyPeriodMeta[historyPeriod].description}. Die Auswahl filtert zugleich deine Matchliste.</p>
             </div>
-            <div className="w-full lg:w-[24rem]"><p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Zeitraum</p><div className="grid grid-cols-4 gap-2" role="group" aria-label="Zeitraum für Match-History und Elo auswählen">
-              {historyPeriodOptions.map((period) => <FilterPill key={period} active={historyPeriod === period} onClick={() => setHistoryPeriod(period)} activeClass="border-cyan-300 bg-cyan-300 text-black">{historyPeriodMeta[period].label}</FilterPill>)}
-            </div></div>
+            <div className="w-full lg:w-[24rem]"><p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Zeitraum</p><div className="grid grid-cols-3 gap-2" role="group" aria-label="Zeitraum für Match-History und Elo auswählen">
+              {historyPeriodOptions.map((period) => <HistoryPeriodPill key={period} period={period} active={historyPeriod === period} isPremium={isPremium} onClick={() => {
+                if (!isPremium && period !== '7d') { router.push('/premium'); return; }
+                setHistoryPeriod(period);
+              }} />)}
+            </div><p className="mt-3 flex min-h-5 items-center gap-1.5 text-[11px] leading-5 text-zinc-500">{periodLoading ? <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-200" />Zeitraum wird aktualisiert …</> : isPremium ? <><Crown className="h-3.5 w-3.5 shrink-0 text-amber-200" />Premium aktiv: 7, 30 und 90 Tage verfügbar.</> : <>7 Tage sind kostenlos enthalten. <Link href="/premium" className="font-bold text-amber-100 underline decoration-amber-200/35 underline-offset-2 hover:text-amber-50">30 &amp; 90 Tage mit Premium</Link></>}</p></div>
           </div>
           <div className="grid lg:grid-cols-[minmax(0,1.45fr)_22rem]">
             <div className="border-b border-white/10 p-5 sm:p-6 lg:border-b-0 lg:border-r">
@@ -255,7 +327,8 @@ export default function MatchHistory() {
               <div className="col-span-2 flex items-center gap-3 border-t border-white/10 px-4 py-3 text-xs text-zinc-500"><TrendingDown className="h-4 w-4 shrink-0 text-rose-300" /><span>{eloInsights.largestLoss ? <>Größter Rückschlag: <strong className="font-black text-rose-200">−{eloInsights.largestLoss.value} Elo</strong> vs. {eloInsights.largestLoss.opponentName || 'unbekanntem Gegner'}</> : 'Noch kein Elo-Verlust im ausgewählten Zeitraum.'}</span></div>
             </div>
           </div>
-          <p className="border-t border-white/10 px-5 py-3 text-xs leading-5 text-zinc-500 sm:px-6">Die Kurve zeigt die kumulierte Elo-Veränderung ab 0 – nicht deinen absoluten Elo-Stand. Private Freundschaftsspiele und Matches ohne Elo-Wertung fließen nicht ein. Der 24-Stunden-Zeitraum läuft fortlaufend und endet nicht um Mitternacht.</p>
+          <p className="border-t border-white/10 px-5 py-3 text-xs leading-5 text-zinc-500 sm:px-6">Die Kurve zeigt die kumulierte Elo-Veränderung ab 0 – nicht deinen absoluten Elo-Stand. Private Freundschaftsspiele und Matches ohne Elo-Wertung fließen nicht ein. Jeder Zeitraum läuft fortlaufend und endet nicht um Mitternacht.</p>
+          {historyError && <p role="alert" className="border-t border-rose-300/20 bg-rose-400/[.06] px-5 py-3 text-xs leading-5 text-rose-100 sm:px-6">{historyError}</p>}
         </section>
 
         <section className="arena-panel mt-5 overflow-hidden" aria-label="Match-History filtern">

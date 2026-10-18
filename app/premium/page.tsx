@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, CalendarClock, Check, Crown, Gauge, LifeBuoy, ShieldCheck, Sparkles, Star, Swords, Trophy, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -63,59 +62,6 @@ type PremiumStatusFetchResult = {
   unavailable: boolean;
 };
 
-type PerformancePeriod = 7 | 30 | 90;
-
-type PerformanceSummary = {
-  matches: number;
-  wins: number;
-  losses: number;
-  winRate: number | null;
-  eloDelta: number;
-  average: number | null;
-  averageMatches: number;
-  highestCheckout: number | null;
-  oneEighties: number;
-};
-
-type PerformanceFormPoint = {
-  date: string;
-  matches: number;
-  wins: number;
-  average: number | null;
-  eloDelta: number;
-};
-
-type PerformancePlatform = {
-  platform: 'scolia' | 'dartcounter' | 'autodarts';
-  matches: number;
-  wins: number;
-  winRate: number | null;
-  average: number | null;
-  eloDelta: number;
-  oneEighties: number;
-};
-
-type PerformancePersonalBests = {
-  bestAverage: number | null;
-  highestCheckout: number | null;
-  most180sInMatch: number | null;
-  bestEloGain: number | null;
-};
-
-type PremiumPerformance = {
-  fullAccess: boolean;
-  requestedPeriodDays: PerformancePeriod;
-  periodDays: PerformancePeriod;
-  periodStart: string | null;
-  periodEnd: string | null;
-  summary: PerformanceSummary;
-  previousSummary: PerformanceSummary | null;
-  form: PerformanceFormPoint[];
-  platforms: PerformancePlatform[];
-  unassignedMatches: number;
-  personalBests: PerformancePersonalBests | null;
-};
-
 const premiumBenefits = [
   {
     title: 'Unbegrenzt Matches spielen',
@@ -139,18 +85,10 @@ const premiumBenefits = [
   },
 ];
 
-const performancePeriods: PerformancePeriod[] = [7, 30, 90];
-
-const performancePlatforms: Array<{ platform: PerformancePlatform['platform']; label: string; className: string }> = [
-  { platform: 'scolia', label: 'Scolia', className: 'border-emerald-300/25 bg-emerald-400/[0.06] text-emerald-100' },
-  { platform: 'dartcounter', label: 'DartCounter', className: 'border-cyan-300/25 bg-cyan-400/[0.06] text-cyan-100' },
-  { platform: 'autodarts', label: 'AutoDarts', className: 'border-violet-300/25 bg-violet-400/[0.06] text-violet-100' },
-];
-
 const comparisonRows = [
   { label: 'Ranked Matches pro Tag', free: '4', premium: 'Unbegrenzt' },
   { label: 'Premium-Turniere', free: 'Nicht enthalten', premium: 'Enthalten' },
-  { label: 'Performance-Labor', free: '7 Tage Vorschau', premium: '7/30/90 Tage + Trends' },
+  { label: 'Match-Verlauf', free: '7 Tage', premium: '30 & 90 Tage' },
   { label: 'Support', free: 'Standard', premium: 'Priority' },
   { label: 'Premium-Auszeichnung', free: '—', premium: 'Sichtbar im Profil' },
 ];
@@ -182,172 +120,6 @@ function formatPremiumDate(value: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? null : new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
-}
-
-function asFiniteNumber(value: unknown, fallback = 0) {
-  const parsed = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function asNullableNumber(value: unknown) {
-  const parsed = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function asPerformancePeriod(value: unknown, fallback: PerformancePeriod = 7): PerformancePeriod {
-  const days = asFiniteNumber(value, fallback);
-  return days === 7 || days === 30 || days === 90 ? days : fallback;
-}
-
-function normalizePerformanceSummary(value: unknown): PerformanceSummary {
-  const summary = asRecord(value);
-  return {
-    matches: Math.max(0, Math.round(asFiniteNumber(summary?.matches))),
-    wins: Math.max(0, Math.round(asFiniteNumber(summary?.wins))),
-    losses: Math.max(0, Math.round(asFiniteNumber(summary?.losses))),
-    winRate: asNullableNumber(summary?.win_rate),
-    eloDelta: Math.round(asFiniteNumber(summary?.elo_delta)),
-    average: asNullableNumber(summary?.average),
-    averageMatches: Math.max(0, Math.round(asFiniteNumber(summary?.average_matches))),
-    highestCheckout: asNullableNumber(summary?.highest_checkout),
-    oneEighties: Math.max(0, Math.round(asFiniteNumber(summary?.one_eighties))),
-  };
-}
-
-function normalizePerformance(value: unknown): PremiumPerformance | null {
-  const performance = asRecord(value);
-  if (!performance || !asRecord(performance.summary)) return null;
-
-  const normalizeForm = (source: unknown): PerformanceFormPoint[] => !Array.isArray(source) ? [] : source.flatMap((entry) => {
-    const point = asRecord(entry);
-    const date = typeof point?.date === 'string' ? point.date : '';
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
-    return [{
-      date,
-      matches: Math.max(0, Math.round(asFiniteNumber(point?.matches))),
-      wins: Math.max(0, Math.round(asFiniteNumber(point?.wins))),
-      average: asNullableNumber(point?.average),
-      eloDelta: Math.round(asFiniteNumber(point?.elo_delta)),
-    }];
-  });
-
-  const normalizePlatforms = (source: unknown): PerformancePlatform[] => !Array.isArray(source) ? [] : source.flatMap((entry) => {
-    const platform = asRecord(entry);
-    if (!platform) return [];
-    const key = platform?.platform;
-    if (key !== 'scolia' && key !== 'dartcounter' && key !== 'autodarts') return [];
-    return [{
-      platform: key,
-      matches: Math.max(0, Math.round(asFiniteNumber(platform.matches))),
-      wins: Math.max(0, Math.round(asFiniteNumber(platform.wins))),
-      winRate: asNullableNumber(platform.win_rate),
-      average: asNullableNumber(platform.average),
-      eloDelta: Math.round(asFiniteNumber(platform.elo_delta)),
-      oneEighties: Math.max(0, Math.round(asFiniteNumber(platform.one_eighties))),
-    }];
-  });
-
-  const personalBests = asRecord(performance.personal_bests);
-  return {
-    fullAccess: performance.full_access === true,
-    requestedPeriodDays: asPerformancePeriod(performance.requested_period_days),
-    periodDays: asPerformancePeriod(performance.period_days),
-    periodStart: typeof performance.period_start === 'string' ? performance.period_start : null,
-    periodEnd: typeof performance.period_end === 'string' ? performance.period_end : null,
-    summary: normalizePerformanceSummary(performance.summary),
-    previousSummary: asRecord(performance.previous_summary) ? normalizePerformanceSummary(performance.previous_summary) : null,
-    form: normalizeForm(performance.form),
-    platforms: normalizePlatforms(performance.platforms),
-    unassignedMatches: Math.max(0, Math.round(asFiniteNumber(performance.unassigned_matches))),
-    personalBests: personalBests ? {
-      bestAverage: asNullableNumber(personalBests.best_average),
-      highestCheckout: asNullableNumber(personalBests.highest_checkout),
-      most180sInMatch: asNullableNumber(personalBests.most_180s_in_match),
-      bestEloGain: asNullableNumber(personalBests.best_elo_gain),
-    } : null,
-  };
-}
-
-function formatPerformanceNumber(value: number | null, fractionDigits = 0) {
-  if (value === null) return '—';
-  return new Intl.NumberFormat('de-DE', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }).format(value);
-}
-
-function formatPerformancePercent(value: number | null) {
-  return value === null ? '—' : `${formatPerformanceNumber(value, 1)}%`;
-}
-
-function formatSignedElo(value: number) {
-  return `${value > 0 ? '+' : ''}${formatPerformanceNumber(value)}`;
-}
-
-function formatPerformanceDay(value: string) {
-  const [year, month, day] = value.split('-');
-  return year && month && day ? `${day}.${month}.` : value;
-}
-
-function PerformanceMetric({ label, value, detail, tone = 'text-white' }: { label: string; value: ReactNode; detail: ReactNode; tone?: string }) {
-  return <article className="min-w-0 border border-white/10 bg-black/20 p-4 sm:p-5">
-    <p className="text-[9px] font-black uppercase tracking-[.16em] text-zinc-500">{label}</p>
-    <strong className={`mt-2 block truncate text-3xl font-black tracking-[-.06em] sm:text-4xl ${tone}`}>{value}</strong>
-    <p className="mt-2 min-h-5 text-[11px] leading-5 text-zinc-500">{detail}</p>
-  </article>;
-}
-
-function PerformanceTrend({ points }: { points: PerformanceFormPoint[] }) {
-  const hasMatches = points.some((point) => point.matches > 0);
-  if (!hasMatches) return <div className="grid min-h-52 place-items-center border border-dashed border-white/10 bg-black/20 px-6 text-center text-sm leading-6 text-zinc-500">Noch keine gewerteten Ranked-Matches in diesem Zeitraum.</div>;
-
-  const width = 640;
-  const height = 192;
-  const paddingX = 20;
-  const paddingY = 24;
-  const values = points.reduce<{ cumulative: number; values: number[] }>((series, point) => {
-    const cumulative = series.cumulative + point.eloDelta;
-    return { cumulative, values: [...series.values, cumulative] };
-  }, { cumulative: 0, values: [] }).values;
-  const min = Math.min(0, ...values);
-  const max = Math.max(0, ...values);
-  const span = Math.max(max - min, 1);
-  const drawWidth = width - paddingX * 2;
-  const drawHeight = height - paddingY * 2;
-  const coordinates = points.map((point, index) => ({
-    ...point,
-    cumulative: values[index] || 0,
-    x: paddingX + (drawWidth * index) / Math.max(points.length - 1, 1),
-    y: paddingY + ((max - (values[index] || 0)) / span) * drawHeight,
-  }));
-  const linePath = coordinates.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
-  const baseline = paddingY + ((max - 0) / span) * drawHeight;
-  const areaPath = coordinates.length > 1
-    ? `${linePath} L ${coordinates[coordinates.length - 1].x.toFixed(2)} ${baseline.toFixed(2)} L ${coordinates[0].x.toFixed(2)} ${baseline.toFixed(2)} Z`
-    : '';
-  const endingValue = values[values.length - 1] || 0;
-  const positive = endingValue >= 0;
-
-  return <div className="border border-white/10 bg-black/20 p-3 sm:p-4">
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-48 w-full overflow-visible" role="img" aria-label="Elo-Formkurve im gewählten Zeitraum">
-      <defs>
-        <linearGradient id="premium-performance-trend" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={positive ? '#6ee7b7' : '#fda4af'} stopOpacity="0.38" />
-          <stop offset="100%" stopColor={positive ? '#6ee7b7' : '#fda4af'} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <line x1={paddingX} x2={width - paddingX} y1={baseline} y2={baseline} stroke="rgba(255,255,255,0.13)" strokeDasharray="5 6" />
-      {areaPath && <path d={areaPath} fill="url(#premium-performance-trend)" />}
-      <path d={linePath} fill="none" stroke={positive ? '#9af0bc' : '#fda4af'} strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
-      {coordinates.filter((point) => point.matches > 0).map((point) => <circle key={point.date} cx={point.x} cy={point.y} r="3.5" fill={point.eloDelta >= 0 ? '#9af0bc' : '#fda4af'} stroke="#0d1110" strokeWidth="2" />)}
-    </svg>
-    <div className="mt-2 flex items-center justify-between gap-3 text-[10px] font-black uppercase tracking-[.12em] text-zinc-600">
-      <span>{formatPerformanceDay(points[0]?.date || '')}</span>
-      <span className={positive ? 'text-emerald-200' : 'text-rose-200'}>{formatSignedElo(endingValue)} Elo</span>
-      <span>{formatPerformanceDay(points[points.length - 1]?.date || '')}</span>
-    </div>
-  </div>;
-}
-
 export default function Premium() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [premiumStatus, setPremiumStatus] = useState<PremiumSubscriptionData | null>(null);
@@ -373,11 +145,6 @@ export default function Premium() {
   const [giftCode, setGiftCode] = useState<string | null>(null);
   const [giftCodeCopied, setGiftCodeCopied] = useState(false);
   const [giftMessage, setGiftMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(null);
-  const [selectedPerformancePeriod, setSelectedPerformancePeriod] = useState<PerformancePeriod>(7);
-  const [premiumPerformance, setPremiumPerformance] = useState<PremiumPerformance | null>(null);
-  const [performanceLoading, setPerformanceLoading] = useState(true);
-  const [performanceError, setPerformanceError] = useState<string | null>(null);
-  const performanceRequestRef = useRef(0);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -415,34 +182,6 @@ export default function Premium() {
       setGiftCodeLoading(false);
     }
   }, []);
-
-  const loadPerformance = useCallback(async (period: PerformancePeriod) => {
-    const requestId = performanceRequestRef.current + 1;
-    performanceRequestRef.current = requestId;
-    setPerformanceLoading(true);
-    setPerformanceError(null);
-
-    const { data, error } = await supabase.rpc('get_my_premium_performance', { p_days: period });
-    if (performanceRequestRef.current !== requestId) return;
-
-    if (error) {
-      setPremiumPerformance(null);
-      setPerformanceError('Deine Performance-Auswertung konnte gerade nicht geladen werden. Bitte versuche es erneut.');
-      setPerformanceLoading(false);
-      return;
-    }
-
-    const normalized = normalizePerformance(data);
-    if (!normalized) {
-      setPremiumPerformance(null);
-      setPerformanceError('Die Performance-Auswertung enthält gerade keine lesbaren Daten. Bitte versuche es erneut.');
-      setPerformanceLoading(false);
-      return;
-    }
-
-    setPremiumPerformance(normalized);
-    setPerformanceLoading(false);
-  }, [supabase]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -521,16 +260,6 @@ export default function Premium() {
     };
   }, [router, supabase]);
 
-  useEffect(() => {
-    if (loading) return;
-    // Keep this scheduled like the other page-side requests: it avoids a
-    // synchronous state cascade while the initial Premium profile settles.
-    const timer = window.setTimeout(() => {
-      void loadPerformance(selectedPerformancePeriod);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [loading, loadPerformance, selectedPerformancePeriod]);
-
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
@@ -583,27 +312,6 @@ export default function Premium() {
     : manualPremiumState.kind === 'ending' && manualPremiumPeriodEndLabel
       ? `Dein manuell gewährter Premium-Zugang läuft ${manualPremiumTimeRemaining || 'noch'} und endet am ${manualPremiumPeriodEndLabel}.`
       : 'Dein Profil ist bereits als Premium markiert.';
-  const performanceSummary = premiumPerformance?.summary ?? null;
-  const previousPerformanceSummary = premiumPerformance?.previousSummary ?? null;
-  const performanceDetailsUnlocked = premiumPerformance?.fullAccess === true;
-  const canChooseFullPerformanceRange = isPremium || performanceDetailsUnlocked;
-  const performancePeriodLabel = `${premiumPerformance?.periodDays ?? selectedPerformancePeriod} Tage`;
-  const performancePeriodDescription = `${premiumPerformance?.periodDays ?? selectedPerformancePeriod} Tagen`;
-  const averageDelta = performanceSummary?.average !== null && performanceSummary?.average !== undefined && previousPerformanceSummary?.average !== null && previousPerformanceSummary?.average !== undefined
-    ? performanceSummary.average - previousPerformanceSummary.average
-    : null;
-  const platformPerformance = performancePlatforms.map((platform) => ({
-    ...platform,
-    stats: premiumPerformance?.platforms.find((stat) => stat.platform === platform.platform) ?? {
-      platform: platform.platform,
-      matches: 0,
-      wins: 0,
-      winRate: null,
-      average: null,
-      eloDelta: 0,
-      oneEighties: 0,
-    },
-  }));
   const startCheckout = async () => {
     setCheckoutLoading(true);
     setCheckoutError(null);
@@ -700,7 +408,6 @@ export default function Premium() {
     });
     try {
       await refreshPremiumStatus();
-      await loadPerformance(selectedPerformancePeriod);
     } catch (refreshError) {
       console.warn('Premium-Status nach Code-Einlösung konnte nicht aktualisiert werden:', refreshError);
     }
@@ -917,140 +624,6 @@ export default function Premium() {
               </article>
             );
           })}
-        </section>
-
-        <section className="mt-10 overflow-hidden border border-emerald-300/25 border-t-2 border-t-emerald-300 bg-[linear-gradient(135deg,rgba(16,185,129,.10),transparent_42%),#0d1110]">
-          <div className="flex flex-col gap-6 border-b border-white/10 p-6 md:p-8 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[.2em] text-emerald-200"><Gauge className="h-4 w-4" /> Performance-Labor</div>
-              <h2 className="mt-3 text-3xl font-black tracking-[-.05em] sm:text-4xl">Deine Form. Nicht nur dein Gefühl.</h2>
-              <p className="mt-3 text-sm leading-6 text-zinc-400">Elo-Entwicklung, Average, Checkouts und 180er werden direkt aus deinen bestätigten Ranked-Matches berechnet.</p>
-            </div>
-            <div className="flex flex-wrap gap-2" aria-label="Zeitraum für die Performance-Auswertung">
-              {performancePeriods.map((period) => {
-                const locked = period !== 7 && !canChooseFullPerformanceRange;
-                const active = selectedPerformancePeriod === period;
-                return <button
-                  key={period}
-                  type="button"
-                  aria-pressed={active}
-                  disabled={locked || performanceLoading}
-                  onClick={() => setSelectedPerformancePeriod(period)}
-                  title={locked ? 'Mit Premium stehen dir 30 und 90 Tage zur Verfügung.' : undefined}
-                  className={`inline-flex items-center gap-2 border px-4 py-2.5 text-xs font-black transition ${active ? 'border-emerald-200 bg-emerald-300 text-black' : 'border-white/10 bg-black/20 text-zinc-400 hover:border-white/30 hover:text-zinc-100'} disabled:cursor-not-allowed disabled:opacity-60`}
-                >
-                  {period} Tage
-                  {locked && <Crown className="h-3.5 w-3.5" />}
-                </button>;
-              })}
-            </div>
-          </div>
-
-          <div className="p-5 sm:p-6 md:p-8">
-            {performanceLoading ? (
-              <div className="animate-pulse">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {[0, 1, 2, 3].map((index) => <div key={index} className="h-32 border border-white/10 bg-white/[0.035]" />)}
-                </div>
-                <div className="mt-5 h-60 border border-white/10 bg-white/[0.025]" />
-              </div>
-            ) : performanceError ? (
-              <div className="flex flex-col gap-4 border border-rose-300/25 bg-rose-400/[.07] p-5 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm leading-6 text-rose-100">{performanceError}</p>
-                <button type="button" onClick={() => void loadPerformance(selectedPerformancePeriod)} className="w-fit shrink-0 border border-rose-200/40 px-4 py-2.5 text-xs font-black uppercase tracking-[.12em] text-rose-100 transition hover:bg-rose-300/10">Erneut laden</button>
-              </div>
-            ) : !performanceSummary ? (
-              <div className="border border-white/10 bg-black/20 p-5 text-sm text-zinc-400">Deine Performance-Auswertung wird vorbereitet.</div>
-            ) : <>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[.18em] text-zinc-500">{performancePeriodLabel} · nur bestätigte Ranked-Matches</p>
-                <span className={`border px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em] ${performanceDetailsUnlocked ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-amber-300/25 bg-amber-300/[.08] text-amber-100'}`}>{performanceDetailsUnlocked ? 'Vollständiger Bericht' : '7 Tage Vorschau'}</span>
-              </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <PerformanceMetric
-                  label="Elo-Bilanz"
-                  value={formatSignedElo(performanceSummary.eloDelta)}
-                  detail={previousPerformanceSummary ? `Vorperiode: ${formatSignedElo(previousPerformanceSummary.eloDelta)} Elo` : 'Noch keine Vergleichsphase'}
-                  tone={performanceSummary.eloDelta > 0 ? 'text-emerald-200' : performanceSummary.eloDelta < 0 ? 'text-rose-200' : 'text-white'}
-                />
-                <PerformanceMetric label="Ranked Matches" value={formatPerformanceNumber(performanceSummary.matches)} detail={`${performanceSummary.wins} Siege · ${performanceSummary.losses} Niederlagen`} tone="text-emerald-100" />
-                <PerformanceMetric
-                  label="Siegquote"
-                  value={formatPerformancePercent(performanceSummary.winRate)}
-                  detail={previousPerformanceSummary?.winRate !== null && previousPerformanceSummary?.winRate !== undefined ? `Vorperiode: ${formatPerformancePercent(previousPerformanceSummary.winRate)}` : 'Noch keine Vergleichsphase'}
-                  tone="text-cyan-100"
-                />
-                <PerformanceMetric
-                  label="Ø Average"
-                  value={formatPerformanceNumber(performanceSummary.average, 1)}
-                  detail={performanceSummary.average === null ? 'Noch keine Average-Daten' : averageDelta === null ? `${performanceSummary.averageMatches} erfasste Matches` : `zur Vorperiode: ${averageDelta > 0 ? '+' : ''}${formatPerformanceNumber(averageDelta, 1)}`}
-                  tone="text-violet-100"
-                />
-                {performanceDetailsUnlocked && <>
-                  <PerformanceMetric label="Höchster Checkout" value={formatPerformanceNumber(performanceSummary.highestCheckout)} detail={performanceSummary.highestCheckout === null ? 'Noch nicht erfasst' : 'Im gewählten Zeitraum'} tone="text-amber-100" />
-                  <PerformanceMetric label="180er" value={formatPerformanceNumber(performanceSummary.oneEighties)} detail="Im gewählten Zeitraum" tone="text-emerald-100" />
-                </>}
-              </div>
-
-              {performanceSummary.matches === 0 && <p className="mt-5 border border-dashed border-white/15 bg-black/20 px-5 py-4 text-sm leading-6 text-zinc-400">Noch keine bestätigten Ranked-Matches in den letzten {performancePeriodDescription}. Dein Bericht füllt sich automatisch, sobald ein Match abgeschlossen ist.</p>}
-
-              {performanceDetailsUnlocked && premiumPerformance ? <>
-                <div className="mt-6 grid gap-5 xl:grid-cols-[1.35fr_.65fr]">
-                  <article className="border border-white/10 bg-black/20 p-5 sm:p-6">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-200">Formkurve</p>
-                        <h3 className="mt-1 text-xl font-black tracking-[-.035em]">Elo-Verlauf im Zeitraum</h3>
-                      </div>
-                      <span className="border border-white/10 bg-white/[.035] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-zinc-400">Rollierend</span>
-                    </div>
-                    <div className="mt-5"><PerformanceTrend points={premiumPerformance.form} /></div>
-                  </article>
-
-                  <article className="border border-amber-300/20 bg-[linear-gradient(135deg,rgba(251,191,36,.08),transparent_62%),rgba(0,0,0,.2)] p-5 sm:p-6">
-                    <p className="text-[10px] font-black uppercase tracking-[.16em] text-amber-200">Persönliche Bestwerte</p>
-                    <h3 className="mt-1 text-xl font-black tracking-[-.035em]">All Time</h3>
-                    <div className="mt-5 space-y-3">
-                      <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3"><span className="text-sm text-zinc-400">Bester Average</span><strong className="text-lg font-black text-amber-100">{formatPerformanceNumber(premiumPerformance.personalBests?.bestAverage ?? null, 1)}</strong></div>
-                      <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3"><span className="text-sm text-zinc-400">Höchster Checkout</span><strong className="text-lg font-black text-amber-100">{formatPerformanceNumber(premiumPerformance.personalBests?.highestCheckout ?? null)}</strong></div>
-                      <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3"><span className="text-sm text-zinc-400">180er in einem Match</span><strong className="text-lg font-black text-amber-100">{formatPerformanceNumber(premiumPerformance.personalBests?.most180sInMatch ?? null)}</strong></div>
-                      <div className="flex items-center justify-between gap-4"><span className="text-sm text-zinc-400">Bester Elo-Gewinn</span><strong className="text-lg font-black text-amber-100">{premiumPerformance.personalBests?.bestEloGain === null || premiumPerformance.personalBests?.bestEloGain === undefined ? '—' : formatSignedElo(premiumPerformance.personalBests.bestEloGain)}</strong></div>
-                    </div>
-                  </article>
-                </div>
-
-                <article className="mt-5 border border-white/10 bg-black/20 p-5 sm:p-6">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[.16em] text-cyan-200">Plattformvergleich</p>
-                      <h3 className="mt-1 text-xl font-black tracking-[-.035em]">Wo deine Form am stärksten ist</h3>
-                    </div>
-                    <p className="text-xs text-zinc-500">Siegquote · Average · Elo</p>
-                  </div>
-                  <div className="mt-5 grid gap-3 md:grid-cols-3">
-                    {platformPerformance.map(({ platform, label, className, stats }) => <article key={platform} className={`border p-4 ${className}`}>
-                      <div className="flex items-center justify-between gap-3"><strong className="text-sm font-black">{label}</strong><span className="text-[10px] font-black uppercase tracking-[.12em] opacity-70">{stats.matches} Spiele</span></div>
-                      <div className="mt-5 grid grid-cols-3 gap-2 border-t border-white/10 pt-4 text-center">
-                        <div><span className="block text-[9px] font-black uppercase tracking-[.1em] opacity-60">Quote</span><strong className="mt-1 block text-sm font-black">{formatPerformancePercent(stats.winRate)}</strong></div>
-                        <div className="border-x border-white/10"><span className="block text-[9px] font-black uppercase tracking-[.1em] opacity-60">Ø Avg.</span><strong className="mt-1 block text-sm font-black">{formatPerformanceNumber(stats.average, 1)}</strong></div>
-                        <div><span className="block text-[9px] font-black uppercase tracking-[.1em] opacity-60">Elo</span><strong className="mt-1 block text-sm font-black">{formatSignedElo(stats.eloDelta)}</strong></div>
-                      </div>
-                    </article>)}
-                  </div>
-                  {premiumPerformance.unassignedMatches > 0 && <p className="mt-4 border border-amber-300/20 bg-amber-300/[.06] px-4 py-3 text-xs leading-5 text-amber-100">{premiumPerformance.unassignedMatches} {premiumPerformance.unassignedMatches === 1 ? 'Match ist' : 'Matches sind'} in diesem Zeitraum keiner Plattform sicher zugeordnet. Sie zählen in deine Gesamtwerte, aber nicht in den Vergleich.</p>}
-                </article>
-              </> : <div className="relative mt-6 overflow-hidden border border-amber-300/25 bg-[linear-gradient(135deg,rgba(251,191,36,.11),transparent_58%),rgba(0,0,0,.22)] p-5 sm:p-6">
-                <div className="absolute -right-5 -top-7 text-[7rem] font-black leading-none text-amber-200/[.06]">+</div>
-                <div className="relative max-w-2xl">
-                  <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.18em] text-amber-200"><Crown className="h-4 w-4" /> Vollständiger Bericht</p>
-                  <h3 className="mt-2 text-2xl font-black tracking-[-.04em]">Erkenne Muster statt nur Ergebnisse.</h3>
-                  <p className="mt-3 text-sm leading-6 text-zinc-300">Mit Premium schaltest du 30- und 90-Tage-Ansichten, deine Elo-Formkurve, Plattformvergleich und persönliche Bestwerte frei.</p>
-                  {isPremium ? <p className="mt-5 text-xs font-bold text-amber-100">Dein Premium-Zugang wird gerade mit dem Performance-Labor abgeglichen. Lade die Auswertung gleich noch einmal.</p> : <button type="button" onClick={startCheckout} disabled={checkoutLoading} className="group mt-5 border border-amber-200 bg-amber-300 px-5 py-3 text-xs font-black uppercase tracking-[.14em] text-black transition hover:bg-amber-200 disabled:opacity-60">{checkoutLoading ? 'Checkout wird geöffnet …' : <span>Performance freischalten <ArrowUpRight className="ml-1.5 inline-block h-3.5 w-3.5 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span>}</button>}
-                </div>
-              </div>}
-            </>}
-          </div>
         </section>
 
         {giftOffers.some((offer) => offer.available) && (
