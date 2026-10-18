@@ -307,16 +307,16 @@ export default function Register() {
             <BrandLogo className="h-12 w-12 rounded-xl" />
             <div>
               <div className="text-2xl font-black tracking-[-0.04em]">RANKEDDARTS</div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Verified Competitive Darts</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Darts-Matchmaking</div>
             </div>
           </Link>
 
           <div className="max-w-xl">
-            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-300">Dein Einstieg ins Ranked</p>
-            <h1 className="mt-6 text-7xl font-black leading-[.84] tracking-[-0.09em]">Spiel nicht<br /><span className="text-emerald-300">irgendwo.</span></h1>
-            <p className="mt-8 max-w-lg text-lg leading-8 text-zinc-400">Erstelle ein Profil, das wirklich dir gehört. Danach wartet die Queue, das Leaderboard und deine erste Season.</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-300">Konto erstellen</p>
+            <h1 className="mt-6 text-7xl font-black leading-[.84] tracking-[-0.09em]">Erstelle dein<br /><span className="text-emerald-300">Spielerprofil.</span></h1>
+            <p className="mt-8 max-w-lg text-lg leading-8 text-zinc-400">Richte dein Profil ein. Danach kannst du Matches suchen und an Turnieren teilnehmen.</p>
             <div className="mt-12 grid grid-cols-[auto_1fr] gap-x-5 gap-y-5 border-l border-emerald-300/25 pl-5">
-              {['Dein Account startet bei 1000 Elo.', 'E-Mail bestätigen, damit dein Zugang sicher dir gehört.', 'Telefon-Verifizierung schützt die Queue vor Multi-Accounts.'].map((item, index) => (
+              {['Dein Account startet bei 1.000 Elo.', 'Bestätige deine E-Mail, um dein Konto zu aktivieren.', 'Die Telefon-Verifizierung schützt die Suche vor mehreren Accounts pro Person.'].map((item, index) => (
                 <div key={item} className="contents"><span className="grid h-7 w-7 place-items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 text-xs font-black text-emerald-200">0{index + 1}</span><span className="pt-1 text-sm font-semibold leading-5 text-zinc-300">{item}</span></div>
               ))}
             </div>
@@ -332,7 +332,7 @@ export default function Register() {
           <div className="relative border border-white/10 bg-[#0b0e0e] p-5 shadow-[0_28px_90px_rgba(0,0,0,.48)] sm:p-7">
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-300 to-transparent" />
             <div className="mb-8 border-b border-white/8 pb-6">
-              <div className="flex items-center justify-between gap-4"><span className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Account setup / 01</span><span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Fair play</span></div>
+              <div className="flex items-center justify-between gap-4"><span className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Konto erstellen</span><span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Fair Play</span></div>
               <h2 className="mt-5 text-4xl font-black tracking-[-0.07em] text-white">Dein neues<br />Spielerprofil.</h2>
               <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Namen{smsVerificationEnabled ? ' und hinterlege deine Nummer für den sicheren Ranked-Zugang.' : '. Die SMS-Verifizierung ist aktuell deaktiviert.'}</p>
             </div>

@@ -64,23 +64,23 @@ type PremiumStatusFetchResult = {
 
 const premiumBenefits = [
   {
-    title: 'Unbegrenzt Matches spielen',
-    description: 'Keine tägliche Match-Begrenzung. Du kannst so viele Ranked Matches spielen, wie deine Session hergibt.',
+    title: 'Unbegrenzt Ranked-Matches',
+    description: 'Keine tägliche Begrenzung. Spiele so viele Ranked-Matches, wie du möchtest.',
     icon: Swords,
   },
   {
-    title: 'Turniere spielen',
-    description: 'Zugang zu exklusiven Premium-Turnieren mit höheren Preisgeldern und stärkerem Wettbewerb.',
+    title: 'Premium-Turniere',
+    description: 'Nimm an Turnieren teil, die nur für Premium-Mitglieder verfügbar sind.',
     icon: Trophy,
   },
   {
-    title: 'Priority Support',
-    description: 'Schnellere Hilfe bei Problemen über ein priorisiertes Ticket-System.',
+    title: 'Priorisierter Support',
+    description: 'Bei Problemen wird dein Ticket bevorzugt bearbeitet.',
     icon: LifeBuoy,
   },
   {
-    title: 'Premium-Auszeichnung',
-    description: 'Dein Premium-Status ist auf deinem Spielerprofil und im Leaderboard sichtbar.',
+    title: 'Premium-Badge',
+    description: 'Dein Premium-Status ist auf deinem Spielerprofil und in der Rangliste sichtbar.',
     icon: Star,
   },
 ];
@@ -464,10 +464,10 @@ export default function Premium() {
           <div>
             <div className="inline-flex items-center gap-3 border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-100">
               <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" /></span>
-              Premium Arena · Season 01 · bis 01.11.2026
+              Premium · Saison 1 · bis 01.11.2026
             </div>
-            <h1 className="mt-6 max-w-4xl text-6xl font-black leading-[0.84] tracking-[-0.08em] md:text-8xl xl:text-[6.8rem]">MEHR SPIELE.<br /><span className="text-emerald-300">MEHR SEASON.</span></h1>
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-zinc-300">Premium ist für Spieler, die nicht auf die nächste Chance warten wollen. Spiele ohne Tageslimit, tritt in Premium-Turnieren an und mach aus jeder Session echten Fortschritt.</p>
+            <h1 className="mt-6 max-w-4xl text-6xl font-black leading-[0.84] tracking-[-0.08em] md:text-8xl xl:text-[6.8rem]">Spiele ohne<br /><span className="text-emerald-300">Tageslimit.</span></h1>
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-zinc-300">Mit Premium spielst du unbegrenzt Ranked-Matches und kannst an Premium-Turnieren teilnehmen.</p>
 
             <div className="mt-8 flex flex-wrap gap-3 text-xs font-bold text-zinc-300">
               <span className="inline-flex items-center gap-2 border border-white/10 bg-black/25 px-3.5 py-2"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Sicherer Stripe-Checkout</span>
@@ -506,7 +506,7 @@ export default function Premium() {
                   <span className="text-7xl font-black tracking-[-0.08em]">{selectedOfferPrice || '—'}</span>
                   <span className="pb-3 text-zinc-400">/ {selectedPlan === 'yearly' ? 'Jahr' : 'Monat'}</span>
                 </div>
-                <p className="mt-4 max-w-sm text-zinc-300">Dein Zugang zu mehr Ranked-Matches, exklusiven Turnieren und einer sichtbaren Premium-Identität.</p>
+                <p className="mt-4 max-w-sm text-zinc-300">Unbegrenzte Ranked-Matches, Premium-Turniere und ein sichtbarer Premium-Status.</p>
               </div>
 
               {!isPremium && !hasStripeSubscription && yearlyOffer?.available && (
@@ -630,8 +630,8 @@ export default function Premium() {
           <section className="mt-10 overflow-hidden border border-amber-300/25 bg-[linear-gradient(135deg,rgba(251,191,36,.12),transparent_52%),#0d1110] p-6 md:p-8">
             <div className="flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-end md:justify-between">
               <div className="max-w-2xl">
-                <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.2em] text-amber-200"><Crown className="h-4 w-4" /> Geschenk-Arena</p>
-                <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">Premium verschenken</h2>
+                <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.2em] text-amber-200"><Crown className="h-4 w-4" /> Premium verschenken</p>
+                <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">Schenke Premium-Zeit</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">Schenke einer Person Premium-Zeit. Nach der Zahlung erhältst du einen persönlichen Code zum Weitergeben – ohne Abo und ohne automatische Verlängerung.</p>
               </div>
               <span className="w-fit border border-amber-300/25 bg-amber-300/[.08] px-3 py-2 text-[10px] font-black uppercase tracking-[.14em] text-amber-100">Einmalzahlung</span>
@@ -671,7 +671,7 @@ export default function Premium() {
             <div className="flex items-start gap-4">
               <div className="grid h-12 w-12 shrink-0 place-items-center border border-violet-300/25 bg-violet-400/10 text-violet-100"><Sparkles className="h-6 w-6" /></div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-200">Code Center</p>
+                <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-200">Premium-Code</p>
                 <h2 className="mt-1 text-2xl font-black tracking-[-.04em]">Premium-Code einlösen</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">Für Geschenke, Discord-Aktionen und zeitlich begrenzte Community-Kampagnen.</p>
               </div>
@@ -687,9 +687,9 @@ export default function Premium() {
           <article className={`border p-6 md:p-7 ${isPremium ? 'border-emerald-300/25 bg-[linear-gradient(135deg,rgba(16,185,129,.12),transparent_55%),#0d1110]' : 'border-white/10 bg-[#0d1110]'}`}>
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-300">Member Center</p>
-                <h2 className="mt-1 text-2xl font-black tracking-[-.04em]">{isPremium ? 'Dein Premium-Profil' : 'Deine Premium-Vorteile'}</h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">{isPremium ? (premiumSinceLabel ? `Premium seit ${premiumSinceLabel}.` : 'Dein Premium-Zugang ist aktiv.') : 'Aktiviere Premium oder löse einen Code ein, um deine persönliche Identität freizuschalten.'}</p>
+                <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-300">Dein Premium</p>
+                <h2 className="mt-1 text-2xl font-black tracking-[-.04em]">{isPremium ? 'Dein Premium-Status' : 'Deine Premium-Vorteile'}</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">{isPremium ? (premiumSinceLabel ? `Premium seit ${premiumSinceLabel}.` : 'Dein Premium-Zugang ist aktiv.') : 'Aktiviere Premium oder löse einen Code ein, um Badge und Profilfarbe anzupassen.'}</p>
               </div>
               <span className={`w-fit border px-3 py-2 text-[10px] font-black uppercase tracking-[.16em] ${isPremium ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100' : 'border-white/10 bg-white/[.04] text-zinc-500'}`}>{isPremium ? 'Aktiv' : 'Free'}</span>
             </div>
@@ -700,8 +700,8 @@ export default function Premium() {
                 <div className="border-x border-white/10 p-3"><span className="block text-[9px] font-black uppercase tracking-[.12em] text-zinc-500">Ranked seitdem</span><strong className="mt-2 block text-2xl font-black text-emerald-100">{premiumOverview?.ranked_matches_since || 0}</strong></div>
                 <div className="p-3"><span className="block text-[9px] font-black uppercase tracking-[.12em] text-zinc-500">Codes</span><strong className="mt-2 block text-2xl font-black text-emerald-100">{premiumOverview?.code_redemptions || 0}</strong></div>
               </div>
-              <div className="mt-6"><div className="flex items-center justify-between gap-3"><p className="text-[10px] font-black uppercase tracking-[.16em] text-zinc-500">Premium-Auszeichnung</p><span className="text-xs text-zinc-500">Sichtbar im Profil &amp; Leaderboard</span></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{premiumCosmetics.map((cosmetic) => <button key={cosmetic.value} type="button" onClick={() => void setCosmetic(cosmetic.value)} disabled={cosmeticSaving !== null} className={`border px-3 py-3 text-left text-xs font-black transition ${selectedCosmetic === cosmetic.value ? cosmetic.className : 'border-white/10 bg-black/20 text-zinc-400 hover:border-white/30'} disabled:opacity-60`}><span className="block text-[9px] uppercase tracking-[.12em] opacity-70">Design</span><span className="mt-1 block">{cosmeticSaving === cosmetic.value ? 'Speichert …' : cosmetic.label}</span></button>)}</div></div>
-            </> : <div className="mt-6 border border-dashed border-white/15 bg-black/20 p-5 text-sm leading-6 text-zinc-400">Mit Premium erhältst du eine sichtbare Auszeichnung, wählst dein Farbschema und siehst deinen persönlichen Premium-Run an einem Ort.</div>}
+              <div className="mt-6"><div className="flex items-center justify-between gap-3"><p className="text-[10px] font-black uppercase tracking-[.16em] text-zinc-500">Premium-Badge</p><span className="text-xs text-zinc-500">Sichtbar im Profil &amp; Rangliste</span></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{premiumCosmetics.map((cosmetic) => <button key={cosmetic.value} type="button" onClick={() => void setCosmetic(cosmetic.value)} disabled={cosmeticSaving !== null} className={`border px-3 py-3 text-left text-xs font-black transition ${selectedCosmetic === cosmetic.value ? cosmetic.className : 'border-white/10 bg-black/20 text-zinc-400 hover:border-white/30'} disabled:opacity-60`}><span className="block text-[9px] uppercase tracking-[.12em] opacity-70">Design</span><span className="mt-1 block">{cosmeticSaving === cosmetic.value ? 'Speichert …' : cosmetic.label}</span></button>)}</div></div>
+            </> : <div className="mt-6 border border-dashed border-white/15 bg-black/20 p-5 text-sm leading-6 text-zinc-400">Mit Premium erhältst du ein sichtbares Badge, kannst deine Profilfarbe wählen und siehst deine Premium-Übersicht an einem Ort.</div>}
           </article>
         </section>
 
@@ -713,7 +713,7 @@ export default function Premium() {
               </div>
               <div>
                 <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Status</div>
-                <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{isPremium ? 'Premium aktiv' : 'Free Account'}</h2>
+                <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{isPremium ? 'Premium aktiv' : 'Kostenloser Account'}</h2>
               </div>
             </div>
             <p className="mt-6 text-lg leading-8 text-zinc-300">
@@ -744,15 +744,15 @@ export default function Premium() {
           <div className="overflow-hidden border border-white/10 bg-[#0d1110]">
             <div className="border-b border-white/10 bg-white/[0.03] p-6 md:p-8">
               <div className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Vergleich</div>
-              <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">Free vs. Premium</h2>
+              <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">Kostenlos vs. Premium</h2>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b border-white/10 text-xs uppercase tracking-[0.22em] text-zinc-500">
-                    <th className="px-6 py-5 text-left md:px-8">Feature</th>
-                    <th className="px-6 py-5 text-center md:px-8">Free</th>
+                    <th className="px-6 py-5 text-left md:px-8">Vorteil</th>
+                    <th className="px-6 py-5 text-center md:px-8">Kostenlos</th>
                     <th className="px-6 py-5 text-center md:px-8">Premium</th>
                   </tr>
                 </thead>
@@ -779,8 +779,8 @@ export default function Premium() {
           <div className="mx-auto grid h-16 w-16 place-items-center border border-emerald-300/25 bg-black/25 text-emerald-200">
             <Sparkles className="h-8 w-8" />
           </div>
-          <h2 className="mt-6 text-4xl font-black tracking-[-0.05em] md:text-5xl">Bereit für die nächste Stufe?</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-zinc-300">Dein Premium-Status wird nach erfolgreicher Zahlung automatisch über Stripe und Supabase aktiviert.</p>
+          <h2 className="mt-6 text-4xl font-black tracking-[-0.05em] md:text-5xl">Premium aktivieren</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-zinc-300">Nach erfolgreicher Zahlung wird dein Premium-Status automatisch aktiviert.</p>
           <button
             type="button"
             onClick={hasStripeSubscription ? openBillingPortal : startCheckout}

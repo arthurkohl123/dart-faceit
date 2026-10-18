@@ -16,10 +16,10 @@ test('community activity exposes only anonymous aggregate counts', () => {
   assert.doesNotMatch(route, /\.select\([^)]*(?:username|email)/);
 });
 
-test('home makes the current arena activity actionable', () => {
+test('home makes the current matchmaking activity actionable', () => {
   const home = read('app/page.tsx');
 
-  assert.match(home, /Live in der Arena/);
+  assert.match(home, /Gerade in der Spielersuche/);
   assert.match(home, /Spieler suchen.*gerade/);
   assert.match(home, /onlinePlayers/);
   assert.match(home, /livePlayers/);

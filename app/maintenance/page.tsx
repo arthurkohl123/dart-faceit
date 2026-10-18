@@ -35,7 +35,7 @@ export default async function MaintenancePage() {
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">RankedDarts</p>
-              <p className="mt-0.5 text-sm font-black tracking-tight text-zinc-100">Arena Status</p>
+              <p className="mt-0.5 text-sm font-black tracking-tight text-zinc-100">Wartungsstatus</p>
             </div>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-amber-100">
@@ -60,7 +60,7 @@ export default async function MaintenancePage() {
               <Wrench className="h-3.5 w-3.5 text-amber-200" /> Plattform-Upgrade läuft
             </div>
             <h1 className="mt-7 text-5xl font-black leading-[0.9] tracking-[-0.075em] text-white sm:text-7xl xl:text-8xl">
-              Die Arena wird <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-orange-300 bg-clip-text text-transparent">geschärft.</span>
+              Wir führen gerade <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-orange-300 bg-clip-text text-transparent">Wartungsarbeiten durch.</span>
             </h1>
             <p className="mt-8 max-w-2xl border-l-2 border-amber-300/70 pl-5 text-lg leading-8 text-zinc-300 sm:text-xl">
               {maintenanceMessage}
@@ -74,8 +74,8 @@ export default async function MaintenancePage() {
               </div>
               <div className="group rounded-3xl border border-cyan-300/15 bg-cyan-400/[0.045] p-5 shadow-[inset_0_1px_rgba(255,255,255,0.04)]">
                 <Clock3 className="h-5 w-5 text-cyan-300" />
-                <h2 className="mt-4 text-base font-black tracking-tight text-zinc-100">Kurz offline, stärker zurück</h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">Wir schalten die Arena wieder frei, sobald alles bereit ist.</p>
+                <h2 className="mt-4 text-base font-black tracking-tight text-zinc-100">Wir sind bald wieder da</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">Sobald die Arbeiten abgeschlossen sind, ist RankedDarts wieder erreichbar.</p>
               </div>
             </div>
 
@@ -101,7 +101,7 @@ export default async function MaintenancePage() {
                   <span className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-100">Upgrade</span>
                 </div>
                 <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between rounded-2xl border border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md">
-                  <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">Arena Node</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">System</span>
                   <span className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">Im Service</span>
                 </div>
               </div>

@@ -224,9 +224,9 @@ function LoginForm() {
     <div className="relative border border-white/10 bg-[#0b0e0e] p-5 shadow-[0_28px_90px_rgba(0,0,0,.48)] sm:p-7">
       <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-300 to-transparent" />
       <div className="mb-8 border-b border-white/8 pb-6">
-        <div className="flex items-center justify-between gap-4"><span className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Account access / 01</span><span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Sicher</span></div>
+        <div className="flex items-center justify-between gap-4"><span className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Anmelden</span><span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Sicher</span></div>
         <h2 className="mt-5 text-4xl font-black tracking-[-0.07em] text-white">Willkommen<br />zurück.</h2>
-        <p className="mt-3 max-w-sm text-sm leading-6 text-zinc-400">Melde dich an und mach genau dort weiter, wo dein letztes Match aufgehört hat.</p>
+        <p className="mt-3 max-w-sm text-sm leading-6 text-zinc-400">Melde dich an, um weiterzuspielen.</p>
       </div>
 
       {formMessage && (
@@ -301,7 +301,7 @@ function LoginForm() {
         <p className="mt-4 flex items-center justify-center gap-2 text-center text-xs font-bold text-amber-200/80"><Clock3 className="h-3.5 w-3.5" />Nächster Versuch in {formatRetryAfter(retryAfterSeconds)} möglich.</p>
       )}
 
-      <div className="mt-6 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600"><span>Season 01 · bis 01.11.2026</span><span className="h-1 w-1 rounded-full bg-zinc-700" /><span>Secure access</span></div>
+      <div className="mt-6 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600"><span>Saison 1 · bis 01.11.2026</span><span className="h-1 w-1 rounded-full bg-zinc-700" /><span>Sicherer Login</span></div>
       <p className="mt-4 text-center text-sm text-zinc-400">
         Noch kein Account?{' '}
         <Link href="/auth/register" className="font-bold text-emerald-300 transition hover:text-emerald-200">
@@ -332,11 +332,11 @@ export default function Login() {
           </Link>
 
           <div className="max-w-xl">
-            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-300">Deine Ranked-Zentrale</p>
-            <h1 className="mt-6 text-7xl font-black leading-[.84] tracking-[-0.09em]">Zurück<br /><span className="text-emerald-300">ans Oche.</span></h1>
-            <p className="mt-8 max-w-lg text-lg leading-8 text-zinc-400">Elo, Matches, Turniere und deine nächsten Gegner – alles wartet dort, wo du aufgehört hast.</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-300">Nach dem Login</p>
+            <h1 className="mt-6 text-7xl font-black leading-[.84] tracking-[-0.09em]">Weiter<br /><span className="text-emerald-300">dartspielen.</span></h1>
+            <p className="mt-8 max-w-lg text-lg leading-8 text-zinc-400">Deine Matches, Turniere und Profilinformationen findest du direkt in deinem Konto.</p>
             <div className="mt-12 grid grid-cols-[auto_1fr] gap-x-5 gap-y-5 border-l border-emerald-300/25 pl-5">
-              {['Matchmaking öffnet direkt deine zuletzt gewählte Plattform.', 'Offene Ergebnisse und Turnier-Check-ins verpasst du nicht mehr.', 'Dein Profil, Elo und Match-Historie bleiben an einem Ort.'].map((item, index) => (
+              {['Matchmaking nutzt direkt deine zuletzt gewählte Plattform.', 'Offene Ergebnisse und Turnier-Check-ins siehst du in deinen Benachrichtigungen.', 'Profil, Elo und Match-Verlauf bleiben an einem Ort.'].map((item, index) => (
                 <div key={item} className="contents"><span className="grid h-7 w-7 place-items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 text-xs font-black text-emerald-200">0{index + 1}</span><span className="pt-1 text-sm font-semibold leading-5 text-zinc-300">{item}</span></div>
               ))}
             </div>

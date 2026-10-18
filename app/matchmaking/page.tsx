@@ -1300,8 +1300,8 @@ export default function Matchmaking() {
           </Link>
 
           <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
-            <Link href="/leaderboard" className="transition hover:text-white">Leaderboard</Link>
-            <Link href="/history" className="transition hover:text-white">History</Link>
+            <Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link>
+            <Link href="/history" className="transition hover:text-white">Match-Verlauf</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
             <Link href="/premium" className="border border-emerald-300/35 px-3 py-1.5 font-bold text-emerald-200 transition hover:bg-emerald-300/10">Premium</Link>
           </div>
@@ -1317,8 +1317,8 @@ export default function Matchmaking() {
         {mobileMenuOpen && (
           <div className="border-t border-white/10 bg-[#0a0d0d] px-3 py-3 sm:px-5 sm:py-4 lg:hidden">
             <div className="flex flex-col gap-1">
-              <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Leaderboard</Link>
-              <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match History</Link>
+              <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Rangliste</Link>
+              <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match-Verlauf</Link>
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
             </div>
@@ -1348,18 +1348,18 @@ export default function Matchmaking() {
         <div className="relative">
           <div className="inline-flex items-center gap-3 border-l-2 border-emerald-300 pl-3 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100">
             <span className="h-2 w-2 rounded-full bg-emerald-200" />
-            {matchmakingEnabled ? 'Arena online' : 'Arena pausiert'}
+            {matchmakingEnabled ? 'Matchmaking aktiv' : 'Matchmaking pausiert'}
           </div>
-          <div className="mt-7 border-t border-white/15 pt-4 font-mono text-[11px] font-bold tracking-[0.22em] text-zinc-500">RANKED / SEASON 01</div>
-          <h1 className="mt-4 max-w-3xl text-[2.65rem] font-black leading-[0.84] tracking-[-0.075em] min-[380px]:text-5xl sm:text-6xl md:text-7xl lg:text-[5.4rem]">Dein nächstes<br /><span className="text-emerald-300">Duell beginnt</span><br />am Oche.</h1>
-          <p className="mt-6 max-w-xl text-[15px] leading-7 text-zinc-400 sm:mt-7 sm:text-lg">Wähle eine oder mehrere Plattformen. Das System findet deinen Gegner nach Elo, Plattform und aktuellem Queue-Status.</p>
+          <div className="mt-7 border-t border-white/15 pt-4 font-mono text-[11px] font-bold tracking-[0.22em] text-zinc-500">RANKED / SAISON 1</div>
+          <h1 className="mt-4 max-w-3xl text-[2.65rem] font-black leading-[0.84] tracking-[-0.075em] min-[380px]:text-5xl sm:text-6xl md:text-7xl lg:text-[5.4rem]">Finde dein nächstes<br /><span className="text-emerald-300">Ranked-Match.</span></h1>
+          <p className="mt-6 max-w-xl text-[15px] leading-7 text-zinc-400 sm:mt-7 sm:text-lg">Wähle eine oder mehrere Plattformen. Wir suchen passende Gegner nach Elo, Plattform und aktueller Suche.</p>
           <div className="mt-7 flex items-center gap-3 border border-white/15 bg-[#0d1110] px-4 py-4 sm:mt-8 sm:gap-5 sm:px-5">
             <div className="grid h-11 w-11 shrink-0 place-items-center border border-emerald-300/30 bg-emerald-400/10 text-emerald-200 sm:h-12 sm:w-12"><Users className="h-5 w-5" /></div>
             <div className="min-w-0">
               <div className="text-3xl font-black leading-none tracking-[-0.06em]">{totalQueuePlayers}</div>
               <div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.22em]">Spieler suchen gerade</div>
             </div>
-            <div className="ml-auto shrink-0 text-right text-[11px] font-bold text-zinc-500 sm:text-xs"><span className="text-emerald-300">Live</span><br />Queue-Status</div>
+            <div className="ml-auto shrink-0 text-right text-[11px] font-bold text-zinc-500 sm:text-xs"><span className="text-emerald-300">Live</span><br />Spielersuche</div>
           </div>
 
           {cooldownSeconds > 0 && (
@@ -1419,9 +1419,9 @@ export default function Matchmaking() {
           <div className="relative mb-6 flex min-w-0 items-center justify-between gap-2 border-b border-white/[0.08] pb-4 sm:mb-7">
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <div className="grid h-9 w-9 shrink-0 place-items-center border border-emerald-300/25 bg-emerald-400/10"><Radar className="h-4 w-4 text-emerald-200" /></div>
-              <div className="min-w-0"><div className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300 sm:text-[10px] sm:tracking-[0.24em]">Queue Control</div><div className="mt-0.5 truncate text-sm font-bold text-zinc-300">Ranked Matchmaking</div></div>
+              <div className="min-w-0"><div className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300 sm:text-[10px] sm:tracking-[0.24em]">Matchsuche</div><div className="mt-0.5 truncate text-sm font-bold text-zinc-300">Ranked Matchmaking</div></div>
             </div>
-            <div className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] sm:gap-2 sm:px-3 sm:text-[10px] sm:tracking-[0.16em] ${matchmakingEnabled ? 'border-emerald-300/20 bg-emerald-400/[0.07] text-emerald-200' : 'border-red-300/20 bg-red-500/[0.08] text-red-100'}`}><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${matchmakingEnabled ? 'bg-emerald-300' : 'bg-red-300'}`} />{matchmakingEnabled ? 'bereit' : 'pausiert'}</div>
+            <div className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] sm:gap-2 sm:px-3 sm:text-[10px] sm:tracking-[0.16em] ${matchmakingEnabled ? 'border-emerald-300/20 bg-emerald-400/[0.07] text-emerald-200' : 'border-red-300/20 bg-red-500/[0.08] text-red-100'}`}><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${matchmakingEnabled ? 'bg-emerald-300' : 'bg-red-300'}`} />{matchmakingEnabled ? 'aktiv' : 'pausiert'}</div>
           </div>
 
           {/* IDLE: App-Auswahl */}
@@ -1430,14 +1430,14 @@ export default function Matchmaking() {
               <div className="mx-auto mb-6 grid h-20 w-20 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
                 <Swords className="h-9 w-9" />
               </div>
-              <h2 className="text-center text-3xl font-black leading-none tracking-[-0.06em] min-[380px]:text-4xl md:text-5xl">Wähle deine<br /><span className="text-emerald-300">Queues.</span></h2>
+              <h2 className="text-center text-3xl font-black leading-none tracking-[-0.06em] min-[380px]:text-4xl md:text-5xl">Wähle deine<br /><span className="text-emerald-300">Plattformen.</span></h2>
               <p className="mx-auto mt-4 max-w-md text-center text-sm leading-6 text-zinc-400">Du kannst mehrere Plattformen gleichzeitig aktivieren. Sobald irgendwo ein Match gefunden wird, endet die Suche auf allen anderen Plattformen automatisch.</p>
               <div className="mx-auto mt-6 grid max-w-3xl gap-px overflow-hidden border border-white/10 bg-white/10 text-left sm:grid-cols-3">
-                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Aktiv in der Queue</div><div className="mt-1 text-2xl font-black text-emerald-200">{totalQueuePlayers}</div><p className="mt-1 text-xs leading-5 text-zinc-500">eindeutige Spieler über alle Plattformen</p></div>
-                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Deine Auswahl</div><div className="mt-1 text-2xl font-black text-white">{selectedApps.length || '—'}</div><p className="mt-1 text-xs leading-5 text-zinc-500">{selectedApps.length ? `${selectedQueueSignals} Queue-Signale auf deinen Plattformen` : 'Wähle mindestens eine Plattform'}</p></div>
-                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Live-Stand</div><div className="mt-1 flex items-center gap-2 text-sm font-black text-cyan-100"><span className="h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />Aktualisiert</div><p className="mt-1 text-xs leading-5 text-zinc-500">{queueFreshnessLabel} · Zähler alle 5 Sekunden</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Aktiv in der Suche</div><div className="mt-1 text-2xl font-black text-emerald-200">{totalQueuePlayers}</div><p className="mt-1 text-xs leading-5 text-zinc-500">Spieler über alle Plattformen</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Deine Auswahl</div><div className="mt-1 text-2xl font-black text-white">{selectedApps.length || '—'}</div><p className="mt-1 text-xs leading-5 text-zinc-500">{selectedApps.length ? `${selectedQueueSignals} aktive Suchen auf deinen Plattformen` : 'Wähle mindestens eine Plattform'}</p></div>
+                <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Zuletzt aktualisiert</div><div className="mt-1 flex items-center gap-2 text-sm font-black text-cyan-100"><span className="h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />Aktuell</div><p className="mt-1 text-xs leading-5 text-zinc-500">{queueFreshnessLabel} · Zähler alle 5 Sekunden</p></div>
               </div>
-              <p className="mx-auto mt-3 max-w-3xl text-center text-[11px] leading-5 text-zinc-500">Queue-Signale zählen Plattform-Suchen. Derselbe Spieler kann mehrere Plattformen wählen und wird deshalb im Gesamttotal nur einmal gezählt.</p>
+              <p className="mx-auto mt-3 max-w-3xl text-center text-[11px] leading-5 text-zinc-500">Die Zahl zeigt aktive Suchen. Spieler mit mehreren Plattformen werden insgesamt nur einmal gezählt.</p>
               {dailyQuota && <div className={`mx-auto mt-5 flex w-full max-w-md items-center justify-center gap-2 border px-4 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.1em] sm:w-fit sm:max-w-none sm:rounded-full sm:tracking-[0.13em] ${dailyQuota.is_premium ? 'border-amber-300/25 bg-amber-400/10 text-amber-100' : dailyQuota.daily_limit === null ? 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-zinc-300'}`}><Zap className="h-3.5 w-3.5 shrink-0" />{dailyQuota.is_premium ? 'Premium · Unbegrenzte Matches' : dailyQuota.daily_limit === null ? 'Mittwoch Showdown · Kein Tageslimit' : `Free · ${dailyMatchesUsed}/${dailyQuota.daily_limit} Matches heute`}</div>}
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1795,7 +1795,7 @@ export default function Matchmaking() {
           </div>
           <div className="border border-white/10 bg-[#0d1110] p-5 sm:p-6">
             <CheckCircle2 className="h-7 w-7 text-lime-300" />
-            <h3 className="mt-4 text-xl font-black">Direkt zum Result</h3>
+            <h3 className="mt-4 text-xl font-black">Weiter zur Ergebniseingabe</h3>
             <p className="mt-2 text-sm leading-6 text-zinc-400">Nach einem Treffer geht es automatisch zur Ergebnis-Eingabe für dein Match.</p>
           </div>
         </div>

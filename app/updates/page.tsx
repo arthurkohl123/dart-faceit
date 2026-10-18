@@ -16,31 +16,31 @@ const updates: Array<{
 }> = [
   {
     date: '01. September 2026',
-    title: 'Live Support: klarer, schneller, direkter',
+    title: 'Live-Support überarbeitet',
     category: 'Experience',
-    content: 'Der Live Support ist jetzt direkt über den Chat erreichbar. Ist gerade niemand im Dienst, siehst du sofort „Live Support offline“. Im Gespräch sind Admin-Nachrichten klar markiert, und wenn ein Chat beendet wird, erhältst du direkt eine eindeutige Abschlussmeldung. So weißt du jederzeit, woran du bist.',
+    content: 'Den Live-Support erreichst du jetzt direkt über den Chat. Wenn niemand im Dienst ist, wird das klar angezeigt. Admin-Nachrichten und abgeschlossene Gespräche sind ebenfalls besser erkennbar.',
     highlight: true,
     label: 'LIVE SUPPORT',
   },
   {
     date: '26. August 2026',
-    title: 'Ranked Arena: Matchmaking neu gedacht',
+    title: 'Matchmaking wurde überarbeitet',
     category: 'Experience',
-    content: 'Matchmaking ist jetzt als fokussierte Ranked Arena aufgebaut: Live-Queue, Plattformwahl, Queue-Control und eine deutlich klarere Match-Suche. Scolia und DartCounter bleiben selbstverständlich getrennt.',
+    content: 'Die Spielersuche zeigt jetzt Live-Aktivität, Plattformwahl und Suchstatus übersichtlicher. Scolia, DartCounter und AutoDarts bleiben getrennt.',
     highlight: true,
     label: 'LIVE NOW',
   },
   {
     date: '26. August 2026',
-    title: 'Dein Career Archive ist da',
+    title: 'Match-Verlauf erweitert',
     category: 'Experience',
-    content: 'Die Match History wurde zum persönlichen Karriere-Archiv erweitert. Season Snapshot, Form, Elo-Bilanz, detaillierte Matchkarten und schnelle Filter machen Fortschritt endlich sichtbar.',
+    content: 'Im Match-Verlauf siehst du Elo-Bilanz, aktuelle Form, Matchdetails und Filter nach Zeitraum, Plattform und Spielmodus.',
     highlight: true,
     label: 'IMPROVED',
   },
   {
     date: '25. August 2026',
-    title: 'Premium & tägliches Match-Limit',
+    title: 'Kostenloser Zugang und Premium',
     category: 'System',
     content: 'Free-Spieler können bis zu vier Ranked Matches pro Tag starten. Das Kontingent wird um 00:00 Uhr zurückgesetzt; Premium-Mitglieder spielen unbegrenzt. Das Limit wird zuverlässig serverseitig geprüft.',
     highlight: false,
@@ -48,9 +48,9 @@ const updates: Array<{
   },
   {
     date: '10. Juni 2026',
-    title: 'Neue Statistiken & Match-Informationen',
+    title: 'Mehr Statistiken im Match-Verlauf',
     category: 'Feature',
-    content: 'Spielerstatistiken wurden erweitert: Average im Leaderboard, Gegner-Average im Match, 180er, Best-Average und mehr Kontext in der Match-History.',
+    content: 'Neu sind Average in der Rangliste, Gegner-Average im Match, 180er, Best-Average und weitere Details im Match-Verlauf.',
     highlight: false,
     label: 'FEATURE',
   },
@@ -69,6 +69,13 @@ const categoryStyles: Record<UpdateCategory, string> = {
   System: 'border-amber-300/25 bg-amber-400/10 text-amber-100',
   Experience: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100',
   Announcement: 'border-violet-300/25 bg-violet-400/10 text-violet-100',
+};
+
+const categoryLabels: Record<UpdateCategory, string> = {
+  Feature: 'Funktion',
+  System: 'System',
+  Experience: 'Verbesserung',
+  Announcement: 'Hinweis',
 };
 
 export default function Updates() {
@@ -102,11 +109,11 @@ export default function Updates() {
           <div>
             <div className="h-full overflow-hidden border border-white/[0.10] border-l-2 border-l-emerald-300 bg-[#0d1110] p-6 sm:p-8">
               <div className="inline-flex items-center gap-3 border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-100">
-                <Sparkles className="h-3.5 w-3.5" /> Product feed
+                <Sparkles className="h-3.5 w-3.5" /> Neu bei RankedDarts
               </div>
-              <div className="mt-7 flex items-end gap-4"><div className="font-mono text-[10px] font-bold tracking-[0.28em] text-emerald-300/70">RANKEDDARTS // RELEASE NOTES</div><div className="mb-1 h-px flex-1 bg-emerald-300/45" /></div>
-              <h1 className="mt-3 text-5xl font-black leading-[0.84] tracking-[-0.075em] md:text-7xl">WAS IST<br /><span className="text-emerald-300">NEU?</span></h1>
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">Neue Features, sichtbare Verbesserungen und wichtige System-Updates aus der RankedDarts Arena.</p>
+              <div className="mt-7 flex items-end gap-4"><div className="font-mono text-[10px] font-bold tracking-[0.28em] text-emerald-300/70">ÄNDERUNGEN BEI RANKEDDARTS</div><div className="mb-1 h-px flex-1 bg-emerald-300/45" /></div>
+              <h1 className="mt-3 text-5xl font-black leading-[0.84] tracking-[-0.075em] md:text-7xl">Was ist<br /><span className="text-emerald-300">neu?</span></h1>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">Neue Funktionen, Verbesserungen und wichtige System-Updates bei RankedDarts.</p>
             </div>
           </div>
 
@@ -114,14 +121,14 @@ export default function Updates() {
             <div className="border border-white/10 bg-[#0d1110] p-6">
               <Rocket className="h-5 w-5 text-cyan-200" />
               <div className="mt-5 text-5xl font-black tracking-[-0.07em]">{updates.length}</div>
-              <div className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">Releases</div>
-              <div className="mt-1 text-xs text-zinc-500">im Product Feed</div>
+              <div className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">Aktualisierungen</div>
+              <div className="mt-1 text-xs text-zinc-500">auf dieser Seite</div>
             </div>
             <div className="border border-emerald-300/20 bg-emerald-400/[0.08] p-6">
               <CheckCircle2 className="h-5 w-5 text-emerald-200" />
               <div className="mt-5 text-5xl font-black tracking-[-0.07em]">{highlightedUpdates}</div>
-              <div className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Highlights</div>
-              <div className="mt-1 text-xs text-zinc-500">direkt im Fokus</div>
+              <div className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Wichtige Änderungen</div>
+              <div className="mt-1 text-xs text-zinc-500">aktuell ausgewählt</div>
             </div>
           </div>
         </div>
@@ -129,15 +136,15 @@ export default function Updates() {
         <article className="group relative mb-12 overflow-hidden border border-emerald-300/25 border-t-2 border-t-emerald-300 bg-[#0d1110] p-6 sm:p-8 md:p-10">
           <div className="relative grid gap-8 lg:grid-cols-[1fr_.48fr] lg:items-end">
             <div>
-              <div className="flex flex-wrap items-center gap-3"><span className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">Latest release</span><span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${categoryStyles[latestUpdate.category]}`}>{latestUpdate.category}</span></div>
+              <div className="flex flex-wrap items-center gap-3"><span className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">Letzte Änderung</span><span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${categoryStyles[latestUpdate.category]}`}>{categoryLabels[latestUpdate.category]}</span></div>
               <h2 className="mt-6 max-w-3xl text-4xl font-black leading-[0.94] tracking-[-0.06em] sm:text-5xl">{latestUpdate.title}</h2>
               <p className="mt-5 max-w-3xl text-base leading-7 text-zinc-300">{latestUpdate.content}</p>
             </div>
-            <div className="border border-white/[0.10] bg-black/20 p-5"><div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Release status</div><div className="mt-3 flex items-center gap-2 text-lg font-black text-emerald-100"><span className="h-2.5 w-2.5 bg-emerald-300" />{latestUpdate.label}</div><div className="mt-5 border-t border-white/[0.08] pt-4 text-sm font-bold text-zinc-400">{latestUpdate.date}</div><Link href="/matchmaking" className="mt-5 inline-flex items-center gap-2 text-sm font-black text-emerald-200 transition hover:text-white">Zur Ranked Arena <ArrowUpRight className="h-4 w-4" /></Link></div>
+            <div className="border border-white/[0.10] bg-black/20 p-5"><div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Status</div><div className="mt-3 flex items-center gap-2 text-lg font-black text-emerald-100"><span className="h-2.5 w-2.5 bg-emerald-300" />{latestUpdate.label}</div><div className="mt-5 border-t border-white/[0.08] pt-4 text-sm font-bold text-zinc-400">{latestUpdate.date}</div><Link href="/matchmaking" className="mt-5 inline-flex items-center gap-2 text-sm font-black text-emerald-200 transition hover:text-white">Zum Matchmaking <ArrowUpRight className="h-4 w-4" /></Link></div>
           </div>
         </article>
 
-        <div className="mb-7 flex flex-wrap items-center justify-between gap-4"><div><div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Release timeline</div><h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">Alle Änderungen</h2></div><div className="flex flex-wrap gap-2">{(['All', 'Experience', 'Feature', 'System', 'Announcement'] as const).map((category) => <button key={category} onClick={() => setFilter(category)} className={`rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition ${filter === category ? 'border-emerald-300/35 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.03] text-zinc-500 hover:text-white'}`}>{category === 'All' ? 'Alle' : category}</button>)}</div></div>
+        <div className="mb-7 flex flex-wrap items-center justify-between gap-4"><div><div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Änderungsverlauf</div><h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">Alle Änderungen</h2></div><div className="flex flex-wrap gap-2">{(['All', 'Experience', 'Feature', 'System', 'Announcement'] as const).map((category) => <button key={category} onClick={() => setFilter(category)} className={`rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition ${filter === category ? 'border-emerald-300/35 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.03] text-zinc-500 hover:text-white'}`}>{category === 'All' ? 'Alle' : categoryLabels[category]}</button>)}</div></div>
 
         <div className="relative">
           <div className="absolute bottom-8 left-6 top-8 hidden w-px bg-gradient-to-b from-emerald-300/60 via-white/10 to-transparent md:block" />
@@ -155,7 +162,7 @@ export default function Updates() {
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                   <div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${categoryStyles[update.category]}`}>{update.category}</span>
+                      <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${categoryStyles[update.category]}`}>{categoryLabels[update.category]}</span>
                       {update.highlight && (
                         <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-cyan-200">Highlight</span>
                       )}

@@ -7,7 +7,7 @@ import { useAuth } from '@/app/providers';
 const steps = [
   {
     number: '01',
-    title: 'Bereit machen',
+    title: 'Plattform einrichten',
     text: 'Hinterlege mindestens eine Plattform – Scolia, DartCounter oder AutoDarts. Nur damit kann die Queue einen passenden Gegner finden.',
     href: '/profile#platforms',
     action: 'Plattform einrichten',
@@ -41,8 +41,8 @@ export default function GettingStartedPage() {
       <div className="mx-auto max-w-5xl">
         <Link href="/profile" className="text-sm font-bold text-zinc-500 transition hover:text-white">← Zurück zum Profil</Link>
         <header className="mt-6 overflow-hidden rounded-[2rem] border border-emerald-300/20 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.17),transparent_48%),linear-gradient(135deg,#0d1211,#090a0b)] p-7 shadow-2xl shadow-black/40 sm:p-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100"><CircleHelp className="h-3.5 w-3.5" /> Dein erster Ranked-Run</div>
-          <h1 className="mt-5 max-w-3xl text-4xl font-black tracking-[-0.07em] sm:text-6xl">Von der Anmeldung bis zum ersten Ergebnis.</h1>
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100"><CircleHelp className="h-3.5 w-3.5" /> Erste Schritte</div>
+          <h1 className="mt-5 max-w-3xl text-4xl font-black tracking-[-0.07em] sm:text-6xl">So startest du bei RankedDarts.</h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">Kein unnötiger Kram: Plattform verbinden, Queue starten, Match bestätigen. Dieser Ablauf erklärt dir genau, was wann passiert.</p>
           {!loading && profile && <div className={`mt-6 inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold ${isReady ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-amber-300/25 bg-amber-400/10 text-amber-100'}`}>
             {isReady ? <CheckCircle2 className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
