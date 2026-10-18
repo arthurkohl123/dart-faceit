@@ -19,6 +19,7 @@ type TournamentAnnouncement = {
   dart_mode: string;
   prize_title: string | null;
   prize_details: string | null;
+  payout_deadline_days: number | null;
   status: string;
   discord_announcement_sent_at: string | null;
 };
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
 
   const { data: tournament, error: tournamentError } = await admin
     .from('tournaments')
-    .select('id, title, description, starts_at, registration_closes_at, max_players, best_of, premium_only, scoring_platform, tournament_format, dart_mode, prize_title, prize_details, status, discord_announcement_sent_at')
+    .select('id, title, description, starts_at, registration_closes_at, max_players, best_of, premium_only, scoring_platform, tournament_format, dart_mode, prize_title, prize_details, payout_deadline_days, status, discord_announcement_sent_at')
     .eq('id', body.tournamentId)
     .maybeSingle<TournamentAnnouncement>();
 
@@ -98,6 +99,10 @@ export async function POST(request: Request) {
   const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rankeddarts.de').replace(/\/$/, '');
   const tournamentUrl = `${siteUrl}/tournaments/${tournament.id}`;
   const prize = tournament.prize_title || tournament.prize_details || 'Wöchentliche Preise – siehe Turnierseite';
+  const hasPrize = Boolean(tournament.prize_title?.trim());
+  const payoutDeadline = hasPrize && Number.isInteger(tournament.payout_deadline_days) && (tournament.payout_deadline_days || 0) > 0
+    ? `Spätestens innerhalb von ${tournament.payout_deadline_days} Kalendertagen nach endgültiger Platzierungsfeststellung.`
+    : null;
   const description = trimField(tournament.description || 'Die Anmeldung ist jetzt geöffnet. Sichere dir deinen Platz und sei beim Turnier dabei.', 900);
 
   const payload = {
@@ -118,6 +123,7 @@ export async function POST(request: Request) {
         { name: '🎲 Spielmodus', value: labelForDartMode(tournament.dart_mode), inline: true },
         { name: '👥 Plätze', value: `${tournament.max_players} Teilnehmer`, inline: true },
         { name: '💰 Preise', value: trimField(prize, 1024), inline: false },
+        ...(payoutDeadline ? [{ name: '💶 Auszahlung', value: payoutDeadline, inline: false }] : []),
       ],
       footer: { text: 'RankedDarts · Jetzt anmelden' },
       timestamp: new Date().toISOString(),

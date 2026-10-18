@@ -244,7 +244,7 @@ export default function Register() {
             phone_number: normalizedPhoneNumber || null,
               phone_verified: !smsVerificationEnabled,
               terms_accepted: true,
-              terms_version: '2026-08-27',
+              terms_version: '2026-10-18',
               age_confirmed: true,
               age_confirmed_at: new Date().toISOString(),
             },
