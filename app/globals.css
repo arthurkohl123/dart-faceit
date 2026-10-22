@@ -145,6 +145,231 @@ body {
   background: rgba(13, 17, 16, .72);
 }
 
+/* Matchmaking is a working surface, not another dashboard. The player sees
+   the state of the search first; platform selection and live context follow
+   as parts of the same field. */
+.matchmaking-page {
+  min-height: 100vh;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(42rem 30rem at 98% 5%, rgba(83, 226, 153, .10), transparent 64%),
+    radial-gradient(34rem 24rem at -8% 24%, rgba(57, 150, 118, .08), transparent 66%),
+    #080b0a;
+}
+
+.matchmaking-page::before {
+  position: fixed;
+  z-index: -2;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  opacity: .48;
+  background-image:
+    linear-gradient(rgba(154, 240, 188, .038) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(154, 240, 188, .038) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 76%);
+}
+
+.matchmaking-page .matchmaking-nav {
+  border-color: rgba(255, 255, 255, .10);
+  background: rgba(8, 11, 10, .83);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .18);
+}
+
+.matchmaking-page .matchmaking-shell {
+  position: relative;
+  max-width: 90rem;
+}
+
+.matchmaking-page .matchmaking-intro {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-top: 1px solid rgba(255, 255, 255, .11);
+  border-bottom: 1px solid rgba(255, 255, 255, .11);
+  background:
+    linear-gradient(105deg, rgba(8, 11, 10, .98) 0%, rgba(8, 11, 10, .94) 48%, rgba(8, 11, 10, .64) 100%);
+}
+
+.matchmaking-page .matchmaking-intro::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 auto;
+  width: min(62%, 50rem);
+  content: '';
+  opacity: .19;
+  background:
+    linear-gradient(90deg, #080b0a 0%, transparent 36%),
+    url('/rankeddarts-hero-throw-v1.png') 64% center / cover no-repeat;
+  mask-image: linear-gradient(90deg, transparent, black 30%, black);
+}
+
+.matchmaking-page .matchmaking-intro::after {
+  position: absolute;
+  z-index: -1;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: clamp(8rem, 20vw, 18rem);
+  aspect-ratio: 1;
+  border: 1px solid rgba(154, 240, 188, .18);
+  border-radius: 50%;
+  content: '';
+  box-shadow: 0 0 0 34px rgba(154, 240, 188, .025), 0 0 0 68px rgba(154, 240, 188, .014);
+}
+
+.matchmaking-page .matchmaking-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  border-left: 2px solid #9af0bc;
+  padding-left: .75rem;
+  color: #b7f8d0;
+  font-size: .625rem;
+  font-weight: 900;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.matchmaking-page .matchmaking-title {
+  max-width: 48rem;
+  font-size: clamp(3.65rem, 7.1vw, 7.6rem);
+  font-weight: 900;
+  line-height: .8;
+  letter-spacing: -.09em;
+}
+
+.matchmaking-page .matchmaking-live-signal {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .55rem 1rem;
+  border-left: 1px solid rgba(154, 240, 188, .6);
+  padding-left: .8rem;
+  font-size: .78rem;
+}
+
+.matchmaking-page .matchmaking-queue-ledger {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(7, 10, 9, .66);
+  backdrop-filter: blur(14px);
+}
+
+.matchmaking-page .matchmaking-queue-ledger > * {
+  position: relative;
+}
+
+.matchmaking-page .matchmaking-queue-ledger > * + *::before {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  left: 0;
+  width: 1px;
+  content: '';
+  background: rgba(255, 255, 255, .10);
+}
+
+.matchmaking-page .matchmaking-console {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-top: 3px solid #9af0bc;
+  background:
+    linear-gradient(135deg, rgba(95, 230, 160, .075), transparent 31%),
+    #0d1110;
+  box-shadow: 18px 18px 0 rgba(0, 0, 0, .16), 0 25px 75px rgba(0, 0, 0, .28);
+}
+
+.matchmaking-page .matchmaking-console::after {
+  position: absolute;
+  top: -11rem;
+  right: -11rem;
+  width: 22rem;
+  height: 22rem;
+  border: 1px solid rgba(154, 240, 188, .11);
+  border-radius: 50%;
+  content: '';
+  box-shadow: 0 0 0 38px rgba(154, 240, 188, .017);
+  pointer-events: none;
+}
+
+.matchmaking-page .matchmaking-console > * {
+  position: relative;
+  z-index: 1;
+}
+
+.matchmaking-page .matchmaking-console-head {
+  border-bottom: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(3, 6, 5, .22);
+}
+
+.matchmaking-page .matchmaking-state-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(154, 240, 188, .32);
+  background: rgba(72, 207, 151, .075);
+}
+
+.matchmaking-page .matchmaking-state-mark::before,
+.matchmaking-page .matchmaking-state-mark::after {
+  position: absolute;
+  inset: -.65rem;
+  border: 1px solid rgba(154, 240, 188, .12);
+  content: '';
+}
+
+.matchmaking-page .matchmaking-state-mark::after {
+  inset: -1.35rem;
+  border-color: rgba(154, 240, 188, .055);
+}
+
+.matchmaking-page .matchmaking-platform-grid {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(255, 255, 255, .09);
+}
+
+.matchmaking-page .matchmaking-platform-grid > button {
+  min-height: 15rem;
+}
+
+.matchmaking-page .matchmaking-action-bar {
+  border: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(255, 255, 255, .025);
+}
+
+.matchmaking-page .matchmaking-search-progress {
+  box-shadow: 0 0 22px rgba(154, 240, 188, .26);
+}
+
+.matchmaking-page .matchmaking-live-board {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(13, 17, 16, .73);
+}
+
+.matchmaking-page .matchmaking-rule {
+  border-left: 2px solid rgba(154, 240, 188, .62);
+}
+
+@media (max-width: 1023px) {
+  .matchmaking-page .matchmaking-intro::before { width: 74%; opacity: .12; }
+}
+
+@media (max-width: 639px) {
+  .matchmaking-page .matchmaking-intro::before { width: 94%; opacity: .09; }
+  .matchmaking-page .matchmaking-intro::after { top: 3.25rem; right: -2.5rem; opacity: .6; }
+  .matchmaking-page .matchmaking-title { font-size: clamp(3.3rem, 16vw, 4.5rem); }
+  .matchmaking-page .matchmaking-queue-ledger > * + *::before { top: 0; right: 0; bottom: auto; left: 0; width: auto; height: 1px; }
+  .matchmaking-page .matchmaking-platform-grid > button { min-height: auto; }
+  .matchmaking-page .matchmaking-console { box-shadow: 8px 8px 0 rgba(0, 0, 0, .16); }
+}
+
 /* Player profile: one continuous player sheet instead of a dashboard of tiles. */
 .profile-performance-rail,
 .profile-account-rail,

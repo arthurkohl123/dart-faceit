@@ -1285,25 +1285,25 @@ export default function Matchmaking() {
   }
 
   return (
-    <main className="relative min-h-screen isolate overflow-hidden bg-[#0a0d0d] text-white">
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 sport-grid opacity-30" />
+    <main className="matchmaking-page text-white">
 
       {/* Nav */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-5 sm:py-4 md:px-8">
+      <nav className="matchmaking-nav fixed left-0 right-0 top-0 z-50 border-b backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[90rem] items-center justify-between gap-3 px-5 py-4 md:px-8 lg:px-10">
           <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
             <BrandLogo className="h-9 w-9 shrink-0 rounded-lg sm:h-10 sm:w-10" />
             <div className="min-w-0">
-              <div className="truncate text-sm font-black tracking-[-0.04em] sm:text-base md:text-xl">RANKEDDARTS</div>
-              <div className="hidden text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80 min-[380px]:block">Matchmaking</div>
+              <div className="truncate text-sm font-black tracking-[-0.05em] sm:text-base md:text-lg">RANKEDDARTS</div>
+              <div className="hidden text-[9px] font-black uppercase tracking-[0.25em] text-emerald-300 min-[380px]:block">Competitive darts</div>
             </div>
           </Link>
 
-          <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
+          <div className="hidden items-center gap-7 text-[13px] font-bold text-zinc-300 lg:flex">
             <Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link>
+            <Link href="/matchmaking" className="text-emerald-200">Matchmaking</Link>
             <Link href="/history" className="transition hover:text-white">Match-Verlauf</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
-            <Link href="/premium" className="border border-emerald-300/35 px-3 py-1.5 font-bold text-emerald-200 transition hover:bg-emerald-300/10">Premium</Link>
+            <Link href="/premium" className="border border-emerald-300/35 px-3 py-1.5 font-black text-emerald-200 transition hover:bg-emerald-300/10">Premium</Link>
           </div>
 
           <button
@@ -1343,23 +1343,19 @@ export default function Matchmaking() {
         </div>
       )}
 
-      <section className="relative z-10 mx-auto grid max-w-7xl items-start gap-7 px-3 pb-10 pt-24 sm:gap-8 sm:px-5 sm:pb-14 sm:pt-28 md:px-8 md:pt-32 lg:min-h-[calc(100vh-88px)] lg:items-center lg:gap-12 lg:grid-cols-[0.86fr_1.14fr]">
+      <section className="matchmaking-shell relative z-10 mx-auto grid items-start gap-8 px-5 pb-14 pt-28 md:px-8 md:pt-32 lg:min-h-[calc(100vh-88px)] lg:items-center lg:gap-12 lg:grid-cols-[0.83fr_1.17fr] lg:px-10">
         {/* Linke Spalte: Info */}
-        <div className="relative">
-          <div className="inline-flex items-center gap-3 border-l-2 border-emerald-300 pl-3 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100">
-            <span className="h-2 w-2 rounded-full bg-emerald-200" />
-            {matchmakingEnabled ? 'Matchmaking aktiv' : 'Matchmaking pausiert'}
+        <div className="matchmaking-intro px-5 py-8 sm:px-8 sm:py-10 lg:-mr-2 lg:px-9 lg:py-12">
+          <div className="matchmaking-kicker">
+            <span className={matchmakingEnabled ? 'h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.95)]' : 'h-1.5 w-1.5 rounded-full bg-red-300'} />
+            {matchmakingEnabled ? 'Ranked-Queue geöffnet' : 'Ranked-Queue pausiert'}
           </div>
-          <div className="mt-7 border-t border-white/15 pt-4 font-mono text-[11px] font-bold tracking-[0.22em] text-zinc-500">RANKED / SAISON 1</div>
-          <h1 className="mt-4 max-w-3xl text-[2.65rem] font-black leading-[0.84] tracking-[-0.075em] min-[380px]:text-5xl sm:text-6xl md:text-7xl lg:text-[5.4rem]">Finde dein nächstes<br /><span className="text-emerald-300">Ranked-Match.</span></h1>
-          <p className="mt-6 max-w-xl text-[15px] leading-7 text-zinc-400 sm:mt-7 sm:text-lg">Wähle eine oder mehrere Plattformen. Wir suchen passende Gegner nach Elo, Plattform und aktueller Suche.</p>
-          <div className="mt-7 flex items-center gap-3 border border-white/15 bg-[#0d1110] px-4 py-4 sm:mt-8 sm:gap-5 sm:px-5">
-            <div className="grid h-11 w-11 shrink-0 place-items-center border border-emerald-300/30 bg-emerald-400/10 text-emerald-200 sm:h-12 sm:w-12"><Users className="h-5 w-5" /></div>
-            <div className="min-w-0">
-              <div className="text-3xl font-black leading-none tracking-[-0.06em]">{totalQueuePlayers}</div>
-              <div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.22em]">Spieler suchen gerade</div>
-            </div>
-            <div className="ml-auto shrink-0 text-right text-[11px] font-bold text-zinc-500 sm:text-xs"><span className="text-emerald-300">Live</span><br />Spielersuche</div>
+          <div className="mt-7 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Ranked / Saison 1</div>
+          <h1 className="matchmaking-title mt-4">Finde deinen<br /><span className="text-emerald-300">nächsten Gegner.</span></h1>
+          <p className="mt-7 max-w-xl text-[15px] leading-7 text-zinc-300 sm:text-lg sm:leading-8">Wähle dein Setup. Wir suchen nach Elo, Plattform und Spielern, die gerade wirklich bereit sind.</p>
+          <div className="matchmaking-live-signal mt-7">
+            <span className="inline-flex items-center gap-2 font-black text-emerald-100"><Users className="h-3.5 w-3.5 text-emerald-300" /> Gerade in der Spielersuche</span>
+            <span className="text-zinc-400">{totalQueuePlayers === 1 ? '1 Spieler sucht gerade.' : totalQueuePlayers + ' Spieler suchen gerade.'}</span>
           </div>
 
           {cooldownSeconds > 0 && (
@@ -1389,23 +1385,23 @@ export default function Matchmaking() {
           )}
 
           {/* Queue-Übersicht */}
-          <div className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <div className="min-w-0 border border-white/10 bg-[#0d1110] p-3 sm:p-4">
+          <div className="matchmaking-queue-ledger mt-8 grid grid-cols-2 sm:grid-cols-4">
+            <div className="min-w-0 p-4 sm:p-5">
               <Timer className="h-5 w-5 text-zinc-300" />
               <div className="mt-3 text-2xl font-black tracking-[-0.05em]">{status === 'searching' ? `${elapsedSeconds}s` : '—'}</div>
               <div className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-600 sm:text-[10px] sm:tracking-[0.16em]">Suchzeit</div>
             </div>
-            <div className="min-w-0 border border-emerald-300/15 bg-emerald-400/[0.05] p-3 sm:p-4">
+            <div className="min-w-0 bg-emerald-400/[0.04] p-4 sm:p-5">
               <div className="flex min-w-0 items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300" /><span className="truncate text-[9px] font-black uppercase tracking-[0.11em] text-emerald-200 sm:text-[10px] sm:tracking-[0.14em]">Scolia</span></div>
               <div className="mt-3 text-2xl font-black tracking-[-0.05em] text-emerald-200">{queueCounts.scolia}</div>
               <div className="mt-1 text-[10px] font-bold text-emerald-200/50">in der Queue</div>
             </div>
-            <div className="min-w-0 border border-white/10 bg-[#0d1110] p-3 sm:p-4">
+            <div className="min-w-0 p-4 sm:p-5">
               <div className="flex min-w-0 items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full bg-zinc-300" /><span className="truncate text-[9px] font-black uppercase tracking-[0.11em] text-zinc-300 sm:text-[10px] sm:tracking-[0.14em]">DartCounter</span></div>
               <div className="mt-3 text-2xl font-black tracking-[-0.05em] text-zinc-100">{queueCounts.dartcounter}</div>
               <div className="mt-1 text-[10px] font-bold text-zinc-500">in der Queue</div>
             </div>
-            <div className="min-w-0 border border-white/10 bg-[#0d1110] p-3 sm:p-4">
+            <div className="min-w-0 p-4 sm:p-5">
               <div className="flex min-w-0 items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full bg-zinc-300" /><span className="truncate text-[9px] font-black uppercase tracking-[0.11em] text-zinc-300 sm:text-[10px] sm:tracking-[0.14em]">AutoDarts</span></div>
               <div className="mt-3 text-2xl font-black tracking-[-0.05em] text-zinc-100">{queueCounts.autodarts}</div>
               <div className="mt-1 text-[10px] font-bold text-zinc-500">in der Queue</div>
@@ -1414,9 +1410,8 @@ export default function Matchmaking() {
         </div>
 
         {/* Rechte Spalte: Matchmaking-Box */}
-        <div className="relative min-w-0 overflow-hidden border border-white/[0.15] bg-[#0d1110] p-4 shadow-[0_22px_60px_rgba(0,0,0,0.35)] sm:p-7 md:p-8">
-          <div className="absolute inset-x-0 top-0 h-[2px] bg-emerald-300" />
-          <div className="relative mb-6 flex min-w-0 items-center justify-between gap-2 border-b border-white/[0.08] pb-4 sm:mb-7">
+        <div className="matchmaking-console min-w-0 p-4 sm:p-7 md:p-8">
+          <div className="matchmaking-console-head relative -mx-4 -mt-4 mb-7 flex min-w-0 items-center justify-between gap-2 px-4 py-4 sm:-mx-7 sm:-mt-7 sm:mb-8 sm:px-7 md:-mx-8 md:-mt-8 md:px-8">
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <div className="grid h-9 w-9 shrink-0 place-items-center border border-emerald-300/25 bg-emerald-400/10"><Radar className="h-4 w-4 text-emerald-200" /></div>
               <div className="min-w-0"><div className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300 sm:text-[10px] sm:tracking-[0.24em]">Matchsuche</div><div className="mt-0.5 truncate text-sm font-bold text-zinc-300">Ranked Matchmaking</div></div>
@@ -1427,12 +1422,12 @@ export default function Matchmaking() {
           {/* IDLE: App-Auswahl */}
           {status === 'idle' && (
             <div className="relative">
-              <div className="mx-auto mb-6 grid h-20 w-20 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
+              <div className="matchmaking-state-mark mx-auto mb-8 h-20 w-20 text-emerald-100">
                 <Swords className="h-9 w-9" />
               </div>
-              <h2 className="text-center text-3xl font-black leading-none tracking-[-0.06em] min-[380px]:text-4xl md:text-5xl">Wähle deine<br /><span className="text-emerald-300">Plattformen.</span></h2>
-              <p className="mx-auto mt-4 max-w-md text-center text-sm leading-6 text-zinc-400">Du kannst mehrere Plattformen gleichzeitig aktivieren. Sobald irgendwo ein Match gefunden wird, endet die Suche auf allen anderen Plattformen automatisch.</p>
-              <div className="mx-auto mt-6 grid max-w-3xl gap-px overflow-hidden border border-white/10 bg-white/10 text-left sm:grid-cols-3">
+              <h2 className="text-center text-4xl font-black leading-[.86] tracking-[-0.07em] min-[380px]:text-5xl">Wähle dein<br /><span className="text-emerald-300">Spielsystem.</span></h2>
+              <p className="mx-auto mt-5 max-w-md text-center text-sm leading-6 text-zinc-400">Du kannst mehrere Plattformen aktivieren. Sobald ein Gegner passt, stoppt die Suche auf allen anderen automatisch.</p>
+              <div className="mx-auto mt-7 grid max-w-3xl gap-px overflow-hidden border border-white/10 bg-white/10 text-left sm:grid-cols-3">
                 <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Aktiv in der Suche</div><div className="mt-1 text-2xl font-black text-emerald-200">{totalQueuePlayers}</div><p className="mt-1 text-xs leading-5 text-zinc-500">Spieler über alle Plattformen</p></div>
                 <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Deine Auswahl</div><div className="mt-1 text-2xl font-black text-white">{selectedApps.length || '—'}</div><p className="mt-1 text-xs leading-5 text-zinc-500">{selectedApps.length ? `${selectedQueueSignals} aktive Suchen auf deinen Plattformen` : 'Wähle mindestens eine Plattform'}</p></div>
                 <div className="bg-[#0c100f] p-4"><div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Zuletzt aktualisiert</div><div className="mt-1 flex items-center gap-2 text-sm font-black text-cyan-100"><span className="h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />Aktuell</div><p className="mt-1 text-xs leading-5 text-zinc-500">{queueFreshnessLabel} · Zähler alle 5 Sekunden</p></div>
@@ -1440,7 +1435,7 @@ export default function Matchmaking() {
               <p className="mx-auto mt-3 max-w-3xl text-center text-[11px] leading-5 text-zinc-500">Die Zahl zeigt aktive Suchen. Spieler mit mehreren Plattformen werden insgesamt nur einmal gezählt.</p>
               {dailyQuota && <div className={`mx-auto mt-5 flex w-full max-w-md items-center justify-center gap-2 border px-4 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.1em] sm:w-fit sm:max-w-none sm:rounded-full sm:tracking-[0.13em] ${dailyQuota.is_premium ? 'border-amber-300/25 bg-amber-400/10 text-amber-100' : dailyQuota.daily_limit === null ? 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-zinc-300'}`}><Zap className="h-3.5 w-3.5 shrink-0" />{dailyQuota.is_premium ? 'Premium · Unbegrenzte Matches' : dailyQuota.daily_limit === null ? 'Mittwoch Showdown · Kein Tageslimit' : `Free · ${dailyMatchesUsed}/${dailyQuota.daily_limit} Matches heute`}</div>}
 
-              <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="matchmaking-platform-grid mt-8 grid gap-px sm:grid-cols-2 xl:grid-cols-3">
                 {(Object.keys(appConfig) as AppChoice[]).map((app) => {
                   const c = appConfig[app];
                   return (
@@ -1450,7 +1445,7 @@ export default function Matchmaking() {
                       disabled={cooldownSeconds > 0 || !matchmakingEnabled}
                       title={!matchmakingEnabled ? matchmakingMessage : cooldownSeconds > 0 ? getCooldownMessage() : undefined}
                       aria-pressed={selectedApps.includes(app)}
-                      className={`group relative min-w-0 overflow-hidden border bg-black/20 p-4 text-left transition-all duration-300 sm:p-5 ${selectedApps.includes(app) ? c.borderActive : 'border-white/10'} ${cooldownSeconds > 0 || !matchmakingEnabled ? 'cursor-not-allowed opacity-55' : `${c.borderHover} hover:-translate-y-1 hover:bg-white/[0.035]`}`}
+                      className={`group relative min-w-0 overflow-hidden bg-[#0c100f] p-4 text-left transition-all duration-300 sm:p-5 ${selectedApps.includes(app) ? c.borderActive : 'border-transparent'} ${cooldownSeconds > 0 || !matchmakingEnabled ? 'cursor-not-allowed opacity-55' : `${c.borderHover} hover:-translate-y-1 hover:bg-white/[0.035]`}`}
                     >
                       <div className="absolute right-4 top-3 text-3xl opacity-70 transition duration-300 group-hover:scale-110 group-hover:opacity-100">{c.icon}</div>
                       <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Plattform</div>
@@ -1482,7 +1477,7 @@ export default function Matchmaking() {
                   );
                 })}
               </div>
-              <div className="mt-5 flex flex-col items-stretch gap-3 border border-white/10 bg-white/[0.025] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="matchmaking-action-bar mt-5 flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 text-center sm:text-left">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Aktive Auswahl</div>
                   <div className="mt-1 text-sm font-bold text-zinc-200">{selectedApps.length ? selectedApps.map((app) => appConfig[app].label).join(' · ') : 'Noch keine Plattform gewählt'}</div>
@@ -1500,8 +1495,8 @@ export default function Matchmaking() {
 
           {/* SEARCHING */}
           {status === 'searching' && selectedApps.length > 0 && (
-            <div className="relative text-center">
-              <div className={`mx-auto grid h-24 w-24 animate-pulse place-items-center border ${cfg.borderActive} bg-[#101714] text-white`}>
+            <div className="relative text-center" aria-live="polite">
+              <div className={`matchmaking-state-mark mx-auto h-24 w-24 animate-pulse ${cfg.borderActive} bg-[#101714] text-white`}>
                 <Activity className="h-14 w-14" />
               </div>
 
@@ -1515,8 +1510,8 @@ export default function Matchmaking() {
                 })}
               </div>
 
-              <h2 className="mt-4 text-3xl font-black tracking-[-0.05em] min-[380px]:text-4xl">Gegner wird gesucht</h2>
-              <p className="mt-3 text-zinc-400">Aktueller Elo-Suchradius: <span className="font-black text-emerald-300">±{currentRange}</span></p>
+              <h2 className="mt-6 text-4xl font-black leading-[.9] tracking-[-0.07em] min-[380px]:text-5xl">Gegner wird<br /><span className="text-emerald-300">gesucht.</span></h2>
+              <p className="mt-4 text-zinc-400">Aktueller Elo-Suchradius: <span className="font-black text-emerald-300">±{currentRange}</span></p>
               <div className="mx-auto mt-5 grid max-w-3xl grid-cols-2 gap-px overflow-hidden border border-white/10 bg-white/10 text-left lg:grid-cols-4">
                 <div className="min-w-0 bg-[#0c100f] p-3 sm:p-4"><div className="text-[9px] font-black uppercase tracking-[0.1em] text-zinc-500 sm:text-[10px] sm:tracking-[0.16em]">Deine Queues</div><div className="mt-1 text-lg font-black text-white">{selectedApps.length}</div><p className="mt-1 text-xs leading-5 text-zinc-500">parallel aktiv</p></div>
                 <div className="min-w-0 bg-[#0c100f] p-3 sm:p-4"><div className="text-[9px] font-black uppercase tracking-[0.1em] text-zinc-500 sm:text-[10px] sm:tracking-[0.16em]">Passende Gegner</div><div className={`mt-1 text-lg font-black ${queueInsight?.compatiblePlayers ? 'text-emerald-200' : 'text-zinc-300'}`}>{queueInsight ? queueInsight.compatiblePlayers : '…'}</div><p className="mt-1 text-xs leading-5 text-zinc-500">im aktuellen Elo-Bereich</p></div>
@@ -1539,7 +1534,7 @@ export default function Matchmaking() {
               )}
 
               <div className="mt-8 h-2 overflow-hidden bg-white/10">
-                <div className="h-full bg-emerald-300 transition-all" style={{ width: `${searchProgress}%` }} />
+                <div className="matchmaking-search-progress h-full bg-emerald-300 transition-all" style={{ width: `${searchProgress}%` }} />
               </div>
 
               <div className="mt-8 grid grid-flow-col auto-cols-[minmax(10.5rem,1fr)] gap-3 overflow-x-auto pb-2 text-left sm:grid-flow-row sm:auto-cols-auto sm:grid-cols-3 lg:grid-cols-6">
@@ -1725,7 +1720,7 @@ export default function Matchmaking() {
 
         {/* Live-Matches */}
         <div className="min-w-0 lg:col-span-2">
-          <div className="overflow-hidden border border-white/15 bg-[#0d1110]">
+          <div className="matchmaking-live-board">
             <div className="flex items-center gap-3 border-b border-white/10 bg-black/20 px-4 py-4 sm:px-5">
               <Swords className="h-5 w-5 text-emerald-300" />
               <div>
@@ -1782,21 +1777,21 @@ export default function Matchmaking() {
         </div>
 
         {/* Feature-Cards */}
-        <div className="grid gap-4 sm:gap-5 sm:grid-cols-3 lg:col-span-2">
-          <div className="border border-white/10 bg-[#0d1110] p-5 sm:p-6">
+        <div className="grid border-y border-white/10 sm:grid-cols-3 lg:col-span-2">
+          <div className="matchmaking-rule px-5 py-7 sm:px-6 sm:py-8">
             <ShieldCheck className="h-7 w-7 text-emerald-300" />
-            <h3 className="mt-4 text-xl font-black">App-getrennte Queues</h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Scolia-, DartCounter- und AutoDarts-Spieler werden in getrennten Queues geführt und nur innerhalb derselben Plattform gematcht.</p>
+            <h3 className="mt-5 text-xl font-black tracking-[-0.04em]">Nur dein Spielsystem.</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Scolia, DartCounter und AutoDarts bleiben getrennt. Du spielst nur dort, wo dein Board bereit ist.</p>
           </div>
-          <div className="border border-white/10 bg-[#0d1110] p-5 sm:p-6">
+          <div className="border-t border-white/10 px-5 py-7 sm:border-l sm:border-t-0 sm:px-6 sm:py-8">
             <Timer className="h-7 w-7 text-zinc-300" />
-            <h3 className="mt-4 text-xl font-black">Fairer Elo-Radius</h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Der Suchbereich wächst automatisch, damit Matches fair bleiben und trotzdem schnell zustande kommen.</p>
+            <h3 className="mt-5 text-xl font-black tracking-[-0.04em]">Fair starten, weiter öffnen.</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Der Elo-Bereich wächst schrittweise. So bleibt der Start nah an deinem Level, ohne dich ewig warten zu lassen.</p>
           </div>
-          <div className="border border-white/10 bg-[#0d1110] p-5 sm:p-6">
+          <div className="border-t border-white/10 px-5 py-7 sm:border-l sm:border-t-0 sm:px-6 sm:py-8">
             <CheckCircle2 className="h-7 w-7 text-lime-300" />
-            <h3 className="mt-4 text-xl font-black">Weiter zur Ergebniseingabe</h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Nach einem Treffer geht es automatisch zur Ergebnis-Eingabe für dein Match.</p>
+            <h3 className="mt-5 text-xl font-black tracking-[-0.04em]">Treffer? Du entscheidest.</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Beide bestätigen den Fund. Danach geht es direkt in euren Matchroom und nach dem Spiel zur Ergebniseingabe.</p>
           </div>
         </div>
       </section>
