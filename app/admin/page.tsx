@@ -65,6 +65,7 @@ type Profile = {
   is_admin: boolean | null;
   is_moderator: boolean | null;
   is_streamer: boolean | null;
+  twitch_url: string | null;
   phone_verified: boolean | null;
   isPremium: boolean | null;
   stripe_subscription_status: string | null;
@@ -497,6 +498,9 @@ export default function AdminPanel() {
   const [premiumReason, setPremiumReason] = useState('');
   const [premiumSavingUserId, setPremiumSavingUserId] = useState<string | null>(null);
   const [streamerSavingUserId, setStreamerSavingUserId] = useState<string | null>(null);
+  const [twitchEditorUserId, setTwitchEditorUserId] = useState<string | null>(null);
+  const [twitchUrlInput, setTwitchUrlInput] = useState('');
+  const [twitchSavingUserId, setTwitchSavingUserId] = useState<string | null>(null);
   const [premiumCodes, setPremiumCodes] = useState<PremiumCode[]>([]);
   const [premiumCodesLoading, setPremiumCodesLoading] = useState(false);
   const [premiumCodesError, setPremiumCodesError] = useState<string | null>(null);
@@ -1453,6 +1457,33 @@ export default function AdminPanel() {
       ? `Streamer-Rolle für ${user.username || 'den Spieler'} aktiviert. Premium-Zugang ist sofort freigeschaltet.${syncMessage}`
       : `Streamer-Rolle für ${user.username || 'den Spieler'} entfernt.${syncMessage}`);
     await Promise.all([loadProfiles(), loadAdminLogs()]);
+  };
+
+  const updateStreamerTwitch = async (user: Profile) => {
+    setTwitchSavingUserId(user.id);
+    try {
+      const response = await fetch('/api/admin/streamer-twitch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: user.id, twitchUrl: twitchUrlInput }),
+      });
+      const result = await response.json() as { error?: string; twitchUrl?: string | null };
+      if (!response.ok) {
+        setActionMessage(result.error || 'Twitch-Kanal konnte nicht gespeichert werden.');
+        return;
+      }
+
+      setTwitchEditorUserId(null);
+      setTwitchUrlInput('');
+      setActionMessage(result.twitchUrl
+        ? `Twitch-Kanal für ${user.username || 'den Streamer'} wurde gespeichert.`
+        : `Twitch-Kanal für ${user.username || 'den Streamer'} wurde entfernt.`);
+      await Promise.all([loadProfiles(), loadAdminLogs()]);
+    } catch {
+      setActionMessage('Twitch-Kanal konnte gerade nicht gespeichert werden.');
+    } finally {
+      setTwitchSavingUserId(null);
+    }
   };
 
   const createPremiumCode = async () => {
@@ -2537,6 +2568,9 @@ export default function AdminPanel() {
                       {user.is_streamer && (
                         <span className="inline-flex items-center gap-1 rounded-full border border-rose-300/25 bg-rose-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-rose-100"><Radio className="h-3 w-3" />Streamer</span>
                       )}
+                      {user.is_streamer && user.twitch_url && (
+                        <a href={user.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-violet-300/25 bg-violet-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-violet-100 hover:bg-violet-400/20">Twitch <ExternalLink className="h-3 w-3" /></a>
+                      )}
                       <button
                         onClick={() => toggleVerification(user)}
                         className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] transition ${
@@ -2591,6 +2625,17 @@ export default function AdminPanel() {
                         {user.stripe_subscription_status && <p className="mt-3 text-[11px] text-zinc-500">Stripe-Status: {user.stripe_subscription_status}. Eine manuelle Änderung beendet kein bezahltes Stripe-Abo.</p>}
                       </div>
                     )}
+                    {twitchEditorUserId === user.id && user.is_streamer && (
+                      <div className="mt-3 rounded-2xl border border-violet-300/20 bg-violet-400/[0.07] p-4">
+                        <div className="flex items-center gap-2"><Radio className="h-4 w-4 text-violet-200" /><span className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-100">Twitch-Kanal</span></div>
+                        <input value={twitchUrlInput} onChange={(event) => setTwitchUrlInput(event.target.value)} className={'mt-3 w-full ' + inputClassName} placeholder="https://www.twitch.tv/kanalname" inputMode="url" />
+                        <p className="mt-2 text-[11px] text-zinc-500">Leer speichern entfernt den Kanal. Nur aktive Streamer erscheinen mit Twitch-Kanal auf der Streamer-Seite.</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button onClick={() => void updateStreamerTwitch(user)} disabled={twitchSavingUserId === user.id} className="rounded-xl bg-violet-300 px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-black disabled:opacity-50">{twitchSavingUserId === user.id ? 'Speichert …' : 'Twitch speichern'}</button>
+                          <button onClick={() => { setTwitchEditorUserId(null); setTwitchUrlInput(''); }} className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10">Abbrechen</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Elo-Input */}
@@ -2631,6 +2676,7 @@ export default function AdminPanel() {
                     >
                       {streamerSavingUserId === user.id ? 'Speichert …' : user.is_streamer ? 'Streamer weg' : 'Streamer'}
                     </button>
+                    {user.is_streamer && <button onClick={() => { setTwitchEditorUserId(twitchEditorUserId === user.id ? null : user.id); setTwitchUrlInput(user.twitch_url || ''); }} className="rounded-xl border border-violet-300/25 bg-violet-400/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-violet-100 transition hover:bg-violet-400/20">Twitch</button>}
                     <button
                       onClick={() => toggleBan(user)}
                       className={`rounded-xl px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] transition ${user.is_banned ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15' : 'border border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/15'}`}

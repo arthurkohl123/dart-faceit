@@ -86,6 +86,7 @@ export async function GET() {
       .from('profiles')
       .select('username, elo, gamesPlayed, wins, twitch_url')
       .eq('is_streamer', true)
+      .not('twitch_url', 'is', null)
       .order('elo', { ascending: false });
 
     if (error) throw error;
