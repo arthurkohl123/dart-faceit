@@ -3,72 +3,40 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowUpRight, CalendarDays, CheckCircle2, ChevronRight, CircleDot, ClipboardCheck, Link2, Menu, MessageCircle, Radio, ShieldCheck, Swords, Target, Trophy, UsersRound, Video, X } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, CircleDot, Link2, Menu, MessageCircle, Radio, ShieldCheck, Swords, Target, Trophy, Video, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
-import { RankBadge } from '@/components/RankBadge';
 import { ResultRoomPreview } from '@/components/ResultRoomPreview';
-import { getRankRangeLabel, RANK_TIERS } from '@/lib/ranks';
 
-type CommunityStats = { players: number; matches: number; cups: number; liveCups: number; onlinePlayers: number; queuePlayers: number; livePlayers: number; };
-
-const principles = [
-  ['01', 'Gegner auf deinem Level', 'Die Suche beginnt in deinem Elo-Bereich und wird erst nach einer Weile erweitert.'],
-  ['02', 'Ein Ergebnis, zwei Bestätigungen', 'Elo und Statistiken zählen erst, wenn ihr beide das Ergebnis bestätigt habt.'],
-  ['03', 'Deine Saison', 'Saison 1 läuft bis zum 01.11.2026. Deine Platzierung ergibt sich aus deinen gespielten Matches.'],
-];
-
-const scoringPlatforms = [
-  { name: 'Scolia', mark: 'S', detail: 'Auto-Scoring', note: 'Spiele wie gewohnt mit deinem Scolia-System.', tone: 'border-cyan-200/25 bg-cyan-200/[0.07] text-cyan-100' },
-  { name: 'DartCounter', mark: 'D', detail: 'Live-Score', note: 'Nutze DartCounter weiter für dein Spiel.', tone: 'border-violet-200/25 bg-violet-200/[0.07] text-violet-100' },
-  { name: 'AutoDarts', mark: 'A', detail: 'Board-Setup', note: 'Spiele weiter mit deinem AutoDarts-Board.', tone: 'border-amber-200/25 bg-amber-200/[0.07] text-amber-100' },
-] as const;
-
-const trustPoints = [
-  { icon: ShieldCheck, eyebrow: 'Fair gewertet', title: 'Beide bestätigen', text: 'Ein Ergebnis zählt erst, wenn beide Spieler es bestätigt haben. So bleiben Elo und Statistiken nachvollziehbar.' },
-  { icon: Link2, eyebrow: 'Dein Setup bleibt', title: 'Keine neue App nötig', text: 'Du spielst weiter mit Scolia, DartCounter oder AutoDarts. RankedDarts kümmert sich um Gegner, Ergebnisse und die Rangliste.' },
-  { icon: UsersRound, eyebrow: 'Zusammen spielen', title: 'Eine Darts-Community', text: 'Hier findest du Spieler für Ranked-Matches, Turniere und die Rangliste.' },
-] as const;
-
-const rankSteps = [
-  { number: '01', title: 'Match spielen', text: 'Starte ein Ranked-Match auf deinem gewohnten Board.' },
-  { number: '02', title: 'Ergebnis bestätigen', text: 'Beide Spieler prüfen das Ergebnis, bevor es gewertet wird.' },
-  { number: '03', title: 'Elo erhalten', text: 'Nach der Bestätigung wird dein Match für Elo und Rangliste gezählt.' },
-] as const;
-
-const homepageSteps = [
-  { number: '01', title: 'Profil erstellen', text: 'Kostenlos registrieren, Plattform auswählen und deinen Spielernamen hinterlegen.', icon: UsersRound },
-  { number: '02', title: 'Queue öffnen', text: 'Matchmaking starten und Gegner auf deinem Elo-Level finden.', icon: Target },
-  { number: '03', title: 'Match bestätigen', text: 'Ergebnis einreichen, bestätigen lassen und direkt in der Rangliste steigen.', icon: ClipboardCheck },
-] as const;
-
-const playAreas = [
-  { id: 'ranked', icon: Swords, eyebrow: 'Ranked', title: 'Hol dir dein nächstes Duell.', text: 'Gegner suchen, Match spielen, Ergebnis bestätigen. So sammelst du Elo für die Rangliste.', href: '/matchmaking', action: 'Match suchen', tone: 'emerald' },
-  { id: 'tournaments', icon: Trophy, eyebrow: 'Turniere', title: 'Spiel um mehr als Elo.', text: 'Melde dich an, spiele dich durch die Runden und sieh live, wie sich das Bracket entwickelt.', href: '/tournaments', action: 'Turniere ansehen', tone: 'amber' },
-  { id: 'streamers', icon: Video, eyebrow: 'Community', title: 'Schau den Streamern zu.', text: 'Finde Spieler aus der Community, öffne ihren Stream und bleib nah am Geschehen.', href: '/streamers', action: 'Streamer entdecken', tone: 'violet' },
-] as const;
+type CommunityStats = {
+  players: number;
+  matches: number;
+  cups: number;
+  liveCups: number;
+  onlinePlayers: number;
+  queuePlayers: number;
+  livePlayers: number;
+};
 
 const DISCORD_INVITE_URL = 'https://discord.gg/5qwUZQxjfV';
+
+const waysIn = [
+  { id: 'ranked', icon: Swords, number: '01', eyebrow: 'Ranked', title: 'Ein gutes Match reicht.', text: 'Suche einen Gegner, spiele an deinem Board und nimm die Elo mit, die du dir erspielt hast.', href: '/matchmaking', action: 'Match suchen', accent: 'text-emerald-300' },
+  { id: 'tournaments', icon: Trophy, number: '02', eyebrow: 'Turniere', title: 'Wenn ein Abend mehr kann.', text: 'Melde dich an, spiel dich durchs Bracket und verfolge jede Runde direkt auf der Plattform.', href: '/tournaments', action: 'Turniere ansehen', accent: 'text-amber-200' },
+  { id: 'streamers', icon: Video, number: '03', eyebrow: 'Streamer', title: 'Auch daneben passiert was.', text: 'Schau Spielern aus der Community zu und entdecke, wer gerade live ist.', href: '/streamers', action: 'Zu den Streamern', accent: 'text-violet-200' },
+] as const;
+
+const setupBenefits = [
+  { icon: ShieldCheck, title: 'Beide bestätigen', text: 'Das Ergebnis zählt erst, wenn ihr beide es bestätigt habt.' },
+  { icon: Target, title: 'Passende Gegner', text: 'Die Suche startet in deinem Elo-Bereich.' },
+  { icon: Link2, title: 'Dein System', text: 'Du bleibst bei dem Setup, mit dem du ohnehin spielst.' },
+] as const;
 
 const structuredData = {
   '@context': 'https://schema.org',
   '@graph': [
-    {
-      '@type': 'WebSite',
-      '@id': 'https://www.rankeddarts.de/#website',
-      url: 'https://www.rankeddarts.de/',
-      name: 'RankedDarts',
-      alternateName: 'RankedDarts',
-      inLanguage: 'de-DE',
-    },
-    {
-      '@type': 'Organization',
-      '@id': 'https://www.rankeddarts.de/#organization',
-      name: 'RankedDarts',
-      url: 'https://www.rankeddarts.de/',
-      logo: 'https://www.rankeddarts.de/rankeddarts-logo-mark.png',
-      sameAs: [DISCORD_INVITE_URL],
-    },
+    { '@type': 'WebSite', '@id': 'https://www.rankeddarts.de/#website', url: 'https://www.rankeddarts.de/', name: 'RankedDarts', alternateName: 'RankedDarts', inLanguage: 'de-DE' },
+    { '@type': 'Organization', '@id': 'https://www.rankeddarts.de/#organization', name: 'RankedDarts', url: 'https://www.rankeddarts.de/', logo: 'https://www.rankeddarts.de/rankeddarts-logo-mark.png', sameAs: [DISCORD_INVITE_URL] },
   ],
 };
 
@@ -93,7 +61,7 @@ export default function Home() {
         const data: CommunityStats = await response.json();
         if ([data.players, data.matches, data.cups, data.liveCups, data.onlinePlayers, data.queuePlayers, data.livePlayers].every((value) => Number.isInteger(value) && value >= 0)) setCommunityStats(data);
       } catch {
-        // Die Startseite bleibt auch bei einer kurzzeitig nicht erreichbaren Statistik nutzbar.
+        // Auch ohne aktuelle Zahlen bleibt die Startseite vollständig nutzbar.
       }
     }
     void loadCommunityStats();
@@ -101,160 +69,61 @@ export default function Home() {
     return () => window.clearInterval(refresh);
   }, []);
 
-  const stats = [
-    [communityStats ? String(communityStats.players) : '–', 'Spieler gesamt'],
-    [communityStats ? String(communityStats.matches) : '–', 'Bestätigte Matches'],
-    [communityStats ? String(communityStats.onlinePlayers) : '–', 'Gerade online'],
-    [communityStats ? String(communityStats.livePlayers) : '–', 'Aktiv im Match'],
-  ];
   const primaryTarget = isLoggedIn ? '/matchmaking' : '/auth/register';
-  const primaryLabel = isLoggedIn ? 'Match suchen' : 'Kostenlos starten';
+  const primaryLabel = isLoggedIn ? 'Match suchen' : 'Jetzt mitspielen';
+  const headlineStats = [
+    [communityStats ? String(communityStats.onlinePlayers) : '–', 'gerade online'],
+    [communityStats ? String(communityStats.livePlayers) : '–', 'spielen gerade'],
+    [communityStats ? String(communityStats.matches) : '–', 'bestätigte Matches'],
+    [communityStats ? String(communityStats.cups) : '–', 'Turniere gespielt'],
+  ];
+
+  function modeStatus(id: string) {
+    if (id === 'ranked') return communityStats ? String(communityStats.livePlayers) + (communityStats.livePlayers === 1 ? ' Match läuft gerade' : ' Matches laufen gerade') : 'Ranked-Matches';
+    if (id === 'tournaments') return communityStats && communityStats.liveCups > 0 ? String(communityStats.liveCups) + (communityStats.liveCups === 1 ? ' Turnier läuft' : ' Turniere laufen') : 'Brackets und Cups';
+    return 'Live und offline entdecken';
+  }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#0a0d0d] text-[#f5f3ee]">
+    <main className="min-h-screen overflow-hidden bg-[#080b0a] text-[#f7f5ef]">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 sport-grid opacity-35" />
-      <div aria-hidden className="pointer-events-none fixed -right-48 top-24 -z-10 h-[34rem] w-[34rem] sport-dartboard opacity-20" />
-
-      <nav className="border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
-          <button onClick={() => router.push('/')} className="flex items-center gap-3 text-left" aria-label="Zur Startseite">
-            <BrandLogo className="h-10 w-10 rounded-lg" />
-            <span><span className="block text-lg font-black tracking-[-0.05em]">RANKEDDARTS</span><span className="block text-[9px] font-bold uppercase tracking-[0.25em] text-emerald-300">Competitive darts</span></span>
-          </button>
-          <div className="hidden items-center gap-6 text-[13px] font-semibold text-zinc-300 lg:flex">
-            <a href="/leaderboard" className="hover:text-white">Rangliste</a><a href="/matchmaking" className="hover:text-white">Matchmaking</a><Link href="/tournaments" className="hover:text-white">Turniere</Link><Link href="/streamers" className="hover:text-white">Streamer</Link><a href="/updates" className="hover:text-white">Updates</a><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-indigo-200 transition hover:text-white"><MessageCircle className="h-3.5 w-3.5" /> Discord</a>
-            <span className="border-l border-white/15 pl-6 text-[11px] font-bold uppercase tracking-[.12em] text-zinc-500">Saison 01 · bis 01.11.2026</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {!isLoggedIn && <><button onClick={() => router.push('/auth/login')} className="hidden px-4 py-2 text-sm font-bold text-zinc-300 hover:text-white sm:block">Login</button><button onClick={() => router.push('/auth/register')} className="hidden border border-emerald-300 bg-emerald-300 px-4 py-2 text-sm font-black text-[#07100b] transition hover:bg-emerald-200 sm:block">Mitspielen</button></>}
-            <button onClick={() => setMobileMenuOpen((open) => !open)} className="grid h-9 w-9 place-items-center border border-white/15 text-zinc-200 lg:hidden" aria-label="Menü öffnen">{mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}</button>
-          </div>
+      <nav className="absolute inset-x-0 top-0 z-30 border-b border-white/10 bg-[#080b0a]/75 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[90rem] items-center justify-between px-5 py-4 md:px-8 lg:px-10">
+          <button onClick={() => router.push('/')} className="flex items-center gap-3 text-left" aria-label="Zur Startseite"><BrandLogo className="h-10 w-10 rounded-lg" /><span><span className="block text-lg font-black tracking-[-.05em]">RANKEDDARTS</span><span className="block text-[9px] font-bold uppercase tracking-[0.25em] text-emerald-300">Competitive darts</span></span></button>
+          <div className="hidden items-center gap-7 text-[13px] font-bold text-zinc-300 lg:flex"><Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link><Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link><Link href="/tournaments" className="transition hover:text-white">Turniere</Link><Link href="/streamers" className="transition hover:text-white">Streamer</Link><Link href="/updates" className="transition hover:text-white">Updates</Link><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-indigo-200 transition hover:text-white"><MessageCircle className="h-3.5 w-3.5" /> Discord</a></div>
+          <div className="flex items-center gap-2">{!isLoggedIn && <><button onClick={() => router.push('/auth/login')} className="hidden px-4 py-2 text-sm font-bold text-zinc-300 transition hover:text-white sm:block">Login</button><button onClick={() => router.push('/auth/register')} className="hidden bg-[#9af0bc] px-4 py-2 text-sm font-black text-[#07100b] transition hover:bg-[#c4f9d7] sm:block">Mitspielen</button></>}<button onClick={() => setMobileMenuOpen((open) => !open)} className="grid h-10 w-10 place-items-center border border-white/15 text-zinc-200 lg:hidden" aria-label="Menü öffnen">{mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}</button></div>
         </div>
-        {mobileMenuOpen && <div className="border-t border-white/10 px-5 py-3 lg:hidden"><div className="mx-auto grid max-w-7xl gap-1 text-sm font-bold text-zinc-300">{['Rangliste|/leaderboard', 'Matchmaking|/matchmaking', 'Turniere|/tournaments', 'Streamer|/streamers', 'Updates|/updates', 'Premium|/premium'].map((entry) => { const [label, href] = entry.split('|'); return <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="border-b border-white/5 py-3 hover:text-emerald-200">{label}</a>; })}<a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 border-b border-white/5 py-3 text-indigo-200 hover:text-white"><MessageCircle className="h-4 w-4" /> Discord-Community</a></div></div>}
+        {mobileMenuOpen && <div className="border-t border-white/10 bg-[#080b0a]/95 px-5 py-3 lg:hidden"><div className="mx-auto grid max-w-7xl gap-1 text-sm font-bold text-zinc-300">{['Rangliste|/leaderboard', 'Matchmaking|/matchmaking', 'Turniere|/tournaments', 'Streamer|/streamers', 'Updates|/updates', 'Premium|/premium'].map((entry) => { const [label, href] = entry.split('|'); return <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="border-b border-white/5 py-3 transition hover:text-emerald-200">{label}</Link>; })}<a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" onClick={() => setMobileMenuOpen(false)} className="inline-flex items-center gap-2 py-3 text-indigo-200"><MessageCircle className="h-4 w-4" /> Discord-Community</a></div></div>}
       </nav>
 
-      <section className="relative mx-auto grid max-w-7xl gap-12 overflow-hidden px-5 pb-16 pt-14 md:px-8 lg:grid-cols-[.92fr_1.08fr] lg:items-center lg:py-24">
-        <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/rankeddarts-arena-hero.png')] bg-cover bg-[72%_center] opacity-55" />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,#0a0d0d_0%,rgba(10,13,13,.97)_39%,rgba(10,13,13,.63)_72%,#0a0d0d_100%)]" />
-          <div className="absolute -right-24 top-12 h-80 w-80 rounded-full border border-emerald-200/15 shadow-[0_0_100px_rgba(52,211,153,.14)] lg:right-10 lg:top-24" />
-          <div className="absolute -right-10 top-28 h-52 w-52 rounded-full border border-cyan-200/20 shadow-[0_0_80px_rgba(103,232,249,.12)] lg:right-24 lg:top-40" />
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0a0d0d] to-transparent" />
+      <section className="relative isolate flex min-h-[54rem] items-end overflow-hidden border-b border-white/10 pt-24 sm:min-h-[52rem] lg:min-h-[min(56rem,100svh)]">
+        <div aria-hidden className="absolute inset-0 bg-[url('/rankeddarts-hero-throw-v1.png')] bg-cover bg-[66%_center]" />
+        <div aria-hidden className="absolute inset-0 bg-[linear-gradient(90deg,#080b0a_0%,rgba(8,11,10,.94)_33%,rgba(8,11,10,.3)_68%,rgba(8,11,10,.16)_100%)]" />
+        <div aria-hidden className="absolute inset-x-0 bottom-0 h-[52%] bg-gradient-to-t from-[#080b0a] via-[#080b0a]/65 to-transparent" />
+        <div aria-hidden className="absolute left-[7%] top-[27%] h-40 w-40 rounded-full border border-emerald-100/15 shadow-[0_0_0_42px_rgba(85,229,158,.025),0_0_100px_rgba(85,229,158,.1)]" />
+        <div className="relative z-10 mx-auto w-full max-w-[90rem] px-5 pb-10 pt-20 md:px-8 md:pb-12 lg:px-10">
+          <div className="w-full max-w-4xl"><p className="inline-flex items-center gap-2 border-l-2 border-emerald-300 pl-3 text-[10px] font-black uppercase tracking-[.22em] text-emerald-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.95)]" /> Online Darts, richtig gespielt</p><h1 className="mt-7 max-w-4xl text-[4.1rem] font-black leading-[.82] tracking-[-.09em] text-white sm:text-[5.7rem] md:text-[7.4rem] lg:text-[8.35rem]"><span className="sm:whitespace-nowrap">Jedes Leg</span><br /><span className="text-emerald-300">zählt.</span></h1><p className="mt-7 max-w-xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">Such dir einen Gegner. Spiel an deinem Board. Bestätigt das Ergebnis gemeinsam – dann geht es direkt in deine Elo.</p><div className="mt-8 flex flex-col gap-3 sm:flex-row"><button onClick={() => router.push(primaryTarget)} className="group inline-flex items-center justify-center gap-3 bg-[#9af0bc] px-6 py-4 text-sm font-black uppercase tracking-[.13em] text-[#07100b] transition hover:bg-[#c4f9d7]">{primaryLabel}<ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></button><Link href="/getting-started" className="inline-flex items-center justify-center gap-2 border border-white/25 bg-black/20 px-6 py-4 text-sm font-black text-white transition hover:border-white/50 hover:bg-white/10">So funktioniert&apos;s <ChevronRight className="h-4 w-4" /></Link></div><div className="mt-5 inline-flex max-w-xl flex-wrap items-center gap-x-3 gap-y-1 border-l border-emerald-300/45 pl-3 text-xs"><span className="inline-flex items-center gap-2 font-black text-emerald-100"><Radio className="h-3.5 w-3.5" /> Gerade in der Spielersuche</span><span className="text-zinc-400">{communityStats ? communityStats.queuePlayers === 1 ? '1 Spieler sucht gerade.' : String(communityStats.queuePlayers) + ' Spieler suchen gerade.' : 'Aktivität wird geladen …'}</span></div></div>
         </div>
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 border-l-2 border-emerald-300 pl-3 text-[11px] font-black uppercase tracking-[.19em] text-emerald-200"><span className="h-2 w-2 rounded-full bg-emerald-300" /> Ranked-Matches · online</div>
-          <div className="mt-6 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[.16em] text-zinc-500"><span className="text-zinc-400">Spiele mit</span><span className="text-emerald-300">Scolia</span><span className="text-zinc-700">·</span><span>DartCounter</span><span className="text-zinc-700">·</span><span>AutoDarts</span></div>
-          <h1 className="mt-7 max-w-3xl text-[3.3rem] font-black leading-[.9] tracking-[-.075em] text-[#f5f3ee] sm:text-7xl xl:text-[6.2rem]">Darts, die<br /><span className="text-emerald-300">etwas bedeuten.</span></h1>
-          <p className="mt-7 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg"><strong className="font-black text-zinc-200">Finde echte Gegner auf deinem Niveau</strong>, spiele über dein gewohntes Setup und hol dir Elo für jedes bestätigte Match.</p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row"><button onClick={() => router.push(primaryTarget)} className="group inline-flex items-center justify-center gap-3 border border-emerald-300 bg-emerald-300 px-6 py-4 text-sm font-black uppercase tracking-[.12em] text-[#07100b] transition hover:bg-emerald-200">{primaryLabel} <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></button><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 border border-indigo-300/35 bg-indigo-300/10 px-6 py-4 text-sm font-bold text-indigo-100 transition hover:border-indigo-200 hover:bg-indigo-300/20"><MessageCircle className="h-4 w-4" /> Community beitreten</a></div>
-          <button onClick={() => router.push(primaryTarget)} className="group mt-5 grid w-full max-w-xl overflow-hidden border border-emerald-300/25 bg-[#0d1110]/90 text-left transition hover:border-emerald-300/50 hover:bg-[#101614] sm:grid-cols-[1fr_auto]" aria-label="Aktuelle Spielersuche ansehen und Matchmaking öffnen">
-            <span className="flex min-w-0 items-center gap-3 px-4 py-4 sm:px-5"><span className="grid h-10 w-10 shrink-0 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-emerald-200"><Radio className="h-4 w-4" /></span><span className="min-w-0"><span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.17em] text-emerald-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,.95)]" /> Gerade in der Spielersuche</span><span className="mt-1 block text-sm font-bold leading-5 text-zinc-200">{communityStats ? communityStats.queuePlayers > 0 ? `${communityStats.queuePlayers} ${communityStats.queuePlayers === 1 ? 'Spieler sucht' : 'Spieler suchen'} gerade.` : 'Aktuell sucht niemand. Stell dich als Erster in die Warteschlange.' : 'Aktivität wird geladen …'}</span></span></span>
-            <span className="grid grid-cols-2 border-t border-white/10 bg-black/20 sm:border-l sm:border-t-0"><span className="px-4 py-3 text-center"><span className="block text-xl font-black tracking-[-.05em] text-white">{communityStats ? communityStats.onlinePlayers : '–'}</span><span className="mt-0.5 block text-[9px] font-black uppercase tracking-[.12em] text-zinc-500">Aktiv</span></span><span className="border-l border-white/10 px-4 py-3 text-center"><span className="block text-xl font-black tracking-[-.05em] text-emerald-200">{communityStats ? communityStats.livePlayers : '–'}</span><span className="mt-0.5 block text-[9px] font-black uppercase tracking-[.12em] text-zinc-500">Im Match</span></span></span>
-          </button>
-          <p className="mt-5 text-xs leading-5 text-zinc-500">Kostenlos: 4 Ranked-Matches pro Tag. <Link href="/premium" className="whitespace-nowrap font-black text-emerald-200 transition hover:text-emerald-100">Premium ab 4,99 € / Monat</Link>: ohne Tageslimit und mit Zugang zu Premium-Turnieren.</p>
-        </div>
-        <div className="relative z-10"><div className="mb-3 flex items-center justify-between border-y border-white/10 py-3 text-[10px] font-black uppercase tracking-[.16em] text-zinc-500"><span className="inline-flex items-center gap-2"><CircleDot className="h-3.5 w-3.5 text-emerald-300" /> So trägst du ein Ergebnis ein</span><span>Beispielansicht</span></div><ResultRoomPreview onOpen={() => router.push('/matchmaking')} /></div>
+        <div className="relative z-10 w-full border-t border-white/15 bg-[#080b0a]/80 backdrop-blur-md"><div className="mx-auto grid max-w-[90rem] grid-cols-2 divide-x divide-y divide-white/10 md:grid-cols-4 md:divide-y-0">{headlineStats.map(([value, label]) => <div key={label} className="px-5 py-4 md:px-8 md:py-5 lg:px-10"><span className="block text-2xl font-black tracking-[-.06em] text-white md:text-3xl">{value}</span><span className="mt-1 block text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">{label}</span></div>)}</div></div>
       </section>
 
-      <section className="border-y border-white/10 bg-[#0d1110]"><div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-y divide-white/10 md:grid-cols-4 md:divide-y-0">{stats.map(([value, label], index) => <div key={label} className="relative px-5 py-6 md:px-8 md:py-8"><div className="absolute left-5 top-4 h-1 w-1 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.9)] md:left-8" /><div className="text-3xl font-black tracking-[-.06em] text-white md:text-4xl">{value}</div><div className="mt-1 text-xs font-bold uppercase tracking-[.12em] text-zinc-500">{label}</div>{index === 1 && <div className="mt-2 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[.12em] text-emerald-200/70"><CheckCircle2 className="h-3 w-3" /> Fair bestätigt</div>}</div>)}</div></section>
+      <section className="relative border-b border-white/10 bg-[#0b0f0d]"><div className="mx-auto flex max-w-[90rem] flex-wrap items-center justify-center gap-x-8 gap-y-3 px-5 py-4 text-[10px] font-black uppercase tracking-[.18em] text-zinc-500 md:justify-between md:px-8 lg:px-10"><span className="inline-flex items-center gap-2 text-emerald-200"><CircleDot className="h-3.5 w-3.5" /> Matchmaking auf deinem Elo-Level</span><span>Ergebnisse erst nach Bestätigung</span><span>Scolia · DartCounter · AutoDarts</span><span className="text-zinc-300">Premium ab 4,99 € / Monat</span></div></section>
 
-      <section className="relative overflow-hidden border-b border-white/10 bg-[#0a0d0d]">
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-px w-[80rem] -translate-x-1/2 bg-gradient-to-r from-transparent via-emerald-200/45 to-transparent" />
-        <div className="mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-24">
-          <div className="flex flex-col gap-5 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-2xl"><p className="text-[11px] font-black uppercase tracking-[.22em] text-emerald-300">Heute bei RankedDarts</p><h2 className="mt-4 text-4xl font-black tracking-[-.065em] text-white md:text-6xl">Worauf hast du Lust?</h2><p className="mt-4 max-w-xl text-base leading-7 text-zinc-400">Ranked spielen, ein Turnier verfolgen oder bei einem Stream vorbeischauen – du entscheidest, wie du einsteigst.</p></div>
-            <Link href="/leaderboard" className="inline-flex shrink-0 items-center gap-2 self-start text-sm font-black text-emerald-200 transition hover:text-white md:self-auto">Rangliste ansehen <ArrowUpRight className="h-4 w-4" /></Link>
-          </div>
-          <div className="mt-5 grid gap-4 lg:grid-cols-12">
-            {playAreas.map(({ id, icon: Icon, eyebrow, title, text, href, action, tone }) => {
-              const isRanked = id === 'ranked';
-              const isTournaments = id === 'tournaments';
-              const status = isRanked
-                ? communityStats ? `${communityStats.livePlayers} ${communityStats.livePlayers === 1 ? 'Match läuft' : 'Matches laufen'}` : 'Live-Spielbetrieb'
-                : isTournaments
-                  ? communityStats && communityStats.liveCups > 0 ? `${communityStats.liveCups} ${communityStats.liveCups === 1 ? 'Turnier läuft' : 'Turniere laufen'}` : 'Nächste Cups entdecken'
-                  : 'Streams aus der Community';
-              const panelClass = tone === 'emerald'
-                ? 'border-emerald-200/30 bg-[#0d1712] hover:border-emerald-200/60'
-                : tone === 'amber'
-                  ? 'border-amber-200/20 bg-[#17140d] hover:border-amber-200/50'
-                  : 'border-violet-200/20 bg-[#121018] hover:border-violet-200/50';
-              const accentClass = tone === 'emerald' ? 'text-emerald-200 border-emerald-200/25 bg-emerald-200/[.07]' : tone === 'amber' ? 'text-amber-100 border-amber-200/25 bg-amber-200/[.07]' : 'text-violet-100 border-violet-200/25 bg-violet-200/[.07]';
-              return <Link key={id} href={href} className={`group relative flex min-h-72 flex-col overflow-hidden border p-6 transition duration-300 hover:-translate-y-1 md:p-7 ${isRanked ? 'lg:col-span-6' : 'lg:col-span-3'} ${panelClass}`}>
-                {isRanked && <><div aria-hidden className="absolute inset-y-0 right-0 w-3/5 bg-[url('/rankeddarts-darts-club-hero-v2.png')] bg-cover bg-[78%_center] opacity-35 transition duration-500 group-hover:scale-105" /><div aria-hidden className="absolute inset-y-0 right-0 w-3/5 bg-gradient-to-r from-[#0d1712] via-[#0d1712]/35 to-transparent" /></>}
-                <div aria-hidden className={`absolute -right-8 -top-8 h-36 w-36 rounded-full border opacity-60 transition duration-500 group-hover:scale-125 ${tone === 'emerald' ? 'border-emerald-200/20' : tone === 'amber' ? 'border-amber-200/20' : 'border-violet-200/20'}`} />
-                <div className="relative flex items-start justify-between gap-4"><span className={`grid h-11 w-11 place-items-center border ${accentClass}`}><Icon className="h-5 w-5" /></span><span className="max-w-[9rem] text-right text-[10px] font-black uppercase tracking-[.14em] text-zinc-500">{status}</span></div>
-                <div className="relative mt-auto pt-12"><p className={`text-[10px] font-black uppercase tracking-[.18em] ${tone === 'emerald' ? 'text-emerald-300' : tone === 'amber' ? 'text-amber-200' : 'text-violet-200'}`}>{eyebrow}</p><h3 className={`mt-2 font-black tracking-[-.05em] text-white ${isRanked ? 'max-w-sm text-3xl md:text-4xl' : 'text-2xl'}`}>{title}</h3><p className={`mt-3 max-w-md text-sm leading-6 text-zinc-400 ${isRanked ? '' : 'min-h-18'}`}>{text}</p><span className={`mt-6 inline-flex items-center gap-2 text-sm font-black ${accentClass.split(' ')[0]}`}>{action} <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span></div>
-              </Link>;
-            })}
-          </div>
-          <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs font-bold text-zinc-500"><span className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4 text-emerald-300" /> Turniere und Ranked-Matches an einem Ort</span><span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-300" /> Nur bestätigte Ergebnisse zählen für Elo</span></div>
-        </div>
+      <section className="mx-auto grid max-w-[90rem] gap-12 px-5 py-20 md:px-8 md:py-28 lg:grid-cols-[.82fr_1.18fr] lg:items-center lg:px-10">
+        <div><p className="text-[10px] font-black uppercase tracking-[.22em] text-emerald-300">Nicht irgendeine Runde</p><h2 className="mt-5 max-w-xl text-4xl font-black leading-[.92] tracking-[-.07em] text-white md:text-6xl">Gegner finden.<br />Ergebnis festhalten.<br /><span className="text-zinc-500">Weiterkommen.</span></h2><p className="mt-6 max-w-md leading-7 text-zinc-400">RankedDarts bringt Ordnung in Online-Darts, ohne dein Spiel komplizierter zu machen. Du spielst wie immer – nur mit echten Gegnern, klaren Ergebnissen und einer Rangliste, die mitläuft.</p><div className="mt-8 space-y-4 border-t border-white/10 pt-6">{setupBenefits.map(({ icon: Icon, title, text }) => <div key={title} className="flex gap-4"><span className="grid h-9 w-9 shrink-0 place-items-center border border-emerald-300/25 bg-emerald-300/[.06] text-emerald-200"><Icon className="h-4 w-4" /></span><span><strong className="text-sm font-black text-white">{title}</strong><span className="mt-1 block text-sm leading-6 text-zinc-500">{text}</span></span></div>)}</div></div>
+        <div className="relative"><div aria-hidden className="absolute -inset-5 -z-10 bg-[radial-gradient(circle_at_55%_30%,rgba(94,234,154,.13),transparent_58%)] blur-2xl" /><div className="mb-3 flex items-center justify-between border-y border-white/10 py-3 text-[10px] font-black uppercase tracking-[.16em] text-zinc-500"><span className="inline-flex items-center gap-2"><Radio className="h-3.5 w-3.5 text-emerald-300" /> So sieht ein Ergebnis aus</span><span>Beispiel</span></div><ResultRoomPreview onOpen={() => router.push('/matchmaking')} /></div>
       </section>
 
-      <section className="border-b border-white/10 bg-[#0a0d0d]">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 md:px-8 md:py-20 lg:grid-cols-[.72fr_1.28fr] lg:items-start">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[.22em] text-emerald-300">Einfach anfangen</p>
-            <h2 className="mt-4 max-w-lg text-4xl font-black tracking-[-.065em] md:text-5xl">Dein Board. Deine App. Dein Match.</h2>
-            <p className="mt-5 max-w-md leading-7 text-zinc-400">Du spielst weiter mit dem Setup, das bei dir schon steht. RankedDarts kümmert sich um Gegner, Ergebnisse und die Rangliste.</p>
-            <div className="mt-7 inline-flex items-center gap-2 border border-emerald-200/20 bg-emerald-200/[.05] px-3 py-2 text-[10px] font-black uppercase tracking-[.16em] text-emerald-100"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Klare Regeln. Klare Ergebnisse.</div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {trustPoints.map(({ icon: Icon, eyebrow, title, text }) => <article key={title} className="border border-white/10 bg-[#0d1110] p-5 transition hover:-translate-y-1 hover:border-emerald-200/35 hover:bg-[#101614]"><div className="flex items-start justify-between gap-4"><span className="grid h-10 w-10 place-items-center border border-emerald-300/25 bg-emerald-300/[.06] text-emerald-200"><Icon className="h-4 w-4" /></span><span className="pt-1 text-[9px] font-black uppercase tracking-[.16em] text-zinc-600">0{trustPoints.findIndex((point) => point.title === title) + 1}</span></div><p className="mt-7 text-[10px] font-black uppercase tracking-[.16em] text-emerald-300">{eyebrow}</p><h3 className="mt-2 text-xl font-black tracking-[-.04em] text-white">{title}</h3><p className="mt-3 text-sm leading-6 text-zinc-400">{text}</p></article>)}
-          </div>
-        </div>
-      </section>
+      <section className="relative min-h-[48rem] overflow-hidden border-y border-white/10 bg-[#0a0d0c] py-16 md:min-h-[42rem] md:py-24"><div aria-hidden className="absolute inset-0 bg-[url('/rankeddarts-home-match-v1.png')] bg-cover bg-[29%_center] opacity-70" /><div aria-hidden className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,11,10,.1)_0%,rgba(8,11,10,.26)_37%,#080b0a_72%)]" /><div className="relative mx-auto grid min-h-[32rem] max-w-[90rem] px-5 md:px-8 lg:grid-cols-[1fr_.9fr] lg:px-10"><div /><div className="self-center border-l-2 border-emerald-300 pl-6 md:pl-8"><p className="text-[10px] font-black uppercase tracking-[.22em] text-emerald-300">Das gute daran</p><h2 className="mt-5 max-w-lg text-4xl font-black leading-[.92] tracking-[-.07em] text-white md:text-6xl">Zu Hause spielen.<br />Trotzdem mittendrin.</h2><p className="mt-6 max-w-md text-base leading-7 text-zinc-300">Ob Wohnzimmer, Keller oder eigenes Darts-Zimmer: Dein Match beginnt dort, wo dein Board hängt. Der Gegner spielt zur gleichen Zeit bei sich – und trotzdem seid ihr im selben Spiel.</p><Link href="/matchmaking" className="group mt-8 inline-flex items-center gap-2 text-sm font-black text-emerald-200 transition hover:text-white">Dein nächstes Match finden <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></Link></div></div></section>
 
-      <section className="relative overflow-hidden border-y border-white/10 bg-[#0d1110]">
-        <div aria-hidden className="pointer-events-none absolute -left-24 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-emerald-300/[0.06] blur-3xl" />
-        <div className="relative mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-20">
-          <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
-            <div className="max-w-2xl">
-              <p className="text-[11px] font-black uppercase tracking-[.22em] text-emerald-300">Deine Scoring-App, deine Wahl</p>
-              <h2 className="mt-4 text-4xl font-black tracking-[-.065em] md:text-6xl">Spiele mit dem System, das du kennst.</h2>
-              <p className="mt-5 max-w-xl text-base leading-7 text-zinc-400">Ob Scolia, DartCounter oder AutoDarts: Du spielst wie gewohnt weiter. Das bestätigte Ergebnis zählt bei RankedDarts für Elo und Rangliste.</p>
-            </div>
-            <span className="inline-flex shrink-0 items-center gap-2 self-start border border-emerald-200/20 bg-emerald-200/[0.06] px-4 py-2 text-[10px] font-black uppercase tracking-[.16em] text-emerald-100 lg:self-end"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.9)]" /> Scolia, DartCounter und AutoDarts</span>
-          </div>
-          <div className="mt-10 grid gap-3 md:grid-cols-3">
-            {scoringPlatforms.map((platform) => <div key={platform.name} className={`group relative overflow-hidden border p-5 transition hover:-translate-y-1 hover:border-white/30 ${platform.tone}`}><div aria-hidden className="absolute -right-6 -top-8 h-24 w-24 rounded-full border border-current/20 transition group-hover:scale-125" /><div className="relative flex items-center gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center border border-current/35 bg-black/20 text-xl font-black shadow-[0_0_20px_rgba(255,255,255,.04)]">{platform.mark}</span><span><span className="block text-lg font-black tracking-[-.03em] text-white">{platform.name}</span><span className="mt-1 block text-[10px] font-black uppercase tracking-[.16em] opacity-70">{platform.detail}</span></span></div><p className="relative mt-5 min-h-12 text-sm leading-6 text-zinc-300">{platform.note}</p><div className="relative mt-4 flex items-center gap-2 text-xs font-bold text-zinc-300"><span className="h-1.5 w-1.5 rounded-full bg-current" /> Ergebnis bei RankedDarts bestätigen <ArrowUpRight className="ml-auto h-4 w-4 opacity-60 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></div></div>)}
-          </div>
-          <p className="mt-5 flex items-start gap-2 text-xs leading-5 text-zinc-500"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" /> Keine neue Hardware und keine neue Scoring-App nötig: Du nutzt dein vorhandenes Setup und überträgst nur das bestätigte Match-Ergebnis.</p>
-        </div>
-      </section>
+      <section className="mx-auto max-w-[90rem] px-5 py-20 md:px-8 md:py-28 lg:px-10"><div className="flex flex-col gap-5 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.22em] text-emerald-300">Dein Abend, dein Modus</p><h2 className="mt-5 text-4xl font-black leading-[.92] tracking-[-.07em] text-white md:text-6xl">Mach das, worauf du Lust hast.</h2></div><p className="max-w-sm text-sm leading-6 text-zinc-500">Ranked, Turnier oder einfach bei der Community reinschauen: Du entscheidest, wo du einsteigst.</p></div><div className="grid border-b border-white/10 lg:grid-cols-3">{waysIn.map(({ id, icon: Icon, number, eyebrow, title, text, href, action, accent }, index) => <Link key={id} href={href} className={'group relative min-h-80 overflow-hidden px-0 py-9 transition lg:px-8 ' + (index !== 0 ? 'border-t border-white/10 lg:border-l lg:border-t-0' : 'lg:pr-8')}><span className="absolute -right-1 -top-8 text-[9rem] font-black leading-none tracking-[-.14em] text-white/[.035] transition duration-500 group-hover:-translate-y-2 group-hover:text-white/[.07]">{number}</span><div className="relative flex items-start justify-between"><span className={'grid h-11 w-11 place-items-center border border-white/15 bg-white/[.03] ' + accent}><Icon className="h-5 w-5" /></span><span className="max-w-[9rem] text-right text-[9px] font-black uppercase leading-4 tracking-[.14em] text-zinc-600">{modeStatus(id)}</span></div><div className="relative mt-16"><p className={'text-[10px] font-black uppercase tracking-[.2em] ' + accent}>{eyebrow}</p><h3 className="mt-3 max-w-xs text-3xl font-black leading-none tracking-[-.055em] text-white">{title}</h3><p className="mt-4 max-w-sm text-sm leading-6 text-zinc-400">{text}</p><span className={'mt-7 inline-flex items-center gap-2 text-sm font-black ' + accent}>{action}<ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span></div></Link>)}</div></section>
 
-      <section id="so-funktionierts" className="mx-auto max-w-7xl scroll-mt-10 px-5 py-20 md:px-8 md:py-28">
-        <div className="flex flex-col justify-between gap-6 border-b border-white/15 pb-8 md:flex-row md:items-end">
-          <div className="max-w-2xl"><p className="text-[11px] font-black uppercase tracking-[.22em] text-emerald-300">So startest du</p><h2 className="mt-4 text-4xl font-black tracking-[-.065em] md:text-6xl">In wenigen Minuten zum ersten Match.</h2><p className="mt-5 max-w-xl leading-7 text-zinc-400">Profil anlegen, Spielersuche starten, Ergebnis bestätigen – fertig. Dein Scoring bleibt auf der Plattform, die du ohnehin nutzt.</p></div>
-          <Link href="/getting-started" className="inline-flex shrink-0 items-center gap-2 text-sm font-black text-emerald-200 hover:text-white">Ablauf ansehen <ArrowUpRight className="h-4 w-4" /></Link>
-        </div>
-        <div className="grid border-b border-white/15 lg:grid-cols-3">
-          {homepageSteps.map(({ number, title, text, icon: Icon }, index) => <article key={number} className={`group py-8 lg:px-8 ${index !== 0 ? 'lg:border-l lg:border-white/15' : 'lg:pr-8'}`}><div className="flex items-start justify-between gap-4"><span className="text-sm font-black text-emerald-300">{number}</span><span className="grid h-10 w-10 place-items-center border border-emerald-300/25 bg-emerald-300/[.06] text-emerald-200 transition group-hover:-translate-y-1 group-hover:border-emerald-200/60 group-hover:bg-emerald-300/15"><Icon className="h-4 w-4" /></span></div><h3 className="mt-8 text-2xl font-black tracking-[-.04em]">{title}</h3><p className="mt-3 max-w-sm leading-7 text-zinc-400">{text}</p></article>)}
-        </div>
-        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs font-bold text-zinc-500"><span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Ergebnisse werden erst nach Bestätigung gewertet</span><span className="inline-flex items-center gap-2"><Link2 className="h-4 w-4 text-cyan-300" /> Scolia · DartCounter · AutoDarts</span></div>
-      </section>
+      <section className="border-y border-white/10 bg-[#0d1310]"><div className="mx-auto grid max-w-[90rem] gap-10 px-5 py-16 md:px-8 md:py-20 lg:grid-cols-[.75fr_1.25fr] lg:items-center lg:px-10"><div><p className="text-[10px] font-black uppercase tracking-[.22em] text-emerald-300">Die Rangliste läuft mit</p><h2 className="mt-5 text-4xl font-black leading-[.92] tracking-[-.07em] text-white md:text-5xl">Nicht nur spielen.<br />Auch besser werden.</h2></div><div className="grid gap-5 sm:grid-cols-3">{[['01', 'Jedes Match', 'Elo kommt erst nach bestätigtem Ergebnis.'], ['02', 'Jede Saison', 'Deine Platzierung bleibt nachvollziehbar.'], ['03', 'Jeder Schritt', 'Sieh, wohin dein nächster Sieg dich bringt.']].map(([number, title, text]) => <div key={number} className="border-l border-white/15 pl-5"><span className="text-sm font-black text-emerald-300">{number}</span><h3 className="mt-5 text-xl font-black tracking-[-.04em] text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p></div>)}</div></div></section>
 
-      <section className="mx-auto max-w-7xl px-5 pt-20 md:px-8 md:pt-28">
-        <div className="grid overflow-hidden border border-white/15 bg-[#0d1110] md:grid-cols-[1.15fr_.85fr]">
-          <div className="min-h-72 bg-[url('/rankeddarts-darts-club-hero-v2.png')] bg-cover bg-[68%_center] md:min-h-[25rem]" />
-          <div className="flex flex-col justify-between p-7 md:p-10">
-            <div><p className="text-[11px] font-black uppercase tracking-[.2em] text-emerald-300">RankedDarts im Alltag</p><h2 className="mt-4 text-3xl font-black tracking-[-.055em] md:text-5xl">Spielen, Ergebnis bestätigen, weitermachen.</h2><p className="mt-5 max-w-md leading-7 text-zinc-400">Du spielst wie gewohnt. Nach dem Match tragt ihr das Ergebnis ein und bestätigt es beide. Dann wird es für deine Elo gewertet.</p></div>
-            <a href="/matchmaking" className="mt-9 inline-flex items-center gap-2 text-sm font-black text-emerald-200 hover:text-emerald-100">So funktioniert Matchmaking <ChevronRight className="h-4 w-4" /></a>
-          </div>
-        </div>
-      </section>
+      <section className="relative overflow-hidden px-5 py-24 text-center md:px-8 md:py-32"><div aria-hidden className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-200/10 shadow-[0_0_0_75px_rgba(88,226,151,.025),0_0_140px_rgba(88,226,151,.1)]" /><div className="relative mx-auto max-w-3xl"><Swords className="mx-auto h-7 w-7 text-emerald-300" /><p className="mt-6 text-[10px] font-black uppercase tracking-[.22em] text-emerald-300">Dein nächstes Leg</p><h2 className="mt-5 text-5xl font-black leading-[.88] tracking-[-.075em] text-white md:text-7xl">Bist du bereit,<br /><span className="text-emerald-300">es zählen zu lassen?</span></h2><p className="mx-auto mt-6 max-w-xl leading-7 text-zinc-400">Profil erstellen, Gegner finden und losspielen. Der Rest passiert auf dem Board.</p><div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row"><button onClick={() => router.push(primaryTarget)} className="group inline-flex items-center justify-center gap-3 bg-[#9af0bc] px-7 py-4 text-sm font-black uppercase tracking-[.13em] text-[#07100b] transition hover:bg-[#c4f9d7]">{primaryLabel}<ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></button><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 border border-white/20 px-7 py-4 text-sm font-bold text-zinc-100 transition hover:border-indigo-200 hover:bg-indigo-300/10"><MessageCircle className="h-4 w-4 text-indigo-200" /> Community beitreten</a></div></div></section>
 
-      <section className="mx-auto max-w-7xl px-5 py-20 md:px-8 md:py-28"><div className="max-w-2xl"><p className="text-[11px] font-black uppercase tracking-[.2em] text-emerald-300">Die wichtigsten Regeln</p><h2 className="mt-4 text-4xl font-black tracking-[-.06em] md:text-6xl">So werden Matches gewertet.</h2></div><div className="mt-12 grid border-t border-white/15 lg:grid-cols-3">{principles.map(([number, title, text], index) => <article key={number} className={`py-8 lg:px-8 ${index !== 0 ? 'lg:border-l lg:border-white/15' : 'lg:pr-8'}`}><span className="text-sm font-black text-emerald-300">{number}</span><h3 className="mt-7 text-2xl font-black tracking-[-.04em]">{title}</h3><p className="mt-3 max-w-sm leading-7 text-zinc-400">{text}</p></article>)}</div></section>
-
-      <section className="mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-28"><div className="mb-10 grid gap-3 border-y border-white/10 bg-[#0d1110] md:grid-cols-3">{rankSteps.map(({ number, title, text }, index) => <div key={number} className={`p-5 md:p-6 ${index !== 0 ? 'border-t border-white/10 md:border-l md:border-t-0' : ''}`}><span className="text-sm font-black text-emerald-300">{number}</span><h3 className="mt-5 text-xl font-black tracking-[-.04em] text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p></div>)}</div><div className="grid border border-white/15 bg-[#0d1110] lg:grid-cols-[.72fr_1.28fr]"><div className="border-b border-white/15 p-7 lg:border-b-0 lg:border-r lg:p-10"><div className="flex h-11 w-11 items-center justify-center border border-emerald-300/40 text-emerald-300"><Trophy className="h-5 w-5" /></div><p className="mt-7 text-[11px] font-black uppercase tracking-[.2em] text-zinc-500">Dein Ranking</p><h2 className="mt-3 text-3xl font-black tracking-[-.05em]">Level 1 bis Level 10.</h2><p className="mt-4 leading-7 text-zinc-400">Level 10 beginnt bei 2.000 Elo. Deine Platzierung richtet sich nach bestätigten Ranked-Matches – jedes faire Duell bringt dich weiter.</p><button onClick={() => router.push('/matchmaking')} className="mt-7 inline-flex items-center gap-2 text-sm font-black text-emerald-200 hover:text-emerald-100">Zum Matchmaking <ChevronRight className="h-4 w-4" /></button></div><div className="grid sm:grid-cols-2">{RANK_TIERS.map((rank) => <div key={rank.level} className="group flex items-center gap-4 border-b border-white/10 p-5 last:border-b-0 sm:[&:nth-child(odd)]:border-r sm:p-6"><RankBadge level={rank.level} size="sm" className="transition duration-300 group-hover:-translate-y-1 group-hover:scale-105" /><div className="min-w-0"><div className="flex items-baseline justify-between gap-3"><span className="text-xs font-black uppercase tracking-[.14em] text-zinc-500">Level {rank.level}</span><span className="shrink-0 text-[10px] font-black text-emerald-300">{getRankRangeLabel(rank)} Elo</span></div><div className="mt-2 text-2xl font-black tracking-[-.05em] text-white">{rank.name}</div></div></div>)}</div></div></section>
-
-      <section className="border-t border-white/10 bg-[#0d1110] px-5 py-16 text-center md:px-8 md:py-20"><Swords className="mx-auto h-6 w-6 text-emerald-300" /><h2 className="mx-auto mt-5 max-w-3xl text-4xl font-black tracking-[-.06em] md:text-6xl">Lust auf dein erstes Ranked-Match?</h2><p className="mx-auto mt-4 max-w-xl leading-7 text-zinc-400">Erstelle dein Profil, hinterlege deine Plattform und suche dir einen Gegner.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><button onClick={() => router.push(primaryTarget)} className="border border-emerald-300 bg-emerald-300 px-7 py-4 text-sm font-black uppercase tracking-[.12em] text-[#07100b] transition hover:bg-emerald-200">{primaryLabel}</button><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 border border-white/15 px-7 py-4 text-sm font-bold text-zinc-100 transition hover:border-indigo-200 hover:bg-indigo-300/10"><MessageCircle className="h-4 w-4 text-indigo-200" /> Auf Discord mitspielen</a></div></section>
-
-      <footer className="border-t border-white/10 px-5 py-8 text-xs text-zinc-500 md:px-8"><div className="mx-auto flex max-w-7xl flex-col gap-5 md:flex-row md:items-center md:justify-between"><span className="font-bold text-zinc-300">RANKEDDARTS · COMPETITIVE DARTS</span><div className="flex flex-wrap gap-x-5 gap-y-2"><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="font-bold text-indigo-200 hover:text-white">Discord-Community</a><a href="/impressum" className="hover:text-white">Impressum</a><a href="/datenschutz" className="hover:text-white">Datenschutz</a><a href="/agb" className="hover:text-white">AGB</a><a href="/fairplay" className="hover:text-white">Fair Play</a><a href="/turnierregeln" className="hover:text-white">Turnierregeln</a><a href="/premium/kuendigung" className="hover:text-white">Premium kündigen</a></div></div></footer>
-      <div className="fixed inset-x-3 bottom-3 z-40 md:hidden"><button onClick={() => router.push(primaryTarget)} className="flex w-full items-center justify-between border border-emerald-200 bg-emerald-300 px-4 py-3.5 text-sm font-black uppercase tracking-[.12em] text-[#07100b] shadow-[0_12px_32px_rgba(0,0,0,.5)]"><span>{primaryLabel}</span><ArrowUpRight className="h-4 w-4" /></button></div>
+      <footer className="border-t border-white/10 px-5 py-8 text-xs text-zinc-500 md:px-8 lg:px-10"><div className="mx-auto flex max-w-[90rem] flex-col gap-5 md:flex-row md:items-center md:justify-between"><span className="font-bold text-zinc-300">RANKEDDARTS · COMPETITIVE DARTS</span><div className="flex flex-wrap gap-x-5 gap-y-2"><a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer" className="font-bold text-indigo-200 hover:text-white">Discord-Community</a><Link href="/impressum" className="hover:text-white">Impressum</Link><Link href="/datenschutz" className="hover:text-white">Datenschutz</Link><Link href="/agb" className="hover:text-white">AGB</Link><Link href="/fairplay" className="hover:text-white">Fair Play</Link><Link href="/turnierregeln" className="hover:text-white">Turnierregeln</Link></div></div></footer>
+      <div className="fixed inset-x-3 bottom-3 z-40 md:hidden"><button onClick={() => router.push(primaryTarget)} className="flex w-full items-center justify-between bg-[#9af0bc] px-4 py-3.5 text-sm font-black uppercase tracking-[.12em] text-[#07100b] shadow-[0_12px_32px_rgba(0,0,0,.5)]"><span>{primaryLabel}</span><ArrowUpRight className="h-4 w-4" /></button></div>
     </main>
   );
 }
-
