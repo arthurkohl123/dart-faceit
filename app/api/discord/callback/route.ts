@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { getDiscordConfig, getDiscordUserFromCode, syncDiscordPremiumRole, verifySignedState } from '@/lib/discord';
+import { getDiscordConfig, getDiscordUserFromCode, isDiscordStreamerRoleConfigured, syncDiscordPremiumRole, syncDiscordStreamerRole, verifySignedState } from '@/lib/discord';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -83,13 +83,16 @@ export async function GET(request: Request) {
 
     const { data: profile, error: profileError } = await admin
       .from('profiles')
-      .select('"isPremium", discord_user_id')
+      .select('"isPremium", is_streamer, discord_user_id')
       .eq('supabaseId', linkedUserId)
       .single();
     if (profileError) throw profileError;
 
     const roleSync = await syncDiscordPremiumRole(discordUser.id, Boolean(profile?.isPremium));
     if (roleSync.code === 'NOT_MEMBER') return response('not-member');
+    const streamerRoleSync = isDiscordStreamerRoleConfigured()
+      ? await syncDiscordStreamerRole(discordUser.id, Boolean(profile?.is_streamer))
+      : { ok: true };
 
     const { error: updateError } = await admin.from('profiles').update({
       discord_user_id: discordUser.id,
@@ -99,7 +102,7 @@ export async function GET(request: Request) {
     }).eq('supabaseId', linkedUserId);
     if (updateError) throw updateError;
 
-    return response(roleSync.ok ? 'connected' : 'role-error');
+    return response(roleSync.ok && streamerRoleSync.ok ? 'connected' : 'role-error');
   } catch (callbackError) {
     console.error('Discord OAuth callback failed:', callbackError);
     return response('failed');

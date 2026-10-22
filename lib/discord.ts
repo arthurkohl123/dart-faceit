@@ -6,12 +6,13 @@ export type DiscordConfig = {
   botToken: string;
   guildId: string;
   premiumRoleId: string;
+  streamerRoleId: string | null;
   redirectUri: string;
 };
 
 export type DiscordSyncResult = {
   ok: boolean;
-  code?: 'NOT_CONFIGURED' | 'NOT_MEMBER' | 'ROLE_UPDATE_FAILED';
+  code?: 'NOT_CONFIGURED' | 'ROLE_NOT_CONFIGURED' | 'NOT_MEMBER' | 'ROLE_UPDATE_FAILED';
   message?: string;
 };
 
@@ -27,6 +28,7 @@ export function getDiscordConfig(): DiscordConfig | null {
   const botToken = process.env.DISCORD_BOT_TOKEN?.trim();
   const guildId = process.env.DISCORD_GUILD_ID?.trim();
   const premiumRoleId = process.env.DISCORD_PREMIUM_ROLE_ID?.trim();
+  const streamerRoleId = process.env.DISCORD_STREAMER_ROLE_ID?.trim() || null;
 
   if (!clientId || !clientSecret || !botToken || !guildId || !premiumRoleId) return null;
 
@@ -36,6 +38,7 @@ export function getDiscordConfig(): DiscordConfig | null {
     botToken,
     guildId,
     premiumRoleId,
+    streamerRoleId,
     redirectUri: (process.env.DISCORD_REDIRECT_URI?.trim() || `${appUrl()}/api/discord/callback`).replace(/\/$/, ''),
   };
 }
@@ -75,9 +78,13 @@ async function discordFetch(path: string, init: RequestInit, botToken: string) {
   });
 }
 
-export async function syncDiscordPremiumRole(discordUserId: string, shouldHavePremium: boolean): Promise<DiscordSyncResult> {
-  const config = getDiscordConfig();
-  if (!config) return { ok: false, code: 'NOT_CONFIGURED', message: 'Discord-Rollen-Synchronisierung ist noch nicht konfiguriert.' };
+async function syncDiscordRole(
+  discordUserId: string,
+  shouldHaveRole: boolean,
+  roleId: string,
+  roleLabel: string,
+  config: DiscordConfig,
+): Promise<DiscordSyncResult> {
 
   const memberResponse = await discordFetch(`/guilds/${config.guildId}/members/${discordUserId}`, {}, config.botToken);
   if (memberResponse.status === 404) {
@@ -87,16 +94,33 @@ export async function syncDiscordPremiumRole(discordUserId: string, shouldHavePr
     return { ok: false, code: 'ROLE_UPDATE_FAILED', message: `Discord-Mitglied konnte nicht geprüft werden (HTTP ${memberResponse.status}).` };
   }
 
-  const rolePath = `/guilds/${config.guildId}/members/${discordUserId}/roles/${config.premiumRoleId}`;
-  const roleResponse = shouldHavePremium
+  const rolePath = `/guilds/${config.guildId}/members/${discordUserId}/roles/${roleId}`;
+  const roleResponse = shouldHaveRole
     ? await discordFetch(rolePath, { method: 'PUT', body: JSON.stringify({}) }, config.botToken)
     : await discordFetch(rolePath, { method: 'DELETE' }, config.botToken);
 
   if (!roleResponse.ok && roleResponse.status !== 204) {
-    return { ok: false, code: 'ROLE_UPDATE_FAILED', message: `Premium-Rolle konnte nicht aktualisiert werden (HTTP ${roleResponse.status}).` };
+    return { ok: false, code: 'ROLE_UPDATE_FAILED', message: `${roleLabel}-Rolle konnte nicht aktualisiert werden (HTTP ${roleResponse.status}).` };
   }
 
   return { ok: true };
+}
+
+export function isDiscordStreamerRoleConfigured() {
+  return Boolean(getDiscordConfig()?.streamerRoleId);
+}
+
+export async function syncDiscordPremiumRole(discordUserId: string, shouldHavePremium: boolean): Promise<DiscordSyncResult> {
+  const config = getDiscordConfig();
+  if (!config) return { ok: false, code: 'NOT_CONFIGURED', message: 'Discord-Rollen-Synchronisierung ist noch nicht konfiguriert.' };
+  return syncDiscordRole(discordUserId, shouldHavePremium, config.premiumRoleId, 'Premium', config);
+}
+
+export async function syncDiscordStreamerRole(discordUserId: string, shouldHaveStreamer: boolean): Promise<DiscordSyncResult> {
+  const config = getDiscordConfig();
+  if (!config) return { ok: false, code: 'NOT_CONFIGURED', message: 'Discord-Rollen-Synchronisierung ist noch nicht konfiguriert.' };
+  if (!config.streamerRoleId) return { ok: false, code: 'ROLE_NOT_CONFIGURED', message: 'Die Discord-Streamer-Rolle ist noch nicht konfiguriert.' };
+  return syncDiscordRole(discordUserId, shouldHaveStreamer, config.streamerRoleId, 'Streamer', config);
 }
 
 export async function getDiscordUserFromCode(code: string, config: DiscordConfig) {

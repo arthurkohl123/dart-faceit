@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { syncDiscordPremiumRole } from '@/lib/discord';
+import { isDiscordStreamerRoleConfigured, syncDiscordPremiumRole, syncDiscordStreamerRole } from '@/lib/discord';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,8 +21,9 @@ export async function POST() {
 
   let warning: string | undefined;
   if (profile?.discord_user_id) {
-    const roleSync = await syncDiscordPremiumRole(profile.discord_user_id, false);
-    if (!roleSync.ok && roleSync.code !== 'NOT_MEMBER') warning = roleSync.message;
+    const roleResults = [await syncDiscordPremiumRole(profile.discord_user_id, false)];
+    if (isDiscordStreamerRoleConfigured()) roleResults.push(await syncDiscordStreamerRole(profile.discord_user_id, false));
+    warning = roleResults.find((result) => !result.ok && result.code !== 'NOT_MEMBER')?.message;
   }
 
   const { error } = await admin.from('profiles').update({

@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { AdminBadge } from '@/components/AdminBadge';
 import { RankBadge } from '@/components/RankBadge';
+import { StreamerBadge } from '@/components/StreamerBadge';
 import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
 import { getRankProgress } from '@/lib/ranks';
 import { ArrowUpRight, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
@@ -20,6 +21,7 @@ type PublicProfile = {
   isPremium: boolean;
   premium_cosmetic: PremiumCosmetic | null;
   isAdmin: boolean;
+  is_streamer: boolean;
   supabaseId: string;
 };
 
@@ -108,7 +110,7 @@ export default function PlayerProfile() {
       const [{ data: profileData }, { data: adminRows, error: adminError }] = await Promise.all([
         supabase
           .from('public_visible_profiles')
-          .select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, supabaseId')
+          .select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, is_streamer, supabaseId')
           .eq('username', username)
           .maybeSingle(),
         supabase.rpc('get_public_admin_profile_ids'),
@@ -129,6 +131,7 @@ export default function PlayerProfile() {
         isPremium: Boolean(profileData.isPremium),
         premium_cosmetic: profileData.premium_cosmetic ?? null,
         isAdmin,
+        is_streamer: Boolean(profileData.is_streamer),
         supabaseId: profileData.supabaseId,
       };
       setProfile(p);
@@ -260,6 +263,7 @@ export default function PlayerProfile() {
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 {profile!.isPremium && <Star className={'h-5 w-5 fill-current ' + (premiumCosmetic?.icon || 'text-emerald-300')} />}
                 <h1 className={'text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl ' + (premiumCosmetic?.name || '')}>{profile!.username}</h1>
+                {profile!.is_streamer && <StreamerBadge />}
                 {profile!.isAdmin && <AdminBadge />}
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className={'border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100 ' + (premiumCosmetic?.badge || '')}>PREMIUM</span>}</div>

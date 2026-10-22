@@ -25,6 +25,7 @@ import {
   Loader2,
   MessageCircle,
   RefreshCw,
+  Radio,
   Radar,
   Search,
   Send,
@@ -63,6 +64,7 @@ type Profile = {
   ban_reason: string | null;
   is_admin: boolean | null;
   is_moderator: boolean | null;
+  is_streamer: boolean | null;
   phone_verified: boolean | null;
   isPremium: boolean | null;
   stripe_subscription_status: string | null;
@@ -494,6 +496,7 @@ export default function AdminPanel() {
   const [premiumDuration, setPremiumDuration] = useState<'7' | '14' | '30' | '60' | '90' | 'unlimited'>('30');
   const [premiumReason, setPremiumReason] = useState('');
   const [premiumSavingUserId, setPremiumSavingUserId] = useState<string | null>(null);
+  const [streamerSavingUserId, setStreamerSavingUserId] = useState<string | null>(null);
   const [premiumCodes, setPremiumCodes] = useState<PremiumCode[]>([]);
   const [premiumCodesLoading, setPremiumCodesLoading] = useState(false);
   const [premiumCodesError, setPremiumCodesError] = useState<string | null>(null);
@@ -1414,6 +1417,41 @@ export default function AdminPanel() {
     setActionMessage(active
       ? `Premium wurde für ${user.username || 'den Spieler'} aktiviert.`
       : `Die manuelle Premium-Freigabe für ${user.username || 'den Spieler'} wurde beendet.`);
+    await Promise.all([loadProfiles(), loadAdminLogs()]);
+  };
+
+  const updateStreamer = async (user: Profile, active: boolean) => {
+    setStreamerSavingUserId(user.id);
+    const { error } = await supabase.rpc('admin_set_streamer', {
+      p_profile_id: user.id,
+      p_active: active,
+      p_note: null,
+    });
+
+    if (error) {
+      setStreamerSavingUserId(null);
+      setActionMessage(`Streamer-Rolle konnte nicht geändert werden: ${error.message}`);
+      return;
+    }
+
+    let syncMessage = '';
+    try {
+      const response = await fetch('/api/admin/streamer-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: user.id }),
+      });
+      const result = await response.json() as { message?: string; error?: string };
+      if (result.message) syncMessage = ` ${result.message}`;
+      else if (result.error) syncMessage = ` ${result.error} Die Synchronisierung wird beim nächsten Abgleich erneut versucht.`;
+    } catch {
+      syncMessage = ' Die Discord-Synchronisierung wird beim nächsten Abgleich erneut versucht.';
+    }
+
+    setStreamerSavingUserId(null);
+    setActionMessage(active
+      ? `Streamer-Rolle für ${user.username || 'den Spieler'} aktiviert. Premium-Zugang ist sofort freigeschaltet.${syncMessage}`
+      : `Streamer-Rolle für ${user.username || 'den Spieler'} entfernt.${syncMessage}`);
     await Promise.all([loadProfiles(), loadAdminLogs()]);
   };
 
@@ -2496,6 +2534,9 @@ export default function AdminPanel() {
                       {user.isPremium && (
                         <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100"><Crown className="h-3 w-3" />{user.premium_manual_granted_at ? 'Premium · manuell' : 'Premium'}</span>
                       )}
+                      {user.is_streamer && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-rose-300/25 bg-rose-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-rose-100"><Radio className="h-3 w-3" />Streamer</span>
+                      )}
                       <button
                         onClick={() => toggleVerification(user)}
                         className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] transition ${
@@ -2582,6 +2623,13 @@ export default function AdminPanel() {
                       className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-amber-100 transition hover:bg-amber-300/15"
                     >
                       {user.premium_manual_granted_at ? 'Premium verwalten' : 'Premium'}
+                    </button>
+                    <button
+                      onClick={() => void updateStreamer(user, !user.is_streamer)}
+                      disabled={streamerSavingUserId === user.id}
+                      className={`rounded-xl border px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] transition disabled:opacity-50 ${user.is_streamer ? 'border-rose-300/25 bg-rose-400/10 text-rose-100 hover:bg-rose-400/20' : 'border-fuchsia-300/25 bg-fuchsia-400/10 text-fuchsia-100 hover:bg-fuchsia-400/20'}`}
+                    >
+                      {streamerSavingUserId === user.id ? 'Speichert …' : user.is_streamer ? 'Streamer weg' : 'Streamer'}
                     </button>
                     <button
                       onClick={() => toggleBan(user)}
