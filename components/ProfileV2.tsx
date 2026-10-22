@@ -90,6 +90,8 @@ type ProfileData = {
   autodarts_username: string | null;
   discord_user_id?: string | null;
   discord_username?: string | null;
+  twitch_url?: string | null;
+  kick_url?: string | null;
 };
 
 type MatchData = {
@@ -125,6 +127,16 @@ type Props = {
   savingPlatforms: boolean;
   platformSaveMsg: { type: 'success' | 'error'; text: string } | null;
   cancelPlatformEdit: () => void;
+  editingStreamerLinks: boolean;
+  setEditingStreamerLinks: (editing: boolean) => void;
+  twitchInput: string;
+  kickInput: string;
+  setTwitchInput: (value: string) => void;
+  setKickInput: (value: string) => void;
+  saveStreamerLinks: () => void;
+  savingStreamerLinks: boolean;
+  streamerLinkSaveMsg: { type: 'success' | 'error'; text: string } | null;
+  cancelStreamerLinkEdit: () => void;
   startDiscordConnect: () => void;
   unlinkDiscord: () => void;
   discordBusy: boolean;
@@ -165,6 +177,16 @@ export function ProfileV2(props: Props) {
     savingPlatforms,
     platformSaveMsg,
     cancelPlatformEdit,
+    editingStreamerLinks,
+    setEditingStreamerLinks,
+    twitchInput,
+    kickInput,
+    setTwitchInput,
+    setKickInput,
+    saveStreamerLinks,
+    savingStreamerLinks,
+    streamerLinkSaveMsg,
+    cancelStreamerLinkEdit,
     startDiscordConnect,
     unlinkDiscord,
     discordBusy,
@@ -216,6 +238,7 @@ export function ProfileV2(props: Props) {
           <div className="hidden items-center gap-7 text-sm font-medium text-zinc-300 lg:flex">
             <Link href="/matchmaking" className="hover:text-white">Matchmaking</Link>
             <Link href="/leaderboard" className="hover:text-white">Rangliste</Link>
+            <Link href="/streamers" className="hover:text-white">Streamer</Link>
             <Link href="/tournaments" className="inline-flex items-center gap-1.5 hover:text-white"><Trophy size={14} />Turniere</Link>
             <Link href="/updates" className="hover:text-white">Updates</Link>
             <Link href="/support" className="inline-flex items-center gap-1.5 hover:text-white"><Headphones size={14} />Support</Link>
@@ -229,7 +252,7 @@ export function ProfileV2(props: Props) {
             </button>
           </div>
         </div>
-        {mobileMenuOpen && <div className="border-t border-white/10 bg-[#090d0c] px-5 py-4 lg:hidden"><div className="flex flex-col gap-1">{[['Matchmaking', '/matchmaking'], ['Rangliste', '/leaderboard'], ['Turniere', '/tournaments'], ['Match-Verlauf', '/history'], ['Updates', '/updates'], ['Support', '/support'], ['Freunde & Duelle', '/friends'], ['Premium', '/premium']].map(([label, href]) => <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-zinc-300 hover:bg-white/10 hover:text-white">{label}</Link>)}</div></div>}
+        {mobileMenuOpen && <div className="border-t border-white/10 bg-[#090d0c] px-5 py-4 lg:hidden"><div className="flex flex-col gap-1">{[['Matchmaking', '/matchmaking'], ['Rangliste', '/leaderboard'], ['Streamer', '/streamers'], ['Turniere', '/tournaments'], ['Match-Verlauf', '/history'], ['Updates', '/updates'], ['Support', '/support'], ['Freunde & Duelle', '/friends'], ['Premium', '/premium']].map(([label, href]) => <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-zinc-300 hover:bg-white/10 hover:text-white">{label}</Link>)}</div></div>}
       </nav>
 
       <section className="arena-content relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-5 md:px-8 md:pt-32">
@@ -275,6 +298,13 @@ export function ProfileV2(props: Props) {
               {editingPlatforms && <div className="mt-5 flex flex-wrap items-center gap-3"><button type="button" onClick={savePlatformUsernames} disabled={savingPlatforms} className="arena-primary-action inline-flex items-center gap-2 px-5 py-2.5 text-sm font-black"><Save size={14} />{savingPlatforms ? 'Speichern...' : 'Speichern'}</button><button type="button" onClick={cancelPlatformEdit} className="profile-v3-quiet-action inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold"><X size={14} />Abbrechen</button>{platformSaveMsg && <span className={'text-sm font-bold ' + (platformSaveMsg.type === 'success' ? 'text-emerald-300' : 'text-red-300')}>{platformSaveMsg.text}</span>}</div>}
               {!hasPlatform && !editingPlatforms && <div className="mt-5 border-l-2 border-amber-300/40 py-2 pl-4 text-sm text-amber-200">Hinterlege mindestens einen Plattform-Account, um am Matchmaking teilzunehmen.</div>}
             </section>
+            {profile?.is_streamer && <section id="stream-links" className="profile-v3-section mt-16 scroll-mt-28">
+              <div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between"><div><div className="profile-v2-label text-rose-200">Creator-Profil</div><h2 className="mt-2 text-3xl font-black tracking-[-0.06em]">Deine Streams</h2><p className="mt-2 text-sm text-zinc-500">Diese Links erscheinen auf deinem öffentlichen Profil und in der Streamer-Übersicht.</p></div>{!editingStreamerLinks && <button type="button" onClick={() => setEditingStreamerLinks(true)} className="profile-v3-quiet-action inline-flex w-fit items-center gap-2 px-4 py-2.5 text-sm font-bold"><Pencil size={14} />Bearbeiten</button>}</div>
+              <div className="mt-2 space-y-2">
+                {[{ key: 'twitch', label: 'Twitch', description: 'https://www.twitch.tv/deinname', value: profile.twitch_url, input: twitchInput, setInput: setTwitchInput, tone: 'text-violet-200' }, { key: 'kick', label: 'Kick', description: 'https://kick.com/deinname', value: profile.kick_url, input: kickInput, setInput: setKickInput, tone: 'text-emerald-200' }].map((stream) => <div key={stream.key} className="profile-v3-platform-row"><span className="profile-v2-platform-marker bg-rose-300" /><div className="min-w-0 flex-1"><div className="text-base font-black text-white">{stream.label}</div><div className="mt-1 text-xs text-zinc-500">{stream.description}</div></div>{editingStreamerLinks ? <input type="url" value={stream.input} onChange={(event) => stream.setInput(event.target.value)} placeholder={stream.description} maxLength={255} className="profile-v2-input w-full sm:w-80" /> : <div className={'truncate text-sm font-bold ' + (stream.value ? stream.tone : 'text-zinc-600')}>{stream.value ? 'Verbunden' : 'Nicht hinterlegt'}</div>}<span className={stream.value ? 'text-emerald-300' : 'text-zinc-700'}>{stream.value ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}</span></div>)}
+              </div>
+              {editingStreamerLinks && <div className="mt-5 flex flex-wrap items-center gap-3"><button type="button" onClick={saveStreamerLinks} disabled={savingStreamerLinks} className="arena-primary-action inline-flex items-center gap-2 px-5 py-2.5 text-sm font-black"><Save size={14} />{savingStreamerLinks ? 'Speichern...' : 'Speichern'}</button><button type="button" onClick={cancelStreamerLinkEdit} className="profile-v3-quiet-action inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold"><X size={14} />Abbrechen</button>{streamerLinkSaveMsg && <span className={'text-sm font-bold ' + (streamerLinkSaveMsg.type === 'success' ? 'text-emerald-300' : 'text-red-300')}>{streamerLinkSaveMsg.text}</span>}</div>}
+            </section>}
             <section className="profile-v3-section mt-16"><div className="border-b border-white/10 pb-5"><div className="profile-v2-label">Auswertung</div><h2 className="mt-2 text-3xl font-black tracking-[-0.06em]">Deine Plattform-Performance</h2><p className="mt-2 text-sm text-zinc-500">Alle bestätigten Werte an einem Ort.</p></div><div className="mt-8"><UnifiedDartsProfile statistics={platformStatistics} connectedApps={connectedApps} /></div></section>
           </div>
 

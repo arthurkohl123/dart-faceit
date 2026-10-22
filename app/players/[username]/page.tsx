@@ -9,7 +9,7 @@ import { RankBadge } from '@/components/RankBadge';
 import { StreamerBadge } from '@/components/StreamerBadge';
 import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
 import { getRankProgress } from '@/lib/ranks';
-import { ArrowUpRight, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
+import { ArrowUpRight, ExternalLink, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
 type PremiumCosmetic = 'emerald' | 'violet' | 'gold' | 'cyan';
 
@@ -22,6 +22,8 @@ type PublicProfile = {
   premium_cosmetic: PremiumCosmetic | null;
   isAdmin: boolean;
   is_streamer: boolean;
+  twitch_url: string | null;
+  kick_url: string | null;
   supabaseId: string;
 };
 
@@ -110,7 +112,7 @@ export default function PlayerProfile() {
       const [{ data: profileData }, { data: adminRows, error: adminError }] = await Promise.all([
         supabase
           .from('public_visible_profiles')
-          .select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, is_streamer, supabaseId')
+          .select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, is_streamer, twitch_url, kick_url, supabaseId')
           .eq('username', username)
           .maybeSingle(),
         supabase.rpc('get_public_admin_profile_ids'),
@@ -132,6 +134,8 @@ export default function PlayerProfile() {
         premium_cosmetic: profileData.premium_cosmetic ?? null,
         isAdmin,
         is_streamer: Boolean(profileData.is_streamer),
+        twitch_url: profileData.twitch_url ?? null,
+        kick_url: profileData.kick_url ?? null,
         supabaseId: profileData.supabaseId,
       };
       setProfile(p);
@@ -229,6 +233,7 @@ export default function PlayerProfile() {
             <Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link>
             <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
             <Link href="/tournaments" className="transition hover:text-white">Turniere</Link>
+            <Link href="/streamers" className="transition hover:text-white">Streamer</Link>
           </div>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -243,6 +248,7 @@ export default function PlayerProfile() {
               <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Rangliste</Link>
               <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
               <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Turniere</Link>
+              <Link href="/streamers" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Streamer</Link>
             </div>
           </div>
         )}
@@ -268,6 +274,7 @@ export default function PlayerProfile() {
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className={'border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100 ' + (premiumCosmetic?.badge || '')}>PREMIUM</span>}</div>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-zinc-400 sm:justify-start"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Bestätigte Ranked-Stats</span><span className="hidden h-3 w-px bg-white/15 sm:block" /><span>{gamesPlayed} Matches gespielt</span></div>
+              {profile!.is_streamer && (profile!.twitch_url || profile!.kick_url) && <div className="mt-5 flex flex-wrap justify-center gap-2 sm:justify-start">{profile!.twitch_url && <a href={profile!.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 border border-violet-300/30 bg-violet-400/10 px-3 py-2 text-xs font-black text-violet-100 transition hover:border-violet-200 hover:bg-violet-400/20">Twitch <ExternalLink className="h-3.5 w-3.5" /></a>}{profile!.kick_url && <a href={profile!.kick_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-400/20">Kick <ExternalLink className="h-3.5 w-3.5" /></a>}</div>}
             </div>
             <div className="relative shrink-0 overflow-hidden border border-emerald-300/25 bg-[#07120e]/95 px-7 py-5 text-center">
               <div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200">Elo Rating</div>

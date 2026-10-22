@@ -35,6 +35,8 @@ type ProfileData = {
   discord_username?: string | null;
   discord_avatar?: string | null;
   discord_linked_at?: string | null;
+  twitch_url?: string | null;
+  kick_url?: string | null;
 };
 
 export default function Profile() {
@@ -56,6 +58,11 @@ export default function Profile() {
   const [platformSaveMsg, setPlatformSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [discordBusy, setDiscordBusy] = useState(false);
   const [discordMsg, setDiscordMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [editingStreamerLinks, setEditingStreamerLinks] = useState(false);
+  const [twitchInput, setTwitchInput] = useState('');
+  const [kickInput, setKickInput] = useState('');
+  const [savingStreamerLinks, setSavingStreamerLinks] = useState(false);
+  const [streamerLinkSaveMsg, setStreamerLinkSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -81,6 +88,8 @@ export default function Profile() {
       setScoliaInput(profileData?.scolia_username ?? '');
       setDartcounterInput(profileData?.dartcounter_username ?? '');
       setAutodartsInput(profileData?.autodarts_username ?? '');
+      setTwitchInput(profileData?.twitch_url ?? '');
+      setKickInput(profileData?.kick_url ?? '');
       setMatches((matchData || []) as MatchData[]);
       if (!statisticsError) {
         const stats = (statisticRows as { average: number | null; total_180s: number }[] | null)?.[0];
@@ -138,6 +147,33 @@ export default function Profile() {
       setPlatformSaveMsg({ type: 'error', text: err instanceof Error ? err.message : 'Fehler beim Speichern.' });
     } finally {
       setSavingPlatforms(false);
+    }
+  };
+
+  const saveStreamerLinks = async () => {
+    setSavingStreamerLinks(true);
+    setStreamerLinkSaveMsg(null);
+    try {
+      const { data, error } = await supabase.rpc('update_streamer_social_links', {
+        p_twitch_url: twitchInput.trim() || null,
+        p_kick_url: kickInput.trim() || null,
+      });
+      if (error) throw error;
+      const saved = (data as { twitch_url: string | null; kick_url: string | null }[] | null)?.[0];
+      setProfile((previous) => previous ? {
+        ...previous,
+        twitch_url: saved?.twitch_url ?? (twitchInput.trim() || null),
+        kick_url: saved?.kick_url ?? (kickInput.trim() || null),
+      } : previous);
+      setTwitchInput(saved?.twitch_url ?? twitchInput.trim());
+      setKickInput(saved?.kick_url ?? kickInput.trim());
+      setStreamerLinkSaveMsg({ type: 'success', text: 'Stream-Links gespeichert.' });
+      setEditingStreamerLinks(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Stream-Links konnten nicht gespeichert werden.';
+      setStreamerLinkSaveMsg({ type: 'error', text: message.includes('INVALID_TWITCH_URL') ? 'Bitte nutze einen vollständigen Twitch-Link.' : message.includes('INVALID_KICK_URL') ? 'Bitte nutze einen vollständigen Kick-Link.' : message });
+    } finally {
+      setSavingStreamerLinks(false);
     }
   };
 
@@ -227,6 +263,21 @@ export default function Profile() {
         setDartcounterInput(profile?.dartcounter_username ?? '');
         setAutodartsInput(profile?.autodarts_username ?? '');
         setPlatformSaveMsg(null);
+      }}
+      editingStreamerLinks={editingStreamerLinks}
+      setEditingStreamerLinks={setEditingStreamerLinks}
+      twitchInput={twitchInput}
+      kickInput={kickInput}
+      setTwitchInput={setTwitchInput}
+      setKickInput={setKickInput}
+      saveStreamerLinks={saveStreamerLinks}
+      savingStreamerLinks={savingStreamerLinks}
+      streamerLinkSaveMsg={streamerLinkSaveMsg}
+      cancelStreamerLinkEdit={() => {
+        setEditingStreamerLinks(false);
+        setTwitchInput(profile?.twitch_url ?? '');
+        setKickInput(profile?.kick_url ?? '');
+        setStreamerLinkSaveMsg(null);
       }}
       startDiscordConnect={() => {
         setDiscordMsg(null);
