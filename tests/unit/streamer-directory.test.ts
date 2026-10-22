@@ -7,6 +7,7 @@ const migration = readFileSync(
   'utf8',
 );
 const directory = readFileSync(new URL('../../app/streamers/page.tsx', import.meta.url), 'utf8');
+const streamerStatusRoute = readFileSync(new URL('../../app/api/streamers/route.ts', import.meta.url), 'utf8');
 const publicProfile = readFileSync(new URL('../../app/players/[username]/page.tsx', import.meta.url), 'utf8');
 const ownProfile = readFileSync(new URL('../../app/profile/page.tsx', import.meta.url), 'utf8');
 
@@ -27,9 +28,10 @@ test('only active streamers can save validated Twitch and Kick links', () => {
 test('public links are visible only through the streamer projection and creator surfaces', () => {
   assert.match(migration, /case when coalesce\(p\.is_streamer, false\) then p\.twitch_url else null end/i);
   assert.match(migration, /case when coalesce\(p\.is_streamer, false\) then p\.kick_url else null end/i);
-  assert.match(directory, /\.eq\('is_streamer', true\)/);
+  assert.match(streamerStatusRoute, /\.eq\('is_streamer', true\)/);
   assert.match(directory, /twitch_url/);
-  assert.match(directory, /kick_url/);
+  assert.match(directory, /getTwitchEmbedUrl/);
+  assert.doesNotMatch(directory, /kick_url/);
   assert.match(publicProfile, /twitch_url/);
   assert.match(publicProfile, /kick_url/);
   assert.match(ownProfile, /update_streamer_social_links/);
