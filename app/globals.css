@@ -630,6 +630,256 @@ body {
   .leaderboard-page .leaderboard-command > div:last-child { width: 100%; }
 }
 
+/* Public player profiles are readable player records: one identity panel, a
+   compact form ledger and a clear route into the complete statistics. */
+.player-profile-page {
+  min-height: 100vh;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(48rem 30rem at 94% 5%, rgba(73, 207, 151, .08), transparent 57%),
+    radial-gradient(40rem 26rem at -4% 45%, rgba(115, 96, 216, .055), transparent 58%),
+    #080b0a;
+}
+
+.player-profile-page::before {
+  position: fixed;
+  z-index: -2;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .026) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 74%);
+}
+
+.player-profile-page .player-profile-nav {
+  position: relative;
+  z-index: 40;
+  border-color: rgba(255, 255, 255, .1);
+  background: rgba(8, 11, 10, .84);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .18);
+}
+
+.player-profile-page .player-profile-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-top: 3px solid rgba(154, 240, 188, .85);
+  background:
+    linear-gradient(112deg, rgba(13, 24, 19, .98), rgba(8, 12, 11, .9) 55%, rgba(8, 11, 10, .72)),
+    #0b0f0e;
+  box-shadow: 18px 18px 0 rgba(0, 0, 0, .15), 0 24px 72px rgba(0, 0, 0, .22);
+}
+
+.player-profile-page .player-profile-hero::before {
+  position: absolute;
+  top: -13rem;
+  right: 8%;
+  width: 28rem;
+  height: 28rem;
+  border: 1px solid rgba(154, 240, 188, .12);
+  border-radius: 50%;
+  content: '';
+  box-shadow: 0 0 0 48px rgba(154, 240, 188, .025), 0 0 0 96px rgba(154, 240, 188, .014);
+}
+
+.player-profile-page .player-profile-hero::after {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 38%;
+  content: '';
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, rgba(154, 240, 188, .07) 0 1px, transparent 1px 3.5rem),
+    linear-gradient(to bottom, rgba(154, 240, 188, .05), transparent 72%);
+  mask-image: linear-gradient(90deg, transparent, black);
+}
+
+.player-profile-page .player-profile-hero-grid,
+.player-profile-page .player-profile-anchor-nav {
+  position: relative;
+  z-index: 1;
+}
+
+.player-profile-page .player-profile-kicker,
+.player-profile-page .player-profile-label {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  color: #b7f8d0;
+  font-size: .64rem;
+  font-weight: 900;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.player-profile-page .player-profile-rank-seal {
+  position: relative;
+  border: 1px solid rgba(154, 240, 188, .38);
+  background: rgba(4, 10, 8, .66);
+  box-shadow: 0 0 0 8px rgba(154, 240, 188, .035), 0 24px 54px rgba(0, 0, 0, .28);
+}
+
+.player-profile-page .player-profile-rank-tag,
+.player-profile-page .player-profile-premium-tag,
+.player-profile-page .player-profile-count {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, .14);
+  padding: .36rem .55rem;
+  background: rgba(3, 6, 5, .34);
+  font-size: .64rem;
+  font-weight: 900;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.player-profile-page .player-profile-premium-tag { color: #d1fae5; }
+.player-profile-page .player-profile-count { color: #d4d4d8; }
+
+.player-profile-page .player-profile-scorecard {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(154, 240, 188, .24);
+  padding: 1.5rem;
+  background: linear-gradient(145deg, rgba(38, 94, 66, .23), rgba(6, 12, 10, .76) 62%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+
+.player-profile-page .player-profile-scorecard::after {
+  position: absolute;
+  right: -2rem;
+  bottom: -3rem;
+  width: 10rem;
+  height: 10rem;
+  border: 1px solid rgba(154, 240, 188, .14);
+  border-radius: 50%;
+  content: '';
+}
+
+.player-profile-page .player-profile-scorecard > * { position: relative; z-index: 1; }
+
+.player-profile-page .player-profile-anchor-nav {
+  border-top: 1px solid rgba(255, 255, 255, .1);
+  color: rgba(161, 161, 170, .78);
+}
+.player-profile-page .player-profile-anchor-nav a { transition: color .16s ease; }
+.player-profile-page .player-profile-anchor-nav a:first-child,
+.player-profile-page .player-profile-anchor-nav a:hover { color: #b7f8d0; }
+
+.player-profile-page .player-profile-stat-rail {
+  overflow: hidden;
+  background: rgba(3, 6, 5, .3);
+}
+
+.player-profile-page .player-profile-stat-rail > div {
+  position: relative;
+  min-width: 0;
+  padding: 1.25rem 1.35rem;
+}
+
+.player-profile-page .player-profile-stat-rail > div + div::before {
+  position: absolute;
+  top: 20%;
+  bottom: 20%;
+  left: 0;
+  width: 1px;
+  content: '';
+  background: rgba(255, 255, 255, .1);
+}
+
+.player-profile-page .player-profile-stat-rail span,
+.player-profile-page .player-profile-stat-rail small {
+  display: block;
+  color: rgba(161, 161, 170, .72);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.player-profile-page .player-profile-stat-rail strong {
+  display: block;
+  margin-top: .35rem;
+  color: #fff;
+  font-size: 2.1rem;
+  font-weight: 900;
+  letter-spacing: -.07em;
+}
+
+.player-profile-page .player-profile-stat-rail small {
+  margin-top: .15rem;
+  color: rgba(161, 161, 170, .42);
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.player-profile-page .player-profile-match-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: .55rem;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-left-width: 2px;
+  padding: 1rem 1.1rem;
+  background: linear-gradient(110deg, rgba(17, 27, 23, .72), rgba(8, 12, 11, .38));
+  transition: border-color .16s ease, background .16s ease, transform .16s ease;
+}
+
+.player-profile-page .player-profile-match-row.is-win { border-left-color: #9af0bc; }
+.player-profile-page .player-profile-match-row.is-loss { border-left-color: #fb7185; }
+.player-profile-page .player-profile-match-row:hover { border-color: rgba(154, 240, 188, .3); background: linear-gradient(110deg, rgba(22, 42, 32, .75), rgba(8, 12, 11, .48)); transform: translateX(2px); }
+
+.player-profile-page .player-profile-match-state {
+  flex-shrink: 0;
+  min-width: 5.25rem;
+  color: #b7f8d0;
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+.player-profile-page .player-profile-match-row.is-loss .player-profile-match-state { color: #fda4af; }
+
+.player-profile-page .player-profile-aside { border-left: 1px solid rgba(255, 255, 255, .1); padding-left: 1.75rem; }
+.player-profile-page .player-profile-progression { border-top: 2px solid rgba(154, 240, 188, .55); padding-top: 1.25rem; }
+.player-profile-page .player-profile-performance { border-top: 1px solid rgba(255, 255, 255, .1); padding-top: 1.25rem; }
+
+.player-profile-page .player-profile-leaderboard-link {
+  border-top: 1px solid rgba(229, 196, 116, .26);
+  border-bottom: 1px solid rgba(229, 196, 116, .26);
+  padding: 1.1rem 0;
+  transition: background .16s ease, padding-inline .16s ease;
+}
+.player-profile-page .player-profile-leaderboard-link:hover { padding-inline: .65rem; background: linear-gradient(90deg, rgba(229, 196, 116, .08), transparent 80%); }
+
+.player-profile-page .player-profile-platforms,
+.player-profile-page .player-profile-tournaments { border-top: 1px solid rgba(255, 255, 255, .11); padding-top: 1.5rem; }
+.player-profile-page .player-profile-tournaments { border-top-color: rgba(229, 196, 116, .2); }
+.player-profile-page .player-profile-tournament { transition: background .16s ease; }
+.player-profile-page .player-profile-tournament:hover { background: rgba(229, 196, 116, .055); }
+
+@media (max-width: 1023px) {
+  .player-profile-page .player-profile-aside { border-top: 1px solid rgba(255, 255, 255, .1); border-left: 0; padding-top: 2rem; padding-left: 0; }
+}
+
+@media (max-width: 639px) {
+  .player-profile-page .player-profile-hero { margin-inline: -1.25rem; box-shadow: 8px 8px 0 rgba(0, 0, 0, .14); }
+  .player-profile-page .player-profile-hero-grid { padding: 1.5rem 1.25rem; }
+  .player-profile-page .player-profile-anchor-nav { padding-inline: 1.25rem; }
+  .player-profile-page .player-profile-scorecard { width: 100%; }
+  .player-profile-page .player-profile-stat-rail > div:nth-child(odd)::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; content: ''; background: rgba(255, 255, 255, .1); }
+  .player-profile-page .player-profile-stat-rail > div:nth-child(even)::before { top: 0; bottom: 0; }
+  .player-profile-page .player-profile-match-row { align-items: flex-start; gap: .65rem; padding: .9rem; }
+  .player-profile-page .player-profile-match-state { min-width: auto; writing-mode: vertical-rl; transform: rotate(180deg); font-size: .53rem; }
+}
+
 /* Player profile: one continuous player sheet instead of a dashboard of tiles. */
 .profile-performance-rail,
 .profile-account-rail,

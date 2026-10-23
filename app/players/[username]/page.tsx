@@ -5,82 +5,41 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { AdminBadge } from '@/components/AdminBadge';
+import { BrandLogo } from '@/components/BrandLogo';
 import { RankBadge } from '@/components/RankBadge';
 import { StreamerBadge } from '@/components/StreamerBadge';
 import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
 import { getRankProgress } from '@/lib/ranks';
-import { ArrowUpRight, ExternalLink, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
+import { ArrowUpRight, Crown, ExternalLink, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
 type PremiumCosmetic = 'emerald' | 'violet' | 'gold' | 'cyan';
-
 type PublicProfile = {
-  username: string;
-  elo: number;
-  gamesPlayed: number;
-  wins: number;
-  isPremium: boolean;
-  premium_cosmetic: PremiumCosmetic | null;
-  isAdmin: boolean;
-  is_streamer: boolean;
-  twitch_url: string | null;
-  kick_url: string | null;
-  supabaseId: string;
+  username: string; elo: number; gamesPlayed: number; wins: number; isPremium: boolean; premium_cosmetic: PremiumCosmetic | null;
+  isAdmin: boolean; is_streamer: boolean; twitch_url: string | null; kick_url: string | null; supabaseId: string;
 };
-
 type MatchHistory = {
-  id: string;
-  created_at: string;
-  completed_at?: string | null;
-  opponent_name: string;
-  is_win: boolean;
-  legs_won: number;
-  legs_lost: number;
-  my_average: number | null;
-  one_eighties: number;
-  app?: DartsPlatform | null;
+  id: string; created_at: string; completed_at?: string | null; opponent_name: string; is_win: boolean; legs_won: number; legs_lost: number;
+  my_average: number | null; one_eighties: number; app?: DartsPlatform | null;
 };
-
 type TournamentHistory = {
-  tournament_id: string; title: string; starts_at: string; status: string; tournament_format: string;
-  scoring_platform: string; participant_status: string; wins: number; losses: number; points: number;
-  placement: number | null; is_winner: boolean; prize_title: string | null;
+  tournament_id: string; title: string; starts_at: string; status: string; tournament_format: string; scoring_platform: string;
+  participant_status: string; wins: number; losses: number; points: number; placement: number | null; is_winner: boolean; prize_title: string | null;
 };
 
-const premiumCosmeticStyles: Record<PremiumCosmetic, { avatar: string; badge: string; icon: string; name: string; hero: string }> = {
-  emerald: {
-    avatar: '!border-emerald-300/70 !bg-emerald-400/[0.08] shadow-[0_0_34px_rgba(110,231,183,.22)]',
-    badge: '!border-emerald-300/35 !bg-emerald-400/10 !text-emerald-100',
-    icon: 'text-emerald-300',
-    name: 'text-emerald-50',
-    hero: 'ring-1 ring-inset ring-emerald-300/20',
-  },
-  violet: {
-    avatar: '!border-violet-300/70 !bg-violet-400/[0.08] shadow-[0_0_34px_rgba(196,181,253,.22)]',
-    badge: '!border-violet-300/40 !bg-violet-400/10 !text-violet-100',
-    icon: 'text-violet-300',
-    name: 'text-violet-100',
-    hero: 'ring-1 ring-inset ring-violet-300/20',
-  },
-  gold: {
-    avatar: '!border-amber-300/75 !bg-amber-300/[0.08] shadow-[0_0_34px_rgba(252,211,77,.24)]',
-    badge: '!border-amber-300/40 !bg-amber-300/10 !text-amber-100',
-    icon: 'text-amber-300',
-    name: 'text-amber-100',
-    hero: 'ring-1 ring-inset ring-amber-300/20',
-  },
-  cyan: {
-    avatar: '!border-cyan-300/70 !bg-cyan-400/[0.08] shadow-[0_0_34px_rgba(103,232,249,.22)]',
-    badge: '!border-cyan-300/40 !bg-cyan-400/10 !text-cyan-100',
-    icon: 'text-cyan-300',
-    name: 'text-cyan-100',
-    hero: 'ring-1 ring-inset ring-cyan-300/20',
-  },
+const premiumCosmeticStyles: Record<PremiumCosmetic, { avatar: string; badge: string; icon: string; name: string }> = {
+  emerald: { avatar: '!border-emerald-300/70 !bg-emerald-400/[0.08] shadow-[0_0_34px_rgba(110,231,183,.22)]', badge: '!border-emerald-300/35 !bg-emerald-400/10 !text-emerald-100', icon: 'text-emerald-300', name: 'text-emerald-50' },
+  violet: { avatar: '!border-violet-300/70 !bg-violet-400/[0.08] shadow-[0_0_34px_rgba(196,181,253,.22)]', badge: '!border-violet-300/40 !bg-violet-400/10 !text-violet-100', icon: 'text-violet-300', name: 'text-violet-100' },
+  gold: { avatar: '!border-amber-300/75 !bg-amber-300/[0.08] shadow-[0_0_34px_rgba(252,211,77,.24)]', badge: '!border-amber-300/40 !bg-amber-300/10 !text-amber-100', icon: 'text-amber-300', name: 'text-amber-100' },
+  cyan: { avatar: '!border-cyan-300/70 !bg-cyan-400/[0.08] shadow-[0_0_34px_rgba(103,232,249,.22)]', badge: '!border-cyan-300/40 !bg-cyan-400/10 !text-cyan-100', icon: 'text-cyan-300', name: 'text-cyan-100' },
 };
 
 function getPremiumCosmeticStyle(isPremium: boolean, cosmetic: PremiumCosmetic | null | undefined) {
   if (!isPremium) return null;
-  if (cosmetic === 'violet' || cosmetic === 'gold' || cosmetic === 'cyan') return premiumCosmeticStyles[cosmetic];
-  return premiumCosmeticStyles.emerald;
+  return premiumCosmeticStyles[cosmetic === 'violet' || cosmetic === 'gold' || cosmetic === 'cyan' ? cosmetic : 'emerald'];
+}
+
+function formatCompletion(match: MatchHistory) {
+  return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(match.completed_at ?? match.created_at));
 }
 
 export default function PlayerProfile() {
@@ -88,312 +47,118 @@ export default function PlayerProfile() {
   const username = decodeURIComponent(params.username as string);
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [matches, setMatches] = useState<MatchHistory[]>([]);
   const [tournamentHistory, setTournamentHistory] = useState<TournamentHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Berechnete Stats
   const [avgAverage, setAvgAverage] = useState<number | null>(null);
-  const [total180s, setTotal180s] = useState<number>(0);
+  const [total180s, setTotal180s] = useState(0);
   const [bestAverage, setBestAverage] = useState<number | null>(null);
   const [platformStatistics, setPlatformStatistics] = useState<PlatformStatistic[]>([]);
-
-  const formatCompletion = (match: MatchHistory) => new Intl.DateTimeFormat('de-DE', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  }).format(new Date(match.completed_at ?? match.created_at));
 
   useEffect(() => {
     let isMounted = true;
     async function load() {
       const [{ data: profileData }, { data: adminRows, error: adminError }] = await Promise.all([
-        supabase
-          .from('public_visible_profiles')
-          .select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, is_streamer, twitch_url, kick_url, supabaseId')
-          .eq('username', username)
-          .maybeSingle(),
+        supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, is_streamer, twitch_url, kick_url, supabaseId').eq('username', username).maybeSingle(),
         supabase.rpc('get_public_admin_profile_ids'),
       ]);
-
       if (!isMounted) return;
       if (!profileData) { setNotFound(true); setLoading(false); return; }
       if (adminError) console.error('Admin-Badge konnte nicht geladen werden:', adminError);
-      const isAdmin = (adminRows || []).some(
-        (row: { profile_id: string }) => row.profile_id === profileData.supabaseId
-      );
-
-      const p: PublicProfile = {
+      const publicProfile: PublicProfile = {
         username: profileData.username,
         elo: profileData.elo ?? 1000,
         gamesPlayed: profileData.gamesPlayed ?? 0,
         wins: profileData.wins ?? 0,
         isPremium: Boolean(profileData.isPremium),
         premium_cosmetic: profileData.premium_cosmetic ?? null,
-        isAdmin,
+        isAdmin: (adminRows || []).some((row: { profile_id: string }) => row.profile_id === profileData.supabaseId),
         is_streamer: Boolean(profileData.is_streamer),
         twitch_url: profileData.twitch_url ?? null,
         kick_url: profileData.kick_url ?? null,
         supabaseId: profileData.supabaseId,
       };
-      setProfile(p);
-
-      const { data: matchData, error: matchHistoryError } = await supabase.rpc('get_public_player_match_history_with_platform', {
-        p_user_id: p.supabaseId,
-        p_limit: 20,
-      });
-
+      setProfile(publicProfile);
+      const { data: matchData, error: matchHistoryError } = await supabase.rpc('get_public_player_match_history_with_platform', { p_user_id: publicProfile.supabaseId, p_limit: 20 });
       if (!isMounted) return;
-
-      const history = (matchData || []) as MatchHistory[];
-      setMatches(history);
+      setMatches((matchData || []) as MatchHistory[]);
       if (matchHistoryError) console.error('Öffentliche Match-Historie konnte nicht geladen werden:', matchHistoryError);
-      const { data: tournamentRows } = await supabase.rpc('list_player_tournament_history', { p_user_id: p.supabaseId });
-      if (isMounted) setTournamentHistory((tournamentRows || []) as TournamentHistory[]);
-
-      const [{ data: statisticRows, error: statisticsError }, { data: platformRows, error: platformStatisticsError }] = await Promise.all([
-        supabase.rpc('get_public_player_statistics', { p_user_ids: [p.supabaseId] }),
-        supabase.rpc('get_public_player_platform_statistics', { p_user_ids: [p.supabaseId] }),
+      const [{ data: tournamentRows }, { data: statisticRows, error: statisticsError }, { data: platformRows, error: platformStatisticsError }] = await Promise.all([
+        supabase.rpc('list_player_tournament_history', { p_user_id: publicProfile.supabaseId }),
+        supabase.rpc('get_public_player_statistics', { p_user_ids: [publicProfile.supabaseId] }),
+        supabase.rpc('get_public_player_platform_statistics', { p_user_ids: [publicProfile.supabaseId] }),
       ]);
+      if (!isMounted) return;
+      setTournamentHistory((tournamentRows || []) as TournamentHistory[]);
       if (!statisticsError) {
         const stats = (statisticRows as { average: number | null; best_average: number | null; total_180s: number }[] | null)?.[0];
         setAvgAverage(stats?.average ?? null);
         setBestAverage(stats?.best_average ?? null);
         setTotal180s(stats?.total_180s ?? 0);
-      } else {
-        console.error('Öffentliche Spielerstatistiken konnten nicht geladen werden:', statisticsError);
-      }
-      if (!platformStatisticsError) {
-        setPlatformStatistics((platformRows || []) as PlatformStatistic[]);
-      } else {
-        console.error('Öffentliche Plattform-Statistiken konnten nicht geladen werden:', platformStatisticsError);
-      }
-
+      } else console.error('Öffentliche Spielerstatistiken konnten nicht geladen werden:', statisticsError);
+      if (!platformStatisticsError) setPlatformStatistics((platformRows || []) as PlatformStatistic[]);
+      else console.error('Öffentliche Plattform-Statistiken konnten nicht geladen werden:', platformStatisticsError);
       setLoading(false);
     }
     void load();
     return () => { isMounted = false; };
   }, [supabase, username]);
 
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050607] text-white">
-        <div className="border border-white/15 bg-[#0d1110] px-6 py-4 text-lg font-bold text-emerald-200">
-          Profil wird geladen...
-        </div>
-      </main>
-    );
-  }
-
-  if (notFound) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#050607] text-white">
-        <div className="border border-white/15 bg-[#0d1110] px-10 py-10 text-center">
-          <Trophy className="mx-auto h-12 w-12 text-zinc-600" />
-          <h1 className="mt-5 text-3xl font-black">Spieler nicht gefunden</h1>
-          <p className="mt-3 text-zinc-400">Der Spieler <strong className="text-white">{username}</strong> existiert nicht.</p>
-          <button
-            onClick={() => router.back()}
-            className="mt-7 border border-emerald-300 bg-emerald-300 px-7 py-3.5 font-black uppercase tracking-[0.14em] text-black"
-          >
-            Zurück
-          </button>
-        </div>
-      </main>
-    );
-  }
+  if (loading) return <main className="grid min-h-screen place-items-center bg-[#080b0a] text-zinc-300"><div className="border border-white/15 bg-[#0d1110] px-6 py-4 font-bold">Profil wird geladen…</div></main>;
+  if (notFound) return <main className="grid min-h-screen place-items-center bg-[#080b0a] px-5 text-center text-white"><div className="max-w-md border border-white/15 bg-[#0d1110] px-8 py-10"><Trophy className="mx-auto h-11 w-11 text-zinc-600" /><h1 className="mt-5 text-3xl font-black tracking-[-.05em]">Spieler nicht gefunden</h1><p className="mt-3 text-sm leading-6 text-zinc-400">Das Profil von <strong className="text-white">{username}</strong> ist nicht öffentlich erreichbar.</p><button type="button" onClick={() => router.back()} className="mt-7 bg-emerald-300 px-6 py-3 text-xs font-black uppercase tracking-[.15em] text-[#07100b]">Zurück</button></div></main>;
 
   const elo = profile!.elo;
   const gamesPlayed = profile!.gamesPlayed;
   const wins = profile!.wins;
   const losses = Math.max(gamesPlayed - wins, 0);
   const winrate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
-
   const { current: currentRank, upcoming, eloToNext, progress } = getRankProgress(elo);
   const nextRank = upcoming ?? currentRank;
   const premiumCosmetic = getPremiumCosmeticStyle(profile!.isPremium, profile!.premium_cosmetic);
 
   return (
-    <main className="arena-page relative overflow-hidden text-white">
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 sport-grid opacity-30" />
-
-      {/* Nav */}
-      <nav className="arena-nav fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0a0d0d]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center border border-emerald-300/30 bg-emerald-300 text-lg font-black text-black">R</div>
-            <div>
-              <div className="text-base font-black tracking-[-0.04em] md:text-xl">RANKEDDARTS</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Spielerprofil</div>
-            </div>
-          </Link>
-          <div className="hidden items-center gap-6 text-sm font-medium text-zinc-300 lg:flex">
-            <Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link>
-            <Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link>
-            <Link href="/tournaments" className="transition hover:text-white">Turniere</Link>
-            <Link href="/streamers" className="transition hover:text-white">Streamer</Link>
-          </div>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="grid h-10 w-10 place-items-center border border-white/15 text-zinc-200 transition hover:bg-white/[0.05] lg:hidden"
-          >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+    <main className="player-profile-page text-[#f7f5ef]">
+      <nav className="player-profile-nav border-b backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[90rem] items-center justify-between gap-4 px-5 py-4 md:px-8 lg:px-10">
+          <Link href="/" className="flex min-w-0 items-center gap-3"><BrandLogo className="h-10 w-10 shrink-0 rounded-lg" /><span className="min-w-0"><span className="block text-lg font-black tracking-[-.05em]">RANKEDDARTS</span><span className="block text-[9px] font-black uppercase tracking-[.25em] text-emerald-300">Competitive darts</span></span></Link>
+          <div className="hidden items-center gap-6 text-sm font-bold text-zinc-400 lg:flex"><Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link><Link href="/matchmaking" className="transition hover:text-white">Matchmaking</Link><Link href="/tournaments" className="transition hover:text-white">Turniere</Link><Link href="/streamers" className="transition hover:text-white">Streamer</Link><Link href="/history" className="transition hover:text-white">Match-Verlauf</Link><Link href="/premium" className="border border-emerald-300/30 px-3 py-1.5 text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-300/10">Premium</Link></div>
+          <button type="button" onClick={() => setMobileMenuOpen((open) => !open)} className="grid h-10 w-10 place-items-center border border-white/15 text-zinc-200 lg:hidden" aria-label="Navigation öffnen">{mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}</button>
         </div>
-        {mobileMenuOpen && (
-          <div className="border-t border-white/10 bg-[#0a0d0d] px-5 py-4 lg:hidden">
-            <div className="flex flex-col gap-1">
-              <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Rangliste</Link>
-              <Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Matchmaking</Link>
-              <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Turniere</Link>
-              <Link href="/streamers" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Streamer</Link>
-            </div>
-          </div>
-        )}
+        {mobileMenuOpen && <div className="border-t border-white/10 px-5 py-4 lg:hidden"><div className="mx-auto flex max-w-[90rem] flex-col gap-1 text-sm font-bold text-zinc-300"><Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 hover:bg-white/[.04]">Rangliste</Link><Link href="/matchmaking" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 hover:bg-white/[.04]">Matchmaking</Link><Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 hover:bg-white/[.04]">Turniere</Link><Link href="/streamers" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 hover:bg-white/[.04]">Streamer</Link></div></div>}
       </nav>
 
-      <section className="arena-content relative z-10 mx-auto px-4 pb-16 pt-28 sm:px-5 md:px-8 md:pt-32">
-
-        {/* Profil-Header */}
-        <div className={'arena-hero relative p-7 shadow-[0_22px_60px_rgba(0,0,0,.35)] sm:p-10 md:p-12 ' + (premiumCosmetic?.hero || '')}>
-          <div className={`absolute inset-x-0 top-0 h-[2px] ${currentRank.level >= 8 ? 'bg-amber-300' : 'bg-emerald-300'}`} />
-          <div className="relative z-10 flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-7 sm:text-left">
-            <div className={'relative grid h-24 w-24 shrink-0 place-items-center border border-white/20 bg-black/35 sm:h-28 sm:w-28 ' + (premiumCosmetic?.avatar || '')}>
-              <RankBadge level={currentRank.level} size="xl" priority />
-              <span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center border border-emerald-200/40 bg-emerald-400 text-black"><Zap className="h-4 w-4 fill-current" /></span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="mb-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/80 sm:justify-start"><Sparkles className="h-3.5 w-3.5" /> Spielerprofil · Season 01 · bis 01.11.2026</div>
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                {profile!.isPremium && <Star className={'h-5 w-5 fill-current ' + (premiumCosmetic?.icon || 'text-emerald-300')} />}
-                <h1 className={'text-4xl font-black tracking-[-0.07em] sm:text-5xl md:text-6xl ' + (premiumCosmetic?.name || '')}>{profile!.username}</h1>
-                {profile!.is_streamer && <StreamerBadge />}
-                {profile!.isAdmin && <AdminBadge />}
+      <section className="player-profile-shell mx-auto max-w-[90rem] px-5 pb-20 pt-7 md:px-8 md:pt-10 lg:px-10">
+        <header className="player-profile-hero">
+          <div className="player-profile-hero-grid grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-10 lg:p-10">
+            <div className="min-w-0">
+              <div className="player-profile-kicker"><Sparkles className="h-3.5 w-3.5" /> Öffentliches Spielerprofil</div>
+              <div className="mt-7 flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
+                <div className={'player-profile-rank-seal grid h-24 w-24 shrink-0 place-items-center sm:h-28 sm:w-28 ' + (premiumCosmetic?.avatar || '')}><RankBadge level={currentRank.level} size="xl" priority /><span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center bg-emerald-300 text-[#07100b]"><Zap className="h-4 w-4 fill-current" /></span></div>
+                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2.5">{profile!.isPremium && <Star className={'h-5 w-5 shrink-0 fill-current ' + (premiumCosmetic?.icon || 'text-emerald-300')} />}<h1 className={'truncate text-4xl font-black tracking-[-.08em] sm:text-5xl lg:text-6xl ' + (premiumCosmetic?.name || '')}>{profile!.username}</h1>{profile!.is_streamer && <StreamerBadge />}{profile!.isAdmin && <AdminBadge />}</div><div className="mt-3 flex flex-wrap gap-2"><span className={'player-profile-rank-tag ' + currentRank.color}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className={'player-profile-premium-tag ' + (premiumCosmetic?.badge || '')}>Premium</span>}</div><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Alle Werte stammen aus bestätigten Ranked-Matches. Private Spiele und offene Ergebnisse zählen nicht in dieses Profil.</p></div>
               </div>
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start"><span className={`border border-white/10 bg-black/25 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${currentRank.color}`}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className={'border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100 ' + (premiumCosmetic?.badge || '')}>PREMIUM</span>}</div>
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-zinc-400 sm:justify-start"><span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Bestätigte Ranked-Stats</span><span className="hidden h-3 w-px bg-white/15 sm:block" /><span>{gamesPlayed} Matches gespielt</span></div>
-              {profile!.is_streamer && (profile!.twitch_url || profile!.kick_url) && <div className="mt-5 flex flex-wrap justify-center gap-2 sm:justify-start">{profile!.twitch_url && <a href={profile!.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 border border-violet-300/30 bg-violet-400/10 px-3 py-2 text-xs font-black text-violet-100 transition hover:border-violet-200 hover:bg-violet-400/20">Twitch <ExternalLink className="h-3.5 w-3.5" /></a>}{profile!.kick_url && <a href={profile!.kick_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-400/20">Kick <ExternalLink className="h-3.5 w-3.5" /></a>}</div>}
+              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-zinc-500"><span className="inline-flex items-center gap-2 text-emerald-100"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Bestätigte Ranked-Stats</span><span>{gamesPlayed} Matches gespielt</span>{profile!.is_streamer && profile!.twitch_url && <a href={profile!.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-violet-200 transition hover:text-white">Twitch öffnen <ExternalLink className="h-3.5 w-3.5" /></a>}</div>
             </div>
-            <div className="relative shrink-0 overflow-hidden border border-emerald-300/25 bg-[#07120e]/95 px-7 py-5 text-center">
-              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-200">Elo Rating</div>
-              <div className="mt-1 text-5xl font-black tracking-[-0.07em] text-emerald-300 sm:text-6xl">{elo}</div>
-              <div className="mt-2 inline-flex items-center gap-1.5 border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Season 01 · bis 01.11.2026</div>
-            </div>
+            <div className="player-profile-scorecard self-start"><div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[.2em] text-emerald-100"><span>Aktuelles Rating</span><Crown className="h-4 w-4 text-amber-200" /></div><div className="mt-5 text-6xl font-black tracking-[-.1em] text-emerald-200">{elo}</div><div className="mt-1 text-sm font-bold text-zinc-500">Elo-Punkte</div><div className="mt-8 border-t border-white/10 pt-4"><div className="flex items-center gap-3"><RankBadge level={currentRank.level} size="sm" /><div><div className={'font-black ' + currentRank.color}>{currentRank.name}</div><div className="mt-1 text-xs text-zinc-500">Level {currentRank.level} · Season 01</div></div></div></div></div>
           </div>
+          <div className="player-profile-anchor-nav flex flex-wrap gap-x-7 gap-y-2 px-6 py-3 text-[10px] font-black uppercase tracking-[.16em] sm:px-8 lg:px-10"><a href="#matches">Matches</a><a href="#entwicklung">Entwicklung</a><a href="#plattformen">Plattformen</a><a href="#turniere">Turniere</a><span className="ml-auto hidden text-zinc-600 md:inline">Season 01 · bis 01.11.2026</span></div>
+        </header>
+
+        <section className="player-profile-stat-rail mt-4 grid grid-cols-2 border-y border-white/10 md:grid-cols-4"><div><span>Siege</span><strong className="text-emerald-200">{wins}</strong><small>Bestätigte Matches</small></div><div><span>Niederlagen</span><strong className="text-rose-200">{losses}</strong><small>Bestätigte Matches</small></div><div><span>Winrate</span><strong>{winrate}%</strong><small>{wins}W / {losses}L</small></div><div><span>Spiele</span><strong>{gamesPlayed}</strong><small>Diese Season</small></div></section>
+
+        <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-14">
+          <section id="matches" className="player-profile-section min-w-0 scroll-mt-28"><div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between"><div><div className="player-profile-label">Match-Protokoll</div><h2 className="mt-2 text-3xl font-black tracking-[-.065em]">Letzte Matches.</h2><p className="mt-2 text-sm text-zinc-500">Die letzten 20 bestätigten Ergebnisse von {profile!.username}.</p></div><div className="player-profile-count">{matches.length} Matches</div></div>{matches.length === 0 ? <div className="py-12 text-sm text-zinc-500">Noch keine bestätigten Matches vorhanden.</div> : <div className="mt-4">{matches.map((match) => <div key={match.id} className={'player-profile-match-row ' + (match.is_win ? 'is-win' : 'is-loss')}><span className="player-profile-match-state">{match.is_win ? 'Sieg' : 'Niederlage'}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="truncate text-base font-black text-white">vs. {match.opponent_name || 'Unbekannter Gegner'}</span><PlatformBadge app={match.app} /></div><div className="mt-1 text-xs text-zinc-500">{match.legs_won} : {match.legs_lost} Legs · {formatCompletion(match)}</div></div><div className="flex shrink-0 items-center gap-4 text-right"><div>{match.my_average !== null && <span className="block text-sm font-black text-violet-200">Ø {match.my_average.toFixed(1)}</span>}{match.one_eighties > 0 && <span className="mt-1 block text-xs font-bold text-amber-200">{match.one_eighties}× 180</span>}</div><ArrowUpRight className="hidden h-4 w-4 text-zinc-600 sm:block" /></div></div>)}</div>}</section>
+
+          <aside id="entwicklung" className="player-profile-aside min-w-0 scroll-mt-28"><section className="player-profile-progression"><div className="player-profile-label">Nächster Rang</div><div className="mt-4 flex items-end justify-between gap-4"><div><div className={'text-3xl font-black tracking-[-.06em] ' + nextRank.color}>{nextRank.name}</div><p className="mt-2 text-sm leading-5 text-zinc-500">{eloToNext > 0 ? `${eloToNext} Elo bis zum nächsten Rang.` : 'Maximaler Rang erreicht.'}</p></div><span className="text-3xl font-black text-emerald-200">{Math.round(progress)}%</span></div><div className="mt-6 h-1.5 overflow-hidden bg-white/10"><div className="h-full bg-emerald-300" style={{ width: `${progress}%` }} /></div><div className="mt-3 flex justify-between text-xs text-zinc-500"><span>{elo} Elo</span><span>{upcoming ? nextRank.min + ' Elo' : 'Maximal'}</span></div></section><section className="player-profile-performance mt-10"><div className="player-profile-label">Spielwerte</div><div className="mt-5 space-y-4"><div className="flex items-center justify-between border-b border-white/10 pb-4"><span className="inline-flex items-center gap-2 text-sm text-zinc-400"><Target className="h-4 w-4 text-violet-200" />Ø Average</span><strong className="text-xl text-violet-100">{avgAverage !== null ? avgAverage.toFixed(1) : '—'}</strong></div><div className="flex items-center justify-between border-b border-white/10 pb-4"><span className="inline-flex items-center gap-2 text-sm text-zinc-400"><Zap className="h-4 w-4 text-emerald-200" />Best Average</span><strong className="text-xl text-emerald-100">{bestAverage !== null ? bestAverage.toFixed(1) : '—'}</strong></div><div className="flex items-center justify-between border-b border-white/10 pb-4"><span className="inline-flex items-center gap-2 text-sm text-zinc-400"><Sparkles className="h-4 w-4 text-amber-200" />180er</span><strong className="text-xl text-amber-100">{total180s}</strong></div></div></section><Link href="/leaderboard" className="player-profile-leaderboard-link group mt-10 flex items-center gap-4"><Trophy className="h-5 w-5 text-amber-200" /><span className="min-w-0 flex-1"><span className="player-profile-label text-amber-100">Season 01</span><span className="mt-1 block text-lg font-black text-white">Rangliste ansehen</span></span><ArrowUpRight className="h-5 w-5 text-emerald-200 transition group-hover:-translate-y-1 group-hover:translate-x-1" /></Link></aside>
         </div>
 
-        {/* Kern-Stats: 4er Grid */}
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
-            <div className="text-2xl font-black text-emerald-300 sm:text-3xl">{wins}</div>
-            <div className="mt-1 text-xs text-zinc-500">Siege</div>
-          </div>
-          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
-            <div className="text-2xl font-black text-red-300 sm:text-3xl">{losses}</div>
-            <div className="mt-1 text-xs text-zinc-500">Niederlagen</div>
-          </div>
-          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
-            <div className="text-2xl font-black text-cyan-300 sm:text-3xl">{winrate}%</div>
-            <div className="mt-1 text-xs text-zinc-500">Winrate</div>
-          </div>
-          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
-            <div className="text-2xl font-black text-white sm:text-3xl">{gamesPlayed}</div>
-            <div className="mt-1 text-xs text-zinc-500">Spiele</div>
-          </div>
-        </div>
+        <section id="plattformen" className="player-profile-platforms mt-16 scroll-mt-28"><div className="border-b border-white/10 pb-5"><div className="player-profile-label">Plattformen</div><h2 className="mt-2 text-3xl font-black tracking-[-.065em]">Leistung im Vergleich.</h2><p className="mt-2 text-sm text-zinc-500">Bestätigte Werte – getrennt nach Scolia, DartCounter und AutoDarts.</p></div><div className="mt-7"><UnifiedDartsProfile statistics={platformStatistics} /></div></section>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-[0.82fr_1.18fr]">
-          <div className="space-y-5">
-        {/* Performance-Stats */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <div className="border border-white/10 bg-[#0d1110] p-5 text-center">
-            <Target className="mx-auto h-5 w-5 text-violet-300 mb-2" />
-            <div className="text-2xl font-black text-violet-300 sm:text-3xl">
-              {avgAverage !== null ? avgAverage.toFixed(1) : '—'}
-            </div>
-            <div className="mt-1 text-xs text-zinc-500">Ø Average</div>
-          </div>
-          <div className="border border-emerald-300/20 bg-emerald-400/[0.04] p-5 text-center">
-            <Zap className="mx-auto h-5 w-5 text-emerald-300 mb-2" />
-            <div className="text-2xl font-black text-emerald-300 sm:text-3xl">
-              {bestAverage !== null ? bestAverage.toFixed(1) : '—'}
-            </div>
-            <div className="mt-1 text-xs text-zinc-500">Best Average</div>
-          </div>
-          <div className="border border-amber-300/20 bg-amber-400/[0.04] p-5 text-center">
-            <div className="mx-auto mb-2 text-lg font-black text-amber-300">180</div>
-            <div className="text-2xl font-black text-amber-300 sm:text-3xl">{total180s}</div>
-            <div className="mt-1 text-xs text-zinc-500">180er gesamt</div>
-          </div>
-        </div>
-
-        {/* Rang-Fortschritt */}
-        <div className="border border-white/10 bg-[#0d1110] p-6 sm:p-7">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Nächster Rang</div>
-              <div className={`mt-1.5 text-2xl font-black tracking-[-0.04em] sm:text-3xl ${nextRank.color}`}>{nextRank.name}</div>
-              <div className="mt-1 text-sm text-zinc-400">{eloToNext > 0 ? `${eloToNext} Elo bis zum nächsten Rang` : 'Maximaler Rang erreicht'}</div>
-            </div>
-            <div className="text-right text-2xl font-black text-emerald-300">{Math.round(progress)}%</div>
-          </div>
-          <div className="mt-4 h-2 overflow-hidden bg-white/10">
-            <div className="h-full bg-emerald-300" style={{ width: `${progress}%` }} />
-          </div>
-          <div className="mt-5 flex items-center justify-between border border-white/10 bg-black/20 px-4 py-3 text-xs text-zinc-400"><span className="inline-flex items-center gap-2"><RankBadge level={currentRank.level} size="xs" /> Level {currentRank.level} · {currentRank.name}</span><span className="font-black text-white">{elo} Elo</span></div>
-        </div>
-          </div>
-
-        {/* Match-Verlauf */}
-        <div className="overflow-hidden border border-white/10 bg-[#0d1110] p-6 sm:p-7">
-          <div className="flex items-end justify-between gap-4"><div><div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Match history</div><h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em]">Letzte Matches</h2></div><span className="border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-black text-zinc-300">{matches.length} gespielt</span></div>
-          {matches.length === 0 ? (
-            <div className="mt-5 border border-white/10 bg-white/[0.03] p-8 text-center text-zinc-500">Noch keine Matches gespielt.</div>
-          ) : (
-            <div className="mt-5 space-y-2">
-              {matches.map((m) => {
-                return (
-                  <div key={m.id} className="group flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-3.5 transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.04]">
-                    <div className={`shrink-0 border px-2.5 py-1 text-xs font-black uppercase tracking-[0.1em] ${m.is_win ? 'border-emerald-300/20 bg-emerald-400/15 text-emerald-300' : 'border-red-400/20 bg-red-400/15 text-red-300'}`}>
-                      {m.is_win ? 'SIEG' : 'NL'}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2"><div className="truncate text-sm font-bold text-zinc-200">vs {m.opponent_name}</div><PlatformBadge app={m.app} /></div>
-                      {(
-                        <div className="text-xs text-zinc-500">{m.legs_won} : {m.legs_lost} Legs · beendet {formatCompletion(m)}</div>
-                      )}
-                    </div>
-                    <div className="shrink-0 text-right">
-                      {m.my_average !== null && (
-                        <div className="text-sm font-black text-violet-300">Ø {m.my_average.toFixed(1)}</div>
-                      )}
-                      {m.one_eighties > 0 && (
-                        <div className="text-xs font-bold text-amber-300">{m.one_eighties}× 180</div>
-                      )}
-                    </div>
-                    <ArrowUpRight className="hidden h-4 w-4 text-emerald-300/0 transition group-hover:text-emerald-300 sm:block" />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        </div>
-
-        <div className="mt-5">
-          <UnifiedDartsProfile statistics={platformStatistics} />
-        </div>
-
-        <div className="mt-5 border border-amber-300/15 bg-amber-300/[0.035] p-6 sm:p-7">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><div className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">Tournament record</div><h2 className="mt-1.5 text-2xl font-black tracking-[-0.04em]">Öffentliche Turnier-Historie</h2></div><span className="border border-amber-300/15 bg-amber-300/10 px-3 py-1.5 text-xs font-black text-amber-100">{tournamentHistory.length} Events</span></div>
-          {tournamentHistory.length === 0 ? <div className="mt-5 border border-dashed border-white/10 p-8 text-center text-sm text-zinc-500">Noch keine öffentlichen Turnierergebnisse.</div> : <div className="mt-5 grid gap-3 md:grid-cols-2">{tournamentHistory.map(event => <Link href="/tournaments" key={event.tournament_id} className="group border border-white/10 bg-black/25 p-4 transition hover:border-amber-300/25 hover:bg-amber-300/[0.05]"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-zinc-100">{event.title}</p><p className="mt-1 text-xs text-zinc-500">{new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(event.starts_at))} · {event.tournament_format.replaceAll('_', ' ')}</p></div>{event.is_winner && <span className="border border-amber-200 bg-amber-300 px-2.5 py-1 text-[10px] font-black text-black"><Trophy className="mr-1 inline h-3 w-3" />CHAMPION</span>}</div><div className="mt-4 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wider"><span className="border border-emerald-300/15 bg-emerald-400/10 px-2.5 py-1 text-emerald-200">{event.wins} Siege</span><span className="border border-red-300/15 bg-red-400/10 px-2.5 py-1 text-red-200">{event.losses} Niederlagen</span><span className="border border-white/10 bg-white/5 px-2.5 py-1 text-zinc-400">{event.scoring_platform}</span>{event.prize_title && <span className="border border-amber-300/15 bg-amber-300/10 px-2.5 py-1 text-amber-200">{event.prize_title}</span>}</div></Link>)}</div>}
-        </div>
-
+        <section id="turniere" className="player-profile-tournaments mt-16 scroll-mt-28"><div className="flex flex-col gap-4 border-b border-amber-300/20 pb-5 sm:flex-row sm:items-end sm:justify-between"><div><div className="player-profile-label text-amber-100">Turnier-Akte</div><h2 className="mt-2 text-3xl font-black tracking-[-.065em]">Öffentliche Turnier-Historie.</h2></div><span className="player-profile-count border-amber-300/25 text-amber-100">{tournamentHistory.length} Events</span></div>{tournamentHistory.length === 0 ? <div className="py-12 text-sm text-zinc-500">Noch keine öffentlichen Turnierergebnisse.</div> : <div className="mt-4 grid gap-px border border-white/10 bg-white/10 md:grid-cols-2">{tournamentHistory.map((event) => <Link href="/tournaments" key={event.tournament_id} className="player-profile-tournament group bg-[#0b0f0e] p-5"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><div className="truncate font-black text-white">{event.title}</div><p className="mt-1 text-xs text-zinc-500">{new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(new Date(event.starts_at))} · {event.tournament_format.replaceAll('_', ' ')}</p></div>{event.is_winner && <span className="shrink-0 bg-amber-300 px-2 py-1 text-[9px] font-black uppercase tracking-[.12em] text-[#221906]">Champion</span>}</div><div className="mt-5 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[.1em]"><span className="border border-emerald-300/20 px-2 py-1 text-emerald-100">{event.wins} Siege</span><span className="border border-rose-300/20 px-2 py-1 text-rose-100">{event.losses} Niederlagen</span><span className="border border-white/10 px-2 py-1 text-zinc-400">{event.scoring_platform}</span>{event.prize_title && <span className="border border-amber-300/20 px-2 py-1 text-amber-100">{event.prize_title}</span>}</div></Link>)}</div>}</section>
+        <footer className="mt-16 border-t border-white/10 pt-7 text-center text-xs text-zinc-600">RankedDarts · Öffentliches Spielerprofil · Season 01</footer>
       </section>
     </main>
   );
 }
-
-
