@@ -322,6 +322,19 @@ type AdminTournament = {
   dispute_policy: string; cancellation_reason: string | null; waitlist_count: number; checked_in_count: number;
 };
 
+type SystemHealth = {
+  status: 'ok' | 'degraded' | 'down';
+  checkedAt: string;
+  environment: string;
+  region: string;
+  commit: string | null;
+  checks: Record<'database' | 'stripe' | 'deployment', {
+    status: 'ok' | 'degraded' | 'down';
+    latencyMs: number;
+    message?: string;
+  }>;
+};
+
 type TournamentParticipant = {
   user_id: string; username: string; status: string; checked_in_at: string | null; waitlist_position: number | null;
   wins: number; losses: number; points: number; removed_reason: string | null;
@@ -556,9 +569,20 @@ export default function AdminPanel() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
+  const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+
+  const loadSystemHealth = useCallback(async () => {
+    try {
+      const response = await fetch('/api/health', { cache: 'no-store' });
+      const data = await response.json() as SystemHealth;
+      setSystemHealth(data);
+    } catch {
+      setSystemHealth(null);
+    }
+  }, []);
 
   const loadProfiles = useCallback(async () => {
     const { data, error } = await supabase
@@ -1149,7 +1173,7 @@ export default function AdminPanel() {
         setTimeout(() => router.push('/'), 1200);
         return;
       }
-      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(null, null), loadPayouts(), loadPayoutCandidates(), loadTournaments()]);
+      await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(null, null), loadPayouts(), loadPayoutCandidates(), loadTournaments(), loadSystemHealth()]);
       if (isMounted) {
         setLastRefreshedAt(new Date());
         setLoading(false);
@@ -1157,7 +1181,7 @@ export default function AdminPanel() {
     }
     void init();
     return () => { isMounted = false; };
-  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs, loadFlaggedPlayers, loadFairnessRiskFlags, loadTickets, loadPayouts, loadPayoutCandidates, loadTournaments]);
+  }, [supabase, router, loadProfiles, loadDisputedMatches, loadLiveMatches, loadAdminLogs, loadFlaggedPlayers, loadFairnessRiskFlags, loadTickets, loadPayouts, loadPayoutCandidates, loadTournaments, loadSystemHealth]);
 
   useEffect(() => {
     if (!loading && activeTab === 'players') {
@@ -1174,9 +1198,9 @@ export default function AdminPanel() {
 
   const refreshAdminData = useCallback(async () => {
     setActionMessage(null);
-    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(ticketFilter), loadPayouts(payoutFilter), loadPayoutCandidates(), loadTournaments()]);
+    await Promise.all([loadProfiles(), loadDisputedMatches(), loadLiveMatches(), loadAdminLogs(), loadFlaggedPlayers(), loadFairnessRiskFlags(), loadTickets(ticketFilter), loadPayouts(payoutFilter), loadPayoutCandidates(), loadTournaments(), loadSystemHealth()]);
     setLastRefreshedAt(new Date());
-  }, [loadAdminLogs, loadDisputedMatches, loadFairnessRiskFlags, loadFlaggedPlayers, loadLiveMatches, loadProfiles, loadTickets, loadPayouts, loadPayoutCandidates, loadTournaments, ticketFilter, payoutFilter]);
+  }, [loadAdminLogs, loadDisputedMatches, loadFairnessRiskFlags, loadFlaggedPlayers, loadLiveMatches, loadProfiles, loadTickets, loadPayouts, loadPayoutCandidates, loadTournaments, loadSystemHealth, ticketFilter, payoutFilter]);
 
   useEffect(() => {
     if (!autoRefresh || loading) return;
@@ -1673,22 +1697,64 @@ export default function AdminPanel() {
     : 1000;
   const projectedMinimum = projectedEloValues.length ? Math.min(...projectedEloValues) : 1000;
   const projectedMaximum = projectedEloValues.length ? Math.max(...projectedEloValues) : 1000;
-  const ticketsInQueue = tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in_progress').length;
+  const now = Date.now();
+  const openTickets = tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in_progress');
+  const ticketsInQueue = openTickets.length;
   const ticketsWaitingForUser = tickets.filter((ticket) => ticket.status === 'waiting_for_user').length;
-  const unassignedTickets = tickets.filter((ticket) => !ticket.assigned_to_id && !['resolved', 'closed'].includes(ticket.status)).length;
-  const urgentTickets = tickets.filter((ticket) => ticket.priority === 'urgent' && !['resolved', 'closed'].includes(ticket.status)).length;
+  const unassignedTickets = openTickets.filter((ticket) => !ticket.assigned_to_id).length;
+  const urgentTickets = openTickets.filter((ticket) => ticket.priority === 'urgent').length;
+  const slaBreachedTickets = openTickets.filter((ticket) => {
+    const ageHours = Math.max(0, now - new Date(ticket.created_at).getTime()) / 3_600_000;
+    if (ticket.priority === 'urgent') return ageHours >= 1;
+    if (ticket.priority === 'high') return ageHours >= 4;
+    return ageHours >= 24;
+  });
+  const escalatedTicketIds = new Set([
+    ...openTickets.filter((ticket) => ticket.priority === 'urgent' || !ticket.assigned_to_id).map((ticket) => ticket.id),
+    ...slaBreachedTickets.map((ticket) => ticket.id),
+  ]);
+  const escalatedTickets = openTickets.filter((ticket) => escalatedTicketIds.has(ticket.id));
   const pendingPayouts = payouts.filter((payout) => !['paid', 'cancelled'].includes(payout.status));
   const pendingPayoutAmount = pendingPayouts.reduce((total, payout) => total + payout.amount_cents, 0);
   const readyPayouts = payouts.filter((payout) => payout.status === 'ready').length;
-  const attentionCount = disputedMatches.length + urgentTickets + flaggedPlayers.length + fairnessRiskFlags.length + unassignedTickets;
+  const overduePayouts = pendingPayouts.filter((payout) => payout.due_at && new Date(payout.due_at).getTime() < now);
   const activeTournamentCount = tournaments.filter((tournament) => tournament.status === 'registration' || tournament.status === 'live').length;
-  const healthScore = Math.max(0, 100 - Math.min(100, (disputedMatches.length * 12) + (urgentTickets * 10) + (flaggedPlayers.length * 6) + (fairnessRiskFlags.length * 6) + (unassignedTickets * 5)));
+  const upcomingCheckIns = tournaments.filter((tournament) => {
+    if (tournament.status !== 'registration') return false;
+    const checkInClosesAt = new Date(tournament.check_in_closes_at).getTime();
+    return checkInClosesAt >= now && checkInClosesAt - now <= 90 * 60_000;
+  });
+  const unhealthyChecks = systemHealth
+    ? Object.entries(systemHealth.checks).filter(([, check]) => check.status !== 'ok')
+    : [];
+  const systemHealthPenalty = systemHealth?.status === 'down' ? 45 : systemHealth?.status === 'degraded' ? 22 : 0;
+  const attentionCount = disputedMatches.length + escalatedTickets.length + flaggedPlayers.length + fairnessRiskFlags.length + overduePayouts.length + upcomingCheckIns.length + unhealthyChecks.length;
+  const healthScore = Math.max(0, 100 - Math.min(100,
+    (disputedMatches.length * 12)
+      + (escalatedTickets.length * 8)
+      + (flaggedPlayers.length * 6)
+      + (fairnessRiskFlags.length * 6)
+      + (overduePayouts.length * 8)
+      + (upcomingCheckIns.length * 4)
+      + systemHealthPenalty,
+  ));
+  const systemStatusText = !systemHealth
+    ? 'Systemstatus lädt'
+    : systemHealth.status === 'ok'
+      ? 'Systeme stabil'
+      : systemHealth.status === 'degraded'
+        ? 'System prüfen'
+        : 'System gestört';
   const primaryAttentionSection: AdminTab = disputedMatches.length > 0
     ? 'disputes'
     : flaggedPlayers.length > 0
       ? 'flagged'
-      : urgentTickets > 0 || unassignedTickets > 0
+      : escalatedTickets.length > 0
         ? 'tickets'
+        : overduePayouts.length > 0
+          ? 'payouts'
+          : upcomingCheckIns.length > 0
+            ? 'tournaments'
         : liveMatches.length > 0
           ? 'live'
           : 'overview';
@@ -1697,8 +1763,8 @@ export default function AdminPanel() {
     {
       label: 'Leitstand',
       items: [
-        { id: 'overview', label: 'Operations Deck', detail: 'Gesamtlage & Prioritäten', icon: Activity, badge: null, tone: 'text-emerald-200' },
-        { id: 'operations', label: 'Ops Inbox', detail: 'Prioritäten & Betriebschecks', icon: Command, badge: attentionCount || null, tone: 'text-cyan-200' },
+        { id: 'overview', label: 'Heute', detail: 'Lage, SLA & Systemstatus', icon: Activity, badge: attentionCount || null, tone: 'text-emerald-200' },
+        { id: 'operations', label: 'Arbeitskorb', detail: 'Alle Vorgänge in einer Liste', icon: Command, badge: attentionCount || null, tone: 'text-cyan-200' },
         { id: 'live', label: 'Live Arena', detail: 'Laufende Matches', icon: Radar, badge: liveMatches.length || null, tone: 'text-cyan-200' },
         { id: 'disputes', label: 'Entscheidungen', detail: 'Disputes & Ergebnisse', icon: Gavel, badge: disputedMatches.length || null, tone: 'text-amber-200' },
       ],
@@ -1707,16 +1773,16 @@ export default function AdminPanel() {
       label: 'Community',
       items: [
         { id: 'tickets', label: 'Support Queue', detail: unassignedTickets ? `${unassignedTickets} ohne Owner` : 'Tickets & Zuweisungen', icon: Headphones, badge: ticketsInQueue || null, tone: 'text-violet-200' },
-        { id: 'players', label: 'Spielerverwaltung', detail: `${profiles.length} Profile`, icon: Users, badge: null, tone: 'text-zinc-200' },
-        { id: 'player_cases', label: 'Spieler & Fälle', detail: '360°-Akte & Vorgänge', icon: ShieldCheck, badge: null, tone: 'text-violet-200' },
+        { id: 'players', label: 'Zugriffe & Rollen', detail: 'Elo, Premium, Streamer & Sperren', icon: Users, badge: null, tone: 'text-zinc-200' },
+        { id: 'player_cases', label: 'Spielerakten', detail: '360°-Historie & Vorgänge', icon: ShieldCheck, badge: null, tone: 'text-violet-200' },
         { id: 'flagged', label: 'Fairness Monitor', detail: 'Auffällige Accounts', icon: TriangleAlert, badge: flaggedPlayers.length || null, tone: 'text-orange-200' },
       ],
     },
     {
       label: 'Wettbewerb',
       items: [
-        { id: 'tournaments', label: 'Cup Control', detail: 'Turniere & Brackets', icon: Trophy, badge: activeTournamentCount || null, tone: 'text-cyan-200' },
-        { id: 'competition_ops', label: 'Turnier-Leitstand', detail: 'Aktive Cups im Blick', icon: Radar, badge: activeTournamentCount || null, tone: 'text-cyan-200' },
+        { id: 'tournaments', label: 'Turnierverwaltung', detail: 'Turniere, Regeln & Brackets', icon: Trophy, badge: activeTournamentCount || null, tone: 'text-cyan-200' },
+        { id: 'competition_ops', label: 'Turnierlage', detail: 'Check-in & aktive Cups', icon: Radar, badge: upcomingCheckIns.length || null, tone: 'text-cyan-200' },
         { id: 'payouts', label: 'Prize Desk', detail: `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen`, icon: Crown, badge: pendingPayouts.length || null, tone: 'text-lime-200' },
       ],
     },
@@ -1745,16 +1811,23 @@ export default function AdminPanel() {
   const exportOperationsSnapshot = () => {
     const report = [
       ['RankedDarts Operations Snapshot', new Date().toLocaleString('de-DE')],
-      ['System Health', `${healthScore}%`],
+      ['Operations Health', `${healthScore}%`],
+      ['Systemstatus', systemHealth?.status || 'noch nicht geprüft'],
+      ['Datenbank', systemHealth?.checks.database.status || 'unbekannt'],
+      ['Stripe', systemHealth?.checks.stripe.status || 'unbekannt'],
+      ['Deployment', systemHealth?.checks.deployment.status || 'unbekannt'],
       ['Spieler gesamt', String(profiles.length)],
       ['Aktive Accounts', String(activeCount)],
       ['Offene Disputes', String(disputedMatches.length)],
       ['Live Matches', String(liveMatches.length)],
       ['Support Queue', String(ticketsInQueue)],
-      ['Dringende Tickets', String(urgentTickets)],
+      ['Eskalierte Tickets', String(escalatedTickets.length)],
+      ['Tickets über SLA', String(slaBreachedTickets.length)],
       ['Nicht zugewiesene Tickets', String(unassignedTickets)],
       ['Verdächtige Accounts', String(flaggedPlayers.length)],
       ['Aktive Turniere', String(activeTournamentCount)],
+      ['Check-ins in 90 Minuten', String(upcomingCheckIns.length)],
+      ['Überfällige Auszahlungen', String(overduePayouts.length)],
     ].map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(';')).join('\n');
     const blob = new Blob([report], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -1811,7 +1884,7 @@ export default function AdminPanel() {
             <span><strong>RANKEDDARTS</strong><small>ADMIN CONSOLE</small></span>
           </button>
           <div className="faceit-admin-topbar-status">
-            <span className="faceit-admin-presence"><i /> Sync {autoRefresh ? 'aktiv' : 'pausiert'}</span>
+            <span className="faceit-admin-presence"><i className={systemHealth?.status === 'down' ? 'is-down' : systemHealth?.status === 'degraded' ? 'is-watch' : ''} /> {systemStatusText} · Sync {autoRefresh ? 'an' : 'aus'}</span>
             <button onClick={() => setAutoRefresh((enabled) => !enabled)} className="faceit-admin-quiet-button">{autoRefresh ? 'Pausieren' : 'Aktivieren'}</button>
             <button onClick={() => setCommandCenterOpen(true)} className="faceit-admin-command-button"><Command className="h-3.5 w-3.5" /> Aktionen <kbd>⌘K</kbd></button>
           </div>
@@ -1887,40 +1960,44 @@ export default function AdminPanel() {
               <section className="admin-briefing">
                 <div className="admin-briefing-copy">
                   <p className="admin-kicker">Schichtbriefing · {lastRefreshedAt ? lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : 'jetzt'}</p>
-                  <h3>{attentionCount > 0 ? 'Es gibt Vorgänge, die eine Entscheidung brauchen.' : 'Die Arena läuft sauber.'}</h3>
-                  <p>{attentionCount > 0 ? `${disputedMatches.length} Disputes, ${urgentTickets} dringende Tickets, ${unassignedTickets} offene Zuweisungen und ${flaggedPlayers.length} Fair-Play-Hinweise wurden priorisiert.` : 'Matchsystem, Support und Fair Play zeigen aktuell keine eskalierten Vorgänge.'}</p>
+                  <h3>{attentionCount > 0 ? 'Die nächsten Entscheidungen sind klar priorisiert.' : 'Heute ist alles im grünen Bereich.'}</h3>
+                  <p>{attentionCount > 0 ? `${disputedMatches.length} Disputes, ${escalatedTickets.length} Support-Vorgänge, ${overduePayouts.length} überfällige Auszahlungen und ${upcomingCheckIns.length} zeitnahe Check-ins stehen oben auf der Liste.` : 'Keine offenen SLAs, Fristen oder Fair-Play-Signale brauchen gerade Aufmerksamkeit.'}</p>
                   <div className="admin-briefing-actions">
                     {disputedMatches.length > 0 && <button onClick={() => setActiveTab('disputes')} className="admin-action-primary">Disputes prüfen</button>}
-                    {urgentTickets > 0 && <button onClick={() => setActiveTab('tickets')} className="admin-action-secondary">Support Queue öffnen</button>}
+                    {escalatedTickets.length > 0 && <button onClick={() => setActiveTab('tickets')} className="admin-action-secondary">Support-SLA öffnen</button>}
+                    {overduePayouts.length > 0 && <button onClick={() => setActiveTab('payouts')} className="admin-action-secondary">Auszahlungen prüfen</button>}
+                    {upcomingCheckIns.length > 0 && <button onClick={() => setActiveTab('tournaments')} className="admin-action-secondary">Check-ins vorbereiten</button>}
                     {flaggedPlayers.length > 0 && <button onClick={() => setActiveTab('flagged')} className="admin-action-secondary">Fairness prüfen</button>}
-                    {attentionCount === 0 && <button onClick={() => setActiveTab('tournaments')} className="admin-action-primary">Turnierverwaltung öffnen</button>}
+                    {attentionCount === 0 && <button onClick={() => setActiveTab('operations')} className="admin-action-primary">Arbeitskorb öffnen</button>}
                   </div>
                 </div>
                 <div className="admin-readiness" aria-label="Systemstatus">
-                  <div className="admin-readiness-score"><strong>{healthScore}</strong><span>Systemstatus</span></div>
+                  <div className="admin-readiness-score"><strong>{healthScore}</strong><span>{systemHealth ? `System ${systemHealth.status}` : 'System wird geprüft'}</span></div>
                   <dl>
-                    <div><dt>Matchsystem</dt><dd>Online</dd></div>
-                    <div><dt>Support-SLA</dt><dd className={urgentTickets > 0 ? 'is-watch' : ''}>{urgentTickets > 0 ? 'Priorität' : 'Stabil'}</dd></div>
-                    <div><dt>Fair Play</dt><dd className={flaggedPlayers.length > 0 ? 'is-watch' : ''}>{flaggedPlayers.length > 0 ? 'Prüfung' : 'Keine Auffälligkeiten'}</dd></div>
+                    {(['database', 'stripe', 'deployment'] as const).map((service) => {
+                      const check = systemHealth?.checks[service];
+                      const serviceLabel = service === 'database' ? 'Datenbank' : service === 'stripe' ? 'Stripe' : 'Deployment';
+                      return <div key={service}><dt>{serviceLabel}</dt><dd className={check?.status === 'down' ? 'is-down' : check?.status === 'degraded' ? 'is-watch' : ''}>{check ? (check.status === 'ok' ? `${check.latencyMs} ms` : check.message || 'Prüfen') : 'Lädt'}</dd></div>;
+                    })}
                   </dl>
                 </div>
               </section>
 
               <section className="admin-metric-rail" aria-label="Operations-Kennzahlen">
-                <button onClick={() => setActiveTab('players')}><Users className="text-sky-200" /><span><strong>{profiles.length}</strong><small>Spieler gesamt</small></span><em>Profile →</em></button>
                 <button onClick={() => setActiveTab('disputes')} className={disputedMatches.length > 0 ? 'is-alert' : ''}><ShieldAlert className="text-amber-200" /><span><strong>{disputedMatches.length}</strong><small>Offene Disputes</small></span><em>Prüfen →</em></button>
-                <button onClick={() => setActiveTab('tickets')} className={urgentTickets > 0 ? 'is-alert' : ''}><Headphones className="text-violet-200" /><span><strong>{ticketsInQueue}</strong><small>Support Queue</small></span><em>Öffnen →</em></button>
+                <button onClick={() => setActiveTab('tickets')} className={escalatedTickets.length > 0 ? 'is-alert' : ''}><Headphones className="text-violet-200" /><span><strong>{escalatedTickets.length}</strong><small>Support-SLA</small></span><em>{slaBreachedTickets.length ? `${slaBreachedTickets.length} über Zeit` : 'Keine Frist offen'} →</em></button>
+                <button onClick={() => setActiveTab('payouts')} className={overduePayouts.length > 0 ? 'is-alert' : ''}><Crown className="text-lime-200" /><span><strong>{overduePayouts.length}</strong><small>Überfällige Preise</small></span><em>{pendingPayouts.length ? `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen` : 'Keine Zahlung offen'} →</em></button>
+                <button onClick={() => setActiveTab('tournaments')} className={upcomingCheckIns.length > 0 ? 'is-alert' : ''}><Trophy className="text-cyan-200" /><span><strong>{upcomingCheckIns.length}</strong><small>Check-ins bald</small></span><em>{activeTournamentCount} aktive Cups →</em></button>
+                <button onClick={() => setActiveTab('flagged')} className={flaggedPlayers.length > 0 || fairnessRiskFlags.length > 0 ? 'is-alert' : ''}><TriangleAlert className={flaggedPlayers.length > 0 || fairnessRiskFlags.length > 0 ? 'text-orange-200' : 'text-zinc-500'} /><span><strong>{flaggedPlayers.length + fairnessRiskFlags.length}</strong><small>Fair-Play-Signale</small></span><em>Monitor →</em></button>
                 <button onClick={() => setActiveTab('live')}><Swords className="text-emerald-200" /><span><strong>{liveMatches.length}</strong><small>Live Matches</small></span><em>Ansehen →</em></button>
-                <button onClick={() => setActiveTab('flagged')} className={flaggedPlayers.length > 0 ? 'is-alert' : ''}><TriangleAlert className={flaggedPlayers.length > 0 ? 'text-orange-200' : 'text-zinc-500'} /><span><strong>{flaggedPlayers.length}</strong><small>Fair-Play-Signale</small></span><em>Monitor →</em></button>
-                <button onClick={() => setActiveTab('tournaments')}><Trophy className="text-cyan-200" /><span><strong>{activeTournamentCount}</strong><small>Aktive Cups</small></span><em>Control →</em></button>
               </section>
 
               <section className="admin-worklist">
-                <div className="admin-worklist-heading"><div><p className="admin-kicker">Arbeitsliste</p><h3>Die nächsten sinnvollen Schritte</h3></div><span>{attentionCount} priorisiert</span></div>
+                <div className="admin-worklist-heading"><div><p className="admin-kicker">Triage</p><h3>Was jetzt tatsächlich ansteht</h3></div><span>{attentionCount} Signale</span></div>
                 <div className="admin-worklist-grid">
-                  <button onClick={() => goToSection(primaryAttentionSection)} className="admin-worklist-row"><span className={attentionCount > 0 ? 'admin-row-icon is-warning' : 'admin-row-icon is-ok'}>{attentionCount > 0 ? <AlertTriangle /> : <CheckCircle2 />}</span><span><strong>{attentionCount > 0 ? 'Priorisierte Vorgänge bearbeiten' : 'Keine eskalierten Vorgänge'}</strong><small>{attentionCount > 0 ? 'Disputes, Support und Fair Play in einer gefilterten Arbeitsansicht.' : 'Nutze die Zeit für Turnierpflege oder neue Ankündigungen.'}</small></span><em>Öffnen →</em></button>
-                  <button onClick={() => setActiveTab('live')} className="admin-worklist-row"><span className="admin-row-icon"><Radar /></span><span><strong>Live Arena überwachen</strong><small>{liveMatches.length ? `${liveMatches.length} Matches laufen gerade und können direkt geprüft werden.` : 'Derzeit laufen keine offenen Ranked-Matches.'}</small></span><em>Live →</em></button>
-                  <button onClick={exportOperationsSnapshot} className="admin-worklist-row"><span className="admin-row-icon"><Download /></span><span><strong>Schichtstand exportieren</strong><small>Erstellt eine kompakte CSV für Moderation, Support und Turnierleitung.</small></span><em>Export →</em></button>
+                  <button onClick={() => goToSection(primaryAttentionSection)} className="admin-worklist-row"><span className={attentionCount > 0 ? 'admin-row-icon is-warning' : 'admin-row-icon is-ok'}>{attentionCount > 0 ? <AlertTriangle /> : <CheckCircle2 />}</span><span><strong>{attentionCount > 0 ? 'Priorisierte Fälle abarbeiten' : 'Keine eskalierten Fälle'}</strong><small>{attentionCount > 0 ? `${disputedMatches.length} Disputes, ${escalatedTickets.length} Support-SLAs, ${overduePayouts.length} Preisfristen und ${upcomingCheckIns.length} Check-ins wurden nach Dringlichkeit sortiert.` : 'Der Arbeitskorb ist leer. Live Arena und Turnierlage bleiben trotzdem im Blick.'}</small></span><em>Öffnen →</em></button>
+                  <button onClick={() => setActiveTab('tickets')} className="admin-worklist-row"><span className={slaBreachedTickets.length ? 'admin-row-icon is-warning' : 'admin-row-icon is-ok'}><Clock /></span><span><strong>{slaBreachedTickets.length ? 'Support-Fristen sichern' : 'Support-SLA stabil'}</strong><small>{slaBreachedTickets.length ? `${slaBreachedTickets.length} Ticket${slaBreachedTickets.length === 1 ? '' : 's'} ${slaBreachedTickets.length === 1 ? 'ist' : 'sind'} länger offen als die jeweilige Prioritätsfrist.` : `${openTickets.length} offene Tickets, davon ${unassignedTickets} ohne Owner.`}</small></span><em>Support →</em></button>
+                  <button onClick={() => setActiveTab(upcomingCheckIns.length ? 'tournaments' : overduePayouts.length ? 'payouts' : 'live')} className="admin-worklist-row"><span className={upcomingCheckIns.length || overduePayouts.length ? 'admin-row-icon is-warning' : 'admin-row-icon'}>{upcomingCheckIns.length || overduePayouts.length ? <AlertTriangle /> : <Radar />}</span><span><strong>{upcomingCheckIns.length ? 'Turnier-Check-ins vorbereiten' : overduePayouts.length ? 'Preisfristen bearbeiten' : 'Live Arena im Blick behalten'}</strong><small>{upcomingCheckIns.length ? `${upcomingCheckIns.length} Check-in${upcomingCheckIns.length === 1 ? '' : 's'} ${upcomingCheckIns.length === 1 ? 'schließt' : 'schließen'} innerhalb der nächsten 90 Minuten.` : overduePayouts.length ? `${overduePayouts.length} Auszahlung${overduePayouts.length === 1 ? ' ist' : 'en sind'} über dem hinterlegten Fälligkeitsdatum.` : `${liveMatches.length} offene Ranked-Matches warten aktuell auf Ergebnis oder Bestätigung.`}</small></span><em>Öffnen →</em></button>
                 </div>
               </section>
             </div>

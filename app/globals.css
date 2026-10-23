@@ -1618,6 +1618,8 @@ body {
 .faceit-admin-topbar-status { display: flex; align-items: center; gap: 8px; }
 .faceit-admin-presence { display: inline-flex; align-items: center; gap: 7px; color: #a7a7a7; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; }
 .faceit-admin-presence i { width: 6px; height: 6px; border-radius: 99px; background: #69d3a1; box-shadow: 0 0 10px rgba(105,211,161,.6); }
+.faceit-admin-presence i.is-watch { background: #f2b077; box-shadow: 0 0 10px rgba(242,176,119,.6); }
+.faceit-admin-presence i.is-down { background: #ef7373; box-shadow: 0 0 10px rgba(239,115,115,.6); }
 
 .faceit-admin-quiet-button,
 .faceit-admin-command-button {
@@ -1801,6 +1803,7 @@ body {
 .admin-readiness dt { color: #8d9692; font-size: 11px; font-weight: 650; }
 .admin-readiness dd { margin: 0; color: #86d9ad; font-size: 10px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
 .admin-readiness dd.is-watch { color: #f2b077; }
+.admin-readiness dd.is-down { color: #ef7373; }
 
 .admin-metric-rail {
   display: grid;
