@@ -370,6 +370,265 @@ body {
   .matchmaking-page .matchmaking-console { box-shadow: 8px 8px 0 rgba(0, 0, 0, .16); }
 }
 
+/* The leaderboard presents the ladder as a stage first, then lets the
+   complete table do its practical job without competing for attention. */
+.leaderboard-page {
+  min-height: 100vh;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(46rem 30rem at 88% 2%, rgba(209, 164, 70, .08), transparent 58%),
+    radial-gradient(42rem 30rem at -4% 24%, rgba(76, 203, 143, .085), transparent 62%),
+    #080b0a;
+}
+
+.leaderboard-page::before {
+  position: fixed;
+  z-index: -2;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  opacity: .44;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .032) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.leaderboard-page .leaderboard-nav {
+  position: relative;
+  z-index: 40;
+  border-color: rgba(255, 255, 255, .10);
+  background: rgba(8, 11, 10, .84);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .18);
+}
+
+.leaderboard-page .leaderboard-shell {
+  position: relative;
+  max-width: 90rem;
+}
+
+.leaderboard-page .leaderboard-hero {
+  display: grid;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.leaderboard-page .leaderboard-hero-copy {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 27rem;
+  border-block: 1px solid rgba(255, 255, 255, .12);
+  padding: clamp(1.8rem, 5vw, 4rem);
+  background:
+    linear-gradient(112deg, rgba(8, 11, 10, .98), rgba(8, 11, 10, .92) 55%, rgba(8, 11, 10, .60));
+}
+
+.leaderboard-page .leaderboard-hero-copy::before {
+  position: absolute;
+  z-index: -1;
+  right: -7rem;
+  bottom: -8rem;
+  width: clamp(18rem, 35vw, 34rem);
+  aspect-ratio: 1;
+  border: 1px solid rgba(154, 240, 188, .16);
+  border-radius: 50%;
+  content: '';
+  box-shadow: 0 0 0 42px rgba(154, 240, 188, .023), 0 0 0 84px rgba(154, 240, 188, .014), 0 0 90px rgba(154, 240, 188, .08);
+}
+
+.leaderboard-page .leaderboard-hero-copy::after {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  width: 36%;
+  height: 100%;
+  content: '';
+  opacity: .6;
+  background:
+    repeating-linear-gradient(90deg, rgba(154, 240, 188, .11) 0 1px, transparent 1px 3rem),
+    linear-gradient(to bottom, transparent, rgba(154, 240, 188, .08));
+  mask-image: linear-gradient(90deg, transparent, black);
+}
+
+.leaderboard-page .leaderboard-kicker {
+  display: inline-flex;
+  align-items: center;
+  border-left: 2px solid #9af0bc;
+  padding-left: .75rem;
+  color: #b7f8d0;
+  font-size: .625rem;
+  font-weight: 900;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.leaderboard-page .leaderboard-title {
+  font-size: clamp(4rem, 7.4vw, 7.8rem);
+  font-weight: 900;
+  line-height: .79;
+  letter-spacing: -.095em;
+}
+
+.leaderboard-page .leaderboard-podium {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-top: 3px solid rgba(229, 196, 116, .92);
+  background:
+    radial-gradient(26rem 14rem at 50% 102%, rgba(211, 166, 69, .13), transparent 72%),
+    linear-gradient(150deg, rgba(255, 255, 255, .035), transparent 44%),
+    #0d1110;
+  box-shadow: 18px 18px 0 rgba(0, 0, 0, .16), 0 24px 72px rgba(0, 0, 0, .25);
+}
+
+.leaderboard-page .leaderboard-podium::after {
+  position: absolute;
+  top: -7rem;
+  left: calc(50% - 7rem);
+  width: 14rem;
+  height: 14rem;
+  border: 1px solid rgba(229, 196, 116, .15);
+  border-radius: 50%;
+  content: '';
+  box-shadow: 0 0 0 30px rgba(229, 196, 116, .025);
+  pointer-events: none;
+}
+
+.leaderboard-page .leaderboard-podium > * {
+  position: relative;
+  z-index: 1;
+}
+
+.leaderboard-page .leaderboard-podium-player {
+  position: relative;
+  transition: background .18s ease, transform .18s ease;
+}
+
+.leaderboard-page .leaderboard-podium-player:hover {
+  background: rgba(255, 255, 255, .04);
+  transform: translateY(-2px);
+}
+
+.leaderboard-page .leaderboard-podium-winner {
+  background: linear-gradient(to bottom, rgba(229, 196, 116, .09), transparent 56%);
+}
+
+.leaderboard-page .leaderboard-stat-rail {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .11);
+  background: rgba(7, 10, 9, .62);
+}
+
+.leaderboard-page .leaderboard-stat-rail > div {
+  position: relative;
+}
+
+.leaderboard-page .leaderboard-stat-rail > div + div::before {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  left: 0;
+  width: 1px;
+  content: '';
+  background: rgba(255, 255, 255, .10);
+}
+
+.leaderboard-page .leaderboard-personal {
+  display: grid;
+  gap: 1.5rem;
+  align-items: center;
+  border: 1px solid rgba(154, 240, 188, .25);
+  border-left: 3px solid #9af0bc;
+  padding: 1.5rem;
+  background: linear-gradient(100deg, rgba(72, 207, 151, .11), rgba(72, 207, 151, .025) 52%, transparent);
+}
+
+.leaderboard-page .leaderboard-personal-rank {
+  border-right: 1px solid rgba(154, 240, 188, .16);
+  padding-right: 1.5rem;
+}
+
+.leaderboard-page .leaderboard-command {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
+  padding-bottom: 1.5rem;
+}
+
+.leaderboard-page .leaderboard-search {
+  display: flex;
+  width: min(100%, 20rem);
+  align-items: center;
+  gap: .7rem;
+  border: 1px solid rgba(255, 255, 255, .14);
+  padding: .76rem .9rem;
+  background: rgba(5, 8, 7, .55);
+  transition: border-color .16s ease, background .16s ease;
+}
+
+.leaderboard-page .leaderboard-search:focus-within {
+  border-color: rgba(154, 240, 188, .72);
+  background: rgba(154, 240, 188, .045);
+}
+
+.leaderboard-page .leaderboard-mobile-list,
+.leaderboard-page .leaderboard-table {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(13, 17, 16, .74);
+}
+
+.leaderboard-page .leaderboard-mobile-row,
+.leaderboard-page .leaderboard-table-row {
+  position: relative;
+}
+
+.leaderboard-page .leaderboard-mobile-row:hover,
+.leaderboard-page .leaderboard-table-row:hover {
+  background: rgba(154, 240, 188, .055);
+}
+
+.leaderboard-page .leaderboard-top-row {
+  background: linear-gradient(90deg, rgba(229, 196, 116, .07), transparent 44%);
+}
+
+.leaderboard-page .leaderboard-current-row {
+  z-index: 1;
+  box-shadow: inset 2px 0 0 #9af0bc, inset 0 0 0 1px rgba(154, 240, 188, .54);
+  background: rgba(154, 240, 188, .085);
+}
+
+@media (min-width: 1024px) {
+  .leaderboard-page .leaderboard-hero { grid-template-columns: minmax(0, 1.03fr) minmax(31rem, .97fr); }
+  .leaderboard-page .leaderboard-personal { grid-template-columns: 8rem minmax(0, 1fr) minmax(13rem, .5fr); }
+}
+
+@media (max-width: 1023px) {
+  .leaderboard-page .leaderboard-hero-copy { min-height: 0; }
+  .leaderboard-page .leaderboard-personal { grid-template-columns: 8rem minmax(0, 1fr); }
+  .leaderboard-page .leaderboard-personal > :last-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 639px) {
+  .leaderboard-page .leaderboard-hero-copy { margin-inline: -1.25rem; padding: 2rem 1.25rem; }
+  .leaderboard-page .leaderboard-title { font-size: clamp(3.65rem, 17vw, 4.75rem); }
+  .leaderboard-page .leaderboard-podium { box-shadow: 8px 8px 0 rgba(0, 0, 0, .16); }
+  .leaderboard-page .leaderboard-podium-player { padding-inline: .55rem; }
+  .leaderboard-page .leaderboard-stat-rail > div + div::before { top: 0; right: 0; bottom: auto; left: 0; width: auto; height: 1px; }
+  .leaderboard-page .leaderboard-personal { grid-template-columns: 1fr; gap: 1rem; }
+  .leaderboard-page .leaderboard-personal-rank { border-right: 0; border-bottom: 1px solid rgba(154, 240, 188, .16); padding-right: 0; padding-bottom: 1rem; }
+  .leaderboard-page .leaderboard-personal > :last-child { grid-column: auto; }
+  .leaderboard-page .leaderboard-search { width: 100%; }
+  .leaderboard-page .leaderboard-command > div:last-child { width: 100%; }
+}
+
 /* Player profile: one continuous player sheet instead of a dashboard of tiles. */
 .profile-performance-rail,
 .profile-account-rail,
