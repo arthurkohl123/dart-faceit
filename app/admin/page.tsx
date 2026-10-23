@@ -1957,6 +1957,7 @@ export default function AdminPanel() {
                   {actionMessage}
                 </div>
               )}
+              <div className="admin-overview-stage">
               <section className="admin-briefing">
                 <div className="admin-briefing-copy">
                   <p className="admin-kicker">Schichtbriefing · {lastRefreshedAt ? lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : 'jetzt'}</p>
@@ -2000,6 +2001,7 @@ export default function AdminPanel() {
                   <button onClick={() => setActiveTab(upcomingCheckIns.length ? 'tournaments' : overduePayouts.length ? 'payouts' : 'live')} className="admin-worklist-row"><span className={upcomingCheckIns.length || overduePayouts.length ? 'admin-row-icon is-warning' : 'admin-row-icon'}>{upcomingCheckIns.length || overduePayouts.length ? <AlertTriangle /> : <Radar />}</span><span><strong>{upcomingCheckIns.length ? 'Turnier-Check-ins vorbereiten' : overduePayouts.length ? 'Preisfristen bearbeiten' : 'Live Arena im Blick behalten'}</strong><small>{upcomingCheckIns.length ? `${upcomingCheckIns.length} Check-in${upcomingCheckIns.length === 1 ? '' : 's'} ${upcomingCheckIns.length === 1 ? 'schließt' : 'schließen'} innerhalb der nächsten 90 Minuten.` : overduePayouts.length ? `${overduePayouts.length} Auszahlung${overduePayouts.length === 1 ? ' ist' : 'en sind'} über dem hinterlegten Fälligkeitsdatum.` : `${liveMatches.length} offene Ranked-Matches warten aktuell auf Ergebnis oder Bestätigung.`}</small></span><em>Öffnen →</em></button>
                 </div>
               </section>
+              </div>
             </div>
           )}
 
