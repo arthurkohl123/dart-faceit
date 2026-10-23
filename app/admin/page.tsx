@@ -1745,6 +1745,17 @@ export default function AdminPanel() {
       : systemHealth.status === 'degraded'
         ? 'System prüfen'
         : 'System gestört';
+  const commandTasks: Array<{ id: string; title: string; detail: string; target: AdminTab; icon: LucideIcon; tone: 'alert' | 'watch' | 'calm' }> = [
+    disputedMatches.length > 0 ? { id: 'disputes', title: 'Disputes entscheiden', detail: `${disputedMatches.length} Match${disputedMatches.length === 1 ? '' : 'es'} warten auf eine Wertung.`, target: 'disputes', icon: Gavel, tone: 'alert' } : null,
+    escalatedTickets.length > 0 ? { id: 'support', title: 'Support-SLA sichern', detail: `${escalatedTickets.length} Ticket${escalatedTickets.length === 1 ? '' : 's'} braucht ${slaBreachedTickets.length ? 'jetzt eine Antwort' : 'eine Zuweisung'}.`, target: 'tickets', icon: Headphones, tone: 'alert' } : null,
+    overduePayouts.length > 0 ? { id: 'payouts', title: 'Preisfristen klären', detail: `${overduePayouts.length} Auszahlung${overduePayouts.length === 1 ? '' : 'en'} liegt über dem Fälligkeitsdatum.`, target: 'payouts', icon: Crown, tone: 'alert' } : null,
+    upcomingCheckIns.length > 0 ? { id: 'checkins', title: 'Check-ins begleiten', detail: `${upcomingCheckIns.length} Turnier-Check-in${upcomingCheckIns.length === 1 ? '' : 's'} schließt innerhalb von 90 Minuten.`, target: 'tournaments', icon: Trophy, tone: 'watch' } : null,
+    flaggedPlayers.length + fairnessRiskFlags.length > 0 ? { id: 'fairplay', title: 'Fair Play einordnen', detail: `${flaggedPlayers.length + fairnessRiskFlags.length} Signal${flaggedPlayers.length + fairnessRiskFlags.length === 1 ? '' : 'e'} wartet auf eine Prüfung.`, target: 'flagged', icon: TriangleAlert, tone: 'watch' } : null,
+    liveMatches.length > 0 ? { id: 'live', title: 'Live Matches im Blick', detail: `${liveMatches.length} offene Matches warten auf Ergebnis oder Bestätigung.`, target: 'live', icon: Radar, tone: 'calm' } : null,
+  ].filter((task): task is { id: string; title: string; detail: string; target: AdminTab; icon: LucideIcon; tone: 'alert' | 'watch' | 'calm' } => task !== null);
+  if (commandTasks.length === 0) {
+    commandTasks.push({ id: 'clear', title: 'Keine Eskalation offen', detail: 'Arbeitskorb, Support und Turnierlage sind aktuell sauber.', target: 'operations', icon: CheckCircle2, tone: 'calm' });
+  }
   const primaryAttentionSection: AdminTab = disputedMatches.length > 0
     ? 'disputes'
     : flaggedPlayers.length > 0
@@ -1957,50 +1968,58 @@ export default function AdminPanel() {
                   {actionMessage}
                 </div>
               )}
-              <div className="admin-overview-stage">
-              <section className="admin-briefing">
-                <div className="admin-briefing-copy">
-                  <p className="admin-kicker">Schichtbriefing · {lastRefreshedAt ? lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : 'jetzt'}</p>
-                  <h3>{attentionCount > 0 ? 'Die nächsten Entscheidungen sind klar priorisiert.' : 'Heute ist alles im grünen Bereich.'}</h3>
-                  <p>{attentionCount > 0 ? `${disputedMatches.length} Disputes, ${escalatedTickets.length} Support-Vorgänge, ${overduePayouts.length} überfällige Auszahlungen und ${upcomingCheckIns.length} zeitnahe Check-ins stehen oben auf der Liste.` : 'Keine offenen SLAs, Fristen oder Fair-Play-Signale brauchen gerade Aufmerksamkeit.'}</p>
-                  <div className="admin-briefing-actions">
-                    {disputedMatches.length > 0 && <button onClick={() => setActiveTab('disputes')} className="admin-action-primary">Disputes prüfen</button>}
-                    {escalatedTickets.length > 0 && <button onClick={() => setActiveTab('tickets')} className="admin-action-secondary">Support-SLA öffnen</button>}
-                    {overduePayouts.length > 0 && <button onClick={() => setActiveTab('payouts')} className="admin-action-secondary">Auszahlungen prüfen</button>}
-                    {upcomingCheckIns.length > 0 && <button onClick={() => setActiveTab('tournaments')} className="admin-action-secondary">Check-ins vorbereiten</button>}
-                    {flaggedPlayers.length > 0 && <button onClick={() => setActiveTab('flagged')} className="admin-action-secondary">Fairness prüfen</button>}
-                    {attentionCount === 0 && <button onClick={() => setActiveTab('operations')} className="admin-action-primary">Arbeitskorb öffnen</button>}
+              <div className="admin-command-overview">
+                <section className="admin-command-hero">
+                  <div className="admin-command-hero-copy">
+                    <p className="admin-command-eyebrow">Shift overview · {lastRefreshedAt ? lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : 'jetzt'}</p>
+                    <h3>{attentionCount > 0 ? 'Dein klarer Plan für diese Schicht.' : 'Die Arena ist bereit für den nächsten Anpfiff.'}</h3>
+                    <p>{attentionCount > 0 ? `${attentionCount} Signale brauchen Aufmerksamkeit. Sie stehen rechts in der Reihenfolge, in der sie bearbeitet werden sollten.` : 'Keine Frist, kein Dispute und keine Systemstörung hält den Betrieb gerade auf.'}</p>
+                    <div className="admin-command-hero-actions">
+                      <button onClick={() => goToSection(primaryAttentionSection)} className="admin-command-primary">{attentionCount > 0 ? 'Ersten Vorgang öffnen' : 'Arbeitskorb ansehen'} <span>→</span></button>
+                      <button onClick={exportOperationsSnapshot} className="admin-command-secondary"><Download className="h-3.5 w-3.5" /> Schichtbericht</button>
+                    </div>
                   </div>
-                </div>
-                <div className="admin-readiness" aria-label="Systemstatus">
-                  <div className="admin-readiness-score"><strong>{healthScore}</strong><span>{systemHealth ? `System ${systemHealth.status}` : 'System wird geprüft'}</span></div>
-                  <dl>
-                    {(['database', 'stripe', 'deployment'] as const).map((service) => {
-                      const check = systemHealth?.checks[service];
-                      const serviceLabel = service === 'database' ? 'Datenbank' : service === 'stripe' ? 'Stripe' : 'Deployment';
-                      return <div key={service}><dt>{serviceLabel}</dt><dd className={check?.status === 'down' ? 'is-down' : check?.status === 'degraded' ? 'is-watch' : ''}>{check ? (check.status === 'ok' ? `${check.latencyMs} ms` : check.message || 'Prüfen') : 'Lädt'}</dd></div>;
-                    })}
-                  </dl>
-                </div>
-              </section>
+                  <div className="admin-command-score" aria-label="Operations-Gesundheit">
+                    <div className="admin-command-score-ring" style={{ background: `conic-gradient(#ff6c3c ${healthScore}%, rgba(255,255,255,.10) 0)` }}><div><strong>{healthScore}</strong><span>von 100</span></div></div>
+                    <div><p>Operations-Status</p><strong>{systemStatusText}</strong><small>{systemHealth?.checkedAt ? `Geprüft ${new Date(systemHealth.checkedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'Prüfung läuft'}</small></div>
+                  </div>
+                </section>
 
-              <section className="admin-metric-rail" aria-label="Operations-Kennzahlen">
-                <button onClick={() => setActiveTab('disputes')} className={disputedMatches.length > 0 ? 'is-alert' : ''}><ShieldAlert className="text-amber-200" /><span><strong>{disputedMatches.length}</strong><small>Offene Disputes</small></span><em>Prüfen →</em></button>
-                <button onClick={() => setActiveTab('tickets')} className={escalatedTickets.length > 0 ? 'is-alert' : ''}><Headphones className="text-violet-200" /><span><strong>{escalatedTickets.length}</strong><small>Support-SLA</small></span><em>{slaBreachedTickets.length ? `${slaBreachedTickets.length} über Zeit` : 'Keine Frist offen'} →</em></button>
-                <button onClick={() => setActiveTab('payouts')} className={overduePayouts.length > 0 ? 'is-alert' : ''}><Crown className="text-lime-200" /><span><strong>{overduePayouts.length}</strong><small>Überfällige Preise</small></span><em>{pendingPayouts.length ? `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen` : 'Keine Zahlung offen'} →</em></button>
-                <button onClick={() => setActiveTab('tournaments')} className={upcomingCheckIns.length > 0 ? 'is-alert' : ''}><Trophy className="text-cyan-200" /><span><strong>{upcomingCheckIns.length}</strong><small>Check-ins bald</small></span><em>{activeTournamentCount} aktive Cups →</em></button>
-                <button onClick={() => setActiveTab('flagged')} className={flaggedPlayers.length > 0 || fairnessRiskFlags.length > 0 ? 'is-alert' : ''}><TriangleAlert className={flaggedPlayers.length > 0 || fairnessRiskFlags.length > 0 ? 'text-orange-200' : 'text-zinc-500'} /><span><strong>{flaggedPlayers.length + fairnessRiskFlags.length}</strong><small>Fair-Play-Signale</small></span><em>Monitor →</em></button>
-                <button onClick={() => setActiveTab('live')}><Swords className="text-emerald-200" /><span><strong>{liveMatches.length}</strong><small>Live Matches</small></span><em>Ansehen →</em></button>
-              </section>
+                <div className="admin-command-board">
+                  <section className="admin-command-queue" aria-label="Priorisierte Vorgänge">
+                    <header><div><p>Jetzt bearbeiten</p><h4>Prioritäten</h4></div><span>{commandTasks.length}</span></header>
+                    <div className="admin-command-task-list">
+                      {commandTasks.map((task, index) => {
+                        const TaskIcon = task.icon;
+                        return <button key={task.id} onClick={() => goToSection(task.target)} className={`admin-command-task is-${task.tone}`}><span className="admin-command-task-index">{String(index + 1).padStart(2, '0')}</span><span className="admin-command-task-icon"><TaskIcon /></span><span><strong>{task.title}</strong><small>{task.detail}</small></span><em>Öffnen →</em></button>;
+                      })}
+                    </div>
+                  </section>
 
-              <section className="admin-worklist">
-                <div className="admin-worklist-heading"><div><p className="admin-kicker">Triage</p><h3>Was jetzt tatsächlich ansteht</h3></div><span>{attentionCount} Signale</span></div>
-                <div className="admin-worklist-grid">
-                  <button onClick={() => goToSection(primaryAttentionSection)} className="admin-worklist-row"><span className={attentionCount > 0 ? 'admin-row-icon is-warning' : 'admin-row-icon is-ok'}>{attentionCount > 0 ? <AlertTriangle /> : <CheckCircle2 />}</span><span><strong>{attentionCount > 0 ? 'Priorisierte Fälle abarbeiten' : 'Keine eskalierten Fälle'}</strong><small>{attentionCount > 0 ? `${disputedMatches.length} Disputes, ${escalatedTickets.length} Support-SLAs, ${overduePayouts.length} Preisfristen und ${upcomingCheckIns.length} Check-ins wurden nach Dringlichkeit sortiert.` : 'Der Arbeitskorb ist leer. Live Arena und Turnierlage bleiben trotzdem im Blick.'}</small></span><em>Öffnen →</em></button>
-                  <button onClick={() => setActiveTab('tickets')} className="admin-worklist-row"><span className={slaBreachedTickets.length ? 'admin-row-icon is-warning' : 'admin-row-icon is-ok'}><Clock /></span><span><strong>{slaBreachedTickets.length ? 'Support-Fristen sichern' : 'Support-SLA stabil'}</strong><small>{slaBreachedTickets.length ? `${slaBreachedTickets.length} Ticket${slaBreachedTickets.length === 1 ? '' : 's'} ${slaBreachedTickets.length === 1 ? 'ist' : 'sind'} länger offen als die jeweilige Prioritätsfrist.` : `${openTickets.length} offene Tickets, davon ${unassignedTickets} ohne Owner.`}</small></span><em>Support →</em></button>
-                  <button onClick={() => setActiveTab(upcomingCheckIns.length ? 'tournaments' : overduePayouts.length ? 'payouts' : 'live')} className="admin-worklist-row"><span className={upcomingCheckIns.length || overduePayouts.length ? 'admin-row-icon is-warning' : 'admin-row-icon'}>{upcomingCheckIns.length || overduePayouts.length ? <AlertTriangle /> : <Radar />}</span><span><strong>{upcomingCheckIns.length ? 'Turnier-Check-ins vorbereiten' : overduePayouts.length ? 'Preisfristen bearbeiten' : 'Live Arena im Blick behalten'}</strong><small>{upcomingCheckIns.length ? `${upcomingCheckIns.length} Check-in${upcomingCheckIns.length === 1 ? '' : 's'} ${upcomingCheckIns.length === 1 ? 'schließt' : 'schließen'} innerhalb der nächsten 90 Minuten.` : overduePayouts.length ? `${overduePayouts.length} Auszahlung${overduePayouts.length === 1 ? ' ist' : 'en sind'} über dem hinterlegten Fälligkeitsdatum.` : `${liveMatches.length} offene Ranked-Matches warten aktuell auf Ergebnis oder Bestätigung.`}</small></span><em>Öffnen →</em></button>
+                  <aside className="admin-command-pulse" aria-label="Live-Status">
+                    <header><p>Live-Pulse</p><span><i /> online</span></header>
+                    <div className="admin-command-services">
+                      {(['database', 'stripe', 'deployment'] as const).map((service) => {
+                        const check = systemHealth?.checks[service];
+                        const serviceLabel = service === 'database' ? 'Datenbank' : service === 'stripe' ? 'Stripe' : 'Deployment';
+                        return <div key={service}><span className={`admin-command-service-dot is-${check?.status || 'loading'}`} /><span>{serviceLabel}</span><strong>{check ? check.status === 'ok' ? `${check.latencyMs} ms` : check.message || 'Prüfen' : 'Lädt'}</strong></div>;
+                      })}
+                    </div>
+                    <div className="admin-command-facts">
+                      <button onClick={() => setActiveTab('live')}><span>LIVE</span><strong>{liveMatches.length}</strong><small>offene Matches</small></button>
+                      <button onClick={() => setActiveTab('tournaments')}><span>CUPS</span><strong>{activeTournamentCount}</strong><small>aktiv</small></button>
+                      <button onClick={() => setActiveTab('players')}><span>PLAYERS</span><strong>{profiles.length}</strong><small>Profile</small></button>
+                    </div>
+                  </aside>
                 </div>
-              </section>
+
+                <section className="admin-command-ledger" aria-label="Bereitschaft nach Bereich">
+                  <button onClick={() => setActiveTab('disputes')} className={disputedMatches.length > 0 ? 'is-alert' : ''}><Gavel /><span>Entscheidungen</span><strong>{disputedMatches.length}</strong><small>offene Disputes</small></button>
+                  <button onClick={() => setActiveTab('tickets')} className={escalatedTickets.length > 0 ? 'is-alert' : ''}><Headphones /><span>Support</span><strong>{escalatedTickets.length}</strong><small>{slaBreachedTickets.length ? `${slaBreachedTickets.length} über SLA` : 'SLA stabil'}</small></button>
+                  <button onClick={() => setActiveTab('payouts')} className={overduePayouts.length > 0 ? 'is-alert' : ''}><Crown /><span>Preisgeld</span><strong>{overduePayouts.length}</strong><small>{pendingPayouts.length ? `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen` : 'nichts offen'}</small></button>
+                  <button onClick={() => setActiveTab('tournaments')} className={upcomingCheckIns.length > 0 ? 'is-alert' : ''}><Trophy /><span>Turniere</span><strong>{upcomingCheckIns.length}</strong><small>{upcomingCheckIns.length ? 'Check-in bald' : `${activeTournamentCount} aktiv`}</small></button>
+                  <button onClick={() => setActiveTab('flagged')} className={flaggedPlayers.length + fairnessRiskFlags.length > 0 ? 'is-alert' : ''}><ShieldAlert /><span>Fair Play</span><strong>{flaggedPlayers.length + fairnessRiskFlags.length}</strong><small>Signale prüfen</small></button>
+                </section>
               </div>
             </div>
           )}
