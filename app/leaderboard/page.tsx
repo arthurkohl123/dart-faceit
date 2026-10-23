@@ -184,7 +184,7 @@ export default function Leaderboard() {
                     <Link key={player.username + '-podium'} href={'/players/' + encodeURIComponent(player.username)} className={'leaderboard-podium-player group min-w-0 px-3 py-5 text-center sm:px-5 sm:py-6 ' + orderClass}>
                       <span className={'mx-auto grid h-7 w-7 place-items-center text-[10px] font-black ' + (place === 0 ? 'bg-amber-300 text-[#171108]' : 'border border-white/15 text-zinc-300')}>{podiumPositions[place]}</span>
                       <RankBadge level={tier.level} size="md" priority={place === 0} className="mx-auto mt-3 h-12 w-12 sm:h-16 sm:w-16" />
-                      <span className={'mt-3 block truncate text-sm font-black ' + premiumNameStyle(player)}>{player.username}</span>
+                      <span className={'mt-3 block truncate text-sm font-black ' + (player.isPremium ? 'text-amber-100' : 'text-[#f7f5ef]')}>{player.username}</span>
                       <span className={'mt-1 block text-[10px] font-black uppercase tracking-[.13em] ' + tier.color}>L{tier.level} · {tier.name}</span>
                       <span className="mt-3 block text-xl font-black tracking-[-.06em] text-emerald-200">{player.elo}</span>
                       <span className="mt-1 block text-[9px] font-black uppercase tracking-[.13em] text-zinc-500">Elo · {prizeMoney[place]} €</span>
