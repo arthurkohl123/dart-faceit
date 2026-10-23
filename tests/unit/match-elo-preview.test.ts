@@ -43,3 +43,9 @@ test('the matchroom never falls back to a separate browser-side Elo formula', ()
   assert.doesNotMatch(resultPage, /function calculateEloChange\(/);
   assert.match(resultPage, /omit a preview than promise a wrong Elo amount/i);
 });
+
+test('the matchroom accepts the complete server Elo range', () => {
+  assert.match(resultPage, /const MAX_RANKED_ELO_CHANGE = 50;/);
+  assert.match(resultPage, /player1WinChange <= MAX_RANKED_ELO_CHANGE/);
+  assert.match(resultPage, /player2WinChange <= MAX_RANKED_ELO_CHANGE/);
+});

@@ -78,6 +78,9 @@ type MatchEloPreview = {
   player2WinChange: number;
 };
 
+// Must match the cap in the authoritative database Elo calculation.
+const MAX_RANKED_ELO_CHANGE = 50;
+
 function EloPreviewCard({ preview }: { preview: EloPreview }) {
   return (
     <div className="border border-violet-300/20 bg-gradient-to-br from-violet-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-violet-950/20 sm:p-5">
@@ -519,8 +522,8 @@ export default function MatchResult() {
         const player1WinChange = Number(previewRow?.player1_win_change);
         const player2WinChange = Number(previewRow?.player2_win_change);
         if (
-          Number.isInteger(player1WinChange) && player1WinChange >= 1 && player1WinChange <= 32 &&
-          Number.isInteger(player2WinChange) && player2WinChange >= 1 && player2WinChange <= 32
+          Number.isInteger(player1WinChange) && player1WinChange >= 1 && player1WinChange <= MAX_RANKED_ELO_CHANGE &&
+          Number.isInteger(player2WinChange) && player2WinChange >= 1 && player2WinChange <= MAX_RANKED_ELO_CHANGE
         ) {
           setMatchEloPreview({ player1WinChange, player2WinChange });
         }
