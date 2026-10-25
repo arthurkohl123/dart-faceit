@@ -2326,3 +2326,542 @@ body {
   .developer-console-metrics > div:last-child { border-bottom: 0 !important; }
   .developer-console-briefing { grid-template-columns: 1fr; gap: 18px; }
 }
+
+/* Admin Vault: a private, high-density command environment. It deliberately
+   has its own visual language and never borrows the public RankedDarts UI. */
+.admin-vault {
+  --vault-ink: #080a11;
+  --vault-deep: #0e1120;
+  --vault-panel: rgba(18, 22, 40, .88);
+  --vault-raised: rgba(26, 31, 55, .92);
+  --vault-line: rgba(180, 198, 255, .14);
+  --vault-line-bright: rgba(207, 218, 255, .3);
+  --vault-text: #edf0ff;
+  --vault-muted: #8b93b6;
+  --vault-acid: #c7ff5c;
+  --vault-acid-soft: rgba(199, 255, 92, .14);
+  --vault-violet: #a98bff;
+  --vault-cyan: #7edcff;
+  --vault-danger: #ff8b9b;
+  min-height: 100vh;
+  background: var(--vault-ink);
+  color: var(--vault-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.admin-vault-atmosphere {
+  overflow: hidden;
+  background:
+    radial-gradient(56rem 32rem at 95% -8%, rgba(112, 71, 255, .20), transparent 67%),
+    radial-gradient(38rem 36rem at -8% 100%, rgba(126, 220, 255, .11), transparent 73%),
+    linear-gradient(135deg, #080a11 0%, #0c0f1c 48%, #080b14 100%);
+}
+.admin-vault-atmosphere::before,
+.admin-vault-atmosphere::after {
+  position: absolute;
+  content: '';
+  pointer-events: none;
+}
+.admin-vault-atmosphere::before {
+  inset: 0;
+  opacity: .48;
+  background-image:
+    linear-gradient(rgba(195, 209, 255, .042) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(195, 209, 255, .042) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+.admin-vault-atmosphere::after {
+  right: -12rem;
+  top: 9rem;
+  width: 40rem;
+  height: 40rem;
+  border: 1px solid rgba(199, 255, 92, .13);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5rem rgba(169, 139, 255, .025), 0 0 0 10rem rgba(126, 220, 255, .013);
+}
+
+.admin-vault-shell { padding: 20px; }
+.admin-vault .faceit-admin-topbar,
+.admin-vault .faceit-legacy-hero { display: none; }
+
+.admin-vault-layout {
+  min-height: calc(100vh - 40px);
+  grid-template-columns: 18.5rem minmax(0, 1fr) !important;
+  overflow: hidden;
+  border: 1px solid var(--vault-line);
+  border-radius: 24px;
+  background: rgba(9, 12, 24, .76);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.admin-vault-rail {
+  position: sticky !important;
+  top: 20px !important;
+  z-index: 4;
+  align-self: start;
+  min-height: calc(100vh - 40px);
+  border-right: 1px solid var(--vault-line);
+  background:
+    linear-gradient(180deg, rgba(39, 30, 89, .26), transparent 26rem),
+    rgba(10, 13, 27, .87);
+}
+.admin-vault-rail > div {
+  display: flex;
+  min-height: calc(100vh - 40px);
+  flex-direction: column;
+  background: transparent !important;
+}
+.admin-vault-rail > div > div:first-child {
+  position: relative;
+  min-height: 178px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--vault-line) !important;
+  padding: 26px 22px !important;
+  background: linear-gradient(145deg, rgba(169, 139, 255, .16), rgba(13, 17, 34, .4) 62%, transparent) !important;
+}
+.admin-vault-rail > div > div:first-child::after {
+  position: absolute;
+  right: -34px;
+  bottom: -42px;
+  width: 126px;
+  height: 126px;
+  border: 1px solid rgba(199, 255, 92, .34);
+  border-radius: 50%;
+  content: '';
+  box-shadow: 0 0 0 16px rgba(199,255,92,.035), 0 0 0 32px rgba(199,255,92,.02);
+}
+.admin-vault-rail > div > div:first-child > * { position: relative; z-index: 1; }
+.admin-vault-rail > div > div:first-child [class*="bg-cyan"] {
+  border-color: rgba(199,255,92,.48) !important;
+  border-radius: 12px !important;
+  background: var(--vault-acid) !important;
+  color: #171a22 !important;
+  box-shadow: 5px 5px 0 rgba(169,139,255,.3);
+}
+.admin-vault-rail > div > div:first-child p:first-of-type { color: var(--vault-acid) !important; }
+.admin-vault-rail > div > div:first-child p:last-child { color: #a8b0cd !important; }
+
+.admin-vault-rail nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 12px !important;
+}
+.admin-vault-rail nav > div { margin: 0 0 21px !important; }
+.admin-vault-rail nav > div > p {
+  margin-bottom: 7px;
+  padding: 0 10px !important;
+  color: #667096 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 8px !important;
+  font-weight: 800;
+  letter-spacing: .19em !important;
+}
+.admin-vault-rail nav button {
+  position: relative;
+  min-height: 52px;
+  border: 1px solid transparent;
+  border-radius: 12px !important;
+  padding: 8px 9px !important;
+  color: #929ab7;
+}
+.admin-vault-rail nav button::before {
+  position: absolute;
+  left: -1px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  border-radius: 99px;
+  background: transparent;
+  content: '';
+  transition: .18s ease;
+}
+.admin-vault-rail nav button:hover {
+  border-color: rgba(180,198,255,.11);
+  background: rgba(255,255,255,.035) !important;
+  color: #f2f4ff;
+}
+.admin-vault-rail nav button[class*="bg-gradient"] {
+  border-color: rgba(199,255,92,.25) !important;
+  background: linear-gradient(90deg, rgba(199,255,92,.15), rgba(199,255,92,.025) 76%, transparent) !important;
+  color: #fcfff3;
+}
+.admin-vault-rail nav button[class*="bg-gradient"]::before {
+  background: var(--vault-acid);
+  box-shadow: 0 0 12px rgba(199,255,92,.9);
+}
+.admin-vault-rail nav button [class*="rounded"] {
+  border-color: rgba(180,198,255,.12) !important;
+  border-radius: 9px !important;
+  background: rgba(255,255,255,.045) !important;
+}
+.admin-vault-rail nav button[class*="bg-gradient"] [class*="bg-emerald"] {
+  border-color: var(--vault-acid) !important;
+  background: var(--vault-acid) !important;
+  color: #151821 !important;
+}
+.admin-vault-rail nav button [class*="text-emerald"],
+.admin-vault-rail nav button [class*="text-cyan"] { color: var(--vault-cyan) !important; }
+.admin-vault-rail nav button [class*="text-violet"] { color: #c3b3ff !important; }
+.admin-vault-rail nav button [class*="text-amber"],
+.admin-vault-rail nav button [class*="text-orange"] { color: #ffd58b !important; }
+.admin-vault-rail nav button [class*="bg-white"] { background: rgba(255,255,255,.08) !important; }
+
+.admin-vault-rail > div > div:last-child {
+  border-top: 1px solid var(--vault-line) !important;
+  padding: 12px !important;
+  background: rgba(4, 6, 15, .34) !important;
+}
+.admin-vault-rail > div > div:last-child button {
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+.admin-vault-rail > div > div:last-child button:first-child {
+  border-color: rgba(169,139,255,.25) !important;
+  background: rgba(169,139,255,.09) !important;
+  color: #d4caff !important;
+}
+
+.admin-vault-workspace {
+  min-width: 0;
+  padding: 34px clamp(22px, 3.4vw, 56px) 64px;
+  background:
+    linear-gradient(90deg, transparent 0 calc(100% - 1px), rgba(180,198,255,.035) calc(100% - 1px)),
+    linear-gradient(rgba(180,198,255,.028) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 104px;
+}
+.admin-vault-pagehead {
+  position: relative;
+  padding-bottom: 25px;
+  border-bottom: 1px solid var(--vault-line);
+}
+.admin-vault-pagehead::after {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: clamp(88px, 12vw, 176px);
+  height: 2px;
+  background: linear-gradient(90deg, var(--vault-acid), var(--vault-cyan), transparent);
+  content: '';
+}
+.admin-vault-overline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--vault-acid);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+}
+.admin-vault-overline span {
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--vault-acid);
+  transform: rotate(45deg);
+  box-shadow: 0 0 13px rgba(199,255,92,.58);
+}
+.admin-vault-heading h2 {
+  margin: 11px 0 0;
+  color: var(--vault-text);
+  font-size: clamp(2.25rem, 4vw, 4.25rem);
+  font-weight: 850;
+  letter-spacing: -.075em;
+  line-height: .86;
+}
+.admin-vault-heading > p:last-child { margin: 11px 0 0; color: var(--vault-muted); font-size: 13px; }
+.admin-vault-page-actions { display: flex; align-items: center; gap: 9px; }
+.admin-vault-system-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(199,255,92,.22);
+  border-radius: 99px;
+  padding: 8px 11px;
+  background: rgba(199,255,92,.08);
+  color: #ddffc0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.admin-vault-system-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--vault-acid); box-shadow: 0 0 10px rgba(199,255,92,.9); }
+.admin-vault-system-pill.is-degraded { border-color: rgba(255,213,139,.33); background: rgba(255,213,139,.09); color: #ffe2ae; }
+.admin-vault-system-pill.is-degraded i { background: #ffd58b; box-shadow: 0 0 10px rgba(255,213,139,.7); }
+.admin-vault-system-pill.is-down { border-color: rgba(255,139,155,.33); background: rgba(255,139,155,.09); color: #ffc0c9; }
+.admin-vault-system-pill.is-down i { background: var(--vault-danger); box-shadow: 0 0 10px rgba(255,139,155,.7); }
+.admin-vault-system-pill.is-loading { border-color: rgba(139,147,182,.3); background: rgba(139,147,182,.08); color: #bac0d8; }
+.admin-vault-system-pill.is-loading i { background: #8b93b6; box-shadow: none; }
+.admin-vault-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--vault-line-bright);
+  border-radius: 10px;
+  padding: 9px 12px;
+  background: rgba(255,255,255,.035);
+  color: #eaf0ff;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  transition: .18s ease;
+}
+.admin-vault-refresh:hover { border-color: var(--vault-acid); background: var(--vault-acid-soft); color: #f7ffeb; transform: translateY(-1px); }
+
+/* The overview is a navigation instrument, not a dashboard card grid. */
+.admin-vault .admin-command-overview { display: grid; gap: 16px; }
+.admin-vault .admin-command-hero {
+  position: relative;
+  display: grid;
+  min-height: 316px;
+  grid-template-columns: minmax(0, 1.33fr) minmax(256px, .67fr);
+  overflow: hidden;
+  border: 1px solid var(--vault-line-bright);
+  border-radius: 20px;
+  background:
+    radial-gradient(30rem 20rem at 15% 0%, rgba(169,139,255,.24), transparent 70%),
+    linear-gradient(130deg, rgba(23,27,52,.92), rgba(10,13,28,.88));
+  box-shadow: 12px 15px 0 rgba(169,139,255,.11), 0 28px 70px rgba(0,0,0,.24);
+}
+.admin-vault .admin-command-hero::before {
+  position: absolute;
+  inset: 0;
+  opacity: .45;
+  background: repeating-linear-gradient(135deg, transparent 0 28px, rgba(214,223,255,.05) 29px 30px);
+  content: '';
+  pointer-events: none;
+}
+.admin-vault .admin-command-hero::after {
+  position: absolute;
+  left: 7%;
+  bottom: -21rem;
+  width: 44rem;
+  height: 44rem;
+  border: 1px solid rgba(199,255,92,.16);
+  border-radius: 50%;
+  content: '';
+  box-shadow: 0 0 0 70px rgba(199,255,92,.016), 0 0 0 140px rgba(199,255,92,.01);
+}
+.admin-vault .admin-command-hero-copy { position: relative; z-index: 1; padding: clamp(26px, 4vw, 54px); }
+.admin-vault .admin-command-eyebrow { color: var(--vault-acid); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9px; font-weight: 800; letter-spacing: .17em; }
+.admin-vault .admin-command-hero h3 {
+  max-width: 680px;
+  margin: 16px 0 0;
+  color: #f8f9ff;
+  font-size: clamp(2.25rem, 4.2vw, 4.65rem);
+  font-weight: 850;
+  letter-spacing: -.083em;
+  line-height: .86;
+}
+.admin-vault .admin-command-hero-copy > p:not(.admin-command-eyebrow) { max-width: 605px; margin-top: 20px; color: #b6bed9; font-size: 14px; line-height: 1.65; }
+.admin-vault .admin-command-hero-actions { gap: 9px; margin-top: 28px; }
+.admin-vault .admin-command-primary,
+.admin-vault .admin-command-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  transition: .18s ease;
+}
+.admin-vault .admin-command-primary { border-color: var(--vault-acid); background: var(--vault-acid); color: #15191e; box-shadow: 5px 5px 0 rgba(126,220,255,.3); }
+.admin-vault .admin-command-secondary { border-color: var(--vault-line-bright); background: rgba(5,7,18,.25); color: #e8ecfc; }
+.admin-vault .admin-command-primary:hover { background: #dcff91; transform: translate(-1px, -2px); }
+.admin-vault .admin-command-secondary:hover { border-color: var(--vault-cyan); background: rgba(126,220,255,.1); }
+.admin-vault .admin-command-score {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 18px;
+  border-left: 1px solid var(--vault-line);
+  padding: 28px;
+  background: linear-gradient(180deg, rgba(7,9,20,.1), rgba(5,6,15,.47));
+}
+.admin-vault .admin-command-score-ring { width: 166px; height: 166px; padding: 8px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(199,255,92,.18), 0 0 42px rgba(199,255,92,.12); }
+.admin-vault .admin-command-score-ring > div { width: 100%; height: 100%; border: 1px solid var(--vault-line); background: #12172b; }
+.admin-vault .admin-command-score-ring strong { color: #f8faff; font-size: 48px; }
+.admin-vault .admin-command-score-ring span { color: #a7b2d5; }
+.admin-vault .admin-command-score > div:last-child { width: 100%; text-align: center; }
+.admin-vault .admin-command-score > div:last-child p { color: #8f99bc; }
+.admin-vault .admin-command-score > div:last-child strong { color: #f2f5ff; font-size: 18px; }
+.admin-vault .admin-command-score > div:last-child small { color: #9aa3c1; }
+
+.admin-vault .admin-command-board { grid-template-columns: minmax(0, 1.4fr) minmax(284px, .6fr); gap: 16px; }
+.admin-vault .admin-command-queue,
+.admin-vault .admin-command-pulse {
+  overflow: hidden;
+  border: 1px solid var(--vault-line);
+  border-radius: 17px;
+  background: rgba(15,18,35,.76);
+}
+.admin-vault .admin-command-queue > header,
+.admin-vault .admin-command-pulse > header { border-color: var(--vault-line); padding: 18px 20px 15px; }
+.admin-vault .admin-command-queue > header p,
+.admin-vault .admin-command-pulse > header p { color: var(--vault-cyan); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.admin-vault .admin-command-queue > header h4 { color: #f3f5ff; font-size: 24px; }
+.admin-vault .admin-command-queue > header > span { border-color: rgba(169,139,255,.4); border-radius: 9px; background: rgba(169,139,255,.13); color: #dfd5ff; }
+.admin-vault .admin-command-task { grid-template-columns: 24px 35px minmax(0,1fr) auto; gap: 12px; border-color: var(--vault-line); padding: 14px 18px; }
+.admin-vault .admin-command-task:hover { padding-left: 22px; background: linear-gradient(90deg, rgba(126,220,255,.10), transparent 68%); }
+.admin-vault .admin-command-task-index { color: #7480aa; }
+.admin-vault .admin-command-task-icon { border-color: var(--vault-line); border-radius: 9px; background: rgba(255,255,255,.025); color: #c6cde5; }
+.admin-vault .admin-command-task strong { color: #f5f6ff; }
+.admin-vault .admin-command-task small { color: #939dbd; }
+.admin-vault .admin-command-task em { color: #9ea8c8; }
+.admin-vault .admin-command-task.is-alert .admin-command-task-icon { border-color: rgba(255,139,155,.48); background: rgba(255,139,155,.08); color: #ffb3bd; }
+.admin-vault .admin-command-task.is-watch .admin-command-task-icon { border-color: rgba(255,213,139,.38); background: rgba(255,213,139,.06); color: #ffe0a3; }
+.admin-vault .admin-command-task.is-calm .admin-command-task-icon { border-color: rgba(199,255,92,.36); background: rgba(199,255,92,.07); color: #d9ff9b; }
+
+.admin-vault .admin-command-pulse { background: linear-gradient(160deg, rgba(33,38,71,.82), rgba(12,15,31,.94)); }
+.admin-vault .admin-command-pulse > header > span { color: #c9d0e8; }
+.admin-vault .admin-command-pulse > header i { background: var(--vault-acid); box-shadow: 0 0 12px rgba(199,255,92,.7); }
+.admin-vault .admin-command-services { padding-inline: 20px; }
+.admin-vault .admin-command-services > div { border-color: var(--vault-line); color: #d1d7ec; }
+.admin-vault .admin-command-services strong { color: #d9ff9b; }
+.admin-vault .admin-command-service-dot { background: var(--vault-acid); box-shadow: 0 0 8px rgba(199,255,92,.55); }
+.admin-vault .admin-command-service-dot.is-degraded { background: #ffd58b; box-shadow: 0 0 8px rgba(255,213,139,.52); }
+.admin-vault .admin-command-service-dot.is-down { background: var(--vault-danger); box-shadow: 0 0 8px rgba(255,139,155,.52); }
+.admin-vault .admin-command-service-dot.is-loading { background: #697396; box-shadow: none; }
+.admin-vault .admin-command-facts { border-color: var(--vault-line); }
+.admin-vault .admin-command-facts button { border-color: var(--vault-line); }
+.admin-vault .admin-command-facts button:hover { background: rgba(126,220,255,.075); }
+.admin-vault .admin-command-facts span,
+.admin-vault .admin-command-facts small { color: #929cbd; }
+.admin-vault .admin-command-facts strong { color: #f8faff; }
+.admin-vault .admin-command-ledger { grid-template-columns: repeat(5,minmax(0,1fr)); overflow: hidden; border-color: var(--vault-line); border-radius: 17px; background: rgba(15,18,35,.68); }
+.admin-vault .admin-command-ledger button { min-height: 160px; border-color: var(--vault-line); padding: 19px; }
+.admin-vault .admin-command-ledger button:hover { background: linear-gradient(180deg, rgba(169,139,255,.1), transparent); }
+.admin-vault .admin-command-ledger button.is-alert::before { background: var(--vault-danger); }
+.admin-vault .admin-command-ledger svg { color: var(--vault-cyan); }
+.admin-vault .admin-command-ledger span { color: #bdc5e0; }
+.admin-vault .admin-command-ledger strong { color: #f7f8ff; }
+.admin-vault .admin-command-ledger small { color: #8791b4; }
+
+/* All legacy control surfaces inherit a single instrument-panel treatment. */
+.admin-vault-tab-content > div > section,
+.admin-vault .admin-ops-studio > :is(section,div) > section,
+.admin-vault .admin-ops-studio > section,
+.admin-vault .admin-ops-studio > div > :is(section,div) > section {
+  border-color: var(--vault-line) !important;
+  border-radius: 17px !important;
+  background: linear-gradient(145deg, rgba(30,35,62,.74), rgba(13,16,32,.84)) !important;
+  box-shadow: 8px 10px 0 rgba(4,5,14,.24), inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+.admin-vault [class*="rounded"] { border-radius: 12px !important; }
+.admin-vault [class*="shadow-"] { box-shadow: none; }
+.admin-vault [class*="border-white"] { border-color: var(--vault-line) !important; }
+.admin-vault [class*="bg-zinc-950"],
+.admin-vault [class*="bg-black"] { background-color: rgba(4,6,16,.46) !important; }
+.admin-vault [class*="bg-white"] { background-color: rgba(255,255,255,.035) !important; }
+.admin-vault :is(input, textarea, select) {
+  border-color: rgba(180,198,255,.17) !important;
+  border-radius: 9px !important;
+  background: rgba(4,6,17,.62) !important;
+  color: #f0f3ff !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+.admin-vault :is(input, textarea, select):focus { border-color: var(--vault-cyan) !important; box-shadow: 0 0 0 3px rgba(126,220,255,.09); }
+.admin-vault :is(input, textarea)::placeholder { color: #747e9e !important; }
+.admin-vault select option { background: #12162a; color: #eff2ff; }
+.admin-vault button { transition: transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease; }
+.admin-vault button:focus-visible { outline: 2px solid var(--vault-acid); outline-offset: 3px; }
+.admin-vault .text-emerald-100,
+.admin-vault .text-emerald-200,
+.admin-vault .text-emerald-300 { color: #ddff9f !important; }
+.admin-vault .text-cyan-100,
+.admin-vault .text-cyan-200,
+.admin-vault .text-cyan-300 { color: #a7e8ff !important; }
+.admin-vault .text-violet-100,
+.admin-vault .text-violet-200,
+.admin-vault .text-violet-300 { color: #d4c9ff !important; }
+.admin-vault .text-amber-100,
+.admin-vault .text-amber-200,
+.admin-vault .text-amber-300 { color: #ffe0a3 !important; }
+.admin-vault .text-rose-100,
+.admin-vault .text-rose-200,
+.admin-vault .text-rose-300 { color: #ffc0c9 !important; }
+.admin-vault .bg-emerald-300 { background: var(--vault-acid) !important; color: #15191e !important; }
+.admin-vault [class*="border-emerald"] { border-color: rgba(199,255,92,.25) !important; }
+.admin-vault [class*="border-cyan"] { border-color: rgba(126,220,255,.25) !important; }
+.admin-vault [class*="border-violet"] { border-color: rgba(169,139,255,.25) !important; }
+.admin-vault [class*="border-amber"] { border-color: rgba(255,213,139,.25) !important; }
+.admin-vault [class*="border-rose"],
+.admin-vault [class*="border-red"] { border-color: rgba(255,139,155,.26) !important; }
+
+.admin-vault .admin-ops-studio > .space-y-6 > section,
+.admin-vault .admin-ops-studio > section { overflow: hidden; }
+.admin-vault .admin-ops-studio [class*="bg-gradient"] { background-image: linear-gradient(145deg, rgba(44,38,89,.44), rgba(15,18,35,.72)) !important; }
+.admin-vault .admin-ops-studio [class*="bg-emerald"],
+.admin-vault .admin-ops-studio [class*="bg-cyan"],
+.admin-vault .admin-ops-studio [class*="bg-violet"],
+.admin-vault .admin-ops-studio [class*="bg-amber"] { background-color: rgba(255,255,255,.035) !important; }
+.admin-vault .admin-ops-studio > section > div:first-child,
+.admin-vault .admin-ops-studio > div > section > div:first-child { border-color: var(--vault-line) !important; }
+
+.admin-vault-command { background: rgba(3,5,14,.86) !important; }
+.admin-vault-command-dialog {
+  border-color: var(--vault-line-bright) !important;
+  border-radius: 20px !important;
+  background: linear-gradient(145deg, #202547, #0d1124 76%) !important;
+  box-shadow: 15px 18px 0 rgba(169,139,255,.24), 0 38px 120px rgba(0,0,0,.72) !important;
+}
+.admin-vault-command-dialog > div:first-child { border-color: var(--vault-line) !important; }
+.admin-vault-command-dialog > div:first-child > div > div:first-child { border-radius: 10px !important; background: var(--vault-acid) !important; color: #151920 !important; }
+.admin-vault-command-dialog [class*="border-white"] { border-color: var(--vault-line) !important; }
+.admin-vault-command-dialog button:hover { border-color: var(--vault-cyan) !important; background-color: rgba(126,220,255,.08) !important; }
+
+@media (max-width: 1180px) {
+  .admin-vault-layout { grid-template-columns: 16.5rem minmax(0,1fr) !important; }
+  .admin-vault .admin-command-hero { grid-template-columns: minmax(0, 1fr) 256px; }
+  .admin-vault .admin-command-board { grid-template-columns: minmax(0,1fr) 300px; }
+  .admin-vault .admin-command-ledger { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .admin-vault .admin-command-ledger button:nth-child(3) { border-right: 0; }
+  .admin-vault .admin-command-ledger button:nth-child(-n+3) { border-bottom: 1px solid var(--vault-line); }
+}
+
+@media (max-width: 1023px) {
+  .admin-vault-shell { padding: 0; }
+  .admin-vault-layout { min-height: 100vh; grid-template-columns: 1fr !important; border: 0; border-radius: 0; }
+  .admin-vault-rail { position: relative !important; top: auto !important; min-height: 0; border-right: 0; border-bottom: 1px solid var(--vault-line); }
+  .admin-vault-rail > div { min-height: 0; }
+  .admin-vault-rail > div > div:first-child { display: none; }
+  .admin-vault-rail nav { display: flex; gap: 7px; overflow-x: auto; padding: 11px 14px !important; }
+  .admin-vault-rail nav > div { display: contents; }
+  .admin-vault-rail nav > div > p { display: none; }
+  .admin-vault-rail nav button { min-width: 172px; }
+  .admin-vault-rail > div > div:last-child { display: none; }
+  .admin-vault-workspace { padding: 28px 22px 46px; }
+}
+
+@media (max-width: 720px) {
+  .admin-vault-workspace { padding: 25px 15px 40px; }
+  .admin-vault-pagehead { display: block; }
+  .admin-vault-heading h2 { font-size: 2.55rem; }
+  .admin-vault-page-actions { margin-top: 18px; }
+  .admin-vault-system-pill { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-vault-refresh { padding: 9px 10px; font-size: 9px; }
+  .admin-vault .admin-command-hero { grid-template-columns: 1fr; min-height: 0; }
+  .admin-vault .admin-command-hero-copy { padding: 29px 22px; }
+  .admin-vault .admin-command-hero h3 { font-size: 2.85rem; }
+  .admin-vault .admin-command-score { grid-template-columns: 116px minmax(0,1fr); justify-items: start; border-top: 1px solid var(--vault-line); border-left: 0; padding: 20px 22px; }
+  .admin-vault .admin-command-score-ring { width: 105px; height: 105px; }
+  .admin-vault .admin-command-score-ring strong { font-size: 33px; }
+  .admin-vault .admin-command-score > div:last-child { text-align: left; }
+  .admin-vault .admin-command-board { grid-template-columns: 1fr; }
+  .admin-vault .admin-command-task { grid-template-columns: 21px 33px minmax(0,1fr); padding: 14px 14px; }
+  .admin-vault .admin-command-task em { display: none; }
+  .admin-vault .admin-command-ledger { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .admin-vault .admin-command-ledger button { min-height: 140px; padding: 15px; border-bottom: 1px solid var(--vault-line); }
+  .admin-vault .admin-command-ledger button:nth-child(2n) { border-right: 0; }
+  .admin-vault .admin-command-ledger button:nth-child(3) { border-right: 1px solid var(--vault-line); }
+  .admin-vault .admin-command-ledger button:last-child { grid-column: 1 / -1; border-bottom: 0; }
+}

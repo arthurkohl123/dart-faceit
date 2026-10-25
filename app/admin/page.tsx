@@ -1868,15 +1868,15 @@ export default function AdminPanel() {
   }
 
   return (
-    <main className="faceit-admin relative min-h-screen overflow-hidden bg-[#121212] text-white">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_0%,rgba(255,85,0,0.12),transparent_27%),linear-gradient(180deg,#151515_0%,#101010_100%)]" />
+    <main className="admin-vault relative min-h-screen overflow-hidden text-white">
+      <div className="admin-vault-atmosphere pointer-events-none fixed inset-0 z-0" aria-hidden="true">
+        <div className="absolute inset-0" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-[1780px] px-0 py-0">
+      <div className="admin-vault-shell relative z-10 mx-auto max-w-[1840px] px-0 py-0">
         {commandCenterOpen && (
-          <div className="fixed inset-0 z-50 grid place-items-start bg-[#020304]/85 px-4 py-16 backdrop-blur-xl sm:place-items-center">
-            <section className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/15 bg-[#0d1117] shadow-[0_30px_120px_rgba(0,0,0,0.75)]">
+          <div className="admin-vault-command fixed inset-0 z-50 grid place-items-start bg-[#020304]/85 px-4 py-16 backdrop-blur-xl sm:place-items-center">
+            <section className="admin-vault-command-dialog w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/15 bg-[#0d1117] shadow-[0_30px_120px_rgba(0,0,0,0.75)]">
               <div className="flex items-center justify-between border-b border-white/10 px-6 py-5"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-300 text-black"><Command className="h-5 w-5" /></div><div><p className="font-black">Command Center</p><p className="text-xs text-zinc-500">Schnelle Navigation und Operations-Aktionen</p></div></div><button onClick={() => setCommandCenterOpen(false)} className="rounded-xl border border-white/10 p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button></div>
               <div className="grid gap-2 p-4 sm:grid-cols-2">
                 {[['disputes', 'Disputes priorisieren', `${disputedMatches.length} offen`, Gavel, 'text-amber-200'], ['tickets', 'Support Queue öffnen', `${ticketsInQueue} in Bearbeitung`, Headphones, 'text-violet-200'], ['live', 'Live Arena beobachten', `${liveMatches.length} Matches`, Radar, 'text-emerald-200'], ['flagged', 'Fairness Monitor', `${flaggedPlayers.length} Accounts`, TriangleAlert, 'text-orange-200'], ['tournaments', 'Cup Control', `${activeTournamentCount} aktiv`, Trophy, 'text-cyan-200'], ['payouts', 'Auszahlungen verwalten', `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen`, ClipboardList, 'text-emerald-200'], ['players', 'Spieler verwalten', `${profiles.length} Profile`, Users, 'text-zinc-100']].map(([id, title, meta, Icon, tone]) => {
@@ -1917,8 +1917,8 @@ export default function AdminPanel() {
           <div className="relative grid border-t border-white/10 bg-black/20 sm:grid-cols-3"><button onClick={() => goToSection('flagged')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-orange-400/[0.06] sm:border-b-0 sm:border-r"><TriangleAlert className="h-4 w-4 text-orange-300" /><span><span className="block text-xs font-black text-white">Fairness monitor</span><span className="text-[11px] text-zinc-500">{flaggedPlayers.length ? `${flaggedPlayers.length} Accounts brauchen Prüfung` : 'Keine auffälligen Signale'}</span></span></button><button onClick={() => goToSection('tickets')} className="flex items-center gap-3 border-b border-white/10 px-5 py-4 text-left transition hover:bg-violet-400/[0.06] sm:border-b-0 sm:border-r"><MessageCircle className="h-4 w-4 text-violet-300" /><span><span className="block text-xs font-black text-white">Support routing</span><span className="text-[11px] text-zinc-500">{unassignedTickets ? `${unassignedTickets} Tickets nicht zugewiesen` : 'Jedes Ticket hat einen Owner'}</span></span></button><button onClick={exportOperationsSnapshot} className="flex items-center gap-3 px-5 py-4 text-left transition hover:bg-emerald-400/[0.06]"><Download className="h-4 w-4 text-emerald-300" /><span><span className="block text-xs font-black text-white">Operations snapshot</span><span className="text-[11px] text-zinc-500">CSV-Bericht für deinen Team-Stand</span></span></button></div>
         </section>
 
-        <div className="faceit-admin-layout relative grid lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:items-start">
-          <aside className="faceit-admin-sidebar lg:sticky lg:top-0">
+        <div className="admin-vault-layout relative grid lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:items-start">
+          <aside className="admin-vault-rail lg:sticky lg:top-0">
             <div className="overflow-hidden border border-white/10 bg-[#090d13]/90 shadow-[0_25px_70px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
               <div className="border-b border-white/10 bg-gradient-to-br from-cyan-400/[0.12] via-[#0b1017] to-transparent px-5 py-5">
                 <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-400/10 text-cyan-100"><Command className="h-4 w-4" /></div><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200">Admin shift</p><p className="mt-0.5 text-sm font-black text-white">Control surfaces</p></div></div>
@@ -1953,14 +1953,14 @@ export default function AdminPanel() {
             </div>
           </aside>
 
-          <section className="faceit-admin-workspace min-w-0">
-            <header className="faceit-admin-workspace-header mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-5">
-              <div><p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" /> Admin workspace / live</p><h2 className="mt-2 text-3xl font-black tracking-[-0.06em] text-white sm:text-4xl">{activeWorkspace?.label ?? 'Operations Deck'}</h2><p className="mt-1 text-sm text-zinc-500">{activeWorkspace?.detail ?? 'Systemlage und tägliche Prioritäten.'}</p></div>
-              <button onClick={() => void refreshAdminData()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-2.5 text-xs font-black text-zinc-200 transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.08]"><RefreshCw className="h-3.5 w-3.5 text-emerald-200" /> Daten aktualisieren</button>
+          <section className="admin-vault-workspace min-w-0">
+            <header className="admin-vault-pagehead mb-7 flex flex-wrap items-end justify-between gap-5">
+              <div className="admin-vault-heading"><p className="admin-vault-overline"><span /> Node 01 · Private operator channel</p><h2>{activeWorkspace?.label ?? 'Operations Deck'}</h2><p>{activeWorkspace?.detail ?? 'Systemlage und tägliche Prioritäten.'}</p></div>
+              <div className="admin-vault-page-actions"><span className={`admin-vault-system-pill is-${systemHealth?.status || 'loading'}`}><i />{systemStatusText}</span><button onClick={() => void refreshAdminData()} className="admin-vault-refresh"><RefreshCw className="h-3.5 w-3.5" /> Synchronisieren</button></div>
             </header>
 
             {/* ── Tab-Inhalte ── */}
-            <div>
+            <div className="admin-vault-tab-content">
           {activeTab === 'overview' && (
             <div>
               {actionMessage && (
@@ -1980,7 +1980,7 @@ export default function AdminPanel() {
                     </div>
                   </div>
                   <div className="admin-command-score" aria-label="Operations-Gesundheit">
-                    <div className="admin-command-score-ring" style={{ background: `conic-gradient(#ff6c3c ${healthScore}%, rgba(255,255,255,.10) 0)` }}><div><strong>{healthScore}</strong><span>von 100</span></div></div>
+                    <div className="admin-command-score-ring" style={{ background: `conic-gradient(var(--vault-acid) ${healthScore}%, rgba(255,255,255,.10) 0)` }}><div><strong>{healthScore}</strong><span>von 100</span></div></div>
                     <div><p>Operations-Status</p><strong>{systemStatusText}</strong><small>{systemHealth?.checkedAt ? `Geprüft ${new Date(systemHealth.checkedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'Prüfung läuft'}</small></div>
                   </div>
                 </section>

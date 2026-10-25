@@ -188,7 +188,7 @@ export function AdminOperationsWorkspace({ view, onNavigate }: { view: Operation
     { label: 'Erstes Match', value: growthFunnel.totals.first_match_completed, rate: growthFunnel.totals.match_rate, drop: growthFunnel.drop_off.before_first_match, tone: 'text-emerald-100' },
   ] : [];
 
-  return <div className="space-y-6">
+  return <div className="admin-ops-studio space-y-6">
     {message && <div className="flex items-start justify-between gap-4 rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.07] px-5 py-4 text-sm font-semibold text-cyan-50"><span>{message}</span><button onClick={() => setMessage(null)} className="text-cyan-200/60 hover:text-white">×</button></div>}
 
     <section className={view === 'inbox' ? 'overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.14),transparent_48%),rgba(9,13,19,0.9)] shadow-2xl shadow-black/25' : 'hidden'}>
