@@ -44,6 +44,8 @@ type ModTicket = {
   created_at: string;
   updated_at: string;
   admin_note: string | null;
+  assigned_to_id: string | null;
+  assigned_to_username: string | null;
   message_count: number;
   last_message: string | null;
 };
@@ -257,6 +259,11 @@ export default function ModeratorPanel() {
   const [loading,  setLoading]  = useState(true);
   const [tab,      setTab]      = useState<'desk' | 'tickets' | 'disputes' | 'matches' | 'flagged' | 'logs'>('desk');
   const [toast,    setToast]    = useState<{ msg: string; ok: boolean } | null>(null);
+  const [operatorName, setOperatorName] = useState('Moderator');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [pendingCancelDisputeId, setPendingCancelDisputeId] = useState<string | null>(null);
   const [pendingCancelMatchId, setPendingCancelMatchId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
@@ -266,6 +273,10 @@ export default function ModeratorPanel() {
   const [ticketFilter,  setTicketFilter]  = useState<string | null>(null);
   const [openTicketId,  setOpenTicketId]  = useState<string | null>(null);
   const [ticketDetail,  setTicketDetail]  = useState<TicketDetail | null>(null);
+  const [ticketSearch,  setTicketSearch]  = useState('');
+  const [ticketNotes,   setTicketNotes]   = useState<Record<string, string>>({});
+  const [savingTicketNoteId, setSavingTicketNoteId] = useState<string | null>(null);
+  const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
   const [reply,         setReply]         = useState('');
   const [sending,       setSending]       = useState(false);
 
@@ -295,14 +306,16 @@ export default function ModeratorPanel() {
   // ── Loaders ───────────────────────────────────────────────────────────────
 
   const loadTickets = useCallback(async (status?: string | null) => {
-    const { data } = await supabase.rpc('mod_get_tickets', {
+    const { data, error } = await supabase.rpc('mod_get_tickets', {
       p_status: status ?? null, p_limit: 100, p_offset: 0,
     });
+    if (error) throw new Error(error.message);
     if (data) setTickets(data as ModTicket[]);
   }, [supabase]);
 
   const loadDisputes = useCallback(async () => {
-    const { data } = await supabase.rpc('mod_get_disputed_matches');
+    const { data, error } = await supabase.rpc('mod_get_disputed_matches');
+    if (error) throw new Error(error.message);
     if (data) {
       setDisputes(data as DisputedMatch[]);
       setResolveForms(prev => {
@@ -327,22 +340,35 @@ export default function ModeratorPanel() {
   }, [supabase]);
 
   const loadLiveMatches = useCallback(async () => {
-    const { data } = await supabase.rpc('mod_get_live_matches');
+    const { data, error } = await supabase.rpc('mod_get_live_matches');
+    if (error) throw new Error(error.message);
     if (data) setLiveMatches(data as LiveMatch[]);
   }, [supabase]);
 
   const loadFlagged = useCallback(async () => {
-    const { data } = await supabase.rpc('mod_get_flagged_players');
+    const { data, error } = await supabase.rpc('mod_get_flagged_players');
+    if (error) throw new Error(error.message);
     if (data) setFlagged(data as FlaggedPlayer[]);
   }, [supabase]);
 
   const loadLogs = useCallback(async () => {
-    const { data } = await supabase.rpc('mod_get_logs', { p_limit: 100 });
+    const { data, error } = await supabase.rpc('mod_get_logs', { p_limit: 100 });
+    if (error) throw new Error(error.message);
     if (data) setLogs(data as ModLog[]);
   }, [supabase]);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([loadTickets(ticketFilter), loadDisputes(), loadLiveMatches(), loadFlagged(), loadLogs()]);
+    setIsRefreshing(true);
+    setDataError(null);
+    const results = await Promise.allSettled([loadTickets(ticketFilter), loadDisputes(), loadLiveMatches(), loadFlagged(), loadLogs()]);
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+    if (failed) {
+      const message = failed.reason instanceof Error ? failed.reason.message : 'Unbekannter Fehler';
+      setDataError(`Moderationsdaten konnten nicht vollständig geladen werden: ${message}`);
+    } else {
+      setLastRefreshedAt(new Date());
+    }
+    setIsRefreshing(false);
   }, [loadTickets, loadDisputes, loadLiveMatches, loadFlagged, loadLogs, ticketFilter]);
 
   // ── Init ──────────────────────────────────────────────────────────────────
@@ -355,7 +381,7 @@ export default function ModeratorPanel() {
 
       const { data: me } = await supabase
         .from('profiles')
-        .select('is_moderator, is_admin')
+        .select('username, is_moderator, is_admin')
         .eq('supabaseId', session.user.id)
         .single();
 
@@ -366,19 +392,31 @@ export default function ModeratorPanel() {
         return;
       }
 
-      await Promise.all([loadTickets(null), loadDisputes(), loadLiveMatches(), loadFlagged(), loadLogs()]);
+      setOperatorName(me.username || 'Moderator');
+      await refreshAll();
       if (mounted) setLoading(false);
     }
     void init();
     return () => { mounted = false; };
-  }, [supabase, router, loadTickets, loadDisputes, loadLiveMatches, loadFlagged, loadLogs]);
+  }, [supabase, router, refreshAll]);
+
+  useEffect(() => {
+    if (!autoRefresh || loading) return;
+    const timer = window.setInterval(() => { void refreshAll(); }, 45_000);
+    return () => window.clearInterval(timer);
+  }, [autoRefresh, loading, refreshAll]);
 
   // ── Ticket Actions ────────────────────────────────────────────────────────
 
   const loadTicketDetail = async (id: string) => {
     const { data, error } = await supabase.rpc('mod_get_ticket_detail', { p_ticket_id: id });
     if (error) { showToast('Ticket konnte nicht geladen werden: ' + error.message, false); return; }
-    if (data) { setTicketDetail(data as TicketDetail); setOpenTicketId(id); }
+    if (data) {
+      const detail = data as TicketDetail;
+      setTicketDetail(detail);
+      setTicketNotes((current) => ({ ...current, [id]: current[id] ?? detail.ticket.admin_note ?? '' }));
+      setOpenTicketId(id);
+    }
   };
 
   const openTicket = async (id: string) => {
@@ -399,18 +437,44 @@ export default function ModeratorPanel() {
   };
 
   const updateStatus = async (ticketId: string, status: string) => {
-    const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_status: status });
+    const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_status: status, p_priority: null, p_note: null });
     if (error) { showToast('Status konnte nicht aktualisiert werden: ' + error.message, false); return; }
     await loadTickets(ticketFilter);
     if (openTicketId === ticketId) await loadTicketDetail(ticketId);
+    await loadLogs();
     showToast('Status aktualisiert.');
   };
 
   const updatePriority = async (ticketId: string, priority: string) => {
-    const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_priority: priority });
+    const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_status: null, p_priority: priority, p_note: null });
     if (error) { showToast('Priorität konnte nicht aktualisiert werden: ' + error.message, false); return; }
     await loadTickets(ticketFilter);
+    await loadLogs();
     showToast('Priorität aktualisiert.');
+  };
+
+  const saveTicketNote = async (ticketId: string) => {
+    const note = ticketNotes[ticketId]?.trim() || '';
+    setSavingTicketNoteId(ticketId);
+    const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_status: null, p_priority: null, p_note: note });
+    setSavingTicketNoteId(null);
+    if (error) { showToast('Interne Notiz konnte nicht gespeichert werden: ' + error.message, false); return; }
+    await loadTickets(ticketFilter);
+    if (openTicketId === ticketId) await loadTicketDetail(ticketId);
+    await loadLogs();
+    showToast(note ? 'Interne Notiz gespeichert.' : 'Interne Notiz entfernt.');
+  };
+
+  const claimTicket = async (ticketId: string) => {
+    setClaimingTicketId(ticketId);
+    const { data, error } = await supabase.rpc('mod_claim_ticket', { p_ticket_id: ticketId });
+    setClaimingTicketId(null);
+    if (error) { showToast('Ticket konnte nicht übernommen werden: ' + error.message, false); return; }
+    await loadTickets(ticketFilter);
+    if (openTicketId === ticketId) await loadTicketDetail(ticketId);
+    await loadLogs();
+    const response = data as { message?: string } | null;
+    showToast(response?.message || 'Ticket wurde dir zugewiesen.');
   };
 
   // ── Dispute Actions ───────────────────────────────────────────────────────
@@ -493,10 +557,11 @@ export default function ModeratorPanel() {
 
   // ── Counts ────────────────────────────────────────────────────────────────
 
-  const openTicketCount  = tickets.filter(t => t.status === 'open').length;
+  const openTicketCount  = tickets.filter(t => t.status === 'open' || t.status === 'in_progress' || t.status === 'waiting_for_user').length;
   const disputeCount     = disputes.length;
   const liveCount        = liveMatches.length;
   const flaggedCount     = flagged.length;
+  const visibleTickets = tickets.filter((ticket) => `${ticket.subject} ${ticket.username} ${ticket.category}`.toLocaleLowerCase('de-DE').includes(ticketSearch.trim().toLocaleLowerCase('de-DE')));
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
@@ -548,15 +613,17 @@ export default function ModeratorPanel() {
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 rounded-md border border-white/15 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-200 sm:flex">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#55d298]" /> Einsatzbereit
+            <div className="hidden items-center gap-2 rounded-md border border-white/15 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-200 lg:flex">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#55d298]" /> {operatorName}
             </div>
+            <button onClick={() => setAutoRefresh((enabled) => !enabled)} className={`hidden items-center gap-2 rounded-md border px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] transition sm:flex ${autoRefresh ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-white/10 bg-white/[0.04] text-slate-400'}`} title={autoRefresh ? 'Automatische Aktualisierung alle 45 Sekunden pausieren' : 'Automatische Aktualisierung alle 45 Sekunden aktivieren'}><span className={`h-1.5 w-1.5 rounded-full ${autoRefresh ? 'animate-pulse bg-emerald-300' : 'bg-slate-500'}`} /> Sync {autoRefresh ? 'an' : 'aus'}</button>
             <button
-              onClick={refreshAll}
-              className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/[0.035] text-zinc-400 transition hover:border-white/20 hover:text-white"
+              onClick={() => void refreshAll()}
+              className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/[0.035] text-zinc-400 transition hover:border-white/20 hover:text-white disabled:opacity-50"
               title="Alle Daten aktualisieren"
+              disabled={isRefreshing}
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
@@ -590,10 +657,10 @@ export default function ModeratorPanel() {
                 {tab === 'desk' ? 'Leitstand' : tab === 'tickets' ? 'Fall-Inbox' : tab === 'disputes' ? 'Dispute-Prüfung' : tab === 'matches' ? 'Live-Match-Übersicht' : tab === 'flagged' ? 'Auffällige Accounts' : 'Audit-Log'}
               </h1>
             </div>
-            <div className="flex items-center gap-2 border border-[#151923] bg-[#151923] px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] text-white">
-              <span className="h-1.5 w-1.5 animate-pulse bg-[#55d298]" /> Live-Daten
-            </div>
+            <div className="flex items-center gap-2 border border-[#151923] bg-[#151923] px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] text-white"><span className="h-1.5 w-1.5 animate-pulse bg-[#55d298]" /> {lastRefreshedAt ? `Sync ${lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'Live-Daten'}</div>
           </header>
+
+        {dataError && <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-100"><span>{dataError}</span><button onClick={() => void refreshAll()} className="shrink-0 border border-red-300/25 bg-black/15 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition hover:bg-black/30">Erneut laden</button></div>}
 
         {/* ══════════════════════════════════════════════════════════════════
             TAB: LEITSTAND
@@ -699,30 +766,33 @@ export default function ModeratorPanel() {
         {tab === 'tickets' && (
           <div>
             {/* Filter */}
-            <div className="mb-5 flex flex-wrap gap-2">
-              {[null, 'open', 'in_progress', 'waiting_for_user', 'resolved', 'closed'].map(s => (
-                <button
-                  key={s ?? 'all'}
-                  onClick={async () => { setTicketFilter(s); await loadTickets(s); }}
-                  className={`border px-4 py-2 text-xs font-bold transition ${
-                    ticketFilter === s
-                      ? 'border border-[#2f58d5] bg-[#2f58d5] text-white'
-                      : 'border-[#151923]/25 bg-white/50 text-slate-600 hover:border-[#151923] hover:bg-white hover:text-[#151923]'
-                  }`}
-                >
-                  {s ? (statusCfg[s]?.label ?? s) : `Alle (${tickets.length})`}
-                </button>
-              ))}
+            <div className="mb-5 grid gap-3 xl:grid-cols-[1fr_auto] xl:items-center">
+              <div className="flex flex-wrap gap-2">
+                {[null, 'open', 'in_progress', 'waiting_for_user', 'resolved', 'closed'].map(s => (
+                  <button
+                    key={s ?? 'all'}
+                    onClick={async () => { setTicketFilter(s); setOpenTicketId(null); setTicketDetail(null); await loadTickets(s); }}
+                    className={`border px-4 py-2 text-xs font-bold transition ${
+                      ticketFilter === s
+                        ? 'border border-[#2f58d5] bg-[#2f58d5] text-white'
+                        : 'border-[#151923]/25 bg-white/50 text-slate-600 hover:border-[#151923] hover:bg-white hover:text-[#151923]'
+                    }`}
+                  >
+                    {s ? (statusCfg[s]?.label ?? s) : `Alle (${tickets.length})`}
+                  </button>
+                ))}
+              </div>
+              <label className="flex min-w-0 items-center gap-2 border border-[#151923]/20 bg-white/60 px-3 py-2 text-slate-500 xl:w-72"><Command size={14} /><input value={ticketSearch} onChange={(event) => setTicketSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-[#151923] outline-none placeholder:text-slate-400" placeholder="Ticket oder Spieler suchen" /></label>
             </div>
 
-            {tickets.length === 0 ? (
+            {visibleTickets.length === 0 ? (
               <div className="flex flex-col items-center gap-3 border-2 border-dashed border-[#151923]/30 bg-white/45 py-20 text-center">
                 <Headphones size={32} className="text-slate-400" />
-                <p className="text-sm font-bold text-slate-500">Keine Tickets vorhanden</p>
+                <p className="text-sm font-bold text-slate-500">{tickets.length === 0 ? 'Keine Tickets vorhanden' : 'Keine Tickets für diese Suche gefunden'}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {tickets.map(t => {
+                {visibleTickets.map(t => {
                   const sc = statusCfg[t.status] ?? statusCfg.open;
                   const pc = priorityCfg[t.priority] ?? priorityCfg.normal;
                   const isOpen = openTicketId === t.id;
@@ -751,6 +821,7 @@ export default function ModeratorPanel() {
                               von <span className="font-bold text-zinc-300">{t.username}</span> · {timeAgo(t.created_at)}
                               {t.message_count > 0 && ` · ${t.message_count} Nachrichten`}
                             </div>
+                            <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.13em] text-zinc-600">{t.assigned_to_username ? `Übernommen von ${t.assigned_to_username}` : 'Noch nicht übernommen'}</div>
                           </div>
                           <div className="shrink-0 text-zinc-600">
                             {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -763,6 +834,7 @@ export default function ModeratorPanel() {
                         <div className="border-t border-white/[0.06] px-6 pb-6 pt-5">
                           {/* Aktionen */}
                           <div className="mb-5 flex flex-wrap gap-3">
+                            <button onClick={() => void claimTicket(t.id)} disabled={claimingTicketId === t.id || Boolean(t.assigned_to_id)} title={t.assigned_to_id ? `Bereits übernommen von ${t.assigned_to_username || 'einem Teammitglied'}` : 'Ticket selbst übernehmen'} className="inline-flex items-center gap-2 rounded-xl border border-[#4569df]/40 bg-[#2f58d5]/15 px-3 py-1.5 text-xs font-black text-[#b6c5ff] transition hover:bg-[#2f58d5]/25 disabled:cursor-not-allowed disabled:opacity-50"><ShieldCheck size={13} />{claimingTicketId === t.id ? 'Übernimmt …' : t.assigned_to_id ? `Übernommen${t.assigned_to_username ? ` · ${t.assigned_to_username}` : ''}` : 'Mir zuweisen'}</button>
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-bold text-zinc-600">Status:</span>
                               <select
@@ -787,6 +859,12 @@ export default function ModeratorPanel() {
                                 ))}
                               </select>
                             </div>
+                          </div>
+
+                          <div className="mb-5 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4">
+                            <div className="mb-2 flex items-center justify-between gap-3"><label className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-500">Interne Übergabe-Notiz</label><span className="text-[10px] text-zinc-600">Nur für Moderation & Admins</span></div>
+                            <textarea value={ticketNotes[t.id] ?? ''} onChange={(event) => setTicketNotes((current) => ({ ...current, [t.id]: event.target.value }))} maxLength={1200} rows={2} placeholder="Kontext, nächste Schritte oder Übergabe für das Team …" className={`${inputCls} resize-y`} />
+                            <div className="mt-3 flex justify-end"><button onClick={() => void saveTicketNote(t.id)} disabled={savingTicketNoteId === t.id} className="rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] text-zinc-200 transition hover:border-white/20 hover:bg-white/10 disabled:opacity-50">{savingTicketNoteId === t.id ? 'Speichert …' : 'Notiz speichern'}</button></div>
                           </div>
 
                           {/* Nachrichten */}
@@ -1150,7 +1228,7 @@ export default function ModeratorPanel() {
                               <AlertTriangle size={14} /> Warnen
                             </button>
                           </div>
-                          <p className="mt-2 text-xs text-zinc-700">Für Bans bitte das Admin-Panel nutzen.</p>
+                          <p className="mt-2 text-xs text-zinc-700">Die Warnung wird dem Spieler in seiner Benachrichtigungszentrale zugestellt und im Audit-Log festgehalten. Sperren bleiben ausschließlich Admins vorbehalten.</p>
                         </div>
                       )}
                     </div>
