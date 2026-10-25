@@ -53,6 +53,17 @@ type AdminNavigationItem = {
   tone: string;
 };
 
+type AdminCommandAction = {
+  id: string;
+  label: string;
+  detail: string;
+  icon: LucideIcon;
+  tone: string;
+  target?: AdminTab;
+  action?: 'refresh' | 'export';
+  keywords?: string;
+};
+
 type Profile = {
   id: string;
   supabaseId: string;
@@ -569,6 +580,7 @@ export default function AdminPanel() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState('');
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
@@ -1212,9 +1224,13 @@ export default function AdminPanel() {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
+        setCommandQuery('');
         setCommandCenterOpen(true);
       }
-      if (event.key === 'Escape') setCommandCenterOpen(false);
+      if (event.key === 'Escape') {
+        setCommandCenterOpen(false);
+        setCommandQuery('');
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -1851,6 +1867,38 @@ export default function AdminPanel() {
     setCommandCenterOpen(false);
   };
 
+  const commandActions: AdminCommandAction[] = [
+    { id: 'disputes', label: 'Disputes priorisieren', detail: `${disputedMatches.length} offen`, icon: Gavel, tone: 'text-amber-200', target: 'disputes', keywords: 'match ergebnis entscheidung konflikt' },
+    { id: 'tickets', label: 'Support Queue öffnen', detail: `${ticketsInQueue} in Bearbeitung`, icon: Headphones, tone: 'text-violet-200', target: 'tickets', keywords: 'ticket support nachricht sla' },
+    { id: 'live', label: 'Live Arena beobachten', detail: `${liveMatches.length} Matches`, icon: Radar, tone: 'text-emerald-200', target: 'live', keywords: 'match room laufend queue' },
+    { id: 'flagged', label: 'Fairness Monitor', detail: `${flaggedPlayers.length} Accounts`, icon: TriangleAlert, tone: 'text-orange-200', target: 'flagged', keywords: 'fairplay verdacht cheater meldung' },
+    { id: 'tournaments', label: 'Cup Control', detail: `${activeTournamentCount} aktiv`, icon: Trophy, tone: 'text-cyan-200', target: 'tournaments', keywords: 'turnier bracket checkin cup' },
+    { id: 'payouts', label: 'Auszahlungen verwalten', detail: `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen`, icon: ClipboardList, tone: 'text-lime-200', target: 'payouts', keywords: 'preisgeld payout geld auszahlung' },
+    { id: 'players', label: 'Spieler verwalten', detail: `${profiles.length} Profile`, icon: Users, tone: 'text-zinc-100', target: 'players', keywords: 'spieler profil premium streamer rolle bann' },
+    { id: 'logs', label: 'Audit Trail prüfen', detail: `${adminLogs.length} Einträge`, icon: ClipboardList, tone: 'text-cyan-200', target: 'logs', keywords: 'log historie aktionen nachvollziehen' },
+    { id: 'refresh', label: 'Live-Daten synchronisieren', detail: 'Alle Bereiche sofort neu laden', icon: RefreshCw, tone: 'text-emerald-200', action: 'refresh', keywords: 'aktualisieren reload refresh sync' },
+    { id: 'export', label: 'Schichtbericht exportieren', detail: 'Operations-Snapshot als CSV', icon: Download, tone: 'text-zinc-100', action: 'export', keywords: 'csv export report bericht download' },
+  ];
+  const normalizedCommandQuery = commandQuery.trim().toLocaleLowerCase('de-DE');
+  const visibleCommandActions = normalizedCommandQuery
+    ? commandActions.filter((command) => `${command.label} ${command.detail} ${command.keywords || ''}`.toLocaleLowerCase('de-DE').includes(normalizedCommandQuery))
+    : commandActions;
+
+  const executeCommandAction = (command: AdminCommandAction) => {
+    if (command.target) {
+      goToSection(command.target);
+      return;
+    }
+
+    setCommandCenterOpen(false);
+    setCommandQuery('');
+    if (command.action === 'refresh') {
+      void refreshAdminData();
+      return;
+    }
+    if (command.action === 'export') exportOperationsSnapshot();
+  };
+
   if (loading) {
     return (
       <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#050607] text-white">
@@ -1877,14 +1925,29 @@ export default function AdminPanel() {
         {commandCenterOpen && (
           <div className="admin-vault-command fixed inset-0 z-50 grid place-items-start bg-[#020304]/85 px-4 py-16 backdrop-blur-xl sm:place-items-center">
             <section className="admin-vault-command-dialog w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/15 bg-[#0d1117] shadow-[0_30px_120px_rgba(0,0,0,0.75)]">
-              <div className="flex items-center justify-between border-b border-white/10 px-6 py-5"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-300 text-black"><Command className="h-5 w-5" /></div><div><p className="font-black">Command Center</p><p className="text-xs text-zinc-500">Schnelle Navigation und Operations-Aktionen</p></div></div><button onClick={() => setCommandCenterOpen(false)} className="rounded-xl border border-white/10 p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button></div>
-              <div className="grid gap-2 p-4 sm:grid-cols-2">
-                {[['disputes', 'Disputes priorisieren', `${disputedMatches.length} offen`, Gavel, 'text-amber-200'], ['tickets', 'Support Queue öffnen', `${ticketsInQueue} in Bearbeitung`, Headphones, 'text-violet-200'], ['live', 'Live Arena beobachten', `${liveMatches.length} Matches`, Radar, 'text-emerald-200'], ['flagged', 'Fairness Monitor', `${flaggedPlayers.length} Accounts`, TriangleAlert, 'text-orange-200'], ['tournaments', 'Cup Control', `${activeTournamentCount} aktiv`, Trophy, 'text-cyan-200'], ['payouts', 'Auszahlungen verwalten', `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen`, ClipboardList, 'text-emerald-200'], ['players', 'Spieler verwalten', `${profiles.length} Profile`, Users, 'text-zinc-100']].map(([id, title, meta, Icon, tone]) => {
-                  const SectionIcon = Icon as typeof Gavel;
-                  return <button key={id as string} onClick={() => goToSection(id as typeof activeTab)} className="flex items-center gap-4 rounded-2xl border border-white/8 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/25 hover:bg-emerald-400/[0.07]"><SectionIcon className={`h-5 w-5 ${tone as string}`} /><span><span className="block text-sm font-black text-white">{title as string}</span><span className="mt-0.5 block text-xs text-zinc-500">{meta as string}</span></span></button>;
-                })}
+              <div className="flex items-center justify-between border-b border-white/10 px-6 py-5"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-300 text-black"><Command className="h-5 w-5" /></div><div><p className="font-black">Command Center</p><p className="text-xs text-zinc-500">Bereich oder Aktion finden und direkt ausführen</p></div></div><button onClick={() => { setCommandCenterOpen(false); setCommandQuery(''); }} className="rounded-xl border border-white/10 p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white" aria-label="Command Center schließen"><X className="h-4 w-4" /></button></div>
+              <div className="admin-vault-command-search">
+                <Search className="h-4 w-4" />
+                <input
+                  autoFocus
+                  value={commandQuery}
+                  onChange={(event) => setCommandQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && visibleCommandActions[0]) executeCommandAction(visibleCommandActions[0]);
+                  }}
+                  placeholder="z. B. Ticket, Turnier, Export …"
+                  aria-label="Command Center durchsuchen"
+                />
+                <kbd>ESC</kbd>
               </div>
-              <div className="flex flex-col gap-2 border-t border-white/10 bg-black/20 p-4 sm:flex-row"><button onClick={() => void refreshAdminData()} className="flex-1 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-xs font-black text-emerald-100 transition hover:bg-emerald-400/20">Alle Daten aktualisieren</button><button onClick={exportOperationsSnapshot} className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-200 transition hover:bg-white/10">Snapshot exportieren</button></div>
+              <div className="admin-vault-command-list" aria-live="polite">
+                {visibleCommandActions.map((command, index) => {
+                  const CommandIcon = command.icon;
+                  return <button key={command.id} onClick={() => executeCommandAction(command)} className="admin-vault-command-option"><span className={`admin-vault-command-option-icon ${command.tone}`}><CommandIcon className="h-4 w-4" /></span><span className="min-w-0 flex-1"><strong>{command.label}</strong><small>{command.detail}</small></span><kbd>{String(index + 1).padStart(2, '0')}</kbd></button>;
+                })}
+                {visibleCommandActions.length === 0 && <div className="admin-vault-command-empty"><Search className="h-5 w-5" /><p>Keine passende Aktion gefunden.</p><span>Suche nach Bereich, Aufgabe oder Stichwort.</span></div>}
+              </div>
+              <div className="admin-vault-command-footer"><span><kbd>↵</kbd> erste Aktion öffnen</span><span>{visibleCommandActions.length} von {commandActions.length} Aktionen</span></div>
             </section>
           </div>
         )}
@@ -1956,7 +2019,7 @@ export default function AdminPanel() {
           <section className="admin-vault-workspace min-w-0">
             <header className="admin-vault-pagehead mb-7 flex flex-wrap items-end justify-between gap-5">
               <div className="admin-vault-heading"><p className="admin-vault-overline"><span /> Node 01 · Private operator channel</p><h2>{activeWorkspace?.label ?? 'Operations Deck'}</h2><p>{activeWorkspace?.detail ?? 'Systemlage und tägliche Prioritäten.'}</p></div>
-              <div className="admin-vault-page-actions"><span className={`admin-vault-system-pill is-${systemHealth?.status || 'loading'}`}><i />{systemStatusText}</span><button onClick={() => void refreshAdminData()} className="admin-vault-refresh"><RefreshCw className="h-3.5 w-3.5" /> Synchronisieren</button></div>
+              <div className="admin-vault-page-actions"><span className={`admin-vault-system-pill is-${systemHealth?.status || 'loading'}`}><i />{systemStatusText}</span><button onClick={() => setAutoRefresh((enabled) => !enabled)} className={`admin-vault-autosync ${autoRefresh ? 'is-active' : ''}`} title={autoRefresh ? 'Automatische Aktualisierung alle 30 Sekunden pausieren' : 'Automatische Aktualisierung alle 30 Sekunden aktivieren'}><i />Live Sync {autoRefresh ? 'an' : 'aus'}</button><button onClick={() => { setCommandQuery(''); setCommandCenterOpen(true); }} className="admin-vault-command-trigger"><Command className="h-3.5 w-3.5" /><span>Aktionen</span><kbd>⌘K</kbd></button><button onClick={() => void refreshAdminData()} className="admin-vault-refresh"><RefreshCw className="h-3.5 w-3.5" /> Synchronisieren</button></div>
             </header>
 
             {/* ── Tab-Inhalte ── */}
@@ -2019,6 +2082,13 @@ export default function AdminPanel() {
                   <button onClick={() => setActiveTab('payouts')} className={overduePayouts.length > 0 ? 'is-alert' : ''}><Crown /><span>Preisgeld</span><strong>{overduePayouts.length}</strong><small>{pendingPayouts.length ? `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen` : 'nichts offen'}</small></button>
                   <button onClick={() => setActiveTab('tournaments')} className={upcomingCheckIns.length > 0 ? 'is-alert' : ''}><Trophy /><span>Turniere</span><strong>{upcomingCheckIns.length}</strong><small>{upcomingCheckIns.length ? 'Check-in bald' : `${activeTournamentCount} aktiv`}</small></button>
                   <button onClick={() => setActiveTab('flagged')} className={flaggedPlayers.length + fairnessRiskFlags.length > 0 ? 'is-alert' : ''}><ShieldAlert /><span>Fair Play</span><strong>{flaggedPlayers.length + fairnessRiskFlags.length}</strong><small>Signale prüfen</small></button>
+                </section>
+
+                <section className="admin-vault-activity-feed" aria-label="Letzte Operator-Aktivitäten">
+                  <header><div><p>Operator feed</p><h4>Was zuletzt entschieden wurde</h4></div><button onClick={() => goToSection('logs')}>Audit Trail öffnen →</button></header>
+                  {adminLogs.length > 0 ? <div className="admin-vault-activity-list">
+                    {adminLogs.slice(0, 4).map((log) => <article key={log.id}><span className="admin-vault-activity-marker"><ClipboardList className="h-3.5 w-3.5" /></span><div><strong>{log.action}</strong><p>{log.target_label || log.details || log.target_type || 'Systemaktion'}</p></div><time dateTime={log.created_at}>{new Date(log.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</time></article>)}
+                  </div> : <div className="admin-vault-activity-empty"><ClipboardList className="h-5 w-5" /><span>Die letzten Admin-Aktionen erscheinen hier automatisch.</span></div>}
                 </section>
               </div>
             </div>
