@@ -161,18 +161,18 @@ function toNonNegativeInteger(value: string) {
 }
 
 const statusCfg: Record<string, { label: string; cls: string; dot: string }> = {
-  open:             { label: 'Offen',          cls: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200', dot: 'bg-emerald-300' },
-  in_progress:      { label: 'In Bearbeitung', cls: 'border-cyan-300/25 bg-cyan-400/10 text-cyan-200',         dot: 'bg-cyan-300' },
-  waiting_for_user: { label: 'Warte auf User', cls: 'border-amber-300/25 bg-amber-400/10 text-amber-200',      dot: 'bg-amber-300' },
-  resolved:         { label: 'Gelöst',         cls: 'border-zinc-300/25 bg-zinc-400/10 text-zinc-300',         dot: 'bg-zinc-400' },
-  closed:           { label: 'Geschlossen',    cls: 'border-zinc-700/25 bg-zinc-800/10 text-zinc-500',         dot: 'bg-zinc-600' },
+  open:             { label: 'Offen',          cls: 'border-emerald-900/15 bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500' },
+  in_progress:      { label: 'In Bearbeitung', cls: 'border-sky-900/15 bg-sky-50 text-sky-800',             dot: 'bg-sky-500' },
+  waiting_for_user: { label: 'Warte auf User', cls: 'border-amber-900/15 bg-amber-50 text-amber-800',       dot: 'bg-amber-500' },
+  resolved:         { label: 'Gelöst',         cls: 'border-stone-900/10 bg-stone-100 text-stone-600',      dot: 'bg-stone-400' },
+  closed:           { label: 'Geschlossen',    cls: 'border-stone-900/10 bg-stone-50 text-stone-500',        dot: 'bg-stone-300' },
 };
 
 const priorityCfg: Record<string, { label: string; cls: string }> = {
-  low:    { label: 'Niedrig', cls: 'text-zinc-400' },
-  normal: { label: 'Normal',  cls: 'text-zinc-300' },
-  high:   { label: 'Hoch',    cls: 'text-amber-300' },
-  urgent: { label: 'Dringend',cls: 'text-red-300' },
+  low:    { label: 'Niedrig', cls: 'text-stone-400' },
+  normal: { label: 'Normal',  cls: 'text-stone-600' },
+  high:   { label: 'Hoch',    cls: 'text-amber-700' },
+  urgent: { label: 'Dringend',cls: 'text-rose-700' },
 };
 
 const catLabels: Record<string, string> = {
@@ -181,12 +181,12 @@ const catLabels: Record<string, string> = {
 };
 
 const matchStatusCfg: Record<string, { label: string; cls: string }> = {
-  pending_result:        { label: 'Läuft',        cls: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200' },
-  awaiting_confirmation: { label: 'Bestätigung',  cls: 'border-amber-300/25 bg-amber-400/10 text-amber-200' },
-  disputed:              { label: 'Dispute',      cls: 'border-red-400/25 bg-red-400/10 text-red-200' },
+  pending_result:        { label: 'Läuft',        cls: 'border-emerald-900/15 bg-emerald-50 text-emerald-800' },
+  awaiting_confirmation: { label: 'Bestätigung',  cls: 'border-amber-900/15 bg-amber-50 text-amber-800' },
+  disputed:              { label: 'Dispute',      cls: 'border-rose-900/15 bg-rose-50 text-rose-800' },
 };
 
-const inputCls = 'w-full rounded-lg border border-[#303845] bg-[#10141c] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-[#476ef0] focus:bg-[#151b26]';
+const inputCls = 'w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-[#2f6b55] focus:ring-4 focus:ring-[#2f6b55]/10';
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -209,44 +209,18 @@ function TabBtn({ active, onClick, icon, label, badge }: {
       onClick={onClick}
       className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-sm font-bold transition-all ${
         active
-          ? 'bg-[#233d93] text-white shadow-[inset_4px_0_0_#e84235]'
-          : 'text-zinc-500 hover:bg-white/[0.045] hover:text-zinc-200'
+          ? 'bg-[#153f33] text-white shadow-sm'
+          : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900'
       }`}
     >
-      <span className={active ? 'text-white' : 'text-slate-500 group-hover:text-slate-200'}>{icon}</span>
+      <span className={active ? 'text-[#d5f080]' : 'text-stone-400 group-hover:text-[#153f33]'}>{icon}</span>
       <span>{label}</span>
       {badge != null && badge > 0 && (
         <span className={`ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-md px-1.5 text-[10px] font-black ${
-          active ? 'bg-[#e84235] text-white' : 'bg-white/[0.08] text-slate-400'
+          active ? 'bg-[#d5f080] text-[#153f33]' : 'bg-stone-200 text-stone-600'
         }`}>{badge}</span>
       )}
     </button>
-  );
-}
-
-function MatchSignal({ liveMatches, openCases }: { liveMatches: number; openCases: number }) {
-  const segments = Array.from({ length: 20 }, (_, index) => index);
-  return (
-    <div className="relative mx-auto aspect-square w-full max-w-[230px] select-none">
-      <div className="absolute inset-0 rounded-full border border-white/10 bg-[radial-gradient(circle_at_center,rgba(47,88,213,0.36)_0_18%,transparent_18.5%_31%,rgba(255,255,255,0.075)_31.5%_32.5%,transparent_33%_47%,rgba(232,66,53,0.72)_47.5%_49%,transparent_49.5%_64%,rgba(255,255,255,0.08)_64.5%_65.5%,transparent_66%)]" />
-      <svg viewBox="0 0 240 240" className="absolute inset-0 h-full w-full" aria-hidden="true">
-        {segments.map(index => (
-          <line key={index} x1="120" y1="8" x2="120" y2="48" stroke="rgba(255,255,255,.19)" strokeWidth="1" transform={`rotate(${index * 18} 120 120)`} />
-        ))}
-        <circle cx="120" cy="120" r="105" fill="none" stroke="rgba(255,255,255,.14)" strokeWidth="1" strokeDasharray="3 6" />
-        <circle cx="120" cy="120" r="42" fill="none" stroke="rgba(255,255,255,.24)" strokeWidth="1" />
-        <path d="M120 8 L130 58 L120 44 L110 58 Z" fill="#e84235" />
-      </svg>
-      <div className="absolute inset-[29%] grid place-items-center rounded-full border border-white/20 bg-[#111725] text-center shadow-[0_0_0_8px_rgba(17,23,37,.45)]">
-        <div>
-          <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Live Matches</div>
-          <div className="mt-0.5 text-4xl font-black tracking-[-0.08em] text-white">{liveMatches}</div>
-          <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.13em] text-[#ff8f84]">{openCases} offen</div>
-        </div>
-      </div>
-      <span className="absolute -left-1 top-1/2 -translate-y-1/2 bg-[#2f58d5] px-2 py-1 text-[9px] font-black uppercase tracking-[0.13em] text-white">M.01</span>
-      <span className="absolute -right-2 bottom-8 border border-white/20 bg-[#111725] px-2 py-1 text-[9px] font-black uppercase tracking-[0.13em] text-[#b6c5ff]">Signal</span>
-    </div>
   );
 }
 
@@ -264,6 +238,7 @@ export default function ModeratorPanel() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
   const [pendingCancelDisputeId, setPendingCancelDisputeId] = useState<string | null>(null);
   const [pendingCancelMatchId, setPendingCancelMatchId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
@@ -376,25 +351,30 @@ export default function ModeratorPanel() {
   useEffect(() => {
     let mounted = true;
     async function init() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/auth/login'); return; }
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { router.push('/auth/login'); return; }
 
-      const { data: me } = await supabase
-        .from('profiles')
-        .select('username, is_moderator, is_admin')
-        .eq('supabaseId', session.user.id)
-        .single();
+        const { data: me, error } = await supabase
+          .from('profiles')
+          .select('username, is_moderator, is_admin')
+          .eq('supabaseId', session.user.id)
+          .single();
 
-      if (!mounted) return;
-      if (!me?.is_moderator && !me?.is_admin) {
-        showToast('Kein Moderator-Zugriff. Du wirst zur Startseite weitergeleitet.', false);
-        setTimeout(() => router.push('/'), 1200);
-        return;
+        if (!mounted) return;
+        if (error) throw new Error(error.message);
+        if (!me?.is_moderator && !me?.is_admin) {
+          setAccessError('Dein Konto hat keine Berechtigung für die Moderation.');
+          return;
+        }
+
+        setOperatorName(me.username || 'Moderator');
+        await refreshAll();
+      } catch (error) {
+        if (mounted) setAccessError(error instanceof Error ? error.message : 'Die Moderationsoberfläche konnte nicht gestartet werden.');
+      } finally {
+        if (mounted) setLoading(false);
       }
-
-      setOperatorName(me.username || 'Moderator');
-      await refreshAll();
-      if (mounted) setLoading(false);
     }
     void init();
     return () => { mounted = false; };
@@ -424,32 +404,38 @@ export default function ModeratorPanel() {
     await loadTicketDetail(id);
   };
 
+  const refreshTicket = async (ticketId: string) => {
+    await refreshAll();
+    if (openTicketId === ticketId) await loadTicketDetail(ticketId);
+  };
+
   const sendReply = async (ticketId: string) => {
     if (!reply.trim()) return;
     setSending(true);
-    const { error } = await supabase.rpc('mod_send_ticket_reply', { p_ticket_id: ticketId, p_content: reply.trim() });
-    setSending(false);
-    if (error) { showToast('Fehler beim Senden: ' + error.message, false); return; }
-    setReply('');
-    await loadTicketDetail(ticketId);
-    await loadTickets(ticketFilter);
-    showToast('Antwort gesendet.');
+    try {
+      const { error } = await supabase.rpc('mod_send_ticket_reply', { p_ticket_id: ticketId, p_content: reply.trim() });
+      if (error) { showToast('Fehler beim Senden: ' + error.message, false); return; }
+      setReply('');
+      await refreshTicket(ticketId);
+      showToast('Antwort gesendet.');
+    } catch (error) {
+      showToast(error instanceof Error ? `Fehler beim Senden: ${error.message}` : 'Antwort konnte nicht gesendet werden.', false);
+    } finally {
+      setSending(false);
+    }
   };
 
   const updateStatus = async (ticketId: string, status: string) => {
     const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_status: status, p_priority: null, p_note: null });
     if (error) { showToast('Status konnte nicht aktualisiert werden: ' + error.message, false); return; }
-    await loadTickets(ticketFilter);
-    if (openTicketId === ticketId) await loadTicketDetail(ticketId);
-    await loadLogs();
+    await refreshTicket(ticketId);
     showToast('Status aktualisiert.');
   };
 
   const updatePriority = async (ticketId: string, priority: string) => {
     const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_status: null, p_priority: priority, p_note: null });
     if (error) { showToast('Priorität konnte nicht aktualisiert werden: ' + error.message, false); return; }
-    await loadTickets(ticketFilter);
-    await loadLogs();
+    await refreshTicket(ticketId);
     showToast('Priorität aktualisiert.');
   };
 
@@ -459,9 +445,7 @@ export default function ModeratorPanel() {
     const { error } = await supabase.rpc('mod_update_ticket', { p_ticket_id: ticketId, p_status: null, p_priority: null, p_note: note });
     setSavingTicketNoteId(null);
     if (error) { showToast('Interne Notiz konnte nicht gespeichert werden: ' + error.message, false); return; }
-    await loadTickets(ticketFilter);
-    if (openTicketId === ticketId) await loadTicketDetail(ticketId);
-    await loadLogs();
+    await refreshTicket(ticketId);
     showToast(note ? 'Interne Notiz gespeichert.' : 'Interne Notiz entfernt.');
   };
 
@@ -470,9 +454,7 @@ export default function ModeratorPanel() {
     const { data, error } = await supabase.rpc('mod_claim_ticket', { p_ticket_id: ticketId });
     setClaimingTicketId(null);
     if (error) { showToast('Ticket konnte nicht übernommen werden: ' + error.message, false); return; }
-    await loadTickets(ticketFilter);
-    if (openTicketId === ticketId) await loadTicketDetail(ticketId);
-    await loadLogs();
+    await refreshTicket(ticketId);
     const response = data as { message?: string } | null;
     showToast(response?.message || 'Ticket wurde dir zugewiesen.');
   };
@@ -502,8 +484,7 @@ export default function ModeratorPanel() {
     if (error) { showToast('Fehler: ' + error.message, false); return; }
     showToast('Dispute wurde entschieden.');
     setOpenDispute(null);
-    await loadDisputes();
-    await loadLogs();
+    await refreshAll();
   };
 
   const cancelDispute = async (m: DisputedMatch) => {
@@ -520,8 +501,7 @@ export default function ModeratorPanel() {
     showToast('Match annulliert.');
     setPendingCancelDisputeId(null);
     setOpenDispute(null);
-    await loadDisputes();
-    await loadLogs();
+    await refreshAll();
   };
 
   // ── Live Match Actions ────────────────────────────────────────────────────
@@ -539,8 +519,7 @@ export default function ModeratorPanel() {
     showToast('Match abgebrochen.');
     setPendingCancelMatchId(null);
     setCancelReason('');
-    await loadLiveMatches();
-    await loadLogs();
+    await refreshAll();
   };
 
   // ── Flagged Actions ───────────────────────────────────────────────────────
@@ -552,7 +531,7 @@ export default function ModeratorPanel() {
     showToast('Warnung wurde protokolliert.');
     setWarnReason('');
     setOpenFlagged(null);
-    await loadLogs();
+    await refreshAll();
   };
 
   // ── Counts ────────────────────────────────────────────────────────────────
@@ -570,7 +549,23 @@ export default function ModeratorPanel() {
       <main className="flex min-h-screen items-center justify-center bg-[#f0eee8] text-[#151923]">
         <div className="flex flex-col items-center gap-4">
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#c9c6bc] border-t-[#2f58d5]" />
-          <p className="text-sm font-bold text-slate-500">Match Control wird vorbereitet…</p>
+          <p className="text-sm font-bold text-stone-500">Moderation wird vorbereitet…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (accessError) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[#f6f5f1] px-5 text-stone-900">
+        <div className="w-full max-w-md rounded-3xl border border-stone-200 bg-white p-7 shadow-[0_24px_60px_rgba(36,45,40,.10)]">
+          <div className="mb-5 grid h-11 w-11 place-items-center rounded-2xl bg-rose-50 text-rose-700"><Shield size={21} /></div>
+          <h1 className="text-2xl font-black tracking-tight">Moderation nicht verfügbar</h1>
+          <p className="mt-3 text-sm leading-6 text-stone-600">{accessError}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={() => window.location.reload()} className="rounded-xl bg-[#153f33] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#205542]">Erneut versuchen</button>
+            <Link href="/" className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-bold text-stone-700 transition hover:bg-stone-50">Zur Startseite</Link>
+          </div>
         </div>
       </main>
     );
@@ -579,47 +574,46 @@ export default function ModeratorPanel() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <main className="control-room relative min-h-screen overflow-hidden bg-[#f0eee8] text-[#151923]">
+    <main className="relative min-h-screen overflow-hidden bg-[#f6f5f1] text-stone-900">
 
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute -left-40 top-28 h-[34rem] w-[34rem] rounded-full bg-[#325ad8]/[0.075] blur-3xl" />
-        <div className="absolute -right-24 top-1/3 h-[26rem] w-[26rem] rounded-full bg-[#e84235]/[0.07] blur-3xl" />
-        <div className="absolute inset-0 opacity-[0.045] bg-[linear-gradient(to_right,#182030_1px,transparent_1px),linear-gradient(to_bottom,#182030_1px,transparent_1px)] [background-size:48px_48px]" />
+        <div className="absolute -left-48 top-12 h-[32rem] w-[32rem] rounded-full bg-[#b8d8b5]/35 blur-3xl" />
+        <div className="absolute -right-36 top-1/3 h-[30rem] w-[30rem] rounded-full bg-[#ead9ad]/35 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.32] [background-image:radial-gradient(#c9c6bc_1px,transparent_1px)] [background-size:22px_22px]" />
       </div>
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-xl border px-5 py-3.5 text-sm font-bold shadow-2xl backdrop-blur-xl transition-all ${
+        <div className={`fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-2xl border px-5 py-3.5 text-sm font-bold shadow-xl backdrop-blur-xl transition-all ${
           toast.ok
-            ? 'border-emerald-300/25 bg-emerald-400/15 text-emerald-200'
-            : 'border-red-400/25 bg-red-400/15 text-red-200'
+            ? 'border-emerald-200 bg-white/95 text-emerald-800'
+            : 'border-rose-200 bg-white/95 text-rose-800'
         }`}>
           {toast.ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
           {toast.msg}
         </div>
       )}
 
-      {/* Command header */}
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/[0.08] bg-[#111725]/95 backdrop-blur-2xl">
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-stone-200/80 bg-[#f6f5f1]/90 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-3.5 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-lg border border-white/20 bg-[#2f58d5] text-white shadow-[4px_4px_0_#e84235]">
+            <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-[#153f33] text-[#d5f080] shadow-sm">
               <Shield size={20} />
             </div>
             <div>
-              <div className="text-sm font-black tracking-[0.12em] text-white md:text-base">MATCH CONTROL</div>
-              <div className="text-[9px] font-bold uppercase tracking-[0.24em] text-slate-400">RankedDarts · Moderator Desk</div>
+              <div className="text-sm font-black tracking-tight text-stone-950 md:text-base">Moderation</div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-stone-400">RankedDarts · Arbeitsbereich</div>
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 rounded-md border border-white/15 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-200 lg:flex">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#55d298]" /> {operatorName}
+            <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-stone-600 lg:flex">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> {operatorName}
             </div>
-            <button onClick={() => setAutoRefresh((enabled) => !enabled)} className={`hidden items-center gap-2 rounded-md border px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] transition sm:flex ${autoRefresh ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border-white/10 bg-white/[0.04] text-slate-400'}`} title={autoRefresh ? 'Automatische Aktualisierung alle 45 Sekunden pausieren' : 'Automatische Aktualisierung alle 45 Sekunden aktivieren'}><span className={`h-1.5 w-1.5 rounded-full ${autoRefresh ? 'animate-pulse bg-emerald-300' : 'bg-slate-500'}`} /> Sync {autoRefresh ? 'an' : 'aus'}</button>
+            <button onClick={() => setAutoRefresh((enabled) => !enabled)} className={`hidden items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition sm:flex ${autoRefresh ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-white text-stone-400'}`} title={autoRefresh ? 'Automatische Aktualisierung alle 45 Sekunden pausieren' : 'Automatische Aktualisierung alle 45 Sekunden aktivieren'}><span className={`h-1.5 w-1.5 rounded-full ${autoRefresh ? 'animate-pulse bg-emerald-500' : 'bg-stone-400'}`} /> Sync {autoRefresh ? 'an' : 'aus'}</button>
             <button
               onClick={() => void refreshAll()}
-              className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/[0.035] text-zinc-400 transition hover:border-white/20 hover:text-white disabled:opacity-50"
+              className="grid h-9 w-9 place-items-center rounded-xl border border-stone-200 bg-white text-stone-500 transition hover:border-stone-300 hover:text-stone-950 disabled:opacity-50"
               title="Alle Daten aktualisieren"
               disabled={isRefreshing}
             >
@@ -631,9 +625,9 @@ export default function ModeratorPanel() {
 
       <div className="relative z-10 mx-auto grid max-w-[1440px] gap-6 px-4 pb-16 pt-20 sm:px-5 lg:grid-cols-[228px_minmax(0,1fr)] lg:px-8 lg:pt-24">
         <aside className="lg:sticky lg:top-[84px] lg:h-[calc(100vh-108px)]">
-          <div className="overflow-hidden rounded-xl bg-[#111725] p-2 shadow-[10px_10px_0_rgba(21,25,35,0.12)]">
-            <div className="border-b border-white/[0.09] px-3 py-3">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"><Command size={12} /> Kontrollraum</div>
+          <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white p-2 shadow-[0_18px_45px_rgba(35,49,42,.08)]">
+            <div className="border-b border-stone-100 px-3 py-4">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-stone-400"><Command size={12} /> Bereiche</div>
             </div>
             <div className="space-y-1 py-2">
               <TabBtn active={tab === 'desk'}     onClick={() => setTab('desk')}     icon={<LayoutDashboard size={16} />} label="Leitstand" />
@@ -643,62 +637,55 @@ export default function ModeratorPanel() {
               <TabBtn active={tab === 'flagged'}  onClick={() => setTab('flagged')}  icon={<BadgeAlert size={16} />} label="Auffälligkeiten" badge={flaggedCount} />
               <TabBtn active={tab === 'logs'}     onClick={() => setTab('logs')}     icon={<ClipboardList size={16} />} label="Audit-Log" />
             </div>
-            <div className="mx-2 mt-2 border-t border-white/[0.09] px-2 py-4 text-[11px] leading-relaxed text-slate-500">
-              Jede Entscheidung bleibt im Audit-Log nachvollziehbar. Eingriffe nur bei eindeutigem Sachverhalt.
+            <div className="mx-2 mt-2 border-t border-stone-100 px-2 py-4 text-[11px] leading-relaxed text-stone-500">
+              Entscheidungen werden im Audit-Log gespeichert. Greife nur ein, wenn der Sachverhalt klar ist.
             </div>
           </div>
         </aside>
 
         <section className="min-w-0">
-          <header className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b-2 border-[#151923] pb-5">
+          <header className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-stone-200 pb-5">
             <div>
-              <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#2f58d5]"><PanelRightOpen size={13} /> Shift 01 / Moderation</div>
-              <h1 className="text-4xl font-black uppercase tracking-[-0.06em] text-[#151923] sm:text-5xl">
-                {tab === 'desk' ? 'Leitstand' : tab === 'tickets' ? 'Fall-Inbox' : tab === 'disputes' ? 'Dispute-Prüfung' : tab === 'matches' ? 'Live-Match-Übersicht' : tab === 'flagged' ? 'Auffällige Accounts' : 'Audit-Log'}
+              <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#2f6b55]"><PanelRightOpen size={13} /> Moderation</div>
+              <h1 className="text-3xl font-black tracking-[-0.05em] text-stone-950 sm:text-4xl">
+                {tab === 'desk' ? 'Übersicht' : tab === 'tickets' ? 'Tickets' : tab === 'disputes' ? 'Disputes' : tab === 'matches' ? 'Aktive Matches' : tab === 'flagged' ? 'Account-Hinweise' : 'Aktivitäten'}
               </h1>
             </div>
-            <div className="flex items-center gap-2 border border-[#151923] bg-[#151923] px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] text-white"><span className="h-1.5 w-1.5 animate-pulse bg-[#55d298]" /> {lastRefreshedAt ? `Sync ${lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'Live-Daten'}</div>
+            <div className="flex items-center gap-2 rounded-xl bg-[#153f33] px-3 py-2 text-[10px] font-black uppercase tracking-[0.11em] text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#d5f080]" /> {lastRefreshedAt ? `Aktualisiert ${lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'Live-Daten'}</div>
           </header>
 
-        {dataError && <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-100"><span>{dataError}</span><button onClick={() => void refreshAll()} className="shrink-0 border border-red-300/25 bg-black/15 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition hover:bg-black/30">Erneut laden</button></div>}
+        {dataError && <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800"><span>{dataError}</span><button onClick={() => void refreshAll()} className="shrink-0 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition hover:bg-rose-100">Erneut laden</button></div>}
 
         {/* ══════════════════════════════════════════════════════════════════
             TAB: LEITSTAND
         ══════════════════════════════════════════════════════════════════ */}
         {tab === 'desk' && (
           <div className="space-y-5">
-            <div className="relative overflow-hidden border-2 border-[#151923] bg-[#151923] px-5 py-6 text-white sm:px-7">
-              <div className="pointer-events-none absolute -right-5 -top-14 select-none text-[9rem] font-black leading-none tracking-[-0.12em] text-white/[0.045] sm:text-[13rem]">MOD</div>
-              <div className="relative grid gap-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
+            <div className="overflow-hidden rounded-3xl bg-[#153f33] px-6 py-7 text-white shadow-[0_24px_60px_rgba(21,63,51,.16)] sm:px-8">
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                 <div>
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-2 bg-[#e84235] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white"><Radio size={12} /> Live Control</span>
-                    <span className="border border-white/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Referee System / 01</span>
-                  </div>
-                  <h2 className="max-w-xl text-4xl font-black uppercase leading-[0.84] tracking-[-0.08em] sm:text-6xl">Fair Play<br/><span className="text-[#91a9ff]">ist kein Zufall.</span></h2>
-                  <p className="mt-5 max-w-lg text-sm leading-relaxed text-slate-400">Fälle einordnen. Spiele schützen. Entscheidungen dokumentieren. Der Raum für Moderation, wenn es darauf ankommt.</p>
-                  <div className="mt-6 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.15em]">
-                    <span className="border border-white/15 px-2.5 py-1.5 text-slate-400">Echtzeit-Daten</span>
-                    <span className="border border-white/15 px-2.5 py-1.5 text-slate-400">Audit-sicher</span>
-                    <span className="border border-white/15 px-2.5 py-1.5 text-slate-400">Spielerfokus</span>
-                  </div>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-[#d5f080] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#153f33]"><ShieldCheck size={12} /> Arbeitsübersicht</span>
+                  <h2 className="mt-5 text-3xl font-black tracking-[-0.06em] sm:text-5xl">Was braucht jetzt deine Aufmerksamkeit?</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/75">Prüfe offene Anliegen, Disputes und laufende Matches. Alles Wichtige steht hier an einem Ort – ohne unnötige Ablenkung.</p>
                 </div>
-                <div className="relative lg:ml-auto lg:w-full lg:max-w-[260px]">
-                  <MatchSignal liveMatches={liveCount} openCases={openTicketCount + disputeCount} />
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[360px]">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.08] p-4"><div className="text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-50/60">Offen</div><div className="mt-1 text-3xl font-black text-[#d5f080]">{openTicketCount + disputeCount}</div></div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.08] p-4"><div className="text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-50/60">Live</div><div className="mt-1 text-3xl font-black">{liveCount}</div></div>
+                  <div className="col-span-2 rounded-2xl border border-white/10 bg-white/[0.08] p-4 sm:col-span-1"><div className="text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-50/60">Hinweise</div><div className="mt-1 text-3xl font-black">{flaggedCount}</div></div>
                 </div>
               </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
-                { label: 'Offene Fälle', value: openTicketCount, sub: 'Tickets brauchen Antwort', icon: <Inbox size={17} />, tone: 'bg-[#2f58d5] text-white', marker: 'bg-[#91a9ff]' },
-                { label: 'Entscheidungen', value: disputeCount, sub: 'Disputes warten auf Prüfung', icon: <Gavel size={17} />, tone: 'bg-[#e84235] text-white', marker: 'bg-[#ffb0a8]' },
-                { label: 'Im Spiel', value: liveCount, sub: 'Live-Matches im Blick', icon: <Radio size={17} />, tone: 'bg-[#d8d4ca] text-[#151923]', marker: 'bg-[#151923]' },
-                { label: 'Hinweise', value: flaggedCount, sub: 'Accounts zur Einordnung', icon: <FileWarning size={17} />, tone: 'bg-white text-[#151923] border border-[#151923]', marker: 'bg-[#e84235]' },
+                { label: 'Offene Tickets', value: openTicketCount, sub: 'brauchen eine Antwort', icon: <Inbox size={17} />, tone: 'border border-stone-200 bg-white text-stone-900', marker: 'bg-emerald-500' },
+                { label: 'Disputes', value: disputeCount, sub: 'warten auf eine Entscheidung', icon: <Gavel size={17} />, tone: 'border border-stone-200 bg-white text-stone-900', marker: 'bg-rose-500' },
+                { label: 'Aktive Matches', value: liveCount, sub: 'sind gerade im Blick', icon: <Radio size={17} />, tone: 'border border-stone-200 bg-white text-stone-900', marker: 'bg-sky-500' },
+                { label: 'Hinweise', value: flaggedCount, sub: 'Accounts zur Einordnung', icon: <FileWarning size={17} />, tone: 'border border-stone-200 bg-white text-stone-900', marker: 'bg-amber-500' },
               ].map(item => (
-                <button key={item.label} onClick={() => setTab(item.label === 'Offene Fälle' ? 'tickets' : item.label === 'Entscheidungen' ? 'disputes' : item.label === 'Im Spiel' ? 'matches' : 'flagged')} className={`group relative overflow-hidden p-5 text-left transition hover:-translate-y-1 ${item.tone}`}>
-                  <div className={`absolute right-0 top-0 h-2 w-12 ${item.marker}`} />
-                  <div className="mb-6 opacity-75">{item.icon}</div>
+                <button key={item.label} onClick={() => setTab(item.label === 'Offene Tickets' ? 'tickets' : item.label === 'Disputes' ? 'disputes' : item.label === 'Aktive Matches' ? 'matches' : 'flagged')} className={`group relative overflow-hidden rounded-2xl p-5 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${item.tone}`}>
+                  <div className={`absolute left-0 top-0 h-1 w-full ${item.marker}`} />
+                  <div className="mb-6 opacity-70">{item.icon}</div>
                   <div className="text-5xl font-black tracking-[-0.08em]">{item.value}</div>
                   <div className="mt-1 text-sm font-black uppercase tracking-[-0.02em]">{item.label}</div>
                   <div className="mt-1 text-xs opacity-65">{item.sub}</div>
@@ -707,27 +694,27 @@ export default function ModeratorPanel() {
             </div>
 
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.8fr)]">
-              <div className="overflow-hidden border-2 border-[#151923] bg-[#151923] shadow-[8px_8px_0_rgba(21,25,35,0.12)]">
-                <div className="flex items-center justify-between border-b border-white/[0.12] px-5 py-4">
+              <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_18px_45px_rgba(35,49,42,.08)]">
+                <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
                   <div>
-                    <div className="text-sm font-black uppercase tracking-[-0.02em] text-white">Priorisierte Fall-Inbox</div>
-                    <div className="mt-0.5 text-xs text-slate-500">Neue und hochpriorisierte Meldungen zuerst</div>
+                    <div className="text-sm font-black tracking-tight text-stone-950">Priorisierte Tickets</div>
+                    <div className="mt-0.5 text-xs text-stone-500">Neue und dringende Meldungen zuerst</div>
                   </div>
-                  <button onClick={() => setTab('tickets')} className="inline-flex items-center gap-1.5 bg-[#2f58d5] px-2.5 py-1.5 text-xs font-black text-white transition hover:bg-[#4167e2]">Alle Fälle <ArrowUpRight size={14} /></button>
+                  <button onClick={() => setTab('tickets')} className="inline-flex items-center gap-1.5 rounded-xl bg-[#153f33] px-3 py-2 text-xs font-black text-white transition hover:bg-[#205542]">Alle Tickets <ArrowUpRight size={14} /></button>
                 </div>
                 {tickets.filter(ticket => ticket.status !== 'closed' && ticket.status !== 'resolved').slice(0, 5).length === 0 ? (
-                  <div className="px-5 py-12 text-center text-sm text-slate-500">Keine offenen Fälle. Der Leitstand ist ruhig.</div>
+                  <div className="px-5 py-12 text-center text-sm text-stone-500">Keine offenen Tickets.</div>
                 ) : (
-                  <div className="divide-y divide-white/[0.06]">
+                  <div className="divide-y divide-stone-100">
                     {tickets.filter(ticket => ticket.status !== 'closed' && ticket.status !== 'resolved').slice(0, 5).map(ticket => {
                       const priority = priorityCfg[ticket.priority] ?? priorityCfg.normal;
                       const status = statusCfg[ticket.status] ?? statusCfg.open;
                       return (
-                        <button key={ticket.id} onClick={() => { setTab('tickets'); void openTicket(ticket.id); }} className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-white/[0.055]">
+                        <button key={ticket.id} onClick={() => { setTab('tickets'); void openTicket(ticket.id); }} className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-stone-50">
                           <span className={`h-2 w-2 shrink-0 rounded-full ${status.dot}`} />
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-bold text-slate-100">{ticket.subject}</span>
-                            <span className="mt-1 block truncate text-xs text-slate-500">{ticket.username} · {catLabels[ticket.category] ?? ticket.category} · {timeAgo(ticket.created_at)}</span>
+                            <span className="block truncate text-sm font-bold text-stone-900">{ticket.subject}</span>
+                            <span className="mt-1 block truncate text-xs text-stone-500">{ticket.username} · {catLabels[ticket.category] ?? ticket.category} · {timeAgo(ticket.created_at)}</span>
                           </span>
                           <span className={`shrink-0 text-[10px] font-black uppercase tracking-[0.14em] ${priority.cls}`}>{priority.label}</span>
                         </button>
@@ -738,20 +725,20 @@ export default function ModeratorPanel() {
               </div>
 
               <div className="space-y-5">
-                <div className="border-2 border-[#151923] bg-white p-5 shadow-[6px_6px_0_rgba(21,25,35,0.12)]">
-                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.17em] text-[#2f58d5]"><Command size={14} /> Schnellzugriff</div>
+                <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-[0_18px_45px_rgba(35,49,42,.08)]">
+                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[#2f6b55]"><Command size={14} /> Direkt zu</div>
                   <div className="space-y-2">
-                    <button onClick={() => setTab('disputes')} className="flex w-full items-center justify-between border border-[#151923] bg-[#151923] px-3.5 py-3 text-left text-sm font-bold text-white transition hover:bg-[#2f58d5]"><span>Offene Disputes prüfen</span><span className="font-mono text-[#91a9ff]">{disputeCount}</span></button>
-                    <button onClick={() => setTab('matches')} className="flex w-full items-center justify-between border border-[#151923] px-3.5 py-3 text-left text-sm font-bold text-[#151923] transition hover:bg-[#ece9e1]"><span>Laufende Matches überwachen</span><ArrowUpRight size={15} className="text-[#e84235]" /></button>
-                    <button onClick={() => setTab('flagged')} className="flex w-full items-center justify-between border border-[#151923] px-3.5 py-3 text-left text-sm font-bold text-[#151923] transition hover:bg-[#ece9e1]"><span>Account-Hinweise sichten</span><ArrowUpRight size={15} className="text-[#e84235]" /></button>
+                    <button onClick={() => setTab('disputes')} className="flex w-full items-center justify-between rounded-xl bg-[#153f33] px-3.5 py-3 text-left text-sm font-bold text-white transition hover:bg-[#205542]"><span>Offene Disputes prüfen</span><span className="font-mono text-[#d5f080]">{disputeCount}</span></button>
+                    <button onClick={() => setTab('matches')} className="flex w-full items-center justify-between rounded-xl border border-stone-200 px-3.5 py-3 text-left text-sm font-bold text-stone-800 transition hover:bg-stone-50"><span>Laufende Matches überwachen</span><ArrowUpRight size={15} className="text-[#2f6b55]" /></button>
+                    <button onClick={() => setTab('flagged')} className="flex w-full items-center justify-between rounded-xl border border-stone-200 px-3.5 py-3 text-left text-sm font-bold text-stone-800 transition hover:bg-stone-50"><span>Account-Hinweise sichten</span><ArrowUpRight size={15} className="text-[#2f6b55]" /></button>
                   </div>
                 </div>
 
-                <div className="border-l-4 border-[#e84235] bg-[#d8d4ca] p-5">
-                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.17em] text-[#151923]"><Activity size={14} /> Letzte Eingriffe</div>
-                  {logs.slice(0, 3).length === 0 ? <p className="text-sm text-slate-600">Noch keine dokumentierten Eingriffe.</p> : (
+                <div className="rounded-3xl border border-amber-200 bg-amber-50/70 p-5">
+                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-amber-800"><Activity size={14} /> Letzte Aktivitäten</div>
+                  {logs.slice(0, 3).length === 0 ? <p className="text-sm text-stone-600">Noch keine dokumentierten Aktionen.</p> : (
                     <div className="space-y-3">
-                      {logs.slice(0, 3).map(log => <div key={log.id} className="border-l border-[#151923]/30 pl-3"><div className="truncate text-xs font-bold text-[#151923]">{log.action}{log.target_label ? ` · ${log.target_label}` : ''}</div><div className="mt-1 text-[11px] text-slate-600">{log.mod_username} · {timeAgo(log.created_at)}</div></div>)}
+                      {logs.slice(0, 3).map(log => <div key={log.id} className="border-l border-amber-300 pl-3"><div className="truncate text-xs font-bold text-stone-900">{log.action}{log.target_label ? ` · ${log.target_label}` : ''}</div><div className="mt-1 text-[11px] text-stone-600">{log.mod_username} · {timeAgo(log.created_at)}</div></div>)}
                     </div>
                   )}
                 </div>
@@ -771,24 +758,31 @@ export default function ModeratorPanel() {
                 {[null, 'open', 'in_progress', 'waiting_for_user', 'resolved', 'closed'].map(s => (
                   <button
                     key={s ?? 'all'}
-                    onClick={async () => { setTicketFilter(s); setOpenTicketId(null); setTicketDetail(null); await loadTickets(s); }}
+                    onClick={() => {
+                      setTicketFilter(s);
+                      setOpenTicketId(null);
+                      setTicketDetail(null);
+                      void loadTickets(s).catch((error: unknown) => {
+                        showToast(error instanceof Error ? `Tickets konnten nicht geladen werden: ${error.message}` : 'Tickets konnten nicht geladen werden.', false);
+                      });
+                    }}
                     className={`border px-4 py-2 text-xs font-bold transition ${
                       ticketFilter === s
-                        ? 'border border-[#2f58d5] bg-[#2f58d5] text-white'
-                        : 'border-[#151923]/25 bg-white/50 text-slate-600 hover:border-[#151923] hover:bg-white hover:text-[#151923]'
+                        ? 'border border-[#153f33] bg-[#153f33] text-white'
+                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-950'
                     }`}
                   >
                     {s ? (statusCfg[s]?.label ?? s) : `Alle (${tickets.length})`}
                   </button>
                 ))}
               </div>
-              <label className="flex min-w-0 items-center gap-2 border border-[#151923]/20 bg-white/60 px-3 py-2 text-slate-500 xl:w-72"><Command size={14} /><input value={ticketSearch} onChange={(event) => setTicketSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-[#151923] outline-none placeholder:text-slate-400" placeholder="Ticket oder Spieler suchen" /></label>
+              <label className="flex min-w-0 items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-stone-500 shadow-sm xl:w-72"><Command size={14} /><input value={ticketSearch} onChange={(event) => setTicketSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-stone-900 outline-none placeholder:text-stone-400" placeholder="Ticket oder Spieler suchen" /></label>
             </div>
 
             {visibleTickets.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 border-2 border-dashed border-[#151923]/30 bg-white/45 py-20 text-center">
-                <Headphones size={32} className="text-slate-400" />
-                <p className="text-sm font-bold text-slate-500">{tickets.length === 0 ? 'Keine Tickets vorhanden' : 'Keine Tickets für diese Suche gefunden'}</p>
+              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
+                <Headphones size={32} className="text-stone-400" />
+                <p className="text-sm font-bold text-stone-500">{tickets.length === 0 ? 'Keine Tickets vorhanden' : 'Keine Tickets für diese Suche gefunden'}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -798,11 +792,11 @@ export default function ModeratorPanel() {
                   const isOpen = openTicketId === t.id;
 
                   return (
-                    <div key={t.id} className="overflow-hidden border border-[#151923] border-l-4 border-l-[#2f58d5] bg-[#151923] shadow-[5px_5px_0_rgba(21,25,35,0.10)]">
+                    <div key={t.id} className="overflow-hidden rounded-2xl border border-stone-200 border-l-4 border-l-[#2f6b55] bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)]">
                       {/* Ticket-Header */}
                       <button
                         onClick={() => openTicket(t.id)}
-                        className="w-full px-6 py-5 text-left transition hover:bg-white/[0.03]"
+                        className="w-full px-6 py-5 text-left transition hover:bg-stone-50"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
@@ -812,18 +806,18 @@ export default function ModeratorPanel() {
                                 {sc.label}
                               </span>
                               <span className={`text-xs font-black ${pc.cls}`}>{pc.label}</span>
-                              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-zinc-500">
+                              <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[10px] font-bold text-stone-500">
                                 {catLabels[t.category] ?? t.category}
                               </span>
                             </div>
-                            <div className="text-base font-black text-white">{t.subject}</div>
-                            <div className="mt-1 text-xs text-zinc-500">
-                              von <span className="font-bold text-zinc-300">{t.username}</span> · {timeAgo(t.created_at)}
+                            <div className="text-base font-black text-stone-950">{t.subject}</div>
+                            <div className="mt-1 text-xs text-stone-500">
+                              von <span className="font-bold text-stone-800">{t.username}</span> · {timeAgo(t.created_at)}
                               {t.message_count > 0 && ` · ${t.message_count} Nachrichten`}
                             </div>
-                            <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.13em] text-zinc-600">{t.assigned_to_username ? `Übernommen von ${t.assigned_to_username}` : 'Noch nicht übernommen'}</div>
+                            <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.13em] text-stone-400">{t.assigned_to_username ? `Übernommen von ${t.assigned_to_username}` : 'Noch nicht übernommen'}</div>
                           </div>
-                          <div className="shrink-0 text-zinc-600">
+                          <div className="shrink-0 text-stone-400">
                             {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                           </div>
                         </div>
@@ -831,16 +825,16 @@ export default function ModeratorPanel() {
 
                       {/* Ticket-Detail */}
                       {isOpen && ticketDetail && (
-                        <div className="border-t border-white/[0.06] px-6 pb-6 pt-5">
+                        <div className="border-t border-stone-100 px-6 pb-6 pt-5">
                           {/* Aktionen */}
                           <div className="mb-5 flex flex-wrap gap-3">
                             <button onClick={() => void claimTicket(t.id)} disabled={claimingTicketId === t.id || Boolean(t.assigned_to_id)} title={t.assigned_to_id ? `Bereits übernommen von ${t.assigned_to_username || 'einem Teammitglied'}` : 'Ticket selbst übernehmen'} className="inline-flex items-center gap-2 rounded-xl border border-[#4569df]/40 bg-[#2f58d5]/15 px-3 py-1.5 text-xs font-black text-[#b6c5ff] transition hover:bg-[#2f58d5]/25 disabled:cursor-not-allowed disabled:opacity-50"><ShieldCheck size={13} />{claimingTicketId === t.id ? 'Übernimmt …' : t.assigned_to_id ? `Übernommen${t.assigned_to_username ? ` · ${t.assigned_to_username}` : ''}` : 'Mir zuweisen'}</button>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-zinc-600">Status:</span>
+                              <span className="text-xs font-bold text-stone-500">Status:</span>
                               <select
                                 value={t.status}
                                 onChange={e => updateStatus(t.id, e.target.value)}
-                                className="rounded-xl border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs font-bold text-zinc-200 outline-none"
+                                className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-800 outline-none"
                               >
                                 {Object.entries(statusCfg).map(([k, v]) => (
                                   <option key={k} value={k} className="bg-zinc-950">{v.label}</option>
@@ -848,11 +842,11 @@ export default function ModeratorPanel() {
                               </select>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-zinc-600">Priorität:</span>
+                              <span className="text-xs font-bold text-stone-500">Priorität:</span>
                               <select
                                 value={t.priority}
                                 onChange={e => updatePriority(t.id, e.target.value)}
-                                className="rounded-xl border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs font-bold text-zinc-200 outline-none"
+                                className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-800 outline-none"
                               >
                                 {Object.entries(priorityCfg).map(([k, v]) => (
                                   <option key={k} value={k} className="bg-zinc-950">{v.label}</option>
@@ -861,41 +855,41 @@ export default function ModeratorPanel() {
                             </div>
                           </div>
 
-                          <div className="mb-5 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4">
-                            <div className="mb-2 flex items-center justify-between gap-3"><label className="text-[10px] font-black uppercase tracking-[0.17em] text-zinc-500">Interne Übergabe-Notiz</label><span className="text-[10px] text-zinc-600">Nur für Moderation & Admins</span></div>
+                          <div className="mb-5 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                            <div className="mb-2 flex items-center justify-between gap-3"><label className="text-[10px] font-black uppercase tracking-[0.17em] text-stone-500">Interne Übergabe-Notiz</label><span className="text-[10px] text-stone-400">Nur Moderation & Admins</span></div>
                             <textarea value={ticketNotes[t.id] ?? ''} onChange={(event) => setTicketNotes((current) => ({ ...current, [t.id]: event.target.value }))} maxLength={1200} rows={2} placeholder="Kontext, nächste Schritte oder Übergabe für das Team …" className={`${inputCls} resize-y`} />
-                            <div className="mt-3 flex justify-end"><button onClick={() => void saveTicketNote(t.id)} disabled={savingTicketNoteId === t.id} className="rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] text-zinc-200 transition hover:border-white/20 hover:bg-white/10 disabled:opacity-50">{savingTicketNoteId === t.id ? 'Speichert …' : 'Notiz speichern'}</button></div>
+                            <div className="mt-3 flex justify-end"><button onClick={() => void saveTicketNote(t.id)} disabled={savingTicketNoteId === t.id} className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 disabled:opacity-50">{savingTicketNoteId === t.id ? 'Speichert …' : 'Notiz speichern'}</button></div>
                           </div>
 
                           {/* Nachrichten */}
-                          <div className="mb-5 max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-white/[0.06] bg-black/30 p-4">
+                          <div className="mb-5 max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-stone-200 bg-stone-50 p-4">
                             {ticketDetail.messages.map(msg => {
                               const parsed = parseTicketMessageContent(msg.content);
                               return (
                               <div key={msg.id} className={`flex gap-3 ${msg.is_staff ? 'flex-row-reverse' : ''}`}>
                                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
-                                  msg.is_staff ? 'bg-[#2f58d5]/30 text-[#b6c5ff]' : 'bg-white/10 text-zinc-300'
+                                  msg.is_staff ? 'bg-[#153f33] text-white' : 'bg-white text-stone-700 border border-stone-200'
                                 }`}>
                                   {msg.sender_name.slice(0, 2).toUpperCase()}
                                 </div>
                                 <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm ${
                                   msg.is_staff
                                     ? 'rounded-tr-sm border border-[#4569df]/40 bg-[#2f58d5]/25 text-[#edf0ff]'
-                                    : 'rounded-tl-sm bg-white/[0.06] border border-white/10 text-zinc-200'
+                                    : 'rounded-tl-sm bg-white border border-stone-200 text-stone-800'
                                 }`}>
                                   <div className="mb-1 flex items-center gap-2">
-                                    <span className="text-[10px] font-black text-zinc-500">{msg.sender_name}</span>
+                                    <span className="text-[10px] font-black text-stone-600">{msg.sender_name}</span>
                                     {msg.is_staff && <span className="rounded-md bg-[#2f58d5]/30 px-1.5 py-0.5 text-[9px] font-black text-[#b6c5ff]">MOD</span>}
-                                    <span className="text-[10px] text-zinc-700">{timeAgo(msg.created_at)}</span>
+                                    <span className="text-[10px] text-stone-400">{timeAgo(msg.created_at)}</span>
                                   </div>
                                   <div className="space-y-3">
                                     {parsed.text && <p className="leading-relaxed whitespace-pre-wrap">{parsed.text}</p>}
                                     {parsed.images.length > 0 && (
                                       <div className="grid gap-2">
                                         {parsed.images.map((image) => (
-                                          <a key={image.url} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-white/10 bg-black/25 transition hover:border-white/25">
+                                          <a key={image.url} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-stone-200 bg-white transition hover:border-stone-300">
                                             <img src={image.url} alt={ticketImageAlt(image.label)} className="max-h-56 w-full object-cover" />
-                                            <div className="truncate px-3 py-2 text-[11px] font-bold text-zinc-400">{image.label}</div>
+                                            <div className="truncate px-3 py-2 text-[11px] font-bold text-stone-500">{image.label}</div>
                                           </a>
                                         ))}
                                       </div>
@@ -906,7 +900,7 @@ export default function ModeratorPanel() {
                               );
                             })}
                             {ticketDetail.messages.length === 0 && (
-                              <p className="text-center text-xs text-zinc-700">Noch keine Nachrichten</p>
+                              <p className="text-center text-xs text-stone-400">Noch keine Nachrichten</p>
                             )}
                           </div>
 
@@ -944,9 +938,9 @@ export default function ModeratorPanel() {
         {tab === 'disputes' && (
           <div>
             {disputes.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 border-2 border-dashed border-[#151923]/30 bg-white/45 py-20 text-center">
-                <Gavel size={32} className="text-slate-400" />
-                <p className="text-sm font-bold text-slate-500">Keine offenen Disputes</p>
+              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
+                <Gavel size={32} className="text-stone-400" />
+                <p className="text-sm font-bold text-stone-500">Keine offenen Disputes</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -955,63 +949,63 @@ export default function ModeratorPanel() {
                   const isOpen = openDispute === m.match_id;
 
                   return (
-                    <div key={m.match_id} className="overflow-hidden border border-[#151923] border-l-4 border-l-[#e84235] bg-[#151923] shadow-[5px_5px_0_rgba(21,25,35,0.10)]">
+                    <div key={m.match_id} className="overflow-hidden rounded-2xl border border-stone-200 border-l-4 border-l-rose-500 bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)]">
                       {/* Header */}
                       <button
                         onClick={() => setOpenDispute(isOpen ? null : m.match_id)}
-                        className="w-full px-6 py-5 text-left transition hover:bg-white/[0.03]"
+                        className="w-full px-6 py-5 text-left transition hover:bg-stone-50"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <div>
                             <div className="mb-1 flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1.5 rounded-full border border-red-400/25 bg-red-400/10 px-3 py-1 text-xs font-black text-red-200">
-                                <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+                              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-black text-rose-700">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
                                 Dispute
                               </span>
-                              <span className="text-xs text-zinc-600">{timeAgo(m.created_at)}</span>
+                              <span className="text-xs text-stone-400">{timeAgo(m.created_at)}</span>
                             </div>
-                            <div className="text-xl font-black">
-                              {m.player1_username} <span className="text-zinc-600">vs</span> {m.player2_username}
+                            <div className="text-xl font-black text-stone-950">
+                              {m.player1_username} <span className="text-stone-400">vs</span> {m.player2_username}
                             </div>
-                            <div className="mt-1 text-xs text-zinc-500">
-                              Eingereicht von: <span className="font-bold text-zinc-300">{m.submitted_by_username ?? '—'}</span>
+                            <div className="mt-1 text-xs text-stone-500">
+                              Eingereicht von: <span className="font-bold text-stone-800">{m.submitted_by_username ?? '—'}</span>
                               {m.submitted_winner_username && ` · Gewinner lt. Einreichung: ${m.submitted_winner_username}`}
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <div className="text-xs text-zinc-600">Elo</div>
+                              <div className="text-xs text-stone-400">Elo</div>
                               <div className="font-black">{m.player1_elo} vs {m.player2_elo}</div>
                             </div>
-                            {isOpen ? <ChevronUp size={18} className="text-zinc-500" /> : <ChevronDown size={18} className="text-zinc-500" />}
+                            {isOpen ? <ChevronUp size={18} className="text-stone-400" /> : <ChevronDown size={18} className="text-stone-400" />}
                           </div>
                         </div>
                       </button>
 
                       {/* Detail */}
                       {isOpen && (
-                        <div className="border-t border-white/[0.06] px-6 pb-6 pt-5 space-y-5">
+                        <div className="space-y-5 border-t border-stone-100 px-6 pb-6 pt-5">
                           {/* Dispute-Grund */}
                           {m.dispute_reason && (
-                            <div className="rounded-2xl border border-amber-300/15 bg-amber-400/[0.06] p-4">
-                              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400 mb-1">Dispute-Grund</div>
-                              <p className="text-sm text-zinc-300">{m.dispute_reason}</p>
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                              <div className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">Dispute-Grund</div>
+                              <p className="text-sm text-stone-700">{m.dispute_reason}</p>
                             </div>
                           )}
                           {m.dispute_screenshot_url && (
                             <a href={m.dispute_screenshot_url} target="_blank" rel="noreferrer"
-                               className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-bold text-zinc-300 transition hover:text-white">
+                               className="inline-flex items-center gap-2 rounded-2xl border border-stone-200 bg-white px-4 py-2 text-xs font-bold text-stone-700 transition hover:border-stone-300">
                               Screenshot ansehen
                             </a>
                           )}
 
                           {/* Formular */}
-                          <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-5 space-y-4">
-                            <div className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">Entscheidung treffen</div>
+                          <div className="space-y-4 rounded-2xl border border-stone-200 bg-stone-50 p-5">
+                            <div className="text-xs font-black uppercase tracking-[0.2em] text-stone-500">Entscheidung treffen</div>
 
                             {/* Gewinner */}
                             <div>
-                              <label className="mb-2 block text-xs font-bold text-zinc-500">Gewinner</label>
+                              <label className="mb-2 block text-xs font-bold text-stone-500">Gewinner</label>
                               <div className="grid grid-cols-2 gap-3">
                                 {[
                                   { id: m.player1_id, name: m.player1_username, elo: m.player1_elo },
@@ -1022,8 +1016,8 @@ export default function ModeratorPanel() {
                                     onClick={() => patchForm(m.match_id, { winnerId: p.id })}
                                     className={`rounded-2xl border p-4 text-left transition ${
                                       f.winnerId === p.id
-                                        ? 'border-emerald-300/40 bg-emerald-400/15 text-emerald-200'
-                                        : 'border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20'
+                                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
                                     }`}
                                   >
                                     <div className="font-black">{p.name}</div>
@@ -1036,11 +1030,11 @@ export default function ModeratorPanel() {
                             {/* Legs */}
                             <div className="grid grid-cols-2 gap-3">
                               <div>
-                                <label className="mb-1.5 block text-xs font-bold text-zinc-500">{m.player1_username} Legs</label>
+                                <label className="mb-1.5 block text-xs font-bold text-stone-500">{m.player1_username} Legs</label>
                                 <input type="number" value={f.p1Legs ?? ''} onChange={e => patchForm(m.match_id, { p1Legs: e.target.value })} className={inputCls} placeholder="0" />
                               </div>
                               <div>
-                                <label className="mb-1.5 block text-xs font-bold text-zinc-500">{m.player2_username} Legs</label>
+                                <label className="mb-1.5 block text-xs font-bold text-stone-500">{m.player2_username} Legs</label>
                                 <input type="number" value={f.p2Legs ?? ''} onChange={e => patchForm(m.match_id, { p2Legs: e.target.value })} className={inputCls} placeholder="0" />
                               </div>
                             </div>
@@ -1068,13 +1062,13 @@ export default function ModeratorPanel() {
                             <div className="flex gap-3">
                               <button
                                 onClick={() => resolveDispute(m)}
-                                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-400"
+                                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#153f33] px-5 py-3 text-sm font-black text-white transition hover:bg-[#205542]"
                               >
                                 <Gavel size={15} /> Entscheiden
                               </button>
                               <button
                                 onClick={() => cancelDispute(m)}
-                                className="flex items-center gap-2 rounded-2xl border border-red-400/25 bg-red-400/10 px-5 py-3 text-sm font-black text-red-200 transition hover:bg-red-400/20"
+                                className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-100"
                               >
                                 <XCircle size={15} /> {pendingCancelDisputeId === m.match_id ? 'Annullierung bestätigen' : 'Annullieren'}
                               </button>
@@ -1096,9 +1090,9 @@ export default function ModeratorPanel() {
         {tab === 'matches' && (
           <div>
             {liveMatches.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 border-2 border-dashed border-[#151923]/30 bg-white/45 py-20 text-center">
-                <Swords size={32} className="text-slate-400" />
-                <p className="text-sm font-bold text-slate-500">Keine aktiven Matches</p>
+              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
+                <Swords size={32} className="text-stone-400" />
+                <p className="text-sm font-bold text-stone-500">Keine aktiven Matches</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1107,12 +1101,12 @@ export default function ModeratorPanel() {
                   const isLong = m.duration_minutes > 60;
 
                   return (
-                    <div key={m.id} className={`overflow-hidden border border-[#151923] border-l-4 backdrop-blur-xl shadow-[5px_5px_0_rgba(21,25,35,0.10)] ${
+                    <div key={m.id} className={`overflow-hidden rounded-2xl border border-stone-200 border-l-4 bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)] ${
                       m.status === 'disputed'
-                        ? 'border-l-[#e84235] bg-[#151923]'
+                        ? 'border-l-rose-500'
                         : isLong
-                          ? 'border-l-[#e8b535] bg-[#151923]'
-                          : 'border-l-[#2f58d5] bg-[#151923]'
+                          ? 'border-l-amber-500'
+                          : 'border-l-[#2f6b55]'
                     }`}>
                       <div className="px-6 py-5">
                         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1123,30 +1117,33 @@ export default function ModeratorPanel() {
                                 {sc.label}
                               </span>
                               {m.app && (
-                                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-zinc-500">
+                                <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[10px] font-bold text-stone-500">
                                   {m.app === 'scolia' ? '📷 Scolia' : m.app === 'autodarts' ? '🎯 AutoDarts' : '📱 DartCounter'}
                                 </span>
                               )}
                               {isLong && (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-400/10 px-2.5 py-1 text-[10px] font-black text-amber-200">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">
                                   <AlertTriangle size={10} /> Sehr lang
                                 </span>
                               )}
                             </div>
-                            <div className="text-xl font-black">
-                              {m.player1_username} <span className="text-zinc-600">vs</span> {m.player2_username}
+                            <div className="text-xl font-black text-stone-950">
+                              {m.player1_username} <span className="text-stone-400">vs</span> {m.player2_username}
                             </div>
-                            <div className="mt-1 flex items-center gap-3 text-xs text-zinc-500">
+                            <div className="mt-1 flex items-center gap-3 text-xs text-stone-500">
                               <span className="flex items-center gap-1"><Timer size={11} /> {m.duration_minutes} Min. aktiv</span>
                               <span>{m.player1_elo} vs {m.player2_elo} Elo</span>
                             </div>
                           </div>
-                          <button
-                            onClick={() => cancelMatch(m.id)}
-                            className="flex items-center gap-2 rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-2.5 text-xs font-black text-red-200 transition hover:bg-red-400/20"
-                          >
-                            <XCircle size={14} /> {pendingCancelMatchId === m.id ? 'Abbruch bestätigen' : 'Match abbrechen'}
-                          </button>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {pendingCancelMatchId === m.id && <input value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} className="w-52 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-900 outline-none focus:border-rose-300" placeholder="Grund (optional)" />}
+                            <button
+                              onClick={() => cancelMatch(m.id)}
+                              className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                            >
+                              <XCircle size={14} /> {pendingCancelMatchId === m.id ? 'Abbruch bestätigen' : 'Match abbrechen'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1163,40 +1160,40 @@ export default function ModeratorPanel() {
         {tab === 'flagged' && (
           <div>
             {flagged.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 border-2 border-dashed border-[#151923]/30 bg-white/45 py-20 text-center">
-                <ShieldCheck size={32} className="text-slate-400" />
-                <p className="text-sm font-bold text-slate-500">Keine verdächtigen Accounts</p>
+              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
+                <ShieldCheck size={32} className="text-stone-400" />
+                <p className="text-sm font-bold text-stone-500">Keine auffälligen Accounts</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {flagged.map(p => {
                   const isOpen = openFlagged === p.id;
                   return (
-                    <div key={p.id} className="overflow-hidden border border-[#151923] border-l-4 border-l-[#e8b535] bg-[#151923] shadow-[5px_5px_0_rgba(21,25,35,0.10)]">
+                    <div key={p.id} className="overflow-hidden rounded-2xl border border-stone-200 border-l-4 border-l-amber-500 bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)]">
                       <button
                         onClick={() => setOpenFlagged(isOpen ? null : p.id)}
-                        className="w-full px-6 py-5 text-left transition hover:bg-white/[0.03]"
+                        className="w-full px-6 py-5 text-left transition hover:bg-stone-50"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <div>
                             <div className="mb-2 flex flex-wrap gap-2">
                               {p.flags.map(flag => (
-                                <span key={flag} className="inline-flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-400/10 px-2.5 py-1 text-[10px] font-black text-amber-200">
+                                <span key={flag} className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">
                                   <AlertTriangle size={9} /> {flag}
                                 </span>
                               ))}
                             </div>
-                            <div className="text-xl font-black">{p.username}</div>
-                            <div className="mt-1 text-xs text-zinc-500">
+                            <div className="text-xl font-black text-stone-950">{p.username}</div>
+                            <div className="mt-1 text-xs text-stone-500">
                               {p.elo} Elo · {p.gamesPlayed} Spiele · {p.winrate}% Winrate · +{p.elo_gain_7d} Elo (7d) · {p.account_age_days} Tage alt
                             </div>
                           </div>
-                          {isOpen ? <ChevronUp size={18} className="text-zinc-500" /> : <ChevronDown size={18} className="text-zinc-500" />}
+                          {isOpen ? <ChevronUp size={18} className="text-stone-400" /> : <ChevronDown size={18} className="text-stone-400" />}
                         </div>
                       </button>
 
                       {isOpen && (
-                        <div className="border-t border-white/[0.06] px-6 pb-6 pt-5">
+                        <div className="border-t border-stone-100 px-6 pb-6 pt-5">
                           <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                             {[
                               { label: 'Elo', val: p.elo },
@@ -1206,9 +1203,9 @@ export default function ModeratorPanel() {
                               { label: 'Elo +7d', val: `+${p.elo_gain_7d}` },
                               { label: 'Account-Alter', val: `${p.account_age_days}d` },
                             ].map(({ label, val }) => (
-                              <div key={label} className="rounded-2xl border border-white/[0.06] bg-black/20 p-3 text-center">
-                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-600">{label}</div>
-                                <div className="mt-1 text-lg font-black text-white">{val}</div>
+                              <div key={label} className="rounded-2xl border border-stone-200 bg-stone-50 p-3 text-center">
+                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-stone-400">{label}</div>
+                                <div className="mt-1 text-lg font-black text-stone-950">{val}</div>
                               </div>
                             ))}
                           </div>
@@ -1223,12 +1220,12 @@ export default function ModeratorPanel() {
                             />
                             <button
                               onClick={() => warnPlayer(p.id)}
-                              className="flex items-center gap-2 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-5 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-400/20"
+                              className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-black text-amber-700 transition hover:bg-amber-100"
                             >
                               <AlertTriangle size={14} /> Warnen
                             </button>
                           </div>
-                          <p className="mt-2 text-xs text-zinc-700">Die Warnung wird dem Spieler in seiner Benachrichtigungszentrale zugestellt und im Audit-Log festgehalten. Sperren bleiben ausschließlich Admins vorbehalten.</p>
+                          <p className="mt-2 text-xs text-stone-500">Die Warnung wird dem Spieler in der Benachrichtigungszentrale zugestellt und im Aktivitätsprotokoll festgehalten. Sperren bleiben Admins vorbehalten.</p>
                         </div>
                       )}
                     </div>
@@ -1245,27 +1242,27 @@ export default function ModeratorPanel() {
         {tab === 'logs' && (
           <div>
             {logs.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 border-2 border-dashed border-[#151923]/30 bg-white/45 py-20 text-center">
-                <ClipboardList size={32} className="text-slate-400" />
-                <p className="text-sm font-bold text-slate-500">Noch keine Mod-Aktionen</p>
+              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
+                <ClipboardList size={32} className="text-stone-400" />
+                <p className="text-sm font-bold text-stone-500">Noch keine Moderationsaktionen</p>
               </div>
             ) : (
-              <div className="overflow-hidden border border-[#151923] bg-[#151923] shadow-[5px_5px_0_rgba(21,25,35,0.10)]">
-                <div className="divide-y divide-white/[0.05]">
+              <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)]">
+                <div className="divide-y divide-stone-100">
                   {logs.map(log => (
                     <div key={log.id} className="flex items-start gap-4 px-6 py-4">
-                      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#2f58d5]/20 text-[#b6c5ff]">
+                      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-50 text-[#2f6b55]">
                         <Activity size={14} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-black text-zinc-200">{log.mod_username}</span>
-                          <span className="rounded-md border border-[#2f58d5]/25 bg-[#2f58d5]/15 px-2 py-0.5 text-[10px] font-black text-[#b6c5ff]">{log.action}</span>
-                          {log.target_label && <span className="text-xs text-zinc-500">→ {log.target_label}</span>}
+                          <span className="font-black text-stone-900">{log.mod_username}</span>
+                          <span className="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-800">{log.action}</span>
+                          {log.target_label && <span className="text-xs text-stone-500">→ {log.target_label}</span>}
                         </div>
-                        {log.details && <p className="mt-0.5 text-xs text-zinc-600">{log.details}</p>}
+                        {log.details && <p className="mt-0.5 text-xs text-stone-500">{log.details}</p>}
                       </div>
-                      <div className="shrink-0 text-xs text-zinc-700">{timeAgo(log.created_at)}</div>
+                      <div className="shrink-0 text-xs text-stone-400">{timeAgo(log.created_at)}</div>
                     </div>
                   ))}
                 </div>
