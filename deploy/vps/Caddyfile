@@ -1,0 +1,12 @@
+{
+  email {$CADDY_EMAIL}
+}
+
+rankeddarts.de {
+  redir https://www.rankeddarts.de{uri} permanent
+}
+
+www.rankeddarts.de {
+  encode zstd gzip
+  reverse_proxy app:3000
+}

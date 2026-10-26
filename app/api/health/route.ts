@@ -59,16 +59,15 @@ export async function GET() {
   }
 
   const [database, stripe] = await Promise.all([databaseCheck(), stripeCheck()]);
-  const deployment: CheckResult = process.env.VERCEL
-    ? { status: 'ok', latencyMs: 0 }
-    : { status: 'degraded', latencyMs: 0, message: 'Außerhalb von Vercel ausgeführt' };
+  const deploymentPlatform = process.env.DEPLOYMENT_PLATFORM?.trim() || (process.env.VERCEL ? 'vercel' : 'self-hosted');
+  const deployment: CheckResult = { status: 'ok', latencyMs: 0 };
   const status = getOverallHealth([database.status, stripe.status, deployment.status]);
   const payload: HealthPayload = {
     status,
     checkedAt: new Date().toISOString(),
     environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
-    region: process.env.VERCEL_REGION || 'local',
-    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || null,
+    region: process.env.VERCEL_REGION || process.env.DEPLOYMENT_REGION || deploymentPlatform,
+    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || process.env.APP_RELEASE_SHA?.slice(0, 7) || null,
     checks: { database, stripe, deployment },
   };
   cache = { expiresAt: Date.now() + 30_000, payload };
