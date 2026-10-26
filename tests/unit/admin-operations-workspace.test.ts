@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const migration = readFileSync(new URL('../../supabase/migrations/20260918003000_add_admin_operations_workspace.sql', import.meta.url), 'utf8');
 const platformStatsMigration = readFileSync(new URL('../../supabase/migrations/20261017171538_admin_platform_match_stats.sql', import.meta.url), 'utf8');
+const tournamentCommandCenterMigration = readFileSync(new URL('../../supabase/migrations/20261026130000_add_tournament_command_center.sql', import.meta.url), 'utf8');
 const hardening = readFileSync(new URL('../../supabase/migrations/20260918003100_harden_operations_list_access.sql', import.meta.url), 'utf8');
 const workspace = readFileSync(new URL('../../components/admin-operations-workspace.tsx', import.meta.url), 'utf8');
 
@@ -48,4 +49,17 @@ test('operations inbox renders the 24-hour platform breakdown', () => {
   for (const label of ['Scolia', 'DartCounter', 'AutoDarts']) {
     assert.match(workspace, new RegExp(label));
   }
+});
+
+test('tournament command center is admin-only and keeps operational actions routed through existing desks', () => {
+  assert.match(tournamentCommandCenterMigration, /create or replace function public\.admin_get_tournament_command_center\(\)/i);
+  assert.match(tournamentCommandCenterMigration, /if auth\.uid\(\) is null or not public\.is_tournament_admin\(\) then/i);
+  assert.match(tournamentCommandCenterMigration, /set search_path = ''/i);
+  assert.match(tournamentCommandCenterMigration, /support_tickets_command_center_idx/i);
+  assert.match(tournamentCommandCenterMigration, /revoke execute on function public\.admin_get_tournament_command_center\(\) from public/i);
+  assert.match(tournamentCommandCenterMigration, /grant execute on function public\.admin_get_tournament_command_center\(\) to authenticated/i);
+  assert.match(workspace, /admin_get_tournament_command_center/);
+  assert.match(workspace, /Matchrooms aktiv/);
+  assert.match(workspace, /Ticket öffnen/);
+  assert.match(workspace, /Leitung öffnen/);
 });

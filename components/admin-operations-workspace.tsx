@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, BarChart3, BellRing, CheckCircle2, ChevronRight, FolderKanban, Megaphone, Radio, RefreshCw, Send, ShieldCheck, Trophy, UserRoundSearch, UsersRound } from 'lucide-react';
+import { AlertTriangle, BarChart3, BellRing, CheckCircle2, ChevronRight, CircleAlert, ClipboardCheck, FolderKanban, Megaphone, Radio, RefreshCw, Send, ShieldCheck, Swords, Ticket, Trophy, UserRoundSearch, UsersRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
@@ -46,6 +46,58 @@ type Player360 = {
   cases: { id: string; title: string; type: string; status: string; priority: string; updated_at: string }[];
   fairplay: { disposition: string; note: string | null; created_at: string }[];
 };
+type TournamentCommandCenter = {
+  generated_at: string;
+  summary: { live_tournaments: number; checkin_open: number; active_matchrooms: number; open_incidents: number };
+  tournaments: TournamentCommandCenterTournament[];
+  incidents: TournamentCommandCenterIncident[];
+};
+type TournamentCommandCenterMatch = {
+  tournament_match_id: string;
+  active_match_id: string;
+  round_number: number;
+  match_number: number;
+  player1_username: string;
+  player2_username: string;
+  opened_at: string;
+  platform: string | null;
+};
+type TournamentCommandCenterTournament = {
+  id: string;
+  title: string;
+  status: 'registration' | 'live';
+  starts_at: string;
+  check_in_opens_at: string | null;
+  check_in_closes_at: string | null;
+  max_players: number;
+  tournament_format: string;
+  scoring_platform: string | null;
+  participant_count: number;
+  checked_in_count: number;
+  waitlist_count: number;
+  ready_match_count: number;
+  scheduled_match_count: number;
+  completed_match_count: number;
+  open_incident_count: number;
+  active_matches: TournamentCommandCenterMatch[];
+};
+type TournamentCommandCenterIncident = {
+  ticket_id: string;
+  tournament_id: string;
+  tournament_title: string;
+  tournament_match_id: string | null;
+  active_match_id: string | null;
+  round_number: number | null;
+  match_number: number | null;
+  reporter_username: string;
+  player1_username: string;
+  player2_username: string;
+  incident_kind: string | null;
+  status: string;
+  priority: string;
+  created_at: string;
+  updated_at: string;
+};
 
 export type OperationsView = 'inbox' | 'players' | 'competition' | 'communications' | 'team';
 
@@ -55,14 +107,72 @@ function date(value: string | null) {
   return new Intl.DateTimeFormat('de-DE', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
 }
 
-function Badge({ children, tone = 'zinc' }: { children: React.ReactNode; tone?: 'zinc' | 'emerald' | 'amber' | 'violet' | 'rose' }) {
-  const tones = { zinc: 'border-white/10 bg-white/[0.04] text-zinc-300', emerald: 'border-emerald-300/20 bg-emerald-400/10 text-emerald-100', amber: 'border-amber-300/20 bg-amber-300/10 text-amber-100', violet: 'border-violet-300/20 bg-violet-400/10 text-violet-100', rose: 'border-rose-300/20 bg-rose-400/10 text-rose-100' };
+function Badge({ children, tone = 'zinc' }: { children: React.ReactNode; tone?: 'zinc' | 'emerald' | 'amber' | 'violet' | 'rose' | 'cyan' }) {
+  const tones = { zinc: 'border-white/10 bg-white/[0.04] text-zinc-300', emerald: 'border-emerald-300/20 bg-emerald-400/10 text-emerald-100', amber: 'border-amber-300/20 bg-amber-300/10 text-amber-100', violet: 'border-violet-300/20 bg-violet-400/10 text-violet-100', rose: 'border-rose-300/20 bg-rose-400/10 text-rose-100', cyan: 'border-cyan-300/20 bg-cyan-400/10 text-cyan-100' };
   return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${tones[tone]}`}>{children}</span>;
 }
 
-export function AdminOperationsWorkspace({ view, onNavigate }: { view: OperationsView; onNavigate: (destination: 'disputes' | 'tickets' | 'payouts' | 'tournaments' | 'flagged') => void }) {
+function formatTournamentFormat(format: string) {
+  return ({ single_elimination: 'K.-o.-System', double_elimination: 'Double Elimination', group_stage: 'Gruppenphase' }[format] || format.replaceAll('_', ' '));
+}
+
+function incidentLabel(kind: string | null) {
+  return ({ opponent_absent: 'Gegner nicht da', technical_problem: 'Technisches Problem', result_question: 'Ergebnisfrage' }[kind || ''] || 'Turnierhilfe');
+}
+
+function TournamentCommandCenterPanel({
+  data,
+  loading,
+  onRefresh,
+  onOpenTournament,
+  onOpenTicket,
+}: {
+  data: TournamentCommandCenter | null;
+  loading: boolean;
+  onRefresh: () => void;
+  onOpenTournament: (tournamentId: string) => void;
+  onOpenTicket: (ticketId: string) => void;
+}) {
+  const summary = data?.summary || { live_tournaments: 0, checkin_open: 0, active_matchrooms: 0, open_incidents: 0 };
+  const metrics = [
+    { label: 'Live-Turniere', value: summary.live_tournaments, icon: Radio, tone: 'text-emerald-200', panel: 'border-emerald-300/18 bg-emerald-400/[0.06]' },
+    { label: 'Check-in offen', value: summary.checkin_open, icon: ClipboardCheck, tone: 'text-cyan-200', panel: 'border-cyan-300/18 bg-cyan-400/[0.06]' },
+    { label: 'Matchrooms aktiv', value: summary.active_matchrooms, icon: Swords, tone: 'text-amber-200', panel: 'border-amber-300/18 bg-amber-300/[0.06]' },
+    { label: 'Hilfe offen', value: summary.open_incidents, icon: CircleAlert, tone: 'text-rose-200', panel: 'border-rose-300/18 bg-rose-400/[0.06]' },
+  ];
+
+  return <section className="overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.13),transparent_40%),linear-gradient(145deg,rgba(8,15,23,0.98),rgba(6,10,16,0.97))] shadow-2xl shadow-black/30">
+    <header className="flex flex-col gap-5 border-b border-white/10 px-5 py-6 sm:px-7 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-cyan-300/25 bg-cyan-300/[0.1] text-cyan-100"><Trophy className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200">Turnier-Leitstand</p><h2 className="mt-1 text-2xl font-black tracking-[-0.05em] text-white sm:text-3xl">Spielbetrieb ohne Suchen.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Check-in, offene Matchrooms und Turnierhilfe liegen in einer Ansicht. Änderungen bleiben bewusst in der Turnierverwaltung nachvollziehbar.</p></div></div>
+      <div className="flex items-center gap-3"><span className="hidden text-right text-[10px] font-bold leading-4 text-zinc-500 sm:block">Letzter Stand<br />{data ? date(data.generated_at) : '—'}</span><button type="button" onClick={onRefresh} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-3.5 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-100 transition hover:bg-white/[0.09] disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />Aktualisieren</button></div>
+    </header>
+
+    <div className="grid gap-3 border-b border-white/10 p-5 sm:grid-cols-2 lg:grid-cols-4 sm:p-6">
+      {metrics.map((metric) => { const Icon = metric.icon; return <div key={metric.label} className={`rounded-2xl border p-4 ${metric.panel}`}><Icon className={`h-4 w-4 ${metric.tone}`} /><p className="mt-5 text-3xl font-black tracking-[-0.06em] text-white">{metric.value}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">{metric.label}</p></div>; })}
+    </div>
+
+    <div className="grid gap-6 p-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.8fr)] sm:p-6">
+      <div>
+        <div className="mb-4 flex items-center justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Aktive Turniere</p><h3 className="mt-1 text-lg font-black text-white">Was gerade im Betrieb passiert</h3></div><span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-[10px] font-black text-zinc-400">{data?.tournaments.length ?? 0} im Blick</span></div>
+        {loading && !data ? <p className="rounded-2xl border border-white/10 bg-black/20 px-4 py-8 text-sm text-zinc-500">Turnierlage wird geladen …</p> : data?.tournaments.length ? <div className="space-y-3">{data.tournaments.map((tournament) => {
+          return <article key={tournament.id} className={`overflow-hidden rounded-2xl border ${tournament.status === 'live' ? 'border-emerald-300/22 bg-emerald-400/[0.045]' : 'border-white/10 bg-black/20'}`}>
+            <div className="flex flex-col gap-4 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Badge tone={tournament.status === 'live' ? 'emerald' : 'violet'}>{tournament.status === 'live' ? 'Live' : 'Anmeldung'}</Badge><span className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-600">{formatTournamentFormat(tournament.tournament_format)}</span></div><h4 className="mt-2 truncate text-lg font-black text-white">{tournament.title}</h4><p className="mt-1 text-xs text-zinc-500">Start {date(tournament.starts_at)} · {tournament.scoring_platform || 'Plattform wird festgelegt'}</p></div><button type="button" onClick={() => onOpenTournament(tournament.id)} className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/[0.08]">Leitung öffnen</button></div>
+              <div className="grid gap-2 sm:grid-cols-4"><div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5"><p className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-600">Teilnehmer</p><p className="mt-1 text-sm font-black text-white">{tournament.participant_count}/{tournament.max_players}</p><p className="text-[10px] text-emerald-200">{tournament.checked_in_count} eingecheckt</p></div><div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5"><p className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-600">Bereit</p><p className="mt-1 text-sm font-black text-white">{tournament.ready_match_count}</p><p className="text-[10px] text-zinc-500">{tournament.scheduled_match_count} geplant</p></div><div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5"><p className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-600">Gespielt</p><p className="mt-1 text-sm font-black text-white">{tournament.completed_match_count}</p><p className="text-[10px] text-zinc-500">Matches beendet</p></div><div className={`rounded-xl border px-3 py-2.5 ${tournament.open_incident_count ? 'border-rose-300/20 bg-rose-400/[0.07]' : 'border-white/8 bg-black/20'}`}><p className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-600">Turnierhilfe</p><p className={`mt-1 text-sm font-black ${tournament.open_incident_count ? 'text-rose-100' : 'text-white'}`}>{tournament.open_incident_count}</p><p className="text-[10px] text-zinc-500">offene Fälle</p></div></div>
+            </div>
+            {tournament.active_matches.length > 0 ? <div className="border-t border-white/10 bg-black/20 px-4 py-3.5 sm:px-5"><div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.13em] text-amber-200"><Swords className="h-3.5 w-3.5" />Aktive Matchrooms</div><div className="grid gap-2 md:grid-cols-2">{tournament.active_matches.map((match) => <div key={match.tournament_match_id} className="flex items-center justify-between gap-3 rounded-xl border border-amber-300/13 bg-amber-300/[0.045] px-3 py-2.5"><span className="min-w-0"><span className="block truncate text-xs font-bold text-white">{match.player1_username} <span className="text-zinc-600">vs.</span> {match.player2_username}</span><span className="mt-1 block text-[10px] text-zinc-500">Runde {match.round_number} · Match {match.match_number} · seit {date(match.opened_at)}</span></span><button type="button" onClick={() => onOpenTournament(tournament.id)} className="shrink-0 text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 hover:text-white">Prüfen →</button></div>)}</div></div> : null}
+          </article>;
+        })}</div> : <div className="rounded-2xl border border-dashed border-white/14 bg-black/20 px-5 py-9 text-center"><Trophy className="mx-auto h-5 w-5 text-zinc-600" /><p className="mt-3 text-sm font-bold text-zinc-400">Kein Turnier im laufenden Betrieb.</p><p className="mt-1 text-xs leading-5 text-zinc-600">Sobald Anmeldung oder Turnier live sind, erscheint es hier automatisch.</p></div>}
+      </div>
+
+      <aside className="rounded-2xl border border-rose-300/15 bg-rose-400/[0.035] p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl border border-rose-300/20 bg-rose-400/[0.1] text-rose-100"><CircleAlert className="h-4 w-4" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-200">Turnierhilfe</p><h3 className="mt-1 text-lg font-black text-white">Fälle, die den Ablauf bremsen</h3></div></div><p className="mt-3 text-xs leading-5 text-zinc-500">Ein Klick öffnet das vorhandene Ticket. Ergebnisse und No‑Shows werden weiterhin bewusst im jeweiligen Turnier entschieden.</p><div className="mt-5 space-y-2.5">{data?.incidents.length ? data.incidents.map((incident) => <article key={incident.ticket_id} className="rounded-xl border border-white/10 bg-black/25 p-3.5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap gap-2"><Badge tone={incident.priority === 'urgent' ? 'rose' : incident.priority === 'high' ? 'amber' : 'zinc'}>{incident.priority}</Badge><span className="text-[10px] font-black uppercase tracking-[0.1em] text-rose-200">{incidentLabel(incident.incident_kind)}</span></div><p className="mt-2 truncate text-sm font-black text-white">{incident.player1_username} <span className="text-zinc-600">vs.</span> {incident.player2_username}</p><p className="mt-1 text-[11px] text-zinc-500">{incident.tournament_title}{incident.round_number ? ` · Runde ${incident.round_number}, Match ${incident.match_number}` : ''}</p><p className="mt-1 text-[10px] text-zinc-600">von {incident.reporter_username} · {date(incident.updated_at)}</p></div></div><div className="mt-3 flex gap-3"><button type="button" onClick={() => onOpenTicket(incident.ticket_id)} className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.1em] text-rose-100 hover:text-white"><Ticket className="h-3.5 w-3.5" />Ticket öffnen</button><button type="button" onClick={() => onOpenTournament(incident.tournament_id)} className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-400 hover:text-white">Turnier prüfen →</button></div></article>) : <div className="rounded-xl border border-dashed border-white/12 px-4 py-7 text-center"><CheckCircle2 className="mx-auto h-5 w-5 text-emerald-200" /><p className="mt-3 text-sm font-bold text-zinc-300">Keine offene Turnierhilfe.</p><p className="mt-1 text-xs text-zinc-600">Der Spielbetrieb hat gerade keine gemeldeten Blocker.</p></div>}</div></aside>
+    </div>
+  </section>;
+}
+
+export function AdminOperationsWorkspace({ view, onNavigate, onOpenTournament, onOpenTicket }: { view: OperationsView; onNavigate: (destination: 'disputes' | 'tickets' | 'payouts' | 'tournaments' | 'flagged') => void; onOpenTournament?: (tournamentId: string) => void; onOpenTicket?: (ticketId: string) => void }) {
   const supabase = useMemo(() => createClient(), []);
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null);
+  const [tournamentCommandCenter, setTournamentCommandCenter] = useState<TournamentCommandCenter | null>(null);
   const [cases, setCases] = useState<Case[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [growthFunnel, setGrowthFunnel] = useState<GrowthFunnel | null>(null);
@@ -80,21 +190,26 @@ export function AdminOperationsWorkspace({ view, onNavigate }: { view: Operation
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [workspaceResult, casesResult, noticesResult, funnelResult] = await Promise.all([
+    const tournamentCommandCenterRequest = view === 'competition'
+      ? supabase.rpc('admin_get_tournament_command_center')
+      : Promise.resolve({ data: null, error: null });
+    const [workspaceResult, casesResult, noticesResult, funnelResult, tournamentCommandCenterResult] = await Promise.all([
       supabase.rpc('admin_get_operations_workspace'),
       supabase.rpc('admin_list_cases', { p_status: null }),
       supabase.rpc('admin_list_site_notices'),
       supabase.rpc('admin_get_growth_funnel', { p_days: funnelWindowDays }),
+      tournamentCommandCenterRequest,
     ]);
-    if (workspaceResult.error || casesResult.error || noticesResult.error || funnelResult.error) {
-      setMessage(`Operations-Daten konnten nicht vollständig geladen werden: ${workspaceResult.error?.message || casesResult.error?.message || noticesResult.error?.message || funnelResult.error?.message}`);
+    if (workspaceResult.error || casesResult.error || noticesResult.error || funnelResult.error || tournamentCommandCenterResult.error) {
+      setMessage(`Operations-Daten konnten nicht vollständig geladen werden: ${workspaceResult.error?.message || casesResult.error?.message || noticesResult.error?.message || funnelResult.error?.message || tournamentCommandCenterResult.error?.message}`);
     }
     if (workspaceResult.data) setWorkspace(workspaceResult.data as WorkspaceData);
     if (casesResult.data) setCases(casesResult.data as Case[]);
     if (noticesResult.data) setNotices(noticesResult.data as Notice[]);
     if (funnelResult.data) setGrowthFunnel(funnelResult.data as GrowthFunnel);
+    if (tournamentCommandCenterResult.data) setTournamentCommandCenter(tournamentCommandCenterResult.data as TournamentCommandCenter);
     setLoading(false);
-  }, [funnelWindowDays, supabase]);
+  }, [funnelWindowDays, supabase, view]);
 
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
 
@@ -204,8 +319,9 @@ export function AdminOperationsWorkspace({ view, onNavigate }: { view: Operation
       <section className="rounded-[2rem] border border-amber-300/15 bg-amber-300/[0.035] p-5 shadow-2xl shadow-black/25 sm:p-6"><div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100"><FolderKanban className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Fallmanagement</p><h3 className="mt-1 text-xl font-black text-white">Saubere interne Vorgänge</h3></div></div><div className="mt-5 space-y-3"><input value={caseDraft.title} onChange={(e) => setCaseDraft({ ...caseDraft, title: e.target.value })} className={input} placeholder="Titel des Falls" /><textarea value={caseDraft.summary} onChange={(e) => setCaseDraft({ ...caseDraft, summary: e.target.value })} className={`${input} min-h-20 resize-y`} placeholder="Interne Zusammenfassung / Belege …" /><div className="grid grid-cols-3 gap-2"><select value={caseDraft.type} onChange={(e) => setCaseDraft({ ...caseDraft, type: e.target.value })} className={input}><option value="fairplay">Fair Play</option><option value="match">Match</option><option value="support">Support</option><option value="tournament">Turnier</option><option value="account">Account</option></select><select value={caseDraft.priority} onChange={(e) => setCaseDraft({ ...caseDraft, priority: e.target.value })} className={input}><option value="low">Niedrig</option><option value="normal">Normal</option><option value="high">Hoch</option><option value="urgent">Dringend</option></select><button onClick={() => void saveCase()} className="rounded-xl bg-amber-300 px-3 text-xs font-black text-black transition hover:bg-amber-200">Anlegen</button></div></div><div className="mt-6 space-y-2">{cases.slice(0, 6).map((item) => <div key={item.id} className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-black text-white">{item.title}</p><p className="mt-1 text-xs text-zinc-500">{item.username} · aktualisiert {date(item.updated_at)}</p></div><Badge tone={item.priority === 'urgent' ? 'rose' : item.priority === 'high' ? 'amber' : 'zinc'}>{item.status}</Badge></div><div className="mt-3 flex gap-2"><button onClick={() => void advanceCase(item, 'investigating')} className="text-[10px] font-black uppercase tracking-wider text-cyan-200 hover:text-white">Übernehmen</button><button onClick={() => void advanceCase(item, 'resolved')} className="text-[10px] font-black uppercase tracking-wider text-emerald-200 hover:text-white">Lösen</button></div></div>)}{cases.length === 0 && <p className="py-5 text-sm text-zinc-500">Noch keine internen Fälle.</p>}</div></section>
     </div>
 
-    <div className={view === 'competition' || view === 'communications' ? 'grid gap-6 xl:grid-cols-2' : 'hidden'}>
-      <section className={view === 'competition' ? 'rounded-[2rem] border border-cyan-300/15 bg-cyan-400/[0.035] p-5 shadow-2xl shadow-black/25 sm:p-6' : 'hidden'}><div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-400/10 text-cyan-100"><Trophy className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">Turnier-Leitstand</p><h3 className="mt-1 text-xl font-black text-white">Laufende Cups auf einen Blick</h3></div></div><div className="mt-5 space-y-3">{workspace?.tournaments.length ? workspace.tournaments.map((tournament) => <button key={tournament.id} onClick={() => onNavigate('tournaments')} className="flex w-full items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-cyan-300/25"><span><span className="block text-sm font-black text-white">{tournament.title}</span><span className="mt-1 block text-xs text-zinc-500">{tournament.participants} Teilnehmer · {tournament.open_matches} offene Paarungen · {tournament.platform}</span></span><Badge tone={tournament.status === 'live' ? 'emerald' : 'violet'}>{tournament.status === 'live' ? 'Live' : 'Anmeldung'}</Badge></button>) : <p className="py-5 text-sm text-zinc-500">Derzeit kein aktives Turnier.</p>}</div><button onClick={() => onNavigate('tournaments')} className="mt-5 text-xs font-black text-cyan-200 hover:text-white">Turnierverwaltung öffnen →</button></section>
+    {view === 'competition' ? <TournamentCommandCenterPanel data={tournamentCommandCenter} loading={loading} onRefresh={() => void load()} onOpenTournament={(tournamentId) => onOpenTournament?.(tournamentId)} onOpenTicket={(ticketId) => onOpenTicket?.(ticketId)} /> : null}
+
+    <div className={view === 'communications' ? 'grid gap-6 xl:grid-cols-2' : 'hidden'}>
 
       <section className={view === 'communications' ? 'rounded-[2rem] border border-violet-300/15 bg-violet-400/[0.035] p-5 shadow-2xl shadow-black/25 sm:p-6' : 'hidden'}><div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-violet-300/20 bg-violet-400/10 text-violet-100"><Megaphone className="h-5 w-5" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-200">Plattform-Ankündigung</p><h3 className="mt-1 text-xl font-black text-white">Banner mit Ablaufzeit</h3></div></div><div className="mt-5 grid gap-3"><input value={noticeDraft.title} onChange={(e) => setNoticeDraft({ ...noticeDraft, title: e.target.value })} className={input} placeholder="z. B. Mittwoch Showdown heute" /><textarea value={noticeDraft.body} onChange={(e) => setNoticeDraft({ ...noticeDraft, body: e.target.value })} className={`${input} min-h-16 resize-y`} placeholder="Kurzer Hinweis für Spieler …" /><div className="grid grid-cols-3 gap-2"><select value={noticeDraft.tone} onChange={(e) => setNoticeDraft({ ...noticeDraft, tone: e.target.value })} className={input}><option value="event">Event</option><option value="info">Info</option><option value="success">Erfolg</option><option value="warning">Hinweis</option></select><input value={noticeDraft.href} onChange={(e) => setNoticeDraft({ ...noticeDraft, href: e.target.value })} className={input} placeholder="/showdown" /><input type="datetime-local" value={noticeDraft.expiresAt} onChange={(e) => setNoticeDraft({ ...noticeDraft, expiresAt: e.target.value })} className={input} /></div><button onClick={() => void saveNotice()} className="rounded-xl bg-violet-300 px-4 py-3 text-xs font-black text-violet-950 transition hover:bg-violet-200">Ankündigung aktivieren</button></div><div className="mt-5 space-y-2">{notices.slice(0, 4).map((notice) => <div key={notice.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5"><span className="min-w-0"><span className="block truncate text-sm font-bold text-white">{notice.title}</span><span className="text-xs text-zinc-500">{notice.is_active ? 'aktiv' : 'pausiert'} · bis {date(notice.expires_at)}</span></span><button onClick={() => void toggleNotice(notice)} className="text-[10px] font-black uppercase tracking-wider text-violet-200 hover:text-white">{notice.is_active ? 'Pausieren' : 'Aktivieren'}</button></div>)}</div></section>
     </div>

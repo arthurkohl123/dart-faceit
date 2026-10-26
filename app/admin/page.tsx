@@ -1077,8 +1077,8 @@ export default function AdminPanel() {
     setActionMessage(winnerId ? 'Turniersieger und Preisverwaltung aktualisiert.' : 'Preisinformationen aktualisiert.'); await loadTournaments();
   };
 
-  const openTicketDetail = useCallback(async (ticketId: string) => {
-    if (openTicketId === ticketId) { setOpenTicketId(null); setTicketDetail(null); return; }
+  const openTicketDetail = useCallback(async (ticketId: string, forceOpen = false) => {
+    if (!forceOpen && openTicketId === ticketId) { setOpenTicketId(null); setTicketDetail(null); return; }
     const { data } = await supabase.rpc('admin_get_ticket_detail', { p_ticket_id: ticketId });
     if (data) { setTicketDetail(data as AdminTicketDetail); setOpenTicketId(ticketId); }
   }, [openTicketId, supabase]);
@@ -1713,7 +1713,7 @@ export default function AdminPanel() {
     : 1000;
   const projectedMinimum = projectedEloValues.length ? Math.min(...projectedEloValues) : 1000;
   const projectedMaximum = projectedEloValues.length ? Math.max(...projectedEloValues) : 1000;
-  const now = Date.now();
+  const now = lastRefreshedAt?.getTime() ?? 0;
   const openTickets = tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in_progress');
   const ticketsInQueue = openTickets.length;
   const ticketsWaitingForUser = tickets.filter((ticket) => ticket.status === 'waiting_for_user').length;
@@ -1809,7 +1809,7 @@ export default function AdminPanel() {
       label: 'Wettbewerb',
       items: [
         { id: 'tournaments', label: 'Turnierverwaltung', detail: 'Turniere, Regeln & Brackets', icon: Trophy, badge: activeTournamentCount || null, tone: 'text-cyan-200' },
-        { id: 'competition_ops', label: 'Turnierlage', detail: 'Check-in & aktive Cups', icon: Radar, badge: upcomingCheckIns.length || null, tone: 'text-cyan-200' },
+        { id: 'competition_ops', label: 'Turnier-Leitstand', detail: 'Live-Cups, Matchrooms & Hilfe', icon: Radar, badge: activeTournamentCount || null, tone: 'text-cyan-200' },
         { id: 'payouts', label: 'Prize Desk', detail: `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen`, icon: Crown, badge: pendingPayouts.length || null, tone: 'text-lime-200' },
       ],
     },
@@ -2096,7 +2096,14 @@ export default function AdminPanel() {
 
           {activeTab === 'operations' && <AdminOperationsWorkspace view="inbox" onNavigate={(destination) => goToSection(destination)} />}
           {activeTab === 'player_cases' && <AdminOperationsWorkspace view="players" onNavigate={(destination) => goToSection(destination)} />}
-          {activeTab === 'competition_ops' && <AdminOperationsWorkspace view="competition" onNavigate={(destination) => goToSection(destination)} />}
+          {activeTab === 'competition_ops' && <AdminOperationsWorkspace view="competition" onNavigate={(destination) => goToSection(destination)} onOpenTournament={(tournamentId) => {
+            const tournament = tournaments.find((item) => item.id === tournamentId);
+            goToSection('tournaments');
+            if (tournament) void openTournamentManagement(tournament);
+          }} onOpenTicket={(ticketId) => {
+            goToSection('tickets');
+            void openTicketDetail(ticketId, true);
+          }} />}
           {activeTab === 'communications' && <AdminOperationsWorkspace view="communications" onNavigate={(destination) => goToSection(destination)} />}
           {activeTab === 'team_analytics' && <AdminOperationsWorkspace view="team" onNavigate={(destination) => goToSection(destination)} />}
 
