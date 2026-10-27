@@ -17,10 +17,10 @@ test('the VPS deployment uses the traced standalone server behind a reverse prox
   assert.match(dockerfile, /\.next\/static/);
   assert.match(compose, /caddy:2\.10\.2-alpine/);
   assert.match(compose, /condition: service_healthy/);
-  assert.match(compose, /host\.docker\.internal:host-gateway/);
+  assert.match(compose, /name: supabase_default/);
   assert.match(caddyfile, /reverse_proxy app:3000/);
   assert.match(caddyfile, /api\.rankeddarts\.de/);
-  assert.match(caddyfile, /reverse_proxy host\.docker\.internal:8000/);
+  assert.match(caddyfile, /reverse_proxy api-gw:8000/);
 });
 
 test('the VPS keeps the daily Discord reconciliation and reports its own release health', () => {
