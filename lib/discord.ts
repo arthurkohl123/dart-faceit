@@ -94,6 +94,13 @@ async function syncDiscordRole(
     return { ok: false, code: 'ROLE_UPDATE_FAILED', message: `Discord-Mitglied konnte nicht geprüft werden (HTTP ${memberResponse.status}).` };
   }
 
+  const member = await memberResponse.json().catch(() => null) as { roles?: unknown } | null;
+  const currentRoles = Array.isArray(member?.roles)
+    ? member.roles.filter((role): role is string => typeof role === 'string')
+    : [];
+  const alreadyMatches = currentRoles.includes(roleId) === shouldHaveRole;
+  if (alreadyMatches) return { ok: true };
+
   const rolePath = `/guilds/${config.guildId}/members/${discordUserId}/roles/${roleId}`;
   const roleResponse = shouldHaveRole
     ? await discordFetch(rolePath, { method: 'PUT', body: JSON.stringify({}) }, config.botToken)
