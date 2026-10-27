@@ -161,18 +161,18 @@ function toNonNegativeInteger(value: string) {
 }
 
 const statusCfg: Record<string, { label: string; cls: string; dot: string }> = {
-  open:             { label: 'Offen',          cls: 'border-emerald-900/15 bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500' },
-  in_progress:      { label: 'In Bearbeitung', cls: 'border-sky-900/15 bg-sky-50 text-sky-800',             dot: 'bg-sky-500' },
-  waiting_for_user: { label: 'Warte auf User', cls: 'border-amber-900/15 bg-amber-50 text-amber-800',       dot: 'bg-amber-500' },
-  resolved:         { label: 'Gelöst',         cls: 'border-stone-900/10 bg-stone-100 text-stone-600',      dot: 'bg-stone-400' },
-  closed:           { label: 'Geschlossen',    cls: 'border-stone-900/10 bg-stone-50 text-stone-500',        dot: 'bg-stone-300' },
+  open:             { label: 'Offen',          cls: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200', dot: 'bg-emerald-300' },
+  in_progress:      { label: 'In Bearbeitung', cls: 'border-sky-300/20 bg-sky-300/10 text-sky-200',             dot: 'bg-sky-300' },
+  waiting_for_user: { label: 'Warte auf User', cls: 'border-amber-300/20 bg-amber-300/10 text-amber-200',       dot: 'bg-amber-300' },
+  resolved:         { label: 'Gelöst',         cls: 'border-white/10 bg-white/[0.06] text-[#bed0c8]',           dot: 'bg-[#9eb6aa]' },
+  closed:           { label: 'Geschlossen',    cls: 'border-white/10 bg-white/[0.035] text-[#82988e]',           dot: 'bg-[#70877c]' },
 };
 
 const priorityCfg: Record<string, { label: string; cls: string }> = {
-  low:    { label: 'Niedrig', cls: 'text-stone-400' },
-  normal: { label: 'Normal',  cls: 'text-stone-600' },
-  high:   { label: 'Hoch',    cls: 'text-amber-700' },
-  urgent: { label: 'Dringend',cls: 'text-rose-700' },
+  low:    { label: 'Niedrig', cls: 'text-[#82988e]' },
+  normal: { label: 'Normal',  cls: 'text-[#b8cbc2]' },
+  high:   { label: 'Hoch',    cls: 'text-amber-200' },
+  urgent: { label: 'Dringend',cls: 'text-rose-300' },
 };
 
 const catLabels: Record<string, string> = {
@@ -181,12 +181,48 @@ const catLabels: Record<string, string> = {
 };
 
 const matchStatusCfg: Record<string, { label: string; cls: string }> = {
-  pending_result:        { label: 'Läuft',        cls: 'border-emerald-900/15 bg-emerald-50 text-emerald-800' },
-  awaiting_confirmation: { label: 'Bestätigung',  cls: 'border-amber-900/15 bg-amber-50 text-amber-800' },
-  disputed:              { label: 'Dispute',      cls: 'border-rose-900/15 bg-rose-50 text-rose-800' },
+  pending_result:        { label: 'Läuft',        cls: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200' },
+  awaiting_confirmation: { label: 'Bestätigung',  cls: 'border-amber-300/20 bg-amber-300/10 text-amber-200' },
+  disputed:              { label: 'Dispute',      cls: 'border-rose-300/20 bg-rose-300/10 text-rose-200' },
 };
 
-const inputCls = 'w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-[#2f6b55] focus:ring-4 focus:ring-[#2f6b55]/10';
+const inputCls = 'w-full rounded-xl border border-white/10 bg-[#061511]/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-[#779286] focus:border-[#b8ff8b]/60 focus:ring-4 focus:ring-[#b8ff8b]/10';
+
+const opsCardCls = 'rounded-[1.4rem] border border-white/10 bg-[#0e2b23]/85 shadow-[0_16px_42px_rgba(0,0,0,.16)]';
+const opsEmptyCls = 'flex flex-col items-center gap-3 rounded-[1.4rem] border border-dashed border-white/15 bg-[#0e2b23]/45 py-20 text-center';
+
+const viewMeta = {
+  desk: {
+    kicker: 'Live-Überblick',
+    title: 'Einsatzleitzentrale',
+    description: 'Prioritäten, Spielbetrieb und Fälle in einem ruhigen Arbeitsbereich.',
+  },
+  tickets: {
+    kicker: 'Fallbearbeitung',
+    title: 'Fall-Inbox',
+    description: 'Übernimm Fälle klar sichtbar, halte den Kontext fest und gib Spielern verlässliche Antworten.',
+  },
+  disputes: {
+    kicker: 'Entscheidungen',
+    title: 'Dispute-Desk',
+    description: 'Prüfe die Fakten sorgfältig. Jede Entscheidung bleibt für das Team nachvollziehbar.',
+  },
+  matches: {
+    kicker: 'Spielbetrieb',
+    title: 'Live-Monitor',
+    description: 'Behalte laufende Matches im Blick und greife nur ein, wenn ein klarer Anlass besteht.',
+  },
+  flagged: {
+    kicker: 'Fair Play',
+    title: 'Account-Hinweise',
+    description: 'Hinweise sind kein Urteil. Nutze sie als Anlass zur sorgfältigen, fairen Prüfung.',
+  },
+  logs: {
+    kicker: 'Nachvollziehbarkeit',
+    title: 'Team-Aktivität',
+    description: 'Alle Moderationsmaßnahmen bleiben transparent und für das Team nachvollziehbar.',
+  },
+} as const;
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -207,17 +243,18 @@ function TabBtn({ active, onClick, icon, label, badge }: {
   return (
     <button
       onClick={onClick}
-      className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-sm font-bold transition-all ${
+      aria-current={active ? 'page' : undefined}
+      className={`group flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left text-sm font-bold transition-all ${
         active
-          ? 'bg-[#153f33] text-white shadow-sm'
-          : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900'
+          ? 'bg-gradient-to-r from-[#d4ff9a] to-[#8ee5bf] text-[#072118] shadow-[0_10px_28px_rgba(154,255,197,.18)]'
+          : 'text-[#a9bbb4] hover:bg-white/[0.07] hover:text-white'
       }`}
     >
-      <span className={active ? 'text-[#d5f080]' : 'text-stone-400 group-hover:text-[#153f33]'}>{icon}</span>
+      <span className={active ? 'text-[#072118]' : 'text-[#6f9185] group-hover:text-[#b8f2d5]'}>{icon}</span>
       <span>{label}</span>
       {badge != null && badge > 0 && (
         <span className={`ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-md px-1.5 text-[10px] font-black ${
-          active ? 'bg-[#d5f080] text-[#153f33]' : 'bg-stone-200 text-stone-600'
+          active ? 'bg-[#072118]/10 text-[#072118]' : 'bg-white/10 text-[#d7eee3]'
         }`}>{badge}</span>
       )}
     </button>
@@ -541,15 +578,16 @@ export default function ModeratorPanel() {
   const liveCount        = liveMatches.length;
   const flaggedCount     = flagged.length;
   const visibleTickets = tickets.filter((ticket) => `${ticket.subject} ${ticket.username} ${ticket.category}`.toLocaleLowerCase('de-DE').includes(ticketSearch.trim().toLocaleLowerCase('de-DE')));
+  const currentView = viewMeta[tab];
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f0eee8] text-[#151923]">
+      <main className="flex min-h-screen items-center justify-center bg-[#061511] text-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#c9c6bc] border-t-[#2f58d5]" />
-          <p className="text-sm font-bold text-stone-500">Moderation wird vorbereitet…</p>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-[#b8ff8b]" />
+          <p className="text-sm font-bold text-[#b6cec4]">Moderation wird vorbereitet…</p>
         </div>
       </main>
     );
@@ -557,14 +595,14 @@ export default function ModeratorPanel() {
 
   if (accessError) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f6f5f1] px-5 text-stone-900">
-        <div className="w-full max-w-md rounded-3xl border border-stone-200 bg-white p-7 shadow-[0_24px_60px_rgba(36,45,40,.10)]">
-          <div className="mb-5 grid h-11 w-11 place-items-center rounded-2xl bg-rose-50 text-rose-700"><Shield size={21} /></div>
+      <main className="grid min-h-screen place-items-center bg-[#061511] px-5 text-white">
+        <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#0d251f] p-7 shadow-[0_24px_80px_rgba(0,0,0,.35)]">
+          <div className="mb-5 grid h-11 w-11 place-items-center rounded-2xl bg-rose-400/10 text-rose-300"><Shield size={21} /></div>
           <h1 className="text-2xl font-black tracking-tight">Moderation nicht verfügbar</h1>
-          <p className="mt-3 text-sm leading-6 text-stone-600">{accessError}</p>
+          <p className="mt-3 text-sm leading-6 text-[#b6cec4]">{accessError}</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button onClick={() => window.location.reload()} className="rounded-xl bg-[#153f33] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#205542]">Erneut versuchen</button>
-            <Link href="/" className="rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-bold text-stone-700 transition hover:bg-stone-50">Zur Startseite</Link>
+            <button onClick={() => window.location.reload()} className="rounded-xl bg-[#b8ff8b] px-4 py-2.5 text-sm font-bold text-[#072118] transition hover:bg-[#d2ffb7]">Erneut versuchen</button>
+            <Link href="/" className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-bold text-[#d8ebe2] transition hover:bg-white/5">Zur Startseite</Link>
           </div>
         </div>
       </main>
@@ -574,46 +612,46 @@ export default function ModeratorPanel() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f6f5f1] text-stone-900">
+    <main className="relative min-h-screen overflow-hidden bg-[#061511] text-white">
 
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute -left-48 top-12 h-[32rem] w-[32rem] rounded-full bg-[#b8d8b5]/35 blur-3xl" />
-        <div className="absolute -right-36 top-1/3 h-[30rem] w-[30rem] rounded-full bg-[#ead9ad]/35 blur-3xl" />
-        <div className="absolute inset-0 opacity-[0.32] [background-image:radial-gradient(#c9c6bc_1px,transparent_1px)] [background-size:22px_22px]" />
+        <div className="absolute -left-48 top-12 h-[32rem] w-[32rem] rounded-full bg-[#29c985]/20 blur-3xl" />
+        <div className="absolute -right-36 top-1/3 h-[30rem] w-[30rem] rounded-full bg-[#0da4a8]/20 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.14] [background-image:linear-gradient(rgba(154,255,197,.18)_1px,transparent_1px),linear-gradient(90deg,rgba(154,255,197,.18)_1px,transparent_1px)] [background-size:46px_46px]" />
       </div>
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-2xl border px-5 py-3.5 text-sm font-bold shadow-xl backdrop-blur-xl transition-all ${
+        <div role="status" aria-live="polite" className={`fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-2xl border px-5 py-3.5 text-sm font-bold shadow-2xl backdrop-blur-xl transition-all ${
           toast.ok
-            ? 'border-emerald-200 bg-white/95 text-emerald-800'
-            : 'border-rose-200 bg-white/95 text-rose-800'
+            ? 'border-emerald-300/30 bg-[#0e2b23]/95 text-[#b8ff8b]'
+            : 'border-rose-300/30 bg-[#32151a]/95 text-rose-100'
         }`}>
           {toast.ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
           {toast.msg}
         </div>
       )}
 
-      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-stone-200/80 bg-[#f6f5f1]/90 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-3.5 md:px-8">
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#061511]/80 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-[1540px] items-center justify-between px-5 py-3.5 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-[#153f33] text-[#d5f080] shadow-sm">
+            <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl border border-[#b8ff8b]/30 bg-gradient-to-br from-[#173c31] to-[#0a1714] text-[#b8ff8b] shadow-[0_8px_24px_rgba(0,0,0,.25)]">
               <Shield size={20} />
             </div>
             <div>
-              <div className="text-sm font-black tracking-tight text-stone-950 md:text-base">Moderation</div>
-              <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-stone-400">RankedDarts · Arbeitsbereich</div>
+              <div className="text-sm font-black tracking-tight text-white md:text-base">Moderator Ops</div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#82a99b]">RankedDarts · Einsatzsystem</div>
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-stone-600 lg:flex">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> {operatorName}
+            <div className="hidden items-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#d6ebe1] lg:flex">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#b8ff8b]" /> {operatorName}
             </div>
-            <button onClick={() => setAutoRefresh((enabled) => !enabled)} className={`hidden items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition sm:flex ${autoRefresh ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-white text-stone-400'}`} title={autoRefresh ? 'Automatische Aktualisierung alle 45 Sekunden pausieren' : 'Automatische Aktualisierung alle 45 Sekunden aktivieren'}><span className={`h-1.5 w-1.5 rounded-full ${autoRefresh ? 'animate-pulse bg-emerald-500' : 'bg-stone-400'}`} /> Sync {autoRefresh ? 'an' : 'aus'}</button>
+            <button onClick={() => setAutoRefresh((enabled) => !enabled)} className={`hidden items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition sm:flex ${autoRefresh ? 'border-[#b8ff8b]/25 bg-[#b8ff8b]/10 text-[#d8ffc0]' : 'border-white/10 bg-white/[0.045] text-[#839c92]'}`} title={autoRefresh ? 'Automatische Aktualisierung alle 45 Sekunden pausieren' : 'Automatische Aktualisierung alle 45 Sekunden aktivieren'}><span className={`h-1.5 w-1.5 rounded-full ${autoRefresh ? 'animate-pulse bg-[#b8ff8b]' : 'bg-[#839c92]'}`} /> Sync {autoRefresh ? 'an' : 'aus'}</button>
             <button
               onClick={() => void refreshAll()}
-              className="grid h-9 w-9 place-items-center rounded-xl border border-stone-200 bg-white text-stone-500 transition hover:border-stone-300 hover:text-stone-950 disabled:opacity-50"
+              className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.045] text-[#b5cfc4] transition hover:border-[#b8ff8b]/30 hover:bg-white/[0.08] hover:text-white disabled:opacity-50"
               title="Alle Daten aktualisieren"
               disabled={isRefreshing}
             >
@@ -623,11 +661,12 @@ export default function ModeratorPanel() {
         </div>
       </nav>
 
-      <div className="relative z-10 mx-auto grid max-w-[1440px] gap-6 px-4 pb-16 pt-20 sm:px-5 lg:grid-cols-[228px_minmax(0,1fr)] lg:px-8 lg:pt-24">
+      <div className="relative z-10 mx-auto grid max-w-[1540px] gap-5 px-4 pb-16 pt-20 sm:px-5 lg:grid-cols-[252px_minmax(0,1fr)] lg:px-8 lg:pt-24">
         <aside className="lg:sticky lg:top-[84px] lg:h-[calc(100vh-108px)]">
-          <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white p-2 shadow-[0_18px_45px_rgba(35,49,42,.08)]">
-            <div className="border-b border-stone-100 px-3 py-4">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-stone-400"><Command size={12} /> Bereiche</div>
+          <div className="flex h-full flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#0a211b]/90 p-2 shadow-[0_24px_70px_rgba(0,0,0,.24)] backdrop-blur-xl">
+            <div className="border-b border-white/10 px-3 py-4">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#80a899]"><Command size={12} /> Arbeitsbereiche</div>
+              <div className="mt-3 flex items-center gap-2 text-xs font-bold text-white"><span className="grid h-6 w-6 place-items-center rounded-lg bg-[#b8ff8b] text-[#072118]"><ShieldCheck size={13} /></span> Moderation bereit</div>
             </div>
             <div className="space-y-1 py-2">
               <TabBtn active={tab === 'desk'}     onClick={() => setTab('desk')}     icon={<LayoutDashboard size={16} />} label="Leitstand" />
@@ -637,84 +676,95 @@ export default function ModeratorPanel() {
               <TabBtn active={tab === 'flagged'}  onClick={() => setTab('flagged')}  icon={<BadgeAlert size={16} />} label="Auffälligkeiten" badge={flaggedCount} />
               <TabBtn active={tab === 'logs'}     onClick={() => setTab('logs')}     icon={<ClipboardList size={16} />} label="Audit-Log" />
             </div>
-            <div className="mx-2 mt-2 border-t border-stone-100 px-2 py-4 text-[11px] leading-relaxed text-stone-500">
-              Entscheidungen werden im Audit-Log gespeichert. Greife nur ein, wenn der Sachverhalt klar ist.
+            <div className="mt-auto space-y-3 px-2 pb-2 pt-4">
+              <div className="rounded-2xl border border-[#b8ff8b]/15 bg-[#b8ff8b]/[0.06] p-3">
+                <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-[0.16em] text-[#b8ff8b]"><span>Schichtstatus</span><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#b8ff8b]" /></div>
+                <div className="mt-2 truncate text-sm font-black text-white">{operatorName}</div>
+                <div className="mt-1 text-[11px] text-[#9eb8ad]">{autoRefresh ? 'Live-Sync alle 45 Sekunden' : 'Live-Sync pausiert'}</div>
+              </div>
+              <div className="border-t border-white/10 px-1 pt-3 text-[11px] leading-relaxed text-[#8ea79d]">
+                Entscheidungen werden protokolliert. Greife nur ein, wenn der Sachverhalt klar ist.
+              </div>
             </div>
           </div>
         </aside>
 
-        <section className="min-w-0">
-          <header className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-stone-200 pb-5">
-            <div>
-              <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#2f6b55]"><PanelRightOpen size={13} /> Moderation</div>
-              <h1 className="text-3xl font-black tracking-[-0.05em] text-stone-950 sm:text-4xl">
-                {tab === 'desk' ? 'Übersicht' : tab === 'tickets' ? 'Tickets' : tab === 'disputes' ? 'Disputes' : tab === 'matches' ? 'Aktive Matches' : tab === 'flagged' ? 'Account-Hinweise' : 'Aktivitäten'}
-              </h1>
+        <section className="min-w-0 rounded-[2rem] border border-white/10 bg-[#0a211b]/80 p-3 shadow-[0_24px_70px_rgba(0,0,0,.20)] backdrop-blur-xl sm:p-5">
+          <header className="relative mb-5 overflow-hidden rounded-[1.6rem] border border-white/10 bg-[#0e2b23] px-5 py-6 sm:px-7">
+            <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(120deg,transparent_0%,rgba(184,255,139,.13)_50%,transparent_100%)]" />
+            <div className="relative flex flex-wrap items-end justify-between gap-5">
+              <div className="max-w-2xl">
+                <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#b8ff8b]"><PanelRightOpen size={13} /> {currentView.kicker}</div>
+                <h1 className="text-3xl font-black tracking-[-0.055em] text-white sm:text-4xl">{currentView.title}</h1>
+                <p className="mt-2 text-sm leading-6 text-[#a6c5b8]">{currentView.description}</p>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-[#b8ff8b]/20 bg-[#061511]/55 px-3 py-2 text-[10px] font-black uppercase tracking-[0.11em] text-[#d8ffc0]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#b8ff8b]" /> {lastRefreshedAt ? `Stand ${lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'Live-Daten'}</div>
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-[#153f33] px-3 py-2 text-[10px] font-black uppercase tracking-[0.11em] text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#d5f080]" /> {lastRefreshedAt ? `Aktualisiert ${lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : 'Live-Daten'}</div>
           </header>
 
-        {dataError && <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800"><span>{dataError}</span><button onClick={() => void refreshAll()} className="shrink-0 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition hover:bg-rose-100">Erneut laden</button></div>}
+        {dataError && <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300/25 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-100"><span>{dataError}</span><button onClick={() => void refreshAll()} className="shrink-0 rounded-lg border border-rose-200/30 bg-[#31171c] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] transition hover:bg-rose-300/15">Erneut laden</button></div>}
 
         {/* ══════════════════════════════════════════════════════════════════
             TAB: LEITSTAND
         ══════════════════════════════════════════════════════════════════ */}
         {tab === 'desk' && (
           <div className="space-y-5">
-            <div className="overflow-hidden rounded-3xl bg-[#153f33] px-6 py-7 text-white shadow-[0_24px_60px_rgba(21,63,51,.16)] sm:px-8">
+            <div className="relative overflow-hidden rounded-[1.6rem] border border-[#b8ff8b]/15 bg-[linear-gradient(130deg,#123a2e_0%,#0c241d_52%,#081814_100%)] px-6 py-7 text-white shadow-[0_24px_60px_rgba(0,0,0,.25)] sm:px-8">
+              <div className="pointer-events-none absolute -right-24 -top-28 h-80 w-80 rounded-full border border-[#b8ff8b]/20" />
+              <div className="pointer-events-none absolute -right-6 top-8 h-44 w-44 rounded-full border border-[#b8ff8b]/10" />
               <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                 <div>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-[#d5f080] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#153f33]"><ShieldCheck size={12} /> Arbeitsübersicht</span>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[#b8ff8b]/25 bg-[#b8ff8b]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#d8ffc0]"><ShieldCheck size={12} /> Arbeitsübersicht</span>
                   <h2 className="mt-5 text-3xl font-black tracking-[-0.06em] sm:text-5xl">Was braucht jetzt deine Aufmerksamkeit?</h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/75">Prüfe offene Anliegen, Disputes und laufende Matches. Alles Wichtige steht hier an einem Ort – ohne unnötige Ablenkung.</p>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[#a6c5b8]">Prüfe offene Anliegen, Disputes und laufende Matches. Alles Wichtige steht hier an einem Ort – ohne unnötige Ablenkung.</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:w-[360px]">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.08] p-4"><div className="text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-50/60">Offen</div><div className="mt-1 text-3xl font-black text-[#d5f080]">{openTicketCount + disputeCount}</div></div>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.08] p-4"><div className="text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-50/60">Live</div><div className="mt-1 text-3xl font-black">{liveCount}</div></div>
-                  <div className="col-span-2 rounded-2xl border border-white/10 bg-white/[0.08] p-4 sm:col-span-1"><div className="text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-50/60">Hinweise</div><div className="mt-1 text-3xl font-black">{flaggedCount}</div></div>
+                  <div className="rounded-2xl border border-white/10 bg-[#061511]/45 p-4 backdrop-blur"><div className="text-[10px] font-bold uppercase tracking-[0.13em] text-[#8fab9f]">Offen</div><div className="mt-1 text-3xl font-black text-[#b8ff8b]">{openTicketCount + disputeCount}</div></div>
+                  <div className="rounded-2xl border border-white/10 bg-[#061511]/45 p-4 backdrop-blur"><div className="text-[10px] font-bold uppercase tracking-[0.13em] text-[#8fab9f]">Live</div><div className="mt-1 text-3xl font-black">{liveCount}</div></div>
+                  <div className="col-span-2 rounded-2xl border border-white/10 bg-[#061511]/45 p-4 backdrop-blur sm:col-span-1"><div className="text-[10px] font-bold uppercase tracking-[0.13em] text-[#8fab9f]">Hinweise</div><div className="mt-1 text-3xl font-black">{flaggedCount}</div></div>
                 </div>
               </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
-                { label: 'Offene Tickets', value: openTicketCount, sub: 'brauchen eine Antwort', icon: <Inbox size={17} />, tone: 'border border-stone-200 bg-white text-stone-900', marker: 'bg-emerald-500' },
-                { label: 'Disputes', value: disputeCount, sub: 'warten auf eine Entscheidung', icon: <Gavel size={17} />, tone: 'border border-stone-200 bg-white text-stone-900', marker: 'bg-rose-500' },
-                { label: 'Aktive Matches', value: liveCount, sub: 'sind gerade im Blick', icon: <Radio size={17} />, tone: 'border border-stone-200 bg-white text-stone-900', marker: 'bg-sky-500' },
-                { label: 'Hinweise', value: flaggedCount, sub: 'Accounts zur Einordnung', icon: <FileWarning size={17} />, tone: 'border border-stone-200 bg-white text-stone-900', marker: 'bg-amber-500' },
+                { label: 'Offene Tickets', value: openTicketCount, sub: 'brauchen eine Antwort', icon: <Inbox size={17} />, tone: 'border border-white/10 bg-[#0e2b23] text-white', marker: 'bg-[#b8ff8b]' },
+                { label: 'Disputes', value: disputeCount, sub: 'warten auf eine Entscheidung', icon: <Gavel size={17} />, tone: 'border border-white/10 bg-[#0e2b23] text-white', marker: 'bg-rose-300' },
+                { label: 'Aktive Matches', value: liveCount, sub: 'sind gerade im Blick', icon: <Radio size={17} />, tone: 'border border-white/10 bg-[#0e2b23] text-white', marker: 'bg-sky-300' },
+                { label: 'Hinweise', value: flaggedCount, sub: 'Accounts zur Einordnung', icon: <FileWarning size={17} />, tone: 'border border-white/10 bg-[#0e2b23] text-white', marker: 'bg-amber-300' },
               ].map(item => (
-                <button key={item.label} onClick={() => setTab(item.label === 'Offene Tickets' ? 'tickets' : item.label === 'Disputes' ? 'disputes' : item.label === 'Aktive Matches' ? 'matches' : 'flagged')} className={`group relative overflow-hidden rounded-2xl p-5 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${item.tone}`}>
+                <button key={item.label} onClick={() => setTab(item.label === 'Offene Tickets' ? 'tickets' : item.label === 'Disputes' ? 'disputes' : item.label === 'Aktive Matches' ? 'matches' : 'flagged')} className={`group relative overflow-hidden rounded-[1.35rem] p-5 text-left shadow-[0_14px_35px_rgba(0,0,0,.12)] transition hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_20px_42px_rgba(0,0,0,.22)] ${item.tone}`}>
                   <div className={`absolute left-0 top-0 h-1 w-full ${item.marker}`} />
-                  <div className="mb-6 opacity-70">{item.icon}</div>
+                  <div className="mb-6 text-[#9dd6bd]">{item.icon}</div>
                   <div className="text-5xl font-black tracking-[-0.08em]">{item.value}</div>
                   <div className="mt-1 text-sm font-black uppercase tracking-[-0.02em]">{item.label}</div>
-                  <div className="mt-1 text-xs opacity-65">{item.sub}</div>
+                  <div className="mt-1 text-xs text-[#8fab9f]">{item.sub}</div>
                 </button>
               ))}
             </div>
 
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.8fr)]">
-              <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_18px_45px_rgba(35,49,42,.08)]">
-                <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
+              <div className={`overflow-hidden ${opsCardCls}`}>
+                <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                   <div>
-                    <div className="text-sm font-black tracking-tight text-stone-950">Priorisierte Tickets</div>
-                    <div className="mt-0.5 text-xs text-stone-500">Neue und dringende Meldungen zuerst</div>
+                    <div className="text-sm font-black tracking-tight text-white">Priorisierte Tickets</div>
+                    <div className="mt-0.5 text-xs text-[#8fab9f]">Neue und dringende Meldungen zuerst</div>
                   </div>
-                  <button onClick={() => setTab('tickets')} className="inline-flex items-center gap-1.5 rounded-xl bg-[#153f33] px-3 py-2 text-xs font-black text-white transition hover:bg-[#205542]">Alle Tickets <ArrowUpRight size={14} /></button>
+                  <button onClick={() => setTab('tickets')} className="inline-flex items-center gap-1.5 rounded-xl bg-[#b8ff8b] px-3 py-2 text-xs font-black text-[#072118] transition hover:bg-[#d2ffb7]">Alle Tickets <ArrowUpRight size={14} /></button>
                 </div>
                 {tickets.filter(ticket => ticket.status !== 'closed' && ticket.status !== 'resolved').slice(0, 5).length === 0 ? (
-                  <div className="px-5 py-12 text-center text-sm text-stone-500">Keine offenen Tickets.</div>
+                  <div className="px-5 py-12 text-center text-sm text-[#8fab9f]">Keine offenen Tickets.</div>
                 ) : (
-                  <div className="divide-y divide-stone-100">
+                  <div className="divide-y divide-white/10">
                     {tickets.filter(ticket => ticket.status !== 'closed' && ticket.status !== 'resolved').slice(0, 5).map(ticket => {
                       const priority = priorityCfg[ticket.priority] ?? priorityCfg.normal;
                       const status = statusCfg[ticket.status] ?? statusCfg.open;
                       return (
-                        <button key={ticket.id} onClick={() => { setTab('tickets'); void openTicket(ticket.id); }} className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-stone-50">
+                        <button key={ticket.id} onClick={() => { setTab('tickets'); void openTicket(ticket.id); }} className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-white/[0.045]">
                           <span className={`h-2 w-2 shrink-0 rounded-full ${status.dot}`} />
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-bold text-stone-900">{ticket.subject}</span>
-                            <span className="mt-1 block truncate text-xs text-stone-500">{ticket.username} · {catLabels[ticket.category] ?? ticket.category} · {timeAgo(ticket.created_at)}</span>
+                            <span className="block truncate text-sm font-bold text-white">{ticket.subject}</span>
+                            <span className="mt-1 block truncate text-xs text-[#8fab9f]">{ticket.username} · {catLabels[ticket.category] ?? ticket.category} · {timeAgo(ticket.created_at)}</span>
                           </span>
                           <span className={`shrink-0 text-[10px] font-black uppercase tracking-[0.14em] ${priority.cls}`}>{priority.label}</span>
                         </button>
@@ -725,20 +775,20 @@ export default function ModeratorPanel() {
               </div>
 
               <div className="space-y-5">
-                <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-[0_18px_45px_rgba(35,49,42,.08)]">
-                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[#2f6b55]"><Command size={14} /> Direkt zu</div>
+                <div className={`${opsCardCls} p-5`}>
+                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[#b8ff8b]"><Command size={14} /> Direkt zu</div>
                   <div className="space-y-2">
-                    <button onClick={() => setTab('disputes')} className="flex w-full items-center justify-between rounded-xl bg-[#153f33] px-3.5 py-3 text-left text-sm font-bold text-white transition hover:bg-[#205542]"><span>Offene Disputes prüfen</span><span className="font-mono text-[#d5f080]">{disputeCount}</span></button>
-                    <button onClick={() => setTab('matches')} className="flex w-full items-center justify-between rounded-xl border border-stone-200 px-3.5 py-3 text-left text-sm font-bold text-stone-800 transition hover:bg-stone-50"><span>Laufende Matches überwachen</span><ArrowUpRight size={15} className="text-[#2f6b55]" /></button>
-                    <button onClick={() => setTab('flagged')} className="flex w-full items-center justify-between rounded-xl border border-stone-200 px-3.5 py-3 text-left text-sm font-bold text-stone-800 transition hover:bg-stone-50"><span>Account-Hinweise sichten</span><ArrowUpRight size={15} className="text-[#2f6b55]" /></button>
+                    <button onClick={() => setTab('disputes')} className="flex w-full items-center justify-between rounded-xl bg-[#b8ff8b] px-3.5 py-3 text-left text-sm font-bold text-[#072118] transition hover:bg-[#d2ffb7]"><span>Offene Disputes prüfen</span><span className="font-mono">{disputeCount}</span></button>
+                    <button onClick={() => setTab('matches')} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] px-3.5 py-3 text-left text-sm font-bold text-[#d6ebe1] transition hover:bg-white/[0.07]"><span>Laufende Matches überwachen</span><ArrowUpRight size={15} className="text-[#b8ff8b]" /></button>
+                    <button onClick={() => setTab('flagged')} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] px-3.5 py-3 text-left text-sm font-bold text-[#d6ebe1] transition hover:bg-white/[0.07]"><span>Account-Hinweise sichten</span><ArrowUpRight size={15} className="text-[#b8ff8b]" /></button>
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-amber-200 bg-amber-50/70 p-5">
-                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-amber-800"><Activity size={14} /> Letzte Aktivitäten</div>
-                  {logs.slice(0, 3).length === 0 ? <p className="text-sm text-stone-600">Noch keine dokumentierten Aktionen.</p> : (
+                <div className="rounded-[1.4rem] border border-amber-300/15 bg-amber-300/[0.065] p-5">
+                  <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-amber-200"><Activity size={14} /> Letzte Aktivitäten</div>
+                  {logs.slice(0, 3).length === 0 ? <p className="text-sm text-[#b8cbc2]">Noch keine dokumentierten Aktionen.</p> : (
                     <div className="space-y-3">
-                      {logs.slice(0, 3).map(log => <div key={log.id} className="border-l border-amber-300 pl-3"><div className="truncate text-xs font-bold text-stone-900">{log.action}{log.target_label ? ` · ${log.target_label}` : ''}</div><div className="mt-1 text-[11px] text-stone-600">{log.mod_username} · {timeAgo(log.created_at)}</div></div>)}
+                      {logs.slice(0, 3).map(log => <div key={log.id} className="border-l border-amber-300/40 pl-3"><div className="truncate text-xs font-bold text-white">{log.action}{log.target_label ? ` · ${log.target_label}` : ''}</div><div className="mt-1 text-[11px] text-[#b8cbc2]">{log.mod_username} · {timeAgo(log.created_at)}</div></div>)}
                     </div>
                   )}
                 </div>
@@ -768,21 +818,21 @@ export default function ModeratorPanel() {
                     }}
                     className={`border px-4 py-2 text-xs font-bold transition ${
                       ticketFilter === s
-                        ? 'border border-[#153f33] bg-[#153f33] text-white'
-                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-950'
+                        ? 'border border-[#b8ff8b]/40 bg-[#b8ff8b] text-[#072118]'
+                        : 'border-white/10 bg-[#0e2b23] text-[#a9bbb4] hover:border-white/20 hover:bg-white/[0.07] hover:text-white'
                     }`}
                   >
                     {s ? (statusCfg[s]?.label ?? s) : `Alle (${tickets.length})`}
                   </button>
                 ))}
               </div>
-              <label className="flex min-w-0 items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-stone-500 shadow-sm xl:w-72"><Command size={14} /><input value={ticketSearch} onChange={(event) => setTicketSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-stone-900 outline-none placeholder:text-stone-400" placeholder="Ticket oder Spieler suchen" /></label>
+              <label className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-[#0e2b23] px-3 py-2 text-[#8fab9f] shadow-sm xl:w-72"><Command size={14} /><input value={ticketSearch} onChange={(event) => setTicketSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-white outline-none placeholder:text-[#779286]" placeholder="Ticket oder Spieler suchen" /></label>
             </div>
 
             {visibleTickets.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
-                <Headphones size={32} className="text-stone-400" />
-                <p className="text-sm font-bold text-stone-500">{tickets.length === 0 ? 'Keine Tickets vorhanden' : 'Keine Tickets für diese Suche gefunden'}</p>
+              <div className={opsEmptyCls}>
+                <Headphones size={32} className="text-[#779286]" />
+                <p className="text-sm font-bold text-[#a9bbb4]">{tickets.length === 0 ? 'Keine Tickets vorhanden' : 'Keine Tickets für diese Suche gefunden'}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -792,11 +842,11 @@ export default function ModeratorPanel() {
                   const isOpen = openTicketId === t.id;
 
                   return (
-                    <div key={t.id} className="overflow-hidden rounded-2xl border border-stone-200 border-l-4 border-l-[#2f6b55] bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)]">
+                    <div key={t.id} className="overflow-hidden rounded-[1.35rem] border border-white/10 border-l-4 border-l-[#b8ff8b] bg-[#0e2b23] shadow-[0_12px_32px_rgba(0,0,0,.14)]">
                       {/* Ticket-Header */}
                       <button
                         onClick={() => openTicket(t.id)}
-                        className="w-full px-6 py-5 text-left transition hover:bg-stone-50"
+                        className="w-full px-6 py-5 text-left transition hover:bg-white/[0.045]"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
@@ -806,18 +856,18 @@ export default function ModeratorPanel() {
                                 {sc.label}
                               </span>
                               <span className={`text-xs font-black ${pc.cls}`}>{pc.label}</span>
-                              <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[10px] font-bold text-stone-500">
+                              <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-bold text-[#9eb8ad]">
                                 {catLabels[t.category] ?? t.category}
                               </span>
                             </div>
-                            <div className="text-base font-black text-stone-950">{t.subject}</div>
-                            <div className="mt-1 text-xs text-stone-500">
-                              von <span className="font-bold text-stone-800">{t.username}</span> · {timeAgo(t.created_at)}
+                            <div className="text-base font-black text-white">{t.subject}</div>
+                            <div className="mt-1 text-xs text-[#9eb8ad]">
+                              von <span className="font-bold text-[#e6f4ed]">{t.username}</span> · {timeAgo(t.created_at)}
                               {t.message_count > 0 && ` · ${t.message_count} Nachrichten`}
                             </div>
-                            <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.13em] text-stone-400">{t.assigned_to_username ? `Übernommen von ${t.assigned_to_username}` : 'Noch nicht übernommen'}</div>
+                            <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#779286]">{t.assigned_to_username ? `Übernommen von ${t.assigned_to_username}` : 'Noch nicht übernommen'}</div>
                           </div>
-                          <div className="shrink-0 text-stone-400">
+                          <div className="shrink-0 text-[#779286]">
                             {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                           </div>
                         </div>
@@ -825,16 +875,16 @@ export default function ModeratorPanel() {
 
                       {/* Ticket-Detail */}
                       {isOpen && ticketDetail && (
-                        <div className="border-t border-stone-100 px-6 pb-6 pt-5">
+                        <div className="border-t border-white/10 px-6 pb-6 pt-5">
                           {/* Aktionen */}
                           <div className="mb-5 flex flex-wrap gap-3">
                             <button onClick={() => void claimTicket(t.id)} disabled={claimingTicketId === t.id || Boolean(t.assigned_to_id)} title={t.assigned_to_id ? `Bereits übernommen von ${t.assigned_to_username || 'einem Teammitglied'}` : 'Ticket selbst übernehmen'} className="inline-flex items-center gap-2 rounded-xl border border-[#4569df]/40 bg-[#2f58d5]/15 px-3 py-1.5 text-xs font-black text-[#b6c5ff] transition hover:bg-[#2f58d5]/25 disabled:cursor-not-allowed disabled:opacity-50"><ShieldCheck size={13} />{claimingTicketId === t.id ? 'Übernimmt …' : t.assigned_to_id ? `Übernommen${t.assigned_to_username ? ` · ${t.assigned_to_username}` : ''}` : 'Mir zuweisen'}</button>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-stone-500">Status:</span>
+                              <span className="text-xs font-bold text-[#9eb8ad]">Status:</span>
                               <select
                                 value={t.status}
                                 onChange={e => updateStatus(t.id, e.target.value)}
-                                className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-800 outline-none"
+                                className="rounded-xl border border-white/10 bg-[#061511] px-3 py-1.5 text-xs font-bold text-white outline-none"
                               >
                                 {Object.entries(statusCfg).map(([k, v]) => (
                                   <option key={k} value={k} className="bg-zinc-950">{v.label}</option>
@@ -842,11 +892,11 @@ export default function ModeratorPanel() {
                               </select>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-stone-500">Priorität:</span>
+                              <span className="text-xs font-bold text-[#9eb8ad]">Priorität:</span>
                               <select
                                 value={t.priority}
                                 onChange={e => updatePriority(t.id, e.target.value)}
-                                className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-800 outline-none"
+                                className="rounded-xl border border-white/10 bg-[#061511] px-3 py-1.5 text-xs font-bold text-white outline-none"
                               >
                                 {Object.entries(priorityCfg).map(([k, v]) => (
                                   <option key={k} value={k} className="bg-zinc-950">{v.label}</option>
@@ -855,41 +905,41 @@ export default function ModeratorPanel() {
                             </div>
                           </div>
 
-                          <div className="mb-5 rounded-2xl border border-stone-200 bg-stone-50 p-4">
-                            <div className="mb-2 flex items-center justify-between gap-3"><label className="text-[10px] font-black uppercase tracking-[0.17em] text-stone-500">Interne Übergabe-Notiz</label><span className="text-[10px] text-stone-400">Nur Moderation & Admins</span></div>
+                          <div className="mb-5 rounded-2xl border border-white/10 bg-[#061511]/45 p-4">
+                            <div className="mb-2 flex items-center justify-between gap-3"><label className="text-[10px] font-black uppercase tracking-[0.17em] text-[#9eb8ad]">Interne Übergabe-Notiz</label><span className="text-[10px] text-[#779286]">Nur Moderation & Admins</span></div>
                             <textarea value={ticketNotes[t.id] ?? ''} onChange={(event) => setTicketNotes((current) => ({ ...current, [t.id]: event.target.value }))} maxLength={1200} rows={2} placeholder="Kontext, nächste Schritte oder Übergabe für das Team …" className={`${inputCls} resize-y`} />
-                            <div className="mt-3 flex justify-end"><button onClick={() => void saveTicketNote(t.id)} disabled={savingTicketNoteId === t.id} className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 disabled:opacity-50">{savingTicketNoteId === t.id ? 'Speichert …' : 'Notiz speichern'}</button></div>
+                            <div className="mt-3 flex justify-end"><button onClick={() => void saveTicketNote(t.id)} disabled={savingTicketNoteId === t.id} className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-[10px] font-black uppercase tracking-[0.13em] text-[#d6ebe1] transition hover:border-[#b8ff8b]/30 hover:bg-white/[0.1] disabled:opacity-50">{savingTicketNoteId === t.id ? 'Speichert …' : 'Notiz speichern'}</button></div>
                           </div>
 
                           {/* Nachrichten */}
-                          <div className="mb-5 max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                          <div className="mb-5 max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-[#061511]/45 p-4">
                             {ticketDetail.messages.map(msg => {
                               const parsed = parseTicketMessageContent(msg.content);
                               return (
                               <div key={msg.id} className={`flex gap-3 ${msg.is_staff ? 'flex-row-reverse' : ''}`}>
                                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
-                                  msg.is_staff ? 'bg-[#153f33] text-white' : 'bg-white text-stone-700 border border-stone-200'
+                                  msg.is_staff ? 'bg-[#b8ff8b] text-[#072118]' : 'border border-white/10 bg-[#0e2b23] text-[#d6ebe1]'
                                 }`}>
                                   {msg.sender_name.slice(0, 2).toUpperCase()}
                                 </div>
                                 <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm ${
                                   msg.is_staff
-                                    ? 'rounded-tr-sm border border-[#4569df]/40 bg-[#2f58d5]/25 text-[#edf0ff]'
-                                    : 'rounded-tl-sm bg-white border border-stone-200 text-stone-800'
+                                    ? 'rounded-tr-sm border border-[#b8ff8b]/25 bg-[#b8ff8b]/10 text-[#e6f8df]'
+                                    : 'rounded-tl-sm border border-white/10 bg-[#0e2b23] text-[#d6ebe1]'
                                 }`}>
                                   <div className="mb-1 flex items-center gap-2">
-                                    <span className="text-[10px] font-black text-stone-600">{msg.sender_name}</span>
-                                    {msg.is_staff && <span className="rounded-md bg-[#2f58d5]/30 px-1.5 py-0.5 text-[9px] font-black text-[#b6c5ff]">MOD</span>}
-                                    <span className="text-[10px] text-stone-400">{timeAgo(msg.created_at)}</span>
+                                    <span className="text-[10px] font-black text-[#d6ebe1]">{msg.sender_name}</span>
+                                    {msg.is_staff && <span className="rounded-md bg-[#b8ff8b]/15 px-1.5 py-0.5 text-[9px] font-black text-[#d8ffc0]">MOD</span>}
+                                    <span className="text-[10px] text-[#779286]">{timeAgo(msg.created_at)}</span>
                                   </div>
                                   <div className="space-y-3">
                                     {parsed.text && <p className="leading-relaxed whitespace-pre-wrap">{parsed.text}</p>}
                                     {parsed.images.length > 0 && (
                                       <div className="grid gap-2">
                                         {parsed.images.map((image) => (
-                                          <a key={image.url} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-stone-200 bg-white transition hover:border-stone-300">
+                                          <a key={image.url} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-white/10 bg-[#061511] transition hover:border-[#b8ff8b]/30">
                                             <img src={image.url} alt={ticketImageAlt(image.label)} className="max-h-56 w-full object-cover" />
-                                            <div className="truncate px-3 py-2 text-[11px] font-bold text-stone-500">{image.label}</div>
+                                            <div className="truncate px-3 py-2 text-[11px] font-bold text-[#9eb8ad]">{image.label}</div>
                                           </a>
                                         ))}
                                       </div>
@@ -900,7 +950,7 @@ export default function ModeratorPanel() {
                               );
                             })}
                             {ticketDetail.messages.length === 0 && (
-                              <p className="text-center text-xs text-stone-400">Noch keine Nachrichten</p>
+                              <p className="text-center text-xs text-[#779286]">Noch keine Nachrichten</p>
                             )}
                           </div>
 
@@ -916,7 +966,7 @@ export default function ModeratorPanel() {
                             <button
                               onClick={() => sendReply(t.id)}
                               disabled={sending || !reply.trim()}
-                              className="flex items-center gap-2 self-end rounded-xl bg-[#d68e27] px-5 py-3 text-sm font-black text-[#17120b] transition hover:bg-[#f0b95c] disabled:opacity-40"
+                              className="flex items-center gap-2 self-end rounded-xl bg-[#b8ff8b] px-5 py-3 text-sm font-black text-[#072118] transition hover:bg-[#d2ffb7] disabled:opacity-40"
                             >
                               {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                               Senden
@@ -938,9 +988,9 @@ export default function ModeratorPanel() {
         {tab === 'disputes' && (
           <div>
             {disputes.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
-                <Gavel size={32} className="text-stone-400" />
-                <p className="text-sm font-bold text-stone-500">Keine offenen Disputes</p>
+              <div className={opsEmptyCls}>
+                <Gavel size={32} className="text-[#779286]" />
+                <p className="text-sm font-bold text-[#a9bbb4]">Keine offenen Disputes</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -949,63 +999,63 @@ export default function ModeratorPanel() {
                   const isOpen = openDispute === m.match_id;
 
                   return (
-                    <div key={m.match_id} className="overflow-hidden rounded-2xl border border-stone-200 border-l-4 border-l-rose-500 bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)]">
+                    <div key={m.match_id} className="overflow-hidden rounded-[1.35rem] border border-white/10 border-l-4 border-l-rose-300 bg-[#0e2b23] shadow-[0_12px_32px_rgba(0,0,0,.14)]">
                       {/* Header */}
                       <button
                         onClick={() => setOpenDispute(isOpen ? null : m.match_id)}
-                        className="w-full px-6 py-5 text-left transition hover:bg-stone-50"
+                        className="w-full px-6 py-5 text-left transition hover:bg-white/[0.045]"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <div>
                             <div className="mb-1 flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-black text-rose-700">
-                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
+                              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-300/10 px-3 py-1 text-xs font-black text-rose-200">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-300" />
                                 Dispute
                               </span>
-                              <span className="text-xs text-stone-400">{timeAgo(m.created_at)}</span>
+                              <span className="text-xs text-[#779286]">{timeAgo(m.created_at)}</span>
                             </div>
-                            <div className="text-xl font-black text-stone-950">
-                              {m.player1_username} <span className="text-stone-400">vs</span> {m.player2_username}
+                            <div className="text-xl font-black text-white">
+                              {m.player1_username} <span className="text-[#779286]">vs</span> {m.player2_username}
                             </div>
-                            <div className="mt-1 text-xs text-stone-500">
-                              Eingereicht von: <span className="font-bold text-stone-800">{m.submitted_by_username ?? '—'}</span>
+                            <div className="mt-1 text-xs text-[#9eb8ad]">
+                              Eingereicht von: <span className="font-bold text-[#e6f4ed]">{m.submitted_by_username ?? '—'}</span>
                               {m.submitted_winner_username && ` · Gewinner lt. Einreichung: ${m.submitted_winner_username}`}
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <div className="text-xs text-stone-400">Elo</div>
+                              <div className="text-xs text-[#779286]">Elo</div>
                               <div className="font-black">{m.player1_elo} vs {m.player2_elo}</div>
                             </div>
-                            {isOpen ? <ChevronUp size={18} className="text-stone-400" /> : <ChevronDown size={18} className="text-stone-400" />}
+                            {isOpen ? <ChevronUp size={18} className="text-[#779286]" /> : <ChevronDown size={18} className="text-[#779286]" />}
                           </div>
                         </div>
                       </button>
 
                       {/* Detail */}
                       {isOpen && (
-                        <div className="space-y-5 border-t border-stone-100 px-6 pb-6 pt-5">
+                        <div className="space-y-5 border-t border-white/10 px-6 pb-6 pt-5">
                           {/* Dispute-Grund */}
                           {m.dispute_reason && (
-                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                              <div className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">Dispute-Grund</div>
-                              <p className="text-sm text-stone-700">{m.dispute_reason}</p>
+                            <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4">
+                              <div className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">Dispute-Grund</div>
+                              <p className="text-sm text-[#e8d8aa]">{m.dispute_reason}</p>
                             </div>
                           )}
                           {m.dispute_screenshot_url && (
                             <a href={m.dispute_screenshot_url} target="_blank" rel="noreferrer"
-                               className="inline-flex items-center gap-2 rounded-2xl border border-stone-200 bg-white px-4 py-2 text-xs font-bold text-stone-700 transition hover:border-stone-300">
+                               className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2 text-xs font-bold text-[#d6ebe1] transition hover:border-[#b8ff8b]/30 hover:bg-white/[0.08]">
                               Screenshot ansehen
                             </a>
                           )}
 
                           {/* Formular */}
-                          <div className="space-y-4 rounded-2xl border border-stone-200 bg-stone-50 p-5">
-                            <div className="text-xs font-black uppercase tracking-[0.2em] text-stone-500">Entscheidung treffen</div>
+                          <div className="space-y-4 rounded-2xl border border-white/10 bg-[#061511]/45 p-5">
+                            <div className="text-xs font-black uppercase tracking-[0.2em] text-[#9eb8ad]">Entscheidung treffen</div>
 
                             {/* Gewinner */}
                             <div>
-                              <label className="mb-2 block text-xs font-bold text-stone-500">Gewinner</label>
+                              <label className="mb-2 block text-xs font-bold text-[#9eb8ad]">Gewinner</label>
                               <div className="grid grid-cols-2 gap-3">
                                 {[
                                   { id: m.player1_id, name: m.player1_username, elo: m.player1_elo },
@@ -1016,8 +1066,8 @@ export default function ModeratorPanel() {
                                     onClick={() => patchForm(m.match_id, { winnerId: p.id })}
                                     className={`rounded-2xl border p-4 text-left transition ${
                                       f.winnerId === p.id
-                                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                                        ? 'border-[#b8ff8b]/50 bg-[#b8ff8b]/15 text-[#d8ffc0]'
+                                        : 'border-white/10 bg-[#0e2b23] text-[#b8cbc2] hover:border-white/20'
                                     }`}
                                   >
                                     <div className="font-black">{p.name}</div>
@@ -1030,11 +1080,11 @@ export default function ModeratorPanel() {
                             {/* Legs */}
                             <div className="grid grid-cols-2 gap-3">
                               <div>
-                                <label className="mb-1.5 block text-xs font-bold text-stone-500">{m.player1_username} Legs</label>
+                                <label className="mb-1.5 block text-xs font-bold text-[#9eb8ad]">{m.player1_username} Legs</label>
                                 <input type="number" value={f.p1Legs ?? ''} onChange={e => patchForm(m.match_id, { p1Legs: e.target.value })} className={inputCls} placeholder="0" />
                               </div>
                               <div>
-                                <label className="mb-1.5 block text-xs font-bold text-stone-500">{m.player2_username} Legs</label>
+                                <label className="mb-1.5 block text-xs font-bold text-[#9eb8ad]">{m.player2_username} Legs</label>
                                 <input type="number" value={f.p2Legs ?? ''} onChange={e => patchForm(m.match_id, { p2Legs: e.target.value })} className={inputCls} placeholder="0" />
                               </div>
                             </div>
@@ -1062,13 +1112,13 @@ export default function ModeratorPanel() {
                             <div className="flex gap-3">
                               <button
                                 onClick={() => resolveDispute(m)}
-                                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#153f33] px-5 py-3 text-sm font-black text-white transition hover:bg-[#205542]"
+                                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#b8ff8b] px-5 py-3 text-sm font-black text-[#072118] transition hover:bg-[#d2ffb7]"
                               >
                                 <Gavel size={15} /> Entscheiden
                               </button>
                               <button
                                 onClick={() => cancelDispute(m)}
-                                className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-100"
+                                className="flex items-center gap-2 rounded-2xl border border-rose-300/25 bg-rose-300/10 px-5 py-3 text-sm font-black text-rose-200 transition hover:bg-rose-300/15"
                               >
                                 <XCircle size={15} /> {pendingCancelDisputeId === m.match_id ? 'Annullierung bestätigen' : 'Annullieren'}
                               </button>
@@ -1090,9 +1140,9 @@ export default function ModeratorPanel() {
         {tab === 'matches' && (
           <div>
             {liveMatches.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
-                <Swords size={32} className="text-stone-400" />
-                <p className="text-sm font-bold text-stone-500">Keine aktiven Matches</p>
+              <div className={opsEmptyCls}>
+                <Swords size={32} className="text-[#779286]" />
+                <p className="text-sm font-bold text-[#a9bbb4]">Keine aktiven Matches</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1101,12 +1151,12 @@ export default function ModeratorPanel() {
                   const isLong = m.duration_minutes > 60;
 
                   return (
-                    <div key={m.id} className={`overflow-hidden rounded-2xl border border-stone-200 border-l-4 bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)] ${
+                    <div key={m.id} className={`overflow-hidden rounded-[1.35rem] border border-white/10 border-l-4 bg-[#0e2b23] shadow-[0_12px_32px_rgba(0,0,0,.14)] ${
                       m.status === 'disputed'
-                        ? 'border-l-rose-500'
+                          ? 'border-l-rose-300'
                         : isLong
-                          ? 'border-l-amber-500'
-                          : 'border-l-[#2f6b55]'
+                          ? 'border-l-amber-300'
+                          : 'border-l-[#b8ff8b]'
                     }`}>
                       <div className="px-6 py-5">
                         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1117,29 +1167,29 @@ export default function ModeratorPanel() {
                                 {sc.label}
                               </span>
                               {m.app && (
-                                <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[10px] font-bold text-stone-500">
+                                <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-bold text-[#9eb8ad]">
                                   {m.app === 'scolia' ? '📷 Scolia' : m.app === 'autodarts' ? '🎯 AutoDarts' : '📱 DartCounter'}
                                 </span>
                               )}
                               {isLong && (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black text-amber-200">
                                   <AlertTriangle size={10} /> Sehr lang
                                 </span>
                               )}
                             </div>
-                            <div className="text-xl font-black text-stone-950">
-                              {m.player1_username} <span className="text-stone-400">vs</span> {m.player2_username}
+                            <div className="text-xl font-black text-white">
+                              {m.player1_username} <span className="text-[#779286]">vs</span> {m.player2_username}
                             </div>
-                            <div className="mt-1 flex items-center gap-3 text-xs text-stone-500">
+                            <div className="mt-1 flex items-center gap-3 text-xs text-[#9eb8ad]">
                               <span className="flex items-center gap-1"><Timer size={11} /> {m.duration_minutes} Min. aktiv</span>
                               <span>{m.player1_elo} vs {m.player2_elo} Elo</span>
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center justify-end gap-2">
-                            {pendingCancelMatchId === m.id && <input value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} className="w-52 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-900 outline-none focus:border-rose-300" placeholder="Grund (optional)" />}
+                            {pendingCancelMatchId === m.id && <input value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} className="w-52 rounded-xl border border-rose-300/25 bg-[#061511] px-3 py-2 text-xs text-white outline-none placeholder:text-[#779286] focus:border-rose-300" placeholder="Grund (optional)" />}
                             <button
                               onClick={() => cancelMatch(m.id)}
-                              className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                              className="flex items-center gap-2 rounded-2xl border border-rose-300/25 bg-rose-300/10 px-4 py-2.5 text-xs font-black text-rose-200 transition hover:bg-rose-300/15"
                             >
                               <XCircle size={14} /> {pendingCancelMatchId === m.id ? 'Abbruch bestätigen' : 'Match abbrechen'}
                             </button>
@@ -1160,40 +1210,40 @@ export default function ModeratorPanel() {
         {tab === 'flagged' && (
           <div>
             {flagged.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
-                <ShieldCheck size={32} className="text-stone-400" />
-                <p className="text-sm font-bold text-stone-500">Keine auffälligen Accounts</p>
+              <div className={opsEmptyCls}>
+                <ShieldCheck size={32} className="text-[#779286]" />
+                <p className="text-sm font-bold text-[#a9bbb4]">Keine auffälligen Accounts</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {flagged.map(p => {
                   const isOpen = openFlagged === p.id;
                   return (
-                    <div key={p.id} className="overflow-hidden rounded-2xl border border-stone-200 border-l-4 border-l-amber-500 bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)]">
+                    <div key={p.id} className="overflow-hidden rounded-[1.35rem] border border-white/10 border-l-4 border-l-amber-300 bg-[#0e2b23] shadow-[0_12px_32px_rgba(0,0,0,.14)]">
                       <button
                         onClick={() => setOpenFlagged(isOpen ? null : p.id)}
-                        className="w-full px-6 py-5 text-left transition hover:bg-stone-50"
+                        className="w-full px-6 py-5 text-left transition hover:bg-white/[0.045]"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <div>
                             <div className="mb-2 flex flex-wrap gap-2">
                               {p.flags.map(flag => (
-                                <span key={flag} className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">
+                                <span key={flag} className="inline-flex items-center gap-1 rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black text-amber-200">
                                   <AlertTriangle size={9} /> {flag}
                                 </span>
                               ))}
                             </div>
-                            <div className="text-xl font-black text-stone-950">{p.username}</div>
-                            <div className="mt-1 text-xs text-stone-500">
+                            <div className="text-xl font-black text-white">{p.username}</div>
+                            <div className="mt-1 text-xs text-[#9eb8ad]">
                               {p.elo} Elo · {p.gamesPlayed} Spiele · {p.winrate}% Winrate · +{p.elo_gain_7d} Elo (7d) · {p.account_age_days} Tage alt
                             </div>
                           </div>
-                          {isOpen ? <ChevronUp size={18} className="text-stone-400" /> : <ChevronDown size={18} className="text-stone-400" />}
+                          {isOpen ? <ChevronUp size={18} className="text-[#779286]" /> : <ChevronDown size={18} className="text-[#779286]" />}
                         </div>
                       </button>
 
                       {isOpen && (
-                        <div className="border-t border-stone-100 px-6 pb-6 pt-5">
+                        <div className="border-t border-white/10 px-6 pb-6 pt-5">
                           <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                             {[
                               { label: 'Elo', val: p.elo },
@@ -1203,9 +1253,9 @@ export default function ModeratorPanel() {
                               { label: 'Elo +7d', val: `+${p.elo_gain_7d}` },
                               { label: 'Account-Alter', val: `${p.account_age_days}d` },
                             ].map(({ label, val }) => (
-                              <div key={label} className="rounded-2xl border border-stone-200 bg-stone-50 p-3 text-center">
-                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-stone-400">{label}</div>
-                                <div className="mt-1 text-lg font-black text-stone-950">{val}</div>
+                              <div key={label} className="rounded-2xl border border-white/10 bg-[#061511]/45 p-3 text-center">
+                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#779286]">{label}</div>
+                                <div className="mt-1 text-lg font-black text-white">{val}</div>
                               </div>
                             ))}
                           </div>
@@ -1220,12 +1270,12 @@ export default function ModeratorPanel() {
                             />
                             <button
                               onClick={() => warnPlayer(p.id)}
-                              className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-black text-amber-700 transition hover:bg-amber-100"
+                              className="flex items-center gap-2 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-300/15"
                             >
                               <AlertTriangle size={14} /> Warnen
                             </button>
                           </div>
-                          <p className="mt-2 text-xs text-stone-500">Die Warnung wird dem Spieler in der Benachrichtigungszentrale zugestellt und im Aktivitätsprotokoll festgehalten. Sperren bleiben Admins vorbehalten.</p>
+                          <p className="mt-2 text-xs text-[#9eb8ad]">Die Warnung wird dem Spieler in der Benachrichtigungszentrale zugestellt und im Aktivitätsprotokoll festgehalten. Sperren bleiben Admins vorbehalten.</p>
                         </div>
                       )}
                     </div>
@@ -1242,27 +1292,27 @@ export default function ModeratorPanel() {
         {tab === 'logs' && (
           <div>
             {logs.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-stone-300 bg-white/70 py-20 text-center">
-                <ClipboardList size={32} className="text-stone-400" />
-                <p className="text-sm font-bold text-stone-500">Noch keine Moderationsaktionen</p>
+              <div className={opsEmptyCls}>
+                <ClipboardList size={32} className="text-[#779286]" />
+                <p className="text-sm font-bold text-[#a9bbb4]">Noch keine Moderationsaktionen</p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_10px_30px_rgba(35,49,42,.06)]">
-                <div className="divide-y divide-stone-100">
+              <div className={`overflow-hidden ${opsCardCls}`}>
+                <div className="divide-y divide-white/10">
                   {logs.map(log => (
                     <div key={log.id} className="flex items-start gap-4 px-6 py-4">
-                      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-50 text-[#2f6b55]">
+                      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#b8ff8b]/10 text-[#b8ff8b]">
                         <Activity size={14} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-black text-stone-900">{log.mod_username}</span>
-                          <span className="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-800">{log.action}</span>
-                          {log.target_label && <span className="text-xs text-stone-500">→ {log.target_label}</span>}
+                          <span className="font-black text-white">{log.mod_username}</span>
+                          <span className="rounded-md border border-[#b8ff8b]/20 bg-[#b8ff8b]/10 px-2 py-0.5 text-[10px] font-black text-[#d8ffc0]">{log.action}</span>
+                          {log.target_label && <span className="text-xs text-[#9eb8ad]">→ {log.target_label}</span>}
                         </div>
-                        {log.details && <p className="mt-0.5 text-xs text-stone-500">{log.details}</p>}
+                        {log.details && <p className="mt-0.5 text-xs text-[#9eb8ad]">{log.details}</p>}
                       </div>
-                      <div className="shrink-0 text-xs text-stone-400">{timeAgo(log.created_at)}</div>
+                      <div className="shrink-0 text-xs text-[#779286]">{timeAgo(log.created_at)}</div>
                     </div>
                   ))}
                 </div>
