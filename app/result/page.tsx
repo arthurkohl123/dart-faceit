@@ -22,6 +22,7 @@ import {
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
+import { PlayerReportButton } from '@/components/player-report-button';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -348,6 +349,7 @@ export default function MatchResult() {
     ? currentUserId === match.player1_id || currentUserId === match.player2_id
     : false;
   const opponentUsername = match ? (iAmPlayer1 ? match.player2_username : match.player1_username) : '';
+  const opponentUserId = match ? (iAmPlayer1 ? match.player2_id : match.player1_id) : null;
   const isSubmitter = Boolean(match?.submitted_by && match.submitted_by === currentUserId);
   const needsMyConfirmation = Boolean(
     match?.status === 'awaiting_confirmation' &&
@@ -1449,6 +1451,19 @@ export default function MatchResult() {
                   <p className="mt-1 text-[11px] font-black text-zinc-200 sm:text-xs">{legsToWin} Legs</p>
                 </div>
               </div>
+
+              {iAmParticipant && opponentUserId ? (
+                <div className="flex flex-col gap-3 border-t border-white/[0.07] bg-rose-400/[0.035] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <p className="text-xs leading-5 text-zinc-500">Bei einem konkreten Fair-Play-Vorfall kannst du deinen Gegner vertraulich an das Moderationsteam melden.</p>
+                  <PlayerReportButton
+                    targetUserId={opponentUserId}
+                    targetUsername={opponentUsername}
+                    source="matchroom"
+                    matchId={match.id}
+                    triggerClassName="inline-flex shrink-0 items-center justify-center gap-2 border border-rose-300/25 bg-rose-400/[0.09] px-3.5 py-2.5 text-xs font-black text-rose-100 transition hover:border-rose-300/45 hover:bg-rose-400/[0.15]"
+                  />
+                </div>
+              ) : null}
             </div>
           );
         })()}

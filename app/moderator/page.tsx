@@ -48,6 +48,11 @@ type ModTicket = {
   assigned_to_username: string | null;
   message_count: number;
   last_message: string | null;
+  reported_profile_id: string | null;
+  reported_username: string | null;
+  report_source: 'matchroom' | 'profile' | null;
+  active_match_id: string | null;
+  incident_kind: string | null;
 };
 
 type TicketMsg = {
@@ -577,7 +582,7 @@ export default function ModeratorPanel() {
   const disputeCount     = disputes.length;
   const liveCount        = liveMatches.length;
   const flaggedCount     = flagged.length;
-  const visibleTickets = tickets.filter((ticket) => `${ticket.subject} ${ticket.username} ${ticket.category}`.toLocaleLowerCase('de-DE').includes(ticketSearch.trim().toLocaleLowerCase('de-DE')));
+  const visibleTickets = tickets.filter((ticket) => `${ticket.subject} ${ticket.username} ${ticket.category} ${ticket.reported_username ?? ''}`.toLocaleLowerCase('de-DE').includes(ticketSearch.trim().toLocaleLowerCase('de-DE')));
   const currentView = viewMeta[tab];
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -859,12 +864,14 @@ export default function ModeratorPanel() {
                               <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-bold text-[#9eb8ad]">
                                 {catLabels[t.category] ?? t.category}
                               </span>
+                              {t.reported_username ? <span className="rounded-full border border-rose-300/20 bg-rose-400/[0.08] px-2.5 py-1 text-[10px] font-black text-rose-100">Meldung · {t.report_source === 'matchroom' ? 'Matchroom' : 'Profil'}</span> : null}
                             </div>
                             <div className="text-base font-black text-white">{t.subject}</div>
                             <div className="mt-1 text-xs text-[#9eb8ad]">
                               von <span className="font-bold text-[#e6f4ed]">{t.username}</span> · {timeAgo(t.created_at)}
                               {t.message_count > 0 && ` · ${t.message_count} Nachrichten`}
                             </div>
+                            {t.reported_username ? <div className="mt-1 text-xs font-semibold text-rose-100/85">Gemeldet: {t.reported_username}{t.active_match_id ? ' · verknüpfter Matchroom' : ''}</div> : null}
                             <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.13em] text-[#779286]">{t.assigned_to_username ? `Übernommen von ${t.assigned_to_username}` : 'Noch nicht übernommen'}</div>
                           </div>
                           <div className="shrink-0 text-[#779286]">

@@ -9,6 +9,7 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { RankBadge } from '@/components/RankBadge';
 import { StreamerBadge } from '@/components/StreamerBadge';
 import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
+import { PlayerReportButton } from '@/components/player-report-button';
 import { getRankProgress } from '@/lib/ranks';
 import { ArrowUpRight, Crown, ExternalLink, Menu, ShieldCheck, Sparkles, Star, Target, Trophy, X, Zap } from 'lucide-react';
 
@@ -57,15 +58,18 @@ export default function PlayerProfile() {
   const [total180s, setTotal180s] = useState(0);
   const [bestAverage, setBestAverage] = useState<number | null>(null);
   const [platformStatistics, setPlatformStatistics] = useState<PlatformStatistic[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     async function load() {
-      const [{ data: profileData }, { data: adminRows, error: adminError }] = await Promise.all([
+      const [{ data: profileData }, { data: adminRows, error: adminError }, { data: sessionData }] = await Promise.all([
         supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, is_streamer, twitch_url, kick_url, supabaseId').eq('username', username).maybeSingle(),
         supabase.rpc('get_public_admin_profile_ids'),
+        supabase.auth.getSession(),
       ]);
       if (!isMounted) return;
+      setCurrentUserId(sessionData.session?.user.id ?? null);
       if (!profileData) { setNotFound(true); setLoading(false); return; }
       if (adminError) console.error('Admin-Badge konnte nicht geladen werden:', adminError);
       const publicProfile: PublicProfile = {
@@ -140,6 +144,7 @@ export default function PlayerProfile() {
                 <div className="min-w-0"><div className="flex flex-wrap items-center gap-2.5">{profile!.isPremium && <Star className={'h-5 w-5 shrink-0 fill-current ' + (premiumCosmetic?.icon || 'text-emerald-300')} />}<h1 className={'truncate text-4xl font-black tracking-[-.08em] sm:text-5xl lg:text-6xl ' + (premiumCosmetic?.name || '')}>{profile!.username}</h1>{profile!.is_streamer && <StreamerBadge />}{profile!.isAdmin && <AdminBadge />}</div><div className="mt-3 flex flex-wrap gap-2"><span className={'player-profile-rank-tag ' + currentRank.color}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className={'player-profile-premium-tag ' + (premiumCosmetic?.badge || '')}>Premium</span>}</div><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Alle Werte stammen aus bestätigten Ranked-Matches. Private Spiele und offene Ergebnisse zählen nicht in dieses Profil.</p></div>
               </div>
               <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-zinc-500"><span className="inline-flex items-center gap-2 text-emerald-100"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Bestätigte Ranked-Stats</span><span>{gamesPlayed} Matches gespielt</span>{profile!.is_streamer && profile!.twitch_url && <a href={profile!.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-violet-200 transition hover:text-white">Twitch öffnen <ExternalLink className="h-3.5 w-3.5" /></a>}</div>
+              {currentUserId && currentUserId !== profile!.supabaseId ? <div className="mt-5"><PlayerReportButton targetUserId={profile!.supabaseId} targetUsername={profile!.username} source="profile" triggerClassName="inline-flex items-center gap-2 border border-rose-300/20 bg-rose-400/[0.07] px-3.5 py-2.5 text-xs font-black text-rose-100 transition hover:border-rose-300/45 hover:bg-rose-400/[0.13]" /></div> : null}
             </div>
             <div className="player-profile-scorecard self-start"><div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[.2em] text-emerald-100"><span>Aktuelles Rating</span><Crown className="h-4 w-4 text-amber-200" /></div><div className="mt-5 text-6xl font-black tracking-[-.1em] text-emerald-200">{elo}</div><div className="mt-1 text-sm font-bold text-zinc-500">Elo-Punkte</div><div className="mt-8 border-t border-white/10 pt-4"><div className="flex items-center gap-3"><RankBadge level={currentRank.level} size="sm" /><div><div className={'font-black ' + currentRank.color}>{currentRank.name}</div><div className="mt-1 text-xs text-zinc-500">Level {currentRank.level} · Season 01</div></div></div></div></div>
           </div>
