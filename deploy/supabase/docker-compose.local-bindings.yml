@@ -1,0 +1,12 @@
+# The self-hosted Supabase gateway and database are intentionally private while
+# the migration is prepared. Caddy will be the only public TLS entry point at
+# cutover time.
+services:
+  api-gw:
+    ports: !override
+      - "127.0.0.1:8000:8000/tcp"
+
+  supavisor:
+    ports: !override
+      - "127.0.0.1:5432:5432/tcp"
+      - "127.0.0.1:6543:6543/tcp"
