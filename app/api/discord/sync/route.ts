@@ -30,5 +30,16 @@ export async function GET() {
     }
   }
   const failed = results.filter((result) => !result.ok);
-  return NextResponse.json({ ok: true, checked: results.length, failed: failed.length });
+  const failedByCode = failed.reduce<Record<string, number>>((summary, result) => {
+    const code = result.code ?? 'UNKNOWN';
+    summary[code] = (summary[code] ?? 0) + 1;
+    return summary;
+  }, {});
+
+  return NextResponse.json({
+    ok: true,
+    checked: results.length,
+    failed: failed.length,
+    failedByCode,
+  });
 }
