@@ -10,3 +10,10 @@ www.rankeddarts.de {
   encode zstd gzip
   reverse_proxy app:3000
 }
+
+# The Supabase containers remain private on the host. Caddy terminates TLS
+# and proxies the public API hostname to their loopback-only Envoy gateway.
+api.rankeddarts.de {
+  encode zstd gzip
+  reverse_proxy host.docker.internal:8000
+}

@@ -42,6 +42,10 @@ services:
       - "443:443/udp"
     environment:
       CADDY_EMAIL: ${CADDY_EMAIL}
+    # Supabase is bound to the VPS loopback interface. This one-way host
+    # gateway is the only path from the public proxy to its API gateway.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./deploy/vps/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
