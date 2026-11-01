@@ -1301,6 +1301,7 @@ export default function Matchmaking() {
           <div className="hidden items-center gap-7 text-[13px] font-bold text-zinc-300 lg:flex">
             <Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link>
             <Link href="/matchmaking" className="text-emerald-200">Matchmaking</Link>
+            <Link href="/duo" className="transition hover:text-cyan-200">Duo 2vs2</Link>
             <Link href="/history" className="transition hover:text-white">Match-Verlauf</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
             <Link href="/premium" className="border border-emerald-300/35 px-3 py-1.5 font-black text-emerald-200 transition hover:bg-emerald-300/10">Premium</Link>
@@ -1318,6 +1319,7 @@ export default function Matchmaking() {
           <div className="border-t border-white/10 bg-[#0a0d0d] px-3 py-3 sm:px-5 sm:py-4 lg:hidden">
             <div className="flex flex-col gap-1">
               <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Rangliste</Link>
+              <Link href="/duo" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-cyan-200 transition hover:bg-white/10 hover:text-white">Duo 2vs2</Link>
               <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match-Verlauf</Link>
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
