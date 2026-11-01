@@ -8,9 +8,11 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { useRouter } from 'next/navigation';
 import { getDailyMatchesUsed, getMaxEloDiff, getNextEloSearchExpansion, hasReachedDailyMatchLimit, type DailyMatchQuota } from '@/lib/matchmaking-rules';
 import { reportClientError } from '@/lib/client-monitoring';
+import { DuoQueuePanel } from '../duo/page';
 
 type MatchmakingStatus = 'idle' | 'selecting' | 'searching' | 'accepting' | 'found' | 'error';
 type AppChoice = 'scolia' | 'dartcounter' | 'autodarts';
+type QueueMode = 'solo' | 'duo';
 
 type MatchmakingResponse = {
   match_id: string | null;
@@ -144,6 +146,8 @@ export default function Matchmaking() {
   const [autodartsUsername, setAutodartsUsername] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [status, setStatus] = useState<MatchmakingStatus>('idle');
+  const [queueMode, setQueueMode] = useState<QueueMode>('solo');
+  const [duoQueueActive, setDuoQueueActive] = useState(false);
   const [selectedApps, setSelectedApps] = useState<AppChoice[]>([]);
   const [selectedApp, setSelectedApp] = useState<AppChoice | null>(null);
   const [opponent, setOpponent] = useState<Opponent | null>(null);
@@ -1301,7 +1305,6 @@ export default function Matchmaking() {
           <div className="hidden items-center gap-7 text-[13px] font-bold text-zinc-300 lg:flex">
             <Link href="/leaderboard" className="transition hover:text-white">Rangliste</Link>
             <Link href="/matchmaking" className="text-emerald-200">Matchmaking</Link>
-            <Link href="/duo" className="transition hover:text-cyan-200">Duo 2vs2</Link>
             <Link href="/history" className="transition hover:text-white">Match-Verlauf</Link>
             <Link href="/updates" className="transition hover:text-white">Updates</Link>
             <Link href="/premium" className="border border-emerald-300/35 px-3 py-1.5 font-black text-emerald-200 transition hover:bg-emerald-300/10">Premium</Link>
@@ -1319,7 +1322,6 @@ export default function Matchmaking() {
           <div className="border-t border-white/10 bg-[#0a0d0d] px-3 py-3 sm:px-5 sm:py-4 lg:hidden">
             <div className="flex flex-col gap-1">
               <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Rangliste</Link>
-              <Link href="/duo" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-cyan-200 transition hover:bg-white/10 hover:text-white">Duo 2vs2</Link>
               <Link href="/history" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Match-Verlauf</Link>
               <Link href="/updates" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/10 hover:text-white">Updates</Link>
               <Link href="/premium" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-bold text-emerald-200 transition hover:bg-emerald-400/10">Premium</Link>
@@ -1415,12 +1417,40 @@ export default function Matchmaking() {
         <div className="matchmaking-console min-w-0 p-4 sm:p-7 md:p-8">
           <div className="matchmaking-console-head relative -mx-4 -mt-4 mb-7 flex min-w-0 items-center justify-between gap-2 px-4 py-4 sm:-mx-7 sm:-mt-7 sm:mb-8 sm:px-7 md:-mx-8 md:-mt-8 md:px-8">
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center border border-emerald-300/25 bg-emerald-400/10"><Radar className="h-4 w-4 text-emerald-200" /></div>
-              <div className="min-w-0"><div className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300 sm:text-[10px] sm:tracking-[0.24em]">Matchsuche</div><div className="mt-0.5 truncate text-sm font-bold text-zinc-300">Ranked Matchmaking</div></div>
+              <div className={`grid h-9 w-9 shrink-0 place-items-center border ${queueMode === 'duo' ? 'border-cyan-300/25 bg-cyan-400/10' : 'border-emerald-300/25 bg-emerald-400/10'}`}><Radar className={`h-4 w-4 ${queueMode === 'duo' ? 'text-cyan-200' : 'text-emerald-200'}`} /></div>
+              <div className="min-w-0"><div className={`truncate text-[9px] font-black uppercase tracking-[0.16em] sm:text-[10px] sm:tracking-[0.24em] ${queueMode === 'duo' ? 'text-cyan-200' : 'text-emerald-300'}`}>Matchsuche</div><div className="mt-0.5 truncate text-sm font-bold text-zinc-300">{queueMode === 'duo' ? 'Duo Ranked · 2vs2' : 'Ranked Matchmaking · 1vs1'}</div></div>
             </div>
             <div className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] sm:gap-2 sm:px-3 sm:text-[10px] sm:tracking-[0.16em] ${matchmakingEnabled ? 'border-emerald-300/20 bg-emerald-400/[0.07] text-emerald-200' : 'border-red-300/20 bg-red-500/[0.08] text-red-100'}`}><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${matchmakingEnabled ? 'bg-emerald-300' : 'bg-red-300'}`} />{matchmakingEnabled ? 'aktiv' : 'pausiert'}</div>
           </div>
 
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (duoQueueActive) { showToast('Beende zuerst deine Duo-Suche oder dein Duo-Match.'); return; }
+                setQueueMode('solo');
+              }}
+              className={`min-h-11 rounded-xl px-4 text-sm font-black transition ${queueMode === 'solo' ? 'bg-emerald-300 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+            >
+              1vs1 Ranked
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (status === 'searching' || status === 'accepting' || status === 'found') { showToast('Beende zuerst deine laufende 1vs1-Suche oder dein Match.'); return; }
+                setQueueMode('duo');
+              }}
+              className={`min-h-11 rounded-xl px-4 text-sm font-black transition ${queueMode === 'duo' ? 'bg-cyan-300 text-black' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+            >
+              2vs2 Duo
+            </button>
+          </div>
+
+          <div className="mt-6">
+            {queueMode === 'duo' ? (
+              <DuoQueuePanel embedded onActivityChange={setDuoQueueActive} />
+            ) : (
+              <>
           {/* IDLE: App-Auswahl */}
           {status === 'idle' && (
             <div className="relative">
@@ -1718,6 +1748,9 @@ export default function Matchmaking() {
               )}
             </div>
           )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Live-Matches */}

@@ -6,6 +6,7 @@ const migration = readFileSync(new URL('../../supabase/migrations/20261101142818
 const overlapGuard = readFileSync(new URL('../../supabase/migrations/20261101144415_prevent_duo_and_standard_queue_overlap.sql', import.meta.url), 'utf8');
 const duoPage = readFileSync(new URL('../../app/duo/page.tsx', import.meta.url), 'utf8');
 const matchPage = readFileSync(new URL('../../app/duo/match/page.tsx', import.meta.url), 'utf8');
+const matchmakingPage = readFileSync(new URL('../../app/matchmaking/page.tsx', import.meta.url), 'utf8');
 
 test('Duo Ranked has an independent rating, queue and match record', () => {
   assert.match(migration, /create table if not exists public\.duo_ratings/i);
@@ -33,4 +34,12 @@ test('a player cannot search 1vs1 and Duo at the same time', () => {
   assert.match(overlapGuard, /ACTIVE_1V1_QUEUE_EXISTS/);
   assert.match(overlapGuard, /public\.matchmaking_queue/);
   assert.match(duoPage, /ACTIVE_1V1_QUEUE_EXISTS/);
+});
+
+test('Duo is selected inside Matchmaking instead of from a separate navigation page', () => {
+  assert.match(matchmakingPage, /1vs1 Ranked/);
+  assert.match(matchmakingPage, /2vs2 Duo/);
+  assert.match(matchmakingPage, /<DuoQueuePanel embedded/);
+  assert.doesNotMatch(matchmakingPage, /href="\/duo"/);
+  assert.match(duoPage, /router\.replace\('\/matchmaking'\)/);
 });

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check, Clock3, Crown, Link2, LoaderCircle, ShieldCheck, Swords, UserPlus, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
@@ -30,7 +31,13 @@ function messageOf(error: unknown) {
   return Object.entries(messages).find(([key]) => text.includes(key))?.[1] ?? 'Das konnte gerade nicht ausgeführt werden. Bitte versuche es erneut.';
 }
 
-export default function DuoPage() {
+export function DuoQueuePanel({
+  embedded = false,
+  onActivityChange,
+}: {
+  embedded?: boolean;
+  onActivityChange?: (active: boolean) => void;
+}) {
   const supabase = useMemo(() => createClient(), []);
   const [state, setState] = useState<DuoState | null>(null);
   const [leaders, setLeaders] = useState<Leader[]>([]);
@@ -60,6 +67,9 @@ export default function DuoPage() {
     }, 4_000);
     return () => window.clearInterval(timer);
   }, [state?.queue, state?.match, load, supabase]);
+  useEffect(() => {
+    onActivityChange?.(Boolean(state?.queue || state?.match));
+  }, [onActivityChange, state?.match, state?.queue]);
 
   const run = async (name: string, action: () => PromiseLike<{ error: { message: string } | null }>) => {
     setBusy(name); setNotice(null);
@@ -71,15 +81,7 @@ export default function DuoPage() {
   const partyPartner = state?.party ? (state.party.leader_id === userId ? state.party.invited_username : state.party.leader_username) : null;
   const incoming = state?.party?.invited_user_id === userId && state.party.status === 'pending';
 
-  return <main className="min-h-screen bg-[#080b0b] text-white">
-    <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.12),transparent_30%),radial-gradient(circle_at_90%_25%,rgba(167,139,250,0.1),transparent_25%)]" />
-    <section className="relative mx-auto max-w-7xl px-4 py-6 sm:px-7 lg:py-10">
-      <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-5">
-        <Link href="/" className="text-lg font-black tracking-[-0.05em]">RANKED<span className="text-cyan-300">DARTS</span></Link>
-        <nav className="flex items-center gap-3 text-sm font-bold text-zinc-400"><Link href="/matchmaking" className="hover:text-white">1vs1</Link><Link href="/leaderboard" className="hover:text-white">Rangliste</Link><Link href="/duo/leaderboard" className="text-cyan-200">Duo-Rangliste</Link></nav>
-      </header>
-
-      <div className="mt-8 grid gap-5 xl:grid-cols-[1.55fr_.7fr]">
+  const panel = <div className={`${embedded ? '' : 'mt-8 '}grid gap-5 xl:grid-cols-[1.55fr_.7fr]`}>
         <div className="overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-[#0e1314]/90 shadow-[0_0_80px_rgba(34,211,238,0.07)]">
           <div className="border-b border-white/10 bg-gradient-to-r from-cyan-400/[0.11] via-transparent to-violet-400/[0.1] px-6 py-7 sm:px-9">
             <div className="flex flex-wrap items-start justify-between gap-5"><div><p className="text-[10px] font-black uppercase tracking-[.26em] text-cyan-200">DartCounter · Team Mode</p><h1 className="mt-2 text-4xl font-black tracking-[-.065em] sm:text-5xl">Duo Ranked</h1><p className="mt-3 max-w-xl text-sm leading-6 text-zinc-400">Tritt mit einem Freund an oder finde einen zufälligen Mate. Deine 1vs1-Elo bleibt komplett unberührt.</p></div>
@@ -101,7 +103,24 @@ export default function DuoPage() {
           </div>
         </div>
         <aside className="rounded-[2rem] border border-white/10 bg-[#0e1314]/90 p-5 sm:p-6"><div className="flex items-center gap-3"><Crown className="h-5 w-5 text-amber-200"/><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-200">Duo Ranked</p><h2 className="font-black">Top Spieler</h2></div></div><div className="mt-5 space-y-2">{leaders.length ? leaders.map((player) => <div key={player.username} className="flex items-center gap-3 rounded-2xl border border-white/[.07] bg-black/15 px-3 py-3"><span className="w-5 text-center text-xs font-black text-zinc-600">{player.rank}</span><span className="min-w-0 flex-1 truncate text-sm font-bold">{player.username}</span><span className="text-sm font-black text-cyan-200">{player.elo}</span></div>) : <p className="py-8 text-center text-sm text-zinc-600">Die erste Duo-Rangliste entsteht gerade.</p>}</div><Link href="/duo/leaderboard" className="mt-5 flex min-h-11 items-center justify-center rounded-xl border border-white/10 text-xs font-black uppercase tracking-[.13em] text-zinc-300 hover:bg-white/5">Ganze Rangliste</Link><div className="mt-5 rounded-2xl border border-emerald-300/15 bg-emerald-400/[.05] p-4 text-xs leading-5 text-zinc-400"><Check className="mb-2 h-4 w-4 text-emerald-200"/>Für ein Match müssen alle vier Spieler bestätigen. Das Ergebnis wird anschließend von der gegnerischen Seite bestätigt.</div></aside>
-      </div>
+  </div>;
+
+  if (embedded) return panel;
+
+  return <main className="min-h-screen bg-[#080b0b] text-white">
+    <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.12),transparent_30%),radial-gradient(circle_at_90%_25%,rgba(167,139,250,0.1),transparent_25%)]" />
+    <section className="relative mx-auto max-w-7xl px-4 py-6 sm:px-7 lg:py-10">
+      <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-5">
+        <Link href="/" className="text-lg font-black tracking-[-0.05em]">RANKED<span className="text-cyan-300">DARTS</span></Link>
+        <nav className="flex items-center gap-3 text-sm font-bold text-zinc-400"><Link href="/matchmaking" className="hover:text-white">Matchmaking</Link><Link href="/leaderboard" className="hover:text-white">Rangliste</Link><Link href="/duo/leaderboard" className="text-cyan-200">Duo-Rangliste</Link></nav>
+      </header>
+      {panel}
     </section>
   </main>;
+}
+
+export default function DuoPage() {
+  const router = useRouter();
+  useEffect(() => { router.replace('/matchmaking'); }, [router]);
+  return <main className="grid min-h-screen place-items-center bg-[#080b0b] text-zinc-300"><LoaderCircle className="h-7 w-7 animate-spin" /></main>;
 }
