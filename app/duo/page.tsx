@@ -22,8 +22,17 @@ type DuoState = {
   match: DuoMatch | null;
 };
 
+type DuoQueueSetting = {
+  enabled?: boolean;
+  message?: string;
+};
+
+const defaultDuoQueueMessage = 'Die Duo-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.';
+
 function messageOf(error: unknown) {
   const text = error instanceof Error ? error.message : String(error ?? '');
+  const queueClosedMessage = text.match(/DUO_MATCHMAKING_QUEUE_DISABLED:\s*(.+)/i)?.[1]?.trim();
+  if (queueClosedMessage) return queueClosedMessage;
   const messages: Record<string, string> = {
     PLAYER_NOT_FOUND: 'Dieser Spieler wurde nicht gefunden.',
     CANNOT_INVITE_SELF: 'Du kannst dich nicht selbst einladen.',
@@ -52,12 +61,20 @@ export function DuoQueuePanel({
   const [inviteName, setInviteName] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
+  const [duoQueueEnabled, setDuoQueueEnabled] = useState(true);
+  const [duoQueueMessage, setDuoQueueMessage] = useState(defaultDuoQueueMessage);
 
   const load = useCallback(async () => {
-    const [{ data: auth }, { data, error }] = await Promise.all([
+    const [{ data: auth }, { data, error }, { data: queueSetting, error: queueSettingError }] = await Promise.all([
       supabase.auth.getUser(),
       supabase.rpc('duo_get_state'),
+      supabase.rpc('get_duo_matchmaking_queue_status'),
     ]);
+    if (!queueSettingError) {
+      const setting = queueSetting as DuoQueueSetting | null;
+      setDuoQueueEnabled(setting?.enabled !== false);
+      setDuoQueueMessage(setting?.message ?? defaultDuoQueueMessage);
+    }
     if (error) {
       setNotice({ text: messageOf(error), error: true });
       return;
@@ -116,6 +133,7 @@ export function DuoQueuePanel({
       </div>
     </div>
 
+    {!duoQueueEnabled && !state?.match && <div className="mt-5 flex items-start gap-3 border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-50"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" /><div><strong className="font-black">Duo-Queue ist geschlossen</strong><p className="mt-1 text-amber-100/80">{duoQueueMessage}</p></div></div>}
     {notice && <div className={`mt-5 flex items-start gap-3 border px-4 py-3 text-sm ${notice.error ? 'border-rose-300/25 bg-rose-400/10 text-rose-100' : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'}`}><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />{notice.text}</div>}
 
     <div className="mt-6">
@@ -125,6 +143,12 @@ export function DuoQueuePanel({
           <h3 className="mt-3 text-xl font-black text-white">Duo-Match gefunden</h3>
           <p className="mt-2 text-sm text-zinc-400">Vier Spieler wurden zusammengestellt. Alle bestätigen den Fund, bevor es losgeht.</p>
           <Link href={`/duo/match?id=${state.match.id}`} className="mt-5 inline-flex min-h-11 items-center justify-center bg-emerald-300 px-5 text-xs font-black uppercase tracking-[.13em] text-black transition hover:bg-emerald-200">Zum Match</Link>
+        </div>
+      ) : !duoQueueEnabled ? (
+        <div className="border border-amber-300/20 bg-amber-400/[.045] p-6 text-center">
+          <ShieldCheck className="mx-auto h-7 w-7 text-amber-200" />
+          <h3 className="mt-3 text-xl font-black text-white">Duo-Queue vorübergehend geschlossen</h3>
+          <p className="mt-2 text-sm text-zinc-400">{duoQueueMessage}</p>
         </div>
       ) : state?.queue ? (
         <div className="border border-cyan-300/25 bg-cyan-400/[.06] p-6 text-center">
@@ -137,12 +161,12 @@ export function DuoQueuePanel({
         <div className="grid gap-3 md:grid-cols-2">
           <section className="border border-violet-300/20 bg-violet-400/[.045] p-5">
             <div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center border border-violet-300/20 bg-violet-400/10"><Users className="h-4 w-4 text-violet-200" /></span><div><h3 className="font-black text-white">Mit Freund spielen</h3><p className="mt-0.5 text-xs text-zinc-500">Party erstellen und gemeinsam suchen</p></div></div>
-            {!state?.party ? <><label className="mt-5 block text-xs font-bold text-zinc-400">RankedDarts-Nutzername<input value={inviteName} onChange={(event) => setInviteName(event.target.value)} placeholder="Freund einladen" className="mt-2 min-h-11 w-full border border-white/10 bg-black/25 px-3 text-sm text-white outline-none placeholder:text-zinc-700 focus:border-violet-300/50" /></label><button onClick={() => void run('invite', () => supabase.rpc('duo_create_party', { p_invited_username: inviteName }))} disabled={!inviteName.trim() || busy !== null} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 bg-violet-300 text-xs font-black uppercase tracking-[.13em] text-black transition hover:bg-violet-200 disabled:opacity-50"><UserPlus className="h-4 w-4" />{busy === 'invite' ? 'Wird eingeladen…' : 'Einladung senden'}</button></> : <div className="mt-5 border border-white/10 bg-black/20 p-4"><p className="font-black text-white">{partyPartner}</p><p className="mt-1 text-xs text-zinc-500">{state.party.status === 'ready' ? 'Bereit für die Duo-Queue.' : incoming ? 'Diese Einladung wartet auf deine Antwort.' : 'Einladung wurde gesendet.'}</p>{incoming ? <div className="mt-4 grid grid-cols-2 gap-2"><button onClick={() => void run('accept-party', () => supabase.rpc('duo_respond_party_invite', { p_party_id: state.party!.id, p_accept: true }))} className="min-h-10 bg-emerald-300 text-xs font-black text-black">Annehmen</button><button onClick={() => void run('decline-party', () => supabase.rpc('duo_respond_party_invite', { p_party_id: state.party!.id, p_accept: false }))} className="min-h-10 border border-rose-300/20 text-xs font-black text-rose-200">Ablehnen</button></div> : state.party.status === 'ready' ? <button onClick={() => void run('party-search', () => supabase.rpc('duo_join_queue', { p_max_elo_diff: 50, p_queue_kind: 'party' }))} disabled={busy !== null} className="mt-4 min-h-11 w-full bg-violet-300 text-xs font-black uppercase tracking-[.13em] text-black transition hover:bg-violet-200 disabled:opacity-50">Als Duo suchen</button> : null}<button onClick={() => void run('leave-party', () => supabase.rpc('duo_leave_party'))} className="mt-3 text-xs font-bold text-zinc-500 transition hover:text-white">Party verlassen</button></div>}
+            {!state?.party ? <><label className="mt-5 block text-xs font-bold text-zinc-400">RankedDarts-Nutzername<input value={inviteName} onChange={(event) => setInviteName(event.target.value)} placeholder="Freund einladen" className="mt-2 min-h-11 w-full border border-white/10 bg-black/25 px-3 text-sm text-white outline-none placeholder:text-zinc-700 focus:border-violet-300/50" /></label><button onClick={() => void run('invite', () => supabase.rpc('duo_create_party', { p_invited_username: inviteName }))} disabled={!inviteName.trim() || busy !== null} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 bg-violet-300 text-xs font-black uppercase tracking-[.13em] text-black transition hover:bg-violet-200 disabled:opacity-50"><UserPlus className="h-4 w-4" />{busy === 'invite' ? 'Wird eingeladen…' : 'Einladung senden'}</button></> : <div className="mt-5 border border-white/10 bg-black/20 p-4"><p className="font-black text-white">{partyPartner}</p><p className="mt-1 text-xs text-zinc-500">{state.party.status === 'ready' ? 'Bereit für die Duo-Queue.' : incoming ? 'Diese Einladung wartet auf deine Antwort.' : 'Einladung wurde gesendet.'}</p>{incoming ? <div className="mt-4 grid grid-cols-2 gap-2"><button onClick={() => void run('accept-party', () => supabase.rpc('duo_respond_party_invite', { p_party_id: state.party!.id, p_accept: true }))} className="min-h-10 bg-emerald-300 text-xs font-black text-black">Annehmen</button><button onClick={() => void run('decline-party', () => supabase.rpc('duo_respond_party_invite', { p_party_id: state.party!.id, p_accept: false }))} className="min-h-10 border border-rose-300/20 text-xs font-black text-rose-200">Ablehnen</button></div> : state.party.status === 'ready' ? <button onClick={() => void run('party-search', () => supabase.rpc('duo_join_queue', { p_max_elo_diff: 50, p_queue_kind: 'party' }))} disabled={!duoQueueEnabled || busy !== null} className="mt-4 min-h-11 w-full bg-violet-300 text-xs font-black uppercase tracking-[.13em] text-black transition hover:bg-violet-200 disabled:opacity-50">Als Duo suchen</button> : null}<button onClick={() => void run('leave-party', () => supabase.rpc('duo_leave_party'))} className="mt-3 text-xs font-bold text-zinc-500 transition hover:text-white">Party verlassen</button></div>}
           </section>
           <section className="border border-cyan-300/20 bg-cyan-400/[.045] p-5">
             <div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center border border-cyan-300/20 bg-cyan-400/10"><Link2 className="h-4 w-4 text-cyan-200" /></span><div><h3 className="font-black text-white">Solo suchen</h3><p className="mt-0.5 text-xs text-zinc-500">Zufälliger Mate · faire Teamstärke</p></div></div>
             <p className="mt-5 text-sm leading-6 text-zinc-400">Wir kombinieren vier Solospieler so, dass beide Teams möglichst nah beieinander liegen.</p>
-            <button onClick={() => void run('solo-search', () => supabase.rpc('duo_join_queue', { p_max_elo_diff: 50, p_queue_kind: 'solo' }))} disabled={Boolean(state?.party) || busy !== null} className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 bg-cyan-300 text-xs font-black uppercase tracking-[.13em] text-black transition hover:bg-cyan-200 disabled:opacity-40"><Swords className="h-4 w-4" />Solo-Queue starten</button>
+            <button onClick={() => void run('solo-search', () => supabase.rpc('duo_join_queue', { p_max_elo_diff: 50, p_queue_kind: 'solo' }))} disabled={!duoQueueEnabled || Boolean(state?.party) || busy !== null} className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 bg-cyan-300 text-xs font-black uppercase tracking-[.13em] text-black transition hover:bg-cyan-200 disabled:opacity-40"><Swords className="h-4 w-4" />Solo-Queue starten</button>
             {state?.party && <p className="mt-3 text-xs text-zinc-500">Verlasse zuerst deine Party, um solo zu suchen.</p>}
           </section>
         </div>

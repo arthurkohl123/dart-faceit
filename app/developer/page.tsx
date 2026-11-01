@@ -42,6 +42,11 @@ type MatchmakingQueueSetting = {
   message?: string;
 };
 
+type DuoMatchmakingQueueSetting = {
+  enabled?: boolean;
+  message?: string;
+};
+
 type WednesdayShowdownSetting = {
   enabled?: boolean;
   free_limit_override?: boolean;
@@ -133,6 +138,8 @@ export default function DeveloperDashboard() {
   const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [matchmakingEnabled, setMatchmakingEnabled] = useState(true);
   const [matchmakingMessage, setMatchmakingMessage] = useState('Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
+  const [duoMatchmakingEnabled, setDuoMatchmakingEnabled] = useState(true);
+  const [duoMatchmakingMessage, setDuoMatchmakingMessage] = useState('Die Duo-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
   const [showdownEnabled, setShowdownEnabled] = useState(true);
   const [showdownFreeLimitOverride, setShowdownFreeLimitOverride] = useState(true);
   const [showdownTitle, setShowdownTitle] = useState('Mittwoch Showdown');
@@ -196,6 +203,7 @@ export default function DeveloperDashboard() {
     const banMinutes = getObjectSetting<BanMinutesSetting>(settings, 'no_show_queue_ban_minutes');
     const smsVerification = getObjectSetting<SmsVerificationSetting>(settings, 'sms_verification');
     const matchmakingQueue = getObjectSetting<MatchmakingQueueSetting>(settings, 'matchmaking_queue');
+    const duoMatchmakingQueue = getObjectSetting<DuoMatchmakingQueueSetting>(settings, 'duo_matchmaking_queue');
     const showdown = getObjectSetting<WednesdayShowdownSetting>(settings, 'wednesday_showdown');
     const notice = getObjectSetting<DeveloperNoticeSetting>(settings, 'developer_notice');
 
@@ -210,6 +218,8 @@ export default function DeveloperDashboard() {
     setSmsVerificationEnabled(smsVerification.enabled !== false);
     setMatchmakingEnabled(matchmakingQueue.enabled !== false);
     setMatchmakingMessage(matchmakingQueue.message ?? 'Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
+    setDuoMatchmakingEnabled(duoMatchmakingQueue.enabled !== false);
+    setDuoMatchmakingMessage(duoMatchmakingQueue.message ?? 'Die Duo-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
     setShowdownEnabled(showdown.enabled !== false);
     setShowdownFreeLimitOverride(showdown.free_limit_override !== false);
     setShowdownTitle(showdown.title ?? 'Mittwoch Showdown');
@@ -290,6 +300,34 @@ export default function DeveloperDashboard() {
     showSuccess(matchmakingEnabled
       ? 'Matchmaking-Queue ist wieder geöffnet.'
       : `Matchmaking-Queue pausiert. ${cleared} wartende Einträge wurden entfernt.`);
+    void loadDashboard();
+  };
+
+  const saveDuoMatchmakingQueue = async () => {
+    if (!duoMatchmakingEnabled && !duoMatchmakingMessage.trim()) {
+      setError('Bitte hinterlege eine Begründung, bevor du die Duo-Queue schließt.');
+      return;
+    }
+
+    setSaving('duo_matchmaking_queue');
+    setError('');
+
+    const { data, error: rpcError } = await supabase.rpc('dev_set_duo_matchmaking_queue', {
+      p_enabled: duoMatchmakingEnabled,
+      p_message: duoMatchmakingMessage,
+    });
+    setSaving(null);
+
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+
+    const result = data as { cleared_entries?: number } | null;
+    const cleared = Number(result?.cleared_entries ?? 0);
+    showSuccess(duoMatchmakingEnabled
+      ? 'Duo-Queue ist wieder geöffnet.'
+      : `Duo-Queue pausiert. ${cleared} laufende Duo-Suchen wurden beendet.`);
     void loadDashboard();
   };
 
@@ -666,6 +704,54 @@ export default function DeveloperDashboard() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-black transition hover:bg-zinc-200 disabled:opacity-50"
               >
                 <Save className="h-4 w-4" /> {saving === 'matchmaking_queue' ? 'Wird angewendet…' : 'Queue-Status anwenden'}
+              </button>
+            </div>
+          </section>
+
+          <section className={`relative overflow-hidden rounded-[2rem] border p-6 shadow-2xl shadow-black/30 lg:col-span-2 ${duoMatchmakingEnabled ? 'border-cyan-300/20 bg-cyan-400/[0.055]' : 'border-amber-300/25 bg-amber-400/[0.07]'}`}>
+            <div className={`pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full blur-3xl ${duoMatchmakingEnabled ? 'bg-cyan-400/15' : 'bg-amber-400/15'}`} />
+            <div className="relative grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-end">
+              <div>
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${duoMatchmakingEnabled ? 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100' : 'border-amber-300/25 bg-amber-400/10 text-amber-100'}`}>
+                  <Swords className="h-3.5 w-3.5" /> DartCounter · Team Mode
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  <h2 className="text-3xl font-black tracking-[-0.05em]">Duo-Queue steuern</h2>
+                  <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${duoMatchmakingEnabled ? 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100' : 'border-amber-300/25 bg-amber-400/10 text-amber-100'}`}>
+                    {duoMatchmakingEnabled ? 'Duo-Queue geöffnet' : 'Duo-Queue geschlossen'}
+                  </span>
+                </div>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">Beim Schließen werden nur wartende 2vs2-Suchen beendet. Neue Duo-Suchen werden blockiert, bereits gefundene Matches und bestehende Partys bleiben unangetastet.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-[0.16em] text-zinc-500">Begründung für Spieler</label>
+                <textarea
+                  value={duoMatchmakingMessage}
+                  onChange={(event) => setDuoMatchmakingMessage(event.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="Warum ist die Duo-Queue gerade geschlossen?"
+                  className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-cyan-300/40"
+                />
+              </div>
+            </div>
+
+            <div className="relative mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={() => setDuoMatchmakingEnabled((value) => !value)}
+                className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-5 py-3 text-sm font-black transition ${duoMatchmakingEnabled ? 'border-amber-300/25 bg-amber-400/10 text-amber-100 hover:bg-amber-400/15' : 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/15'}`}
+              >
+                <Power className="h-4 w-4" /> {duoMatchmakingEnabled ? 'Duo-Queue zum Schließen vorbereiten' : 'Duo-Queue zum Öffnen vorbereiten'}
+              </button>
+              <button
+                type="button"
+                disabled={saving === 'duo_matchmaking_queue'}
+                onClick={() => void saveDuoMatchmakingQueue()}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-black text-black transition hover:bg-cyan-100 disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" /> {saving === 'duo_matchmaking_queue' ? 'Wird angewendet…' : 'Duo-Status anwenden'}
               </button>
             </div>
           </section>
