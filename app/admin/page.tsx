@@ -537,7 +537,7 @@ export default function AdminPanel() {
   const [premiumGeneratedCode, setPremiumGeneratedCode] = useState<CreatedPremiumCode | null>(null);
   const [premiumCodeCopied, setPremiumCodeCopied] = useState(false);
   const [premiumCodeUpdatingId, setPremiumCodeUpdatingId] = useState<string | null>(null);
-  const [softResetSeasonLabel, setSoftResetSeasonLabel] = useState('Season 01');
+  const [softResetSeasonLabel, setSoftResetSeasonLabel] = useState('Season 02');
   const [softResetConfirming, setSoftResetConfirming] = useState(false);
   const [softResetLoading, setSoftResetLoading] = useState(false);
   const [softResetResult, setSoftResetResult] = useState<SoftResetResult | null>(null);
@@ -2605,7 +2605,7 @@ export default function AdminPanel() {
               </div>
             </div>
           )}
-          <p className="mt-4 flex items-center gap-2 text-[11px] text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-cyan-300" /> Vor der Änderung wird jeder Elo-Wert gespeichert. Bei laufenden Ranked-Matches blockiert die Datenbank den Reset automatisch.</p>
+          <p className="mt-4 flex items-center gap-2 text-[11px] text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-cyan-300" /> Vor der Änderung wird jeder Elo-Wert gespeichert. Der Reset ist nur bei geschlossener, leerer Ranked-Queue und ohne offene 1v1-Matches möglich.</p>
         </section>
 
         <section className="overflow-hidden rounded-[2.4rem] border border-amber-300/20 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.14),transparent_48%),rgba(9,9,11,0.8)] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
