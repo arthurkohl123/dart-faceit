@@ -276,6 +276,7 @@ export default function ModeratorPanel() {
   const [tab,      setTab]      = useState<'desk' | 'tickets' | 'disputes' | 'matches' | 'flagged' | 'logs'>('desk');
   const [toast,    setToast]    = useState<{ msg: string; ok: boolean } | null>(null);
   const [operatorName, setOperatorName] = useState('Moderator');
+  const [operatorUserId, setOperatorUserId] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
@@ -288,12 +289,15 @@ export default function ModeratorPanel() {
   // Tickets
   const [tickets,       setTickets]       = useState<ModTicket[]>([]);
   const [ticketFilter,  setTicketFilter]  = useState<string | null>(null);
+  const [ticketOwnerFilter, setTicketOwnerFilter] = useState<'all' | 'mine'>('all');
   const [openTicketId,  setOpenTicketId]  = useState<string | null>(null);
   const [ticketDetail,  setTicketDetail]  = useState<TicketDetail | null>(null);
   const [ticketSearch,  setTicketSearch]  = useState('');
   const [ticketNotes,   setTicketNotes]   = useState<Record<string, string>>({});
   const [savingTicketNoteId, setSavingTicketNoteId] = useState<string | null>(null);
   const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
+  const [releasingTicketId, setReleasingTicketId] = useState<string | null>(null);
+  const [escalatingTicketId, setEscalatingTicketId] = useState<string | null>(null);
   const [reply,         setReply]         = useState('');
   const [sending,       setSending]       = useState(false);
 
@@ -411,6 +415,7 @@ export default function ModeratorPanel() {
         }
 
         setOperatorName(me.username || 'Moderator');
+        setOperatorUserId(session.user.id);
         await refreshAll();
       } catch (error) {
         if (mounted) setAccessError(error instanceof Error ? error.message : 'Die Moderationsoberfläche konnte nicht gestartet werden.');
@@ -501,6 +506,47 @@ export default function ModeratorPanel() {
     showToast(response?.message || 'Ticket wurde dir zugewiesen.');
   };
 
+  const releaseTicket = async (ticketId: string) => {
+    setReleasingTicketId(ticketId);
+    try {
+      const { data, error } = await supabase.rpc('mod_release_ticket', {
+        p_ticket_id: ticketId,
+        p_handoff_note: ticketNotes[ticketId]?.trim() || null,
+      });
+      if (error) throw new Error(error.message);
+      await refreshTicket(ticketId);
+      const response = data as { message?: string } | null;
+      showToast(response?.message || 'Ticket wurde wieder für das Team freigegeben.');
+    } catch (error) {
+      showToast(error instanceof Error ? `Ticket konnte nicht abgegeben werden: ${error.message}` : 'Ticket konnte nicht abgegeben werden.', false);
+    } finally {
+      setReleasingTicketId(null);
+    }
+  };
+
+  const escalateTicket = async (ticketId: string) => {
+    const reason = ticketNotes[ticketId]?.trim() || '';
+    if (reason.length < 3) {
+      showToast('Bitte schreibe zuerst eine kurze interne Begründung für die Eskalation.', false);
+      return;
+    }
+    setEscalatingTicketId(ticketId);
+    try {
+      const { data, error } = await supabase.rpc('mod_escalate_ticket', {
+        p_ticket_id: ticketId,
+        p_reason: reason,
+      });
+      if (error) throw new Error(error.message);
+      await refreshTicket(ticketId);
+      const response = data as { message?: string } | null;
+      showToast(response?.message || 'Admin-Team wurde benachrichtigt.');
+    } catch (error) {
+      showToast(error instanceof Error ? `Eskalation fehlgeschlagen: ${error.message}` : 'Eskalation fehlgeschlagen.', false);
+    } finally {
+      setEscalatingTicketId(null);
+    }
+  };
+
   // ── Dispute Actions ───────────────────────────────────────────────────────
 
   const patchForm = (id: string, patch: Partial<ResolveForm>) => {
@@ -582,7 +628,12 @@ export default function ModeratorPanel() {
   const disputeCount     = disputes.length;
   const liveCount        = liveMatches.length;
   const flaggedCount     = flagged.length;
-  const visibleTickets = tickets.filter((ticket) => `${ticket.subject} ${ticket.username} ${ticket.category} ${ticket.reported_username ?? ''}`.toLocaleLowerCase('de-DE').includes(ticketSearch.trim().toLocaleLowerCase('de-DE')));
+  const myOpenTicketCount = tickets.filter((ticket) => ticket.assigned_to_id === operatorUserId && !['resolved', 'closed'].includes(ticket.status)).length;
+  const visibleTickets = tickets.filter((ticket) => {
+    const matchesSearch = `${ticket.subject} ${ticket.username} ${ticket.category} ${ticket.reported_username ?? ''}`.toLocaleLowerCase('de-DE').includes(ticketSearch.trim().toLocaleLowerCase('de-DE'));
+    const matchesOwner = ticketOwnerFilter === 'all' || ticket.assigned_to_id === operatorUserId;
+    return matchesSearch && matchesOwner;
+  });
   const currentView = viewMeta[tab];
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -830,6 +881,9 @@ export default function ModeratorPanel() {
                     {s ? (statusCfg[s]?.label ?? s) : `Alle (${tickets.length})`}
                   </button>
                 ))}
+                <span className="mx-1 h-7 w-px bg-white/10" aria-hidden />
+                <button onClick={() => setTicketOwnerFilter('all')} className={`border px-3 py-2 text-xs font-bold transition ${ticketOwnerFilter === 'all' ? 'border-sky-300/35 bg-sky-300/10 text-sky-100' : 'border-white/10 bg-[#0e2b23] text-[#a9bbb4] hover:border-white/20 hover:text-white'}`}>Team-Inbox</button>
+                <button onClick={() => setTicketOwnerFilter('mine')} className={`border px-3 py-2 text-xs font-bold transition ${ticketOwnerFilter === 'mine' ? 'border-[#b8ff8b]/40 bg-[#b8ff8b] text-[#072118]' : 'border-white/10 bg-[#0e2b23] text-[#a9bbb4] hover:border-white/20 hover:text-white'}`}>Meine Fälle ({myOpenTicketCount})</button>
               </div>
               <label className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-[#0e2b23] px-3 py-2 text-[#8fab9f] shadow-sm xl:w-72"><Command size={14} /><input value={ticketSearch} onChange={(event) => setTicketSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-white outline-none placeholder:text-[#779286]" placeholder="Ticket oder Spieler suchen" /></label>
             </div>
@@ -886,6 +940,8 @@ export default function ModeratorPanel() {
                           {/* Aktionen */}
                           <div className="mb-5 flex flex-wrap gap-3">
                             <button onClick={() => void claimTicket(t.id)} disabled={claimingTicketId === t.id || Boolean(t.assigned_to_id)} title={t.assigned_to_id ? `Bereits übernommen von ${t.assigned_to_username || 'einem Teammitglied'}` : 'Ticket selbst übernehmen'} className="inline-flex items-center gap-2 rounded-xl border border-[#4569df]/40 bg-[#2f58d5]/15 px-3 py-1.5 text-xs font-black text-[#b6c5ff] transition hover:bg-[#2f58d5]/25 disabled:cursor-not-allowed disabled:opacity-50"><ShieldCheck size={13} />{claimingTicketId === t.id ? 'Übernimmt …' : t.assigned_to_id ? `Übernommen${t.assigned_to_username ? ` · ${t.assigned_to_username}` : ''}` : 'Mir zuweisen'}</button>
+                            {t.assigned_to_id === operatorUserId && <button onClick={() => void releaseTicket(t.id)} disabled={releasingTicketId === t.id} className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs font-black text-[#d6ebe1] transition hover:border-white/30 hover:bg-white/[0.09] disabled:opacity-50"><Inbox size={13} />{releasingTicketId === t.id ? 'Gibt ab …' : 'Für Team freigeben'}</button>}
+                            <button onClick={() => void escalateTicket(t.id)} disabled={escalatingTicketId === t.id || ['resolved', 'closed'].includes(t.status)} title="Nutzt die interne Notiz als Begründung und benachrichtigt das Admin-Team" className="inline-flex items-center gap-2 rounded-xl border border-amber-300/30 bg-amber-300/[0.08] px-3 py-1.5 text-xs font-black text-amber-100 transition hover:bg-amber-300/[0.14] disabled:cursor-not-allowed disabled:opacity-50"><AlertTriangle size={13} />{escalatingTicketId === t.id ? 'Eskaliert …' : 'An Admin geben'}</button>
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-bold text-[#9eb8ad]">Status:</span>
                               <select
