@@ -301,7 +301,7 @@ function LoginForm() {
         <p className="mt-4 flex items-center justify-center gap-2 text-center text-xs font-bold text-amber-200/80"><Clock3 className="h-3.5 w-3.5" />Nächster Versuch in {formatRetryAfter(retryAfterSeconds)} möglich.</p>
       )}
 
-      <div className="mt-6 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600"><span>Saison 1 · bis 01.11.2026</span><span className="h-1 w-1 rounded-full bg-zinc-700" /><span>Sicherer Login</span></div>
+      <div className="mt-6 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600"><span>Saison 2 · bis 15.02.2027</span><span className="h-1 w-1 rounded-full bg-zinc-700" /><span>Sicherer Login</span></div>
       <p className="mt-4 text-center text-sm text-zinc-400">
         Noch kein Account?{' '}
         <Link href="/auth/register" className="font-bold text-emerald-300 transition hover:text-emerald-200">

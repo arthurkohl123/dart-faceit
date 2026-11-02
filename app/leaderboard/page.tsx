@@ -32,7 +32,7 @@ const premiumNameStyles: Record<PremiumCosmetic, string> = {
 
 const podiumPositions = ['01', '02', '03'];
 const podiumMedals = ['🥇', '🥈', '🥉'];
-const prizeMoney = [175, 100, 75, 50, 30];
+const prizeMoney = [200, 100, 70, 50, 30];
 const MIN_LEADERBOARD_GAMES = 10;
 const MIN_RANKED_GAMES_FOR_COUNT = 1;
 
@@ -161,7 +161,7 @@ export default function Leaderboard() {
       <section className="leaderboard-shell mx-auto px-5 pb-16 pt-12 md:px-8 md:pb-24 md:pt-16 lg:px-10">
         <header className="leaderboard-hero">
           <div className="leaderboard-hero-copy">
-            <p className="leaderboard-kicker">Season 01 · bis 01.11.2026</p>
+            <p className="leaderboard-kicker">Season 02 · bis 15.02.2027</p>
             <h1 className="leaderboard-title mt-6">Wer steht<br /><span className="text-emerald-300">oben?</span></h1>
             <p className="mt-7 max-w-xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">Die Rangliste zeigt die Spieler, die sich ihre Elo im direkten Duell erspielen. Jeder Platz ist das Ergebnis bestätigter Matches.</p>
             <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 border-l border-emerald-300/55 pl-4 text-xs font-bold text-zinc-400">
@@ -201,7 +201,7 @@ export default function Leaderboard() {
         <section className="leaderboard-stat-rail mt-5 grid grid-cols-2 md:grid-cols-4">
           <div className="px-5 py-5"><Users className="h-4 w-4 text-emerald-300" /><p className="mt-3 text-3xl font-black tracking-[-.06em]">{rankedPlayerCount}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">Ranked-Spieler</p></div>
           <div className="px-5 py-5"><ShieldCheck className="h-4 w-4 text-emerald-300" /><p className="mt-3 text-sm font-black">Nur bestätigt</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">Gewertet</p></div>
-          <div className="px-5 py-5"><Trophy className="h-4 w-4 text-amber-200" /><p className="mt-3 text-sm font-black">430 €</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">Saison-Preisgeld</p></div>
+          <div className="px-5 py-5"><Trophy className="h-4 w-4 text-amber-200" /><p className="mt-3 text-sm font-black">450 €</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">Saison-Preisgeld</p></div>
           <div className="px-5 py-5"><Swords className="h-4 w-4 text-emerald-300" /><p className="mt-3 text-sm font-black">1 gegen 1</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">Ranked-Duelle</p></div>
         </section>
 

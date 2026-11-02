@@ -1354,7 +1354,7 @@ export default function Matchmaking() {
             <span className={matchmakingEnabled ? 'h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.95)]' : 'h-1.5 w-1.5 rounded-full bg-red-300'} />
             {matchmakingEnabled ? 'Ranked-Queue geöffnet' : 'Ranked-Queue pausiert'}
           </div>
-          <div className="mt-7 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Ranked / Saison 1</div>
+          <div className="mt-7 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Ranked / Saison 2</div>
           <h1 className="matchmaking-title mt-4">Finde deinen<br /><span className="text-emerald-300">nächsten Gegner.</span></h1>
           <p className="mt-7 max-w-xl text-[15px] leading-7 text-zinc-300 sm:text-lg sm:leading-8">Wähle dein Setup. Wir suchen nach Elo, Plattform und Spielern, die gerade wirklich bereit sind.</p>
           <div className="matchmaking-live-signal mt-7">

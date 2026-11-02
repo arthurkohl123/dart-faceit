@@ -10,7 +10,7 @@ export type RankTier = {
 };
 
 /**
- * The single source of truth for the Season 01 RankedDarts ladder.
+ * The single source of truth for the Season 02 RankedDarts ladder.
  * Thresholds are intentionally tighter around the 1,000 Elo starting point
  * so that every promotion remains visible after a seasonal soft reset.
  */

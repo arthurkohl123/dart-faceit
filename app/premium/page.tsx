@@ -464,7 +464,7 @@ export default function Premium() {
           <div>
             <div className="inline-flex items-center gap-3 border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-100">
               <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" /></span>
-              Premium · Saison 1 · bis 01.11.2026
+              Premium · Saison 2 · bis 15.02.2027
             </div>
             <h1 className="mt-6 max-w-4xl text-6xl font-black leading-[0.84] tracking-[-0.08em] md:text-8xl xl:text-[6.8rem]">Spiele ohne<br /><span className="text-emerald-300">Tageslimit.</span></h1>
             <p className="mt-7 max-w-2xl text-lg leading-8 text-zinc-300">Mit Premium spielst du unbegrenzt Ranked-Matches und kannst an Premium-Turnieren teilnehmen.</p>
