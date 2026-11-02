@@ -37,3 +37,12 @@ test('matchroom presents moderator messages distinctly and staff reads use prote
   assert.match(matchroom, /🛡 Moderator/);
   assert.match(matchroom, /staff_role/);
 });
+
+test('moderators can cancel an open matchroom through the already protected moderation RPC', () => {
+  assert.match(matchroom, /moderatorForceCancel/);
+  assert.match(matchroom, /mod_force_cancel_match/);
+  assert.match(matchroom, /p_reason: reason/);
+  assert.match(matchroom, /isModerator && !isAdmin/);
+  assert.match(matchroom, /Abbruch endgültig bestätigen/);
+  assert.match(matchroom, /Moderationsprotokoll/);
+});

@@ -331,6 +331,9 @@ export default function MatchResult() {
   const [adminCancelling, setAdminCancelling] = useState(false);
   const [adminForcing, setAdminForcing] = useState(false);
   const [adminPendingAction, setAdminPendingAction] = useState<'cancel' | 'force_result' | null>(null);
+  const [moderatorCancelReason, setModeratorCancelReason] = useState('');
+  const [moderatorCancelPending, setModeratorCancelPending] = useState(false);
+  const [moderatorCancelling, setModeratorCancelling] = useState(false);
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoConfirmCalledRef = useRef(false);
@@ -887,6 +890,38 @@ export default function MatchResult() {
       setErrorMessage(err instanceof Error ? err.message : 'Fehler beim Setzen des Ergebnisses.');
     } finally {
       setAdminForcing(false);
+    }
+  };
+
+  const moderatorForceCancel = async () => {
+    if (!match || !isModerator || isAdmin) return;
+    const reason = moderatorCancelReason.trim();
+    if (reason.length < 3) {
+      setErrorMessage('Bitte gib für den Abbruch eine kurze Begründung ein.');
+      return;
+    }
+    if (!moderatorCancelPending) {
+      setModeratorCancelPending(true);
+      setErrorMessage('');
+      setInfoMessage('Bitte bestätige den Abbruch. Das Match wird ohne Elo-Wertung beendet und im Moderationsprotokoll festgehalten.');
+      return;
+    }
+
+    setModeratorCancelling(true);
+    setErrorMessage('');
+    try {
+      const { error } = await supabase.rpc('mod_force_cancel_match', {
+        p_match_id: match.id,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      setMatch((current) => current ? { ...current, status: 'cancelled' } : current);
+      setModeratorCancelPending(false);
+      setInfoMessage('Match wurde durch die Moderation ohne Elo-Wertung abgebrochen.');
+    } catch (err) {
+      setErrorMessage(getActionErrorMessage(err, 'Match konnte nicht abgebrochen werden.'));
+    } finally {
+      setModeratorCancelling(false);
     }
   };
 
@@ -1987,6 +2022,63 @@ export default function MatchResult() {
         )}
           </aside>
         </div>
+
+        {/* ════════════════════════════════════════════════════════════
+            MODERATOR-AKTION (nur für Moderatoren sichtbar)
+        ════════════════════════════════════════════════════════════ */}
+        {isModerator && !isAdmin && match && match.status !== 'completed' && match.status !== 'cancelled' && (
+          <div className="mt-6 overflow-hidden rounded-[2.5rem] border border-sky-300/20 bg-sky-400/[0.045] shadow-2xl shadow-black/40 backdrop-blur-2xl">
+            <div className="flex items-center gap-3 border-b border-sky-300/15 bg-sky-400/[0.04] px-6 py-4">
+              <Shield className="h-5 w-5 text-sky-200" />
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.28em] text-sky-200">Moderationsaktion</div>
+                <div className="text-sm font-bold text-zinc-400">Nur bei einem klaren Anlass einsetzen</div>
+              </div>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="rounded-2xl border border-sky-300/15 bg-black/20 p-4">
+                <div className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-sky-200">Match abbrechen</div>
+                <p className="text-xs leading-5 text-zinc-400">Beendet das Match ohne Elo-Wertung. Beide Spieler können danach erneut suchen; dein Grund wird im Moderationsprotokoll gespeichert.</p>
+                <label className="mt-4 block">
+                  <span className="sr-only">Begründung für den Match-Abbruch</span>
+                  <input
+                    type="text"
+                    value={moderatorCancelReason}
+                    onChange={(event) => {
+                      setModeratorCancelReason(event.target.value);
+                      setModeratorCancelPending(false);
+                    }}
+                    maxLength={500}
+                    placeholder="Kurze Begründung, z. B. Regelverstoß oder technischer Abbruch"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-sky-300/40"
+                  />
+                </label>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={moderatorForceCancel}
+                    disabled={moderatorCancelling || moderatorCancelReason.trim().length < 3}
+                    className="rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-2.5 text-sm font-black text-rose-200 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {moderatorCancelling ? 'Wird abgebrochen …' : moderatorCancelPending ? 'Abbruch endgültig bestätigen' : 'Match ohne Wertung abbrechen'}
+                  </button>
+                  {moderatorCancelPending && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModeratorCancelPending(false);
+                        setInfoMessage('');
+                      }}
+                      className="rounded-xl border border-white/10 px-3 py-2.5 text-xs font-black text-zinc-300 transition hover:bg-white/10"
+                    >
+                      Abbrechen
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ════════════════════════════════════════════════════════════
             ADMIN-TOOLS (nur für Admins sichtbar)
