@@ -8,6 +8,6 @@ test('the privacy policy reflects the VPS migration and transactional email prov
   assert.match(privacyPage, /Webtropia/);
   assert.match(privacyPage, /Resend/);
   assert.match(privacyPage, /selbst auf diesem Server/);
-  assert.doesNotMatch(privacyPage, /<strong>Vercel<\/strong> hostet/);
-  assert.doesNotMatch(privacyPage, /<strong>Supabase<\/strong> stellt/);
+  assert.doesNotMatch(privacyPage, /Vercel/);
+  assert.doesNotMatch(privacyPage, /Supabase/);
 });
