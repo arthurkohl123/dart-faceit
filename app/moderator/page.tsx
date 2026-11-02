@@ -313,6 +313,7 @@ export default function ModeratorPanel() {
   const [flagged,       setFlagged]       = useState<FlaggedPlayer[]>([]);
   const [openFlagged,   setOpenFlagged]   = useState<string | null>(null);
   const [warnReason,    setWarnReason]    = useState('');
+  const [clearingFlagId, setClearingFlagId] = useState<string | null>(null);
 
   // Logs
   const [logs,          setLogs]          = useState<ModLog[]>([]);
@@ -620,6 +621,31 @@ export default function ModeratorPanel() {
     setWarnReason('');
     setOpenFlagged(null);
     await refreshAll();
+  };
+
+  const clearFlaggedPlayer = async (playerId: string) => {
+    const note = warnReason.trim();
+    if (note.length < 3) {
+      showToast('Bitte halte kurz fest, warum der Account unauffällig ist.', false);
+      return;
+    }
+    setClearingFlagId(playerId);
+    try {
+      const { data, error } = await supabase.rpc('mod_clear_flagged_player', {
+        p_player_id: playerId,
+        p_note: note,
+      });
+      if (error) throw new Error(error.message);
+      const response = data as { message?: string } | null;
+      showToast(response?.message || 'Prüfung als unauffällig abgeschlossen.');
+      setWarnReason('');
+      setOpenFlagged(null);
+      await refreshAll();
+    } catch (error) {
+      showToast(error instanceof Error ? `Prüfung konnte nicht abgeschlossen werden: ${error.message}` : 'Prüfung konnte nicht abgeschlossen werden.', false);
+    } finally {
+      setClearingFlagId(null);
+    }
   };
 
   // ── Counts ────────────────────────────────────────────────────────────────
@@ -1328,9 +1354,16 @@ export default function ModeratorPanel() {
                               type="text"
                               value={warnReason}
                               onChange={e => setWarnReason(e.target.value)}
-                              placeholder="Warn-Grund eingeben…"
+                              placeholder="Warn-Grund oder Prüfnotiz…"
                               className={`${inputCls} flex-1`}
                             />
+                            <button
+                              onClick={() => void clearFlaggedPlayer(p.id)}
+                              disabled={clearingFlagId === p.id}
+                              className="flex items-center gap-2 rounded-2xl border border-[#b8ff8b]/30 bg-[#b8ff8b]/10 px-5 py-3 text-sm font-black text-[#d8ffc0] transition hover:bg-[#b8ff8b]/15 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <CheckCircle2 size={14} /> {clearingFlagId === p.id ? 'Schließt ab …' : 'Alles in Ordnung'}
+                            </button>
                             <button
                               onClick={() => warnPlayer(p.id)}
                               className="flex items-center gap-2 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-300/15"
@@ -1338,7 +1371,7 @@ export default function ModeratorPanel() {
                               <AlertTriangle size={14} /> Warnen
                             </button>
                           </div>
-                          <p className="mt-2 text-xs text-[#9eb8ad]">Die Warnung wird dem Spieler in der Benachrichtigungszentrale zugestellt und im Aktivitätsprotokoll festgehalten. Sperren bleiben Admins vorbehalten.</p>
+                          <p className="mt-2 text-xs text-[#9eb8ad]">„Alles in Ordnung“ schließt den Hinweis mit deiner Prüfnotiz ab und hält ihn im Aktivitätsprotokoll fest. Eine Warnung wird dem Spieler zugestellt. Sperren bleiben Admins vorbehalten.</p>
                         </div>
                       )}
                     </div>

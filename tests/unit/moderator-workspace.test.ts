@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const moderatorPage = readFileSync(new URL('../../app/moderator/page.tsx', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../../supabase/migrations/20261025211443_harden_moderator_workspace.sql', import.meta.url), 'utf8');
 const handoffMigration = readFileSync(new URL('../../supabase/migrations/20261102110036_add_moderator_handoffs_and_escalation.sql', import.meta.url), 'utf8');
+const flagClearanceMigration = readFileSync(new URL('../../supabase/migrations/20261102110955_add_moderator_flag_clearance.sql', import.meta.url), 'utf8');
 
 test('moderator desk supports bounded case ownership and handoffs', () => {
   for (const label of ['Mir zuweisen', 'Interne Übergabe-Notiz', 'Ticket oder Spieler suchen', 'Sync']) {
@@ -36,4 +37,17 @@ test('moderators can release their own cases and document an admin escalation', 
   assert.match(handoffMigration, /insert into public\.notifications/i);
   assert.match(handoffMigration, /revoke all on function public\.mod_release_ticket\(uuid, text\) from public, anon/i);
   assert.match(handoffMigration, /grant execute on function public\.mod_escalate_ticket\(uuid, text\) to authenticated/i);
+});
+
+test('moderators can close an unremarkable account hint without gaining ban powers', () => {
+  assert.match(moderatorPage, /Alles in Ordnung/);
+  assert.match(moderatorPage, /mod_clear_flagged_player/);
+  assert.match(flagClearanceMigration, /create or replace function public\.mod_clear_flagged_player/i);
+  assert.match(flagClearanceMigration, /if v_actor_id is null or not public\.is_mod_or_admin\(\) then/i);
+  assert.match(flagClearanceMigration, /insert into public\.flagged_account_reviews/i);
+  assert.match(flagClearanceMigration, /action = 'dismissed'/i);
+  assert.match(flagClearanceMigration, /insert into public\.moderator_logs/i);
+  assert.match(flagClearanceMigration, /revoke all on function public\.mod_clear_flagged_player\(uuid, text\) from public, anon/i);
+  assert.match(flagClearanceMigration, /grant execute on function public\.mod_clear_flagged_player\(uuid, text\) to authenticated/i);
+  assert.doesNotMatch(moderatorPage, /admin_set_player_ban/);
 });
