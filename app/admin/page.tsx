@@ -1317,17 +1317,17 @@ export default function AdminPanel() {
   };
 
   const toggleModerator = async (id: string, current: boolean | null) => {
+    const nextValue = !current;
     const { error } = await supabase.rpc('admin_set_moderator', {
       p_user_id: id,
-      p_is_mod: !current,
+      p_is_mod: nextValue,
     });
     if (error) {
       setActionMessage('Fehler: ' + error.message);
       return;
     }
-    setProfiles(prev =>
-      prev.map(p => p.id === id ? { ...p, is_moderator: !current } : p)
-    );
+    setActionMessage(nextValue ? 'Moderator-Rolle wurde vergeben.' : 'Moderator-Rolle wurde entfernt.');
+    await loadProfiles();
   };
 
   const toggleAdmin = async (id: string, current: boolean | null) => {
