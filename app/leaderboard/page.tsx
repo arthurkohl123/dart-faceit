@@ -211,7 +211,6 @@ export default function Leaderboard() {
               <span className="inline-flex items-center gap-2 text-emerald-100"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Nur bestätigte Ergebnisse</span>
               <span>Ab {MIN_LEADERBOARD_GAMES} Ranked-Matches</span>
             </div>
-            {seasons.length > 1 && <div className="mt-7"><p className="text-[10px] font-black uppercase tracking-[.18em] text-zinc-500">Season auswählen</p><div className="mt-3 flex flex-wrap gap-2">{seasons.map((season) => <button key={season.season_label} type="button" onClick={() => { setSearchQuery(''); setSelectedSeasonLabel(season.season_label); }} className={'border px-4 py-2 text-xs font-black uppercase tracking-[.12em] transition ' + (season.season_label === seasonLabel ? 'border-emerald-200 bg-emerald-300 text-[#07100b]' : 'border-white/15 text-zinc-300 hover:border-emerald-200/60 hover:text-white')}>{season.season_label}{season.is_current ? ' · Aktuell' : ''}</button>)}</div></div>}
           </div>
 
           <div className="leaderboard-podium">
@@ -271,6 +270,7 @@ export default function Leaderboard() {
             <p className="mt-2 text-sm text-zinc-500">{searchQuery ? filteredPlayers.length + ' Treffer für „' + searchQuery + '“' : 'Top 100 · Nur bestätigte Ranked-Matches'}</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
+            {seasons.length > 1 && <label className="flex min-h-11 items-center gap-2 border border-white/15 bg-white/[.025] px-3 text-xs font-bold text-zinc-400"><span className="shrink-0 uppercase tracking-[.12em] text-zinc-500">Season</span><select value={seasonLabel} onChange={(event) => { setSearchQuery(''); setSelectedSeasonLabel(event.target.value); }} className="min-w-0 bg-transparent py-2 font-black text-zinc-100 outline-none"><option value={seasonLabel} disabled>{seasonLabel}</option>{seasons.filter((season) => season.season_label !== seasonLabel).map((season) => <option key={season.season_label} value={season.season_label}>{season.season_label}{season.is_current ? ' (aktuell)' : ''}</option>)}</select></label>}
             <label htmlFor="player-search" className="leaderboard-search">
               <Search className="h-4 w-4 text-zinc-500" />
               <input id="player-search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Spieler finden" className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-zinc-600" />

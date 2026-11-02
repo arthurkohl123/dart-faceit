@@ -20,10 +20,10 @@ test('ranked seasons are public read-only data ordered with the active season fi
   assert.match(migration, /grant execute on function public\.get_public_season_leaderboard\(text, integer\) to anon, authenticated/i);
 });
 
-test('the leaderboard offers the active season first and an archive selector', () => {
+test('the leaderboard offers the active season first through a compact archive dropdown', () => {
   assert.match(leaderboard, /get_public_ranked_seasons/);
   assert.match(leaderboard, /get_public_season_leaderboard/);
-  assert.match(leaderboard, /Season auswählen/);
-  assert.match(leaderboard, /season\.is_current \? ' · Aktuell' : ''/);
+  assert.match(leaderboard, /<select value=\{seasonLabel\}/);
+  assert.match(leaderboard, /season\.is_current \? ' \(aktuell\)' : ''/);
 });
 
