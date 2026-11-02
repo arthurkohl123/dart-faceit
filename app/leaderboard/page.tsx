@@ -16,6 +16,8 @@ type Player = {
   elo: number;
   gamesPlayed: number;
   wins: number;
+  season_games_played: number;
+  season_wins: number;
   isPremium?: boolean;
   premium_cosmetic?: PremiumCosmetic | null;
   is_streamer?: boolean;
@@ -45,7 +47,7 @@ function premiumNameStyle(player: Player) {
 }
 
 function getWinrate(player: Player) {
-  return player.gamesPlayed ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
+  return player.season_games_played ? Math.round((player.season_wins / player.season_games_played) * 100) : 0;
 }
 
 function getPlayerAverage(player: Player, averages: PlayerAvgMap) {
@@ -61,6 +63,7 @@ export default function Leaderboard() {
   const [avgMap, setAvgMap] = useState<PlayerAvgMap>({});
   const [myRank, setMyRank] = useState<number | null>(null);
   const [myRankLoading, setMyRankLoading] = useState(false);
+  const [mySeasonGames, setMySeasonGames] = useState(0);
   const { user, profile: currentProfile, loading: authLoading } = useAuth();
   const currentUserId = user?.id ?? null;
   const supabase = useMemo(() => createClient(), []);
@@ -70,22 +73,28 @@ export default function Leaderboard() {
     if (authLoading) return () => { isMounted = false; };
 
     async function fetchLeaderboard() {
-      const canCalculatePersonalRank = Boolean(currentUserId && currentProfile && currentProfile.gamesPlayed >= MIN_LEADERBOARD_GAMES);
       setMyRank(null);
-      setMyRankLoading(canCalculatePersonalRank);
+      setMyRankLoading(false);
       try {
-        const [leaderboardResult, countResult] = await Promise.all([
-          supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, is_streamer, supabaseId').gte('gamesPlayed', MIN_LEADERBOARD_GAMES).order('elo', { ascending: false }).limit(100),
-          supabase.from('public_visible_profiles').select('supabaseId', { count: 'exact', head: true }).gte('gamesPlayed', MIN_RANKED_GAMES_FOR_COUNT),
+        const [leaderboardResult, countResult, mySeasonResult] = await Promise.all([
+          supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, season_games_played, season_wins, isPremium, premium_cosmetic, is_streamer, supabaseId').gte('season_games_played', MIN_LEADERBOARD_GAMES).order('elo', { ascending: false }).limit(100),
+          supabase.from('public_visible_profiles').select('supabaseId', { count: 'exact', head: true }).gte('season_games_played', MIN_RANKED_GAMES_FOR_COUNT),
+          currentUserId ? supabase.rpc('get_my_current_season_stats') : Promise.resolve({ data: null, error: null }),
         ]);
         if (leaderboardResult.error) throw leaderboardResult.error;
         const rankedPlayers = (leaderboardResult.data || []) as Player[];
+        const personalSeasonStats = (mySeasonResult.data as { games_played: number; wins: number }[] | null)?.[0];
+        const personalSeasonGames = personalSeasonStats?.games_played ?? 0;
+        const canCalculatePersonalRank = Boolean(currentUserId && currentProfile && personalSeasonGames >= MIN_LEADERBOARD_GAMES);
         if (!isMounted) return;
         setPlayers(rankedPlayers);
+        setMySeasonGames(personalSeasonGames);
         setRankedPlayerCount(countResult.error ? rankedPlayers.length : Math.max(countResult.count ?? 0, rankedPlayers.length));
         if (countResult.error) console.warn('Anzahl der Ranked-Spieler konnte nicht geladen werden:', countResult.error);
+        if (mySeasonResult.error) console.warn('Saison-Statistik konnte nicht geladen werden:', mySeasonResult.error);
 
         if (canCalculatePersonalRank && currentUserId && currentProfile) {
+          setMyRankLoading(true);
           const listedIndex = rankedPlayers.findIndex((player) => player.supabaseId === currentUserId);
           if (listedIndex >= 0) {
             setMyRank(listedIndex + 1);
@@ -93,7 +102,7 @@ export default function Leaderboard() {
             const { count: playersAhead, error: rankError } = await supabase
               .from('public_visible_profiles')
               .select('supabaseId', { count: 'exact', head: true })
-              .gte('gamesPlayed', MIN_LEADERBOARD_GAMES)
+              .gte('season_games_played', MIN_LEADERBOARD_GAMES)
               .gt('elo', currentProfile.elo);
             if (rankError) {
               console.warn('Eigene Ranglistenplatzierung konnte nicht geladen werden:', rankError);
@@ -214,7 +223,7 @@ export default function Leaderboard() {
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[.17em] text-emerald-200/70">Deine Ranglisten-Übersicht</p>
               <p className="mt-2 truncate text-xl font-black">{currentProfile?.username ?? user?.user_metadata?.username ?? 'Dein Profil'}</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{currentProfile?.gamesPlayed ? currentProfile.gamesPlayed + ' bestätigte Ranked-Spiele · ' + currentProfile.elo + ' Elo' : 'Spiele mindestens ' + MIN_LEADERBOARD_GAMES + ' bestätigte Ranked-Matches, um in der Rangliste zu erscheinen.'}</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{mySeasonGames ? mySeasonGames + ' bestätigte Ranked-Spiele in Season 02 · ' + currentProfile?.elo + ' Elo' : 'Spiele mindestens ' + MIN_LEADERBOARD_GAMES + ' bestätigte Ranked-Matches in Season 02, um in der Rangliste zu erscheinen.'}</p>
             </div>
             <p className="max-w-sm text-xs leading-5 text-zinc-500">{myRank && myRank > 100 ? 'Dein Platz liegt außerhalb der sichtbaren Top 100, wird aber weiterhin für dich berechnet.' : myRank ? 'Du bist in der Top 100 und in der Liste markiert.' : 'Deine Platzierung wird ab ' + MIN_LEADERBOARD_GAMES + ' bestätigten Ranked-Matches berechnet.'}</p>
           </section>
@@ -266,7 +275,7 @@ export default function Leaderboard() {
                   <Link key={player.username + '-table-' + index} href={'/players/' + encodeURIComponent(player.username)} className={'leaderboard-table-row grid grid-cols-[3.5rem_minmax(0,1fr)_4.5rem_5rem_6rem_5rem_4.5rem] items-center gap-4 px-6 py-4 transition ' + (index < 3 ? 'leaderboard-top-row' : '') + (isCurrentUser ? ' leaderboard-current-row' : '')}>
                     <span className={'grid h-8 w-8 place-items-center text-xs font-black ' + (index < 3 ? 'bg-amber-300 text-[#171108]' : 'border border-white/10 text-zinc-400')}>{index < 3 ? podiumMedals[index] : '#' + (index + 1)}</span>
                     <span className="flex min-w-0 items-center gap-3"><RankBadge level={tier.level} size="xs" /><span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={'block truncate text-sm font-black ' + premiumNameStyle(player)}>{player.username}</span>{player.is_streamer && <StreamerBadge compact />}{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={'mt-1 block text-xs font-bold ' + tier.color}>L{tier.level} · {tier.name}</span></span></span>
-                    <span className="text-right text-sm font-black">{player.gamesPlayed}</span>
+                    <span className="text-right text-sm font-black">{player.season_games_played}</span>
                     <span className="text-right text-sm font-black text-zinc-200">{getWinrate(player)}%</span>
                     <span className="text-right text-sm font-black text-zinc-200">{getPlayerAverage(player, avgMap)}</span>
                     <span className="text-right text-lg font-black text-emerald-300">{player.elo}</span>

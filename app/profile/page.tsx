@@ -22,6 +22,9 @@ type ProfileData = {
   elo: number;
   gamesPlayed: number;
   wins: number;
+  season_games_played?: number;
+  season_wins?: number;
+  current_season_label?: string;
   phone_verified: boolean;
   phone_number: string | null;
   is_admin: boolean;
@@ -76,15 +79,22 @@ export default function Profile() {
 
       const uid = session.user.id;
 
-      const [{ data: profileData }, { data: matchData }, { data: statisticRows, error: statisticsError }, { data: platformRows, error: platformStatisticsError }] = await Promise.all([
+      const [{ data: profileData }, { data: matchData }, { data: statisticRows, error: statisticsError }, { data: platformRows, error: platformStatisticsError }, { data: seasonStatsRows, error: seasonStatsError }] = await Promise.all([
         supabase.from('profiles').select('*').eq('supabaseId', uid).single(),
         supabase.from('matches').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(5),
         supabase.rpc('get_public_player_statistics', { p_user_ids: [uid] }),
         supabase.rpc('get_public_player_platform_statistics', { p_user_ids: [uid] }),
+        supabase.rpc('get_my_current_season_stats'),
       ]);
 
       if (!isMounted) return;
-      setProfile(profileData ?? null);
+      const seasonStats = (seasonStatsRows as { season_label: string; games_played: number; wins: number }[] | null)?.[0];
+      setProfile(profileData ? {
+        ...profileData,
+        season_games_played: seasonStats?.games_played ?? 0,
+        season_wins: seasonStats?.wins ?? 0,
+        current_season_label: seasonStats?.season_label ?? 'Season 02',
+      } : null);
       setScoliaInput(profileData?.scolia_username ?? '');
       setDartcounterInput(profileData?.dartcounter_username ?? '');
       setAutodartsInput(profileData?.autodarts_username ?? '');
@@ -103,6 +113,7 @@ export default function Profile() {
       } else {
         console.error('Plattform-Statistiken konnten nicht geladen werden:', platformStatisticsError);
       }
+      if (seasonStatsError) console.error('Saison-Statistik konnte nicht geladen werden:', seasonStatsError);
       setLoading(false);
 
       const discordStatus = new URLSearchParams(window.location.search).get('discord');

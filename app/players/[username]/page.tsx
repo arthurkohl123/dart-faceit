@@ -16,6 +16,7 @@ import { ArrowUpRight, Crown, ExternalLink, Menu, ShieldCheck, Sparkles, Star, T
 type PremiumCosmetic = 'emerald' | 'violet' | 'gold' | 'cyan';
 type PublicProfile = {
   username: string; elo: number; gamesPlayed: number; wins: number; isPremium: boolean; premium_cosmetic: PremiumCosmetic | null;
+  season_games_played: number; season_wins: number; current_season_label: string;
   isAdmin: boolean; is_streamer: boolean; twitch_url: string | null; kick_url: string | null; supabaseId: string;
 };
 type MatchHistory = {
@@ -64,7 +65,7 @@ export default function PlayerProfile() {
     let isMounted = true;
     async function load() {
       const [{ data: profileData }, { data: adminRows, error: adminError }, { data: sessionData }] = await Promise.all([
-        supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, isPremium, premium_cosmetic, is_streamer, twitch_url, kick_url, supabaseId').eq('username', username).maybeSingle(),
+        supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, current_season_label, season_games_played, season_wins, isPremium, premium_cosmetic, is_streamer, twitch_url, kick_url, supabaseId').eq('username', username).maybeSingle(),
         supabase.rpc('get_public_admin_profile_ids'),
         supabase.auth.getSession(),
       ]);
@@ -77,6 +78,9 @@ export default function PlayerProfile() {
         elo: profileData.elo ?? 1000,
         gamesPlayed: profileData.gamesPlayed ?? 0,
         wins: profileData.wins ?? 0,
+        season_games_played: profileData.season_games_played ?? 0,
+        season_wins: profileData.season_wins ?? 0,
+        current_season_label: profileData.current_season_label ?? 'Season 02',
         isPremium: Boolean(profileData.isPremium),
         premium_cosmetic: profileData.premium_cosmetic ?? null,
         isAdmin: (adminRows || []).some((row: { profile_id: string }) => row.profile_id === profileData.supabaseId),
@@ -115,8 +119,10 @@ export default function PlayerProfile() {
   if (notFound) return <main className="grid min-h-screen place-items-center bg-[#080b0a] px-5 text-center text-white"><div className="max-w-md border border-white/15 bg-[#0d1110] px-8 py-10"><Trophy className="mx-auto h-11 w-11 text-zinc-600" /><h1 className="mt-5 text-3xl font-black tracking-[-.05em]">Spieler nicht gefunden</h1><p className="mt-3 text-sm leading-6 text-zinc-400">Das Profil von <strong className="text-white">{username}</strong> ist nicht öffentlich erreichbar.</p><button type="button" onClick={() => router.back()} className="mt-7 bg-emerald-300 px-6 py-3 text-xs font-black uppercase tracking-[.15em] text-[#07100b]">Zurück</button></div></main>;
 
   const elo = profile!.elo;
-  const gamesPlayed = profile!.gamesPlayed;
-  const wins = profile!.wins;
+  const overallGamesPlayed = profile!.gamesPlayed;
+  const overallWins = profile!.wins;
+  const gamesPlayed = profile!.season_games_played;
+  const wins = profile!.season_wins;
   const losses = Math.max(gamesPlayed - wins, 0);
   const winrate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
   const { current: currentRank, upcoming, eloToNext, progress } = getRankProgress(elo);
@@ -143,7 +149,7 @@ export default function PlayerProfile() {
                 <div className={'player-profile-rank-seal grid h-24 w-24 shrink-0 place-items-center sm:h-28 sm:w-28 ' + (premiumCosmetic?.avatar || '')}><RankBadge level={currentRank.level} size="xl" priority /><span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center bg-emerald-300 text-[#07100b]"><Zap className="h-4 w-4 fill-current" /></span></div>
                 <div className="min-w-0"><div className="flex flex-wrap items-center gap-2.5">{profile!.isPremium && <Star className={'h-5 w-5 shrink-0 fill-current ' + (premiumCosmetic?.icon || 'text-emerald-300')} />}<h1 className={'truncate text-4xl font-black tracking-[-.08em] sm:text-5xl lg:text-6xl ' + (premiumCosmetic?.name || '')}>{profile!.username}</h1>{profile!.is_streamer && <StreamerBadge />}{profile!.isAdmin && <AdminBadge />}</div><div className="mt-3 flex flex-wrap gap-2"><span className={'player-profile-rank-tag ' + currentRank.color}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className={'player-profile-premium-tag ' + (premiumCosmetic?.badge || '')}>Premium</span>}</div><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Alle Werte stammen aus bestätigten Ranked-Matches. Private Spiele und offene Ergebnisse zählen nicht in dieses Profil.</p></div>
               </div>
-              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-zinc-500"><span className="inline-flex items-center gap-2 text-emerald-100"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Bestätigte Ranked-Stats</span><span>{gamesPlayed} Matches gespielt</span>{profile!.is_streamer && profile!.twitch_url && <a href={profile!.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-violet-200 transition hover:text-white">Twitch öffnen <ExternalLink className="h-3.5 w-3.5" /></a>}</div>
+              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-zinc-500"><span className="inline-flex items-center gap-2 text-emerald-100"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Bestätigte Ranked-Stats</span><span>{gamesPlayed} Matches in {profile!.current_season_label}</span><span>{overallGamesPlayed} Matches insgesamt</span>{profile!.is_streamer && profile!.twitch_url && <a href={profile!.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-violet-200 transition hover:text-white">Twitch öffnen <ExternalLink className="h-3.5 w-3.5" /></a>}</div>
               {currentUserId && currentUserId !== profile!.supabaseId ? <div className="mt-5"><PlayerReportButton targetUserId={profile!.supabaseId} targetUsername={profile!.username} source="profile" triggerClassName="inline-flex items-center gap-2 border border-rose-300/20 bg-rose-400/[0.07] px-3.5 py-2.5 text-xs font-black text-rose-100 transition hover:border-rose-300/45 hover:bg-rose-400/[0.13]" /></div> : null}
             </div>
             <div className="player-profile-scorecard self-start"><div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[.2em] text-emerald-100"><span>Aktuelles Rating</span><Crown className="h-4 w-4 text-amber-200" /></div><div className="mt-5 text-6xl font-black tracking-[-.1em] text-emerald-200">{elo}</div><div className="mt-1 text-sm font-bold text-zinc-500">Elo-Punkte</div><div className="mt-8 border-t border-white/10 pt-4"><div className="flex items-center gap-3"><RankBadge level={currentRank.level} size="sm" /><div><div className={'font-black ' + currentRank.color}>{currentRank.name}</div><div className="mt-1 text-xs text-zinc-500">Level {currentRank.level} · Season 02</div></div></div></div></div>
@@ -151,7 +157,7 @@ export default function PlayerProfile() {
           <div className="player-profile-anchor-nav flex flex-wrap gap-x-7 gap-y-2 px-6 py-3 text-[10px] font-black uppercase tracking-[.16em] sm:px-8 lg:px-10"><a href="#matches">Matches</a><a href="#entwicklung">Entwicklung</a><a href="#plattformen">Plattformen</a><a href="#turniere">Turniere</a><span className="ml-auto hidden text-zinc-600 md:inline">Season 02 · bis 15.02.2027</span></div>
         </header>
 
-        <section className="player-profile-stat-rail mt-4 grid grid-cols-2 border-y border-white/10 md:grid-cols-4"><div><span>Siege</span><strong className="text-emerald-200">{wins}</strong><small>Bestätigte Matches</small></div><div><span>Niederlagen</span><strong className="text-rose-200">{losses}</strong><small>Bestätigte Matches</small></div><div><span>Winrate</span><strong>{winrate}%</strong><small>{wins}W / {losses}L</small></div><div><span>Spiele</span><strong>{gamesPlayed}</strong><small>Diese Season</small></div></section>
+        <section className="player-profile-stat-rail mt-4 grid grid-cols-2 border-y border-white/10 md:grid-cols-4"><div><span>Siege</span><strong className="text-emerald-200">{wins}</strong><small>{profile!.current_season_label}</small></div><div><span>Niederlagen</span><strong className="text-rose-200">{losses}</strong><small>{profile!.current_season_label}</small></div><div><span>Winrate</span><strong>{winrate}%</strong><small>{wins}W / {losses}L · {profile!.current_season_label}</small></div><div><span>Spiele</span><strong>{gamesPlayed}</strong><small>{profile!.current_season_label} · Gesamt: {overallWins} Siege</small></div></section>
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-14">
           <section id="matches" className="player-profile-section min-w-0 scroll-mt-28"><div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between"><div><div className="player-profile-label">Match-Protokoll</div><h2 className="mt-2 text-3xl font-black tracking-[-.065em]">Letzte Matches.</h2><p className="mt-2 text-sm text-zinc-500">Die letzten 20 bestätigten Ergebnisse von {profile!.username}.</p></div><div className="player-profile-count">{matches.length} Matches</div></div>{matches.length === 0 ? <div className="py-12 text-sm text-zinc-500">Noch keine bestätigten Matches vorhanden.</div> : <div className="mt-4">{matches.map((match) => <div key={match.id} className={'player-profile-match-row ' + (match.is_win ? 'is-win' : 'is-loss')}><span className="player-profile-match-state">{match.is_win ? 'Sieg' : 'Niederlage'}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="truncate text-base font-black text-white">vs. {match.opponent_name || 'Unbekannter Gegner'}</span><PlatformBadge app={match.app} /></div><div className="mt-1 text-xs text-zinc-500">{match.legs_won} : {match.legs_lost} Legs · {formatCompletion(match)}</div></div><div className="flex shrink-0 items-center gap-4 text-right"><div>{match.my_average !== null && <span className="block text-sm font-black text-violet-200">Ø {match.my_average.toFixed(1)}</span>}{match.one_eighties > 0 && <span className="mt-1 block text-xs font-bold text-amber-200">{match.one_eighties}× 180</span>}</div><ArrowUpRight className="hidden h-4 w-4 text-zinc-600 sm:block" /></div></div>)}</div>}</section>
