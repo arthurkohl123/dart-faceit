@@ -650,6 +650,10 @@ export default function AdminPanel() {
     const { data } = await supabase
       .from('admin_logs')
       .select('*')
+      // ELO_CHANGE is written automatically for every regular completed
+      // match. Keep it in the database for audits, but do not let routine
+      // game processing drown out actual administrator decisions.
+      .neq('action', 'ELO_CHANGE')
       .order('created_at', { ascending: false })
       .limit(100);
     if (data) setAdminLogs(data as AdminLog[]);
