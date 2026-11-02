@@ -16,12 +16,26 @@ type Player = {
   elo: number;
   gamesPlayed: number;
   wins: number;
-  season_games_played: number;
-  season_wins: number;
   isPremium?: boolean;
   premium_cosmetic?: PremiumCosmetic | null;
   is_streamer?: boolean;
   supabaseId?: string;
+};
+type RankedSeason = {
+  season_label: string;
+  season_started_at: string;
+  season_ended_at: string | null;
+  is_current: boolean;
+};
+type SeasonLeaderboardRow = {
+  username: string;
+  supabase_id: string;
+  elo: number;
+  games_played: number;
+  wins: number;
+  is_premium: boolean;
+  premium_cosmetic: PremiumCosmetic | null;
+  is_streamer: boolean;
 };
 type PlayerAvgMap = Record<string, number>;
 
@@ -47,7 +61,7 @@ function premiumNameStyle(player: Player) {
 }
 
 function getWinrate(player: Player) {
-  return player.season_games_played ? Math.round((player.season_wins / player.season_games_played) * 100) : 0;
+  return player.gamesPlayed ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
 }
 
 function getPlayerAverage(player: Player, averages: PlayerAvgMap) {
@@ -64,6 +78,8 @@ export default function Leaderboard() {
   const [myRank, setMyRank] = useState<number | null>(null);
   const [myRankLoading, setMyRankLoading] = useState(false);
   const [mySeasonGames, setMySeasonGames] = useState(0);
+  const [seasons, setSeasons] = useState<RankedSeason[]>([]);
+  const [selectedSeasonLabel, setSelectedSeasonLabel] = useState<string | null>(null);
   const { user, profile: currentProfile, loading: authLoading } = useAuth();
   const currentUserId = user?.id ?? null;
   const supabase = useMemo(() => createClient(), []);
@@ -76,21 +92,46 @@ export default function Leaderboard() {
       setMyRank(null);
       setMyRankLoading(false);
       try {
-        const [leaderboardResult, countResult, mySeasonResult] = await Promise.all([
-          supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, season_games_played, season_wins, isPremium, premium_cosmetic, is_streamer, supabaseId').gte('season_games_played', MIN_LEADERBOARD_GAMES).order('elo', { ascending: false }).limit(100),
-          supabase.from('public_visible_profiles').select('supabaseId', { count: 'exact', head: true }).gte('season_games_played', MIN_RANKED_GAMES_FOR_COUNT),
-          currentUserId ? supabase.rpc('get_my_current_season_stats') : Promise.resolve({ data: null, error: null }),
+        const { data: seasonRows, error: seasonsError } = await supabase.rpc('get_public_ranked_seasons');
+        if (seasonsError) throw seasonsError;
+        const availableSeasons = (seasonRows || []) as RankedSeason[];
+        const activeSeason = availableSeasons.find((season) => season.season_label === selectedSeasonLabel)
+          ?? availableSeasons.find((season) => season.is_current)
+          ?? availableSeasons[0];
+        if (!activeSeason) throw new Error('Keine Season verfügbar.');
+        if (!isMounted) return;
+        setSeasons(availableSeasons);
+        if (selectedSeasonLabel !== activeSeason.season_label) setSelectedSeasonLabel(activeSeason.season_label);
+
+        const [leaderboardResult, participantResult, mySeasonResult] = await Promise.all([
+          supabase.rpc('get_public_season_leaderboard', { p_season_label: activeSeason.season_label, p_min_games: MIN_LEADERBOARD_GAMES }),
+          supabase.rpc('get_public_season_leaderboard', { p_season_label: activeSeason.season_label, p_min_games: MIN_RANKED_GAMES_FOR_COUNT }),
+          activeSeason.is_current && currentUserId ? supabase.rpc('get_my_current_season_stats') : Promise.resolve({ data: null, error: null }),
         ]);
         if (leaderboardResult.error) throw leaderboardResult.error;
-        const rankedPlayers = (leaderboardResult.data || []) as Player[];
+        if (participantResult.error) throw participantResult.error;
+        const toPlayer = (row: SeasonLeaderboardRow): Player => ({
+          username: row.username,
+          elo: row.elo,
+          gamesPlayed: row.games_played,
+          wins: row.wins,
+          isPremium: row.is_premium,
+          premium_cosmetic: row.premium_cosmetic,
+          is_streamer: row.is_streamer,
+          supabaseId: row.supabase_id,
+        });
+        const rankedPlayers = ((leaderboardResult.data || []) as SeasonLeaderboardRow[]).map(toPlayer);
+        const participantPlayers = ((participantResult.data || []) as SeasonLeaderboardRow[]).map(toPlayer);
         const personalSeasonStats = (mySeasonResult.data as { games_played: number; wins: number }[] | null)?.[0];
-        const personalSeasonGames = personalSeasonStats?.games_played ?? 0;
+        const archivedPersonalStats = participantPlayers.find((player) => player.supabaseId === currentUserId);
+        const personalSeasonGames = activeSeason.is_current
+          ? personalSeasonStats?.games_played ?? 0
+          : archivedPersonalStats?.gamesPlayed ?? 0;
         const canCalculatePersonalRank = Boolean(currentUserId && currentProfile && personalSeasonGames >= MIN_LEADERBOARD_GAMES);
         if (!isMounted) return;
-        setPlayers(rankedPlayers);
+        setPlayers(rankedPlayers.slice(0, 100));
         setMySeasonGames(personalSeasonGames);
-        setRankedPlayerCount(countResult.error ? rankedPlayers.length : Math.max(countResult.count ?? 0, rankedPlayers.length));
-        if (countResult.error) console.warn('Anzahl der Ranked-Spieler konnte nicht geladen werden:', countResult.error);
+        setRankedPlayerCount(participantPlayers.length);
         if (mySeasonResult.error) console.warn('Saison-Statistik konnte nicht geladen werden:', mySeasonResult.error);
 
         if (canCalculatePersonalRank && currentUserId && currentProfile) {
@@ -98,21 +139,11 @@ export default function Leaderboard() {
           const listedIndex = rankedPlayers.findIndex((player) => player.supabaseId === currentUserId);
           if (listedIndex >= 0) {
             setMyRank(listedIndex + 1);
-          } else {
-            const { count: playersAhead, error: rankError } = await supabase
-              .from('public_visible_profiles')
-              .select('supabaseId', { count: 'exact', head: true })
-              .gte('season_games_played', MIN_LEADERBOARD_GAMES)
-              .gt('elo', currentProfile.elo);
-            if (rankError) {
-              console.warn('Eigene Ranglistenplatzierung konnte nicht geladen werden:', rankError);
-            } else {
-              setMyRank((playersAhead ?? 0) + 1);
-            }
           }
         }
 
-        const ids = rankedPlayers.map((player) => player.supabaseId).filter(Boolean) as string[];
+        const ids = rankedPlayers.slice(0, 100).map((player) => player.supabaseId).filter(Boolean) as string[];
+        setAvgMap({});
         if (ids.length) {
           const { data: statistics } = await supabase.rpc('get_public_player_statistics', { p_user_ids: ids });
           const averages: PlayerAvgMap = {};
@@ -133,8 +164,11 @@ export default function Leaderboard() {
 
     void fetchLeaderboard();
     return () => { isMounted = false; };
-  }, [authLoading, currentProfile, currentUserId, supabase]);
+  }, [authLoading, currentProfile, currentUserId, selectedSeasonLabel, supabase]);
 
+  const selectedSeason = seasons.find((season) => season.season_label === selectedSeasonLabel) ?? seasons.find((season) => season.is_current) ?? null;
+  const isCurrentSeason = selectedSeason?.is_current ?? true;
+  const seasonLabel = selectedSeason?.season_label ?? 'Season 02';
   const filteredPlayers = players
     .map((player, index) => ({ player, index }))
     .filter(({ player }) => player.username.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -170,18 +204,19 @@ export default function Leaderboard() {
       <section className="leaderboard-shell mx-auto px-5 pb-16 pt-12 md:px-8 md:pb-24 md:pt-16 lg:px-10">
         <header className="leaderboard-hero">
           <div className="leaderboard-hero-copy">
-            <p className="leaderboard-kicker">Season 02 · bis 15.02.2027</p>
+            <p className="leaderboard-kicker">{seasonLabel} · {isCurrentSeason ? 'bis 15.02.2027' : 'Abgeschlossen'}</p>
             <h1 className="leaderboard-title mt-6">Wer steht<br /><span className="text-emerald-300">oben?</span></h1>
-            <p className="mt-7 max-w-xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">Die Rangliste zeigt die Spieler, die sich ihre Elo im direkten Duell erspielen. Jeder Platz ist das Ergebnis bestätigter Matches.</p>
+            <p className="mt-7 max-w-xl text-base leading-7 text-zinc-300 sm:text-lg sm:leading-8">{isCurrentSeason ? 'Die Rangliste zeigt die Spieler, die sich ihre Elo im direkten Duell erspielen. Jeder Platz ist das Ergebnis bestätigter Matches.' : 'Das ist der festgehaltene Endstand dieser Season. Elo, Spiele und Platzierungen bleiben im Archiv erhalten.'}</p>
             <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 border-l border-emerald-300/55 pl-4 text-xs font-bold text-zinc-400">
               <span className="inline-flex items-center gap-2 text-emerald-100"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Nur bestätigte Ergebnisse</span>
               <span>Ab {MIN_LEADERBOARD_GAMES} Ranked-Matches</span>
             </div>
+            {seasons.length > 1 && <div className="mt-7"><p className="text-[10px] font-black uppercase tracking-[.18em] text-zinc-500">Season auswählen</p><div className="mt-3 flex flex-wrap gap-2">{seasons.map((season) => <button key={season.season_label} type="button" onClick={() => { setSearchQuery(''); setSelectedSeasonLabel(season.season_label); }} className={'border px-4 py-2 text-xs font-black uppercase tracking-[.12em] transition ' + (season.season_label === seasonLabel ? 'border-emerald-200 bg-emerald-300 text-[#07100b]' : 'border-white/15 text-zinc-300 hover:border-emerald-200/60 hover:text-white')}>{season.season_label}{season.is_current ? ' · Aktuell' : ''}</button>)}</div></div>}
           </div>
 
           <div className="leaderboard-podium">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
-              <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[.2em] text-amber-100"><Crown className="h-4 w-4 text-amber-200" /> Spitze der Saison</span>
+              <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[.2em] text-amber-100"><Crown className="h-4 w-4 text-amber-200" /> Spitze · {seasonLabel}</span>
               <span className="text-[10px] font-black uppercase tracking-[.14em] text-zinc-500">Top 3</span>
             </div>
             {podiumPlayers.length ? (
@@ -196,7 +231,7 @@ export default function Leaderboard() {
                       <span className={'mt-3 block truncate text-sm font-black ' + (player.isPremium ? 'text-amber-100' : 'text-[#f7f5ef]')}>{player.username}</span>
                       <span className={'mt-1 block text-[10px] font-black uppercase tracking-[.13em] ' + tier.color}>L{tier.level} · {tier.name}</span>
                       <span className="mt-3 block text-xl font-black tracking-[-.06em] text-emerald-200">{player.elo}</span>
-                      <span className="mt-1 block text-[9px] font-black uppercase tracking-[.13em] text-zinc-500">Elo · {prizeMoney[place]} €</span>
+                      <span className="mt-1 block text-[9px] font-black uppercase tracking-[.13em] text-zinc-500">{isCurrentSeason ? 'Elo · ' + prizeMoney[place] + ' €' : 'Finale Elo'}</span>
                     </Link>
                   );
                 })}
@@ -210,7 +245,7 @@ export default function Leaderboard() {
         <section className="leaderboard-stat-rail mt-5 grid grid-cols-2 md:grid-cols-4">
           <div className="px-5 py-5"><Users className="h-4 w-4 text-emerald-300" /><p className="mt-3 text-3xl font-black tracking-[-.06em]">{rankedPlayerCount}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">Ranked-Spieler</p></div>
           <div className="px-5 py-5"><ShieldCheck className="h-4 w-4 text-emerald-300" /><p className="mt-3 text-sm font-black">Nur bestätigt</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">Gewertet</p></div>
-          <div className="px-5 py-5"><Trophy className="h-4 w-4 text-amber-200" /><p className="mt-3 text-sm font-black">450 €</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">Saison-Preisgeld</p></div>
+          <div className="px-5 py-5"><Trophy className="h-4 w-4 text-amber-200" /><p className="mt-3 text-sm font-black">{isCurrentSeason ? '450 €' : 'Archiv'}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">{isCurrentSeason ? 'Saison-Preisgeld' : 'Finaler Stand'}</p></div>
           <div className="px-5 py-5"><Swords className="h-4 w-4 text-emerald-300" /><p className="mt-3 text-sm font-black">1 gegen 1</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.15em] text-zinc-500">Ranked-Duelle</p></div>
         </section>
 
@@ -223,7 +258,7 @@ export default function Leaderboard() {
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[.17em] text-emerald-200/70">Deine Ranglisten-Übersicht</p>
               <p className="mt-2 truncate text-xl font-black">{currentProfile?.username ?? user?.user_metadata?.username ?? 'Dein Profil'}</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{mySeasonGames ? mySeasonGames + ' bestätigte Ranked-Spiele in Season 02 · ' + currentProfile?.elo + ' Elo' : 'Spiele mindestens ' + MIN_LEADERBOARD_GAMES + ' bestätigte Ranked-Matches in Season 02, um in der Rangliste zu erscheinen.'}</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{mySeasonGames ? mySeasonGames + ' bestätigte Ranked-Spiele in ' + seasonLabel + (isCurrentSeason ? ' · ' + currentProfile?.elo + ' Elo' : ' · historischer Endstand') : 'Spiele mindestens ' + MIN_LEADERBOARD_GAMES + ' bestätigte Ranked-Matches in ' + seasonLabel + ', um in der Rangliste zu erscheinen.'}</p>
             </div>
             <p className="max-w-sm text-xs leading-5 text-zinc-500">{myRank && myRank > 100 ? 'Dein Platz liegt außerhalb der sichtbaren Top 100, wird aber weiterhin für dich berechnet.' : myRank ? 'Du bist in der Top 100 und in der Liste markiert.' : 'Deine Platzierung wird ab ' + MIN_LEADERBOARD_GAMES + ' bestätigten Ranked-Matches berechnet.'}</p>
           </section>
@@ -231,8 +266,8 @@ export default function Leaderboard() {
 
         <section className="leaderboard-command mt-10">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-300">Die gesamte Leiter</p>
-            <h2 className="mt-3 text-3xl font-black tracking-[-.06em] sm:text-4xl">Globale Rangliste.</h2>
+            <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-300">{isCurrentSeason ? 'Die gesamte Leiter' : 'Season-Archiv'}</p>
+            <h2 className="mt-3 text-3xl font-black tracking-[-.06em] sm:text-4xl">{seasonLabel} · Rangliste.</h2>
             <p className="mt-2 text-sm text-zinc-500">{searchQuery ? filteredPlayers.length + ' Treffer für „' + searchQuery + '“' : 'Top 100 · Nur bestätigte Ranked-Matches'}</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -241,7 +276,7 @@ export default function Leaderboard() {
               <input id="player-search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Spieler finden" className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-zinc-600" />
               {searchQuery && <button type="button" onClick={() => setSearchQuery('')} className="text-zinc-500 transition hover:text-white" aria-label="Suche löschen"><X size={15} /></button>}
             </label>
-            <Link href="/matchmaking" className="inline-flex shrink-0 items-center justify-center gap-2 bg-emerald-300 px-5 py-3 text-xs font-black uppercase tracking-[.12em] text-[#07100b] transition hover:bg-emerald-200">Match suchen <ArrowUpRight className="h-4 w-4" /></Link>
+            {isCurrentSeason && <Link href="/matchmaking" className="inline-flex shrink-0 items-center justify-center gap-2 bg-emerald-300 px-5 py-3 text-xs font-black uppercase tracking-[.12em] text-[#07100b] transition hover:bg-emerald-200">Match suchen <ArrowUpRight className="h-4 w-4" /></Link>}
           </div>
         </section>
 
@@ -255,7 +290,7 @@ export default function Leaderboard() {
                 <Link key={player.username + '-' + index} href={'/players/' + encodeURIComponent(player.username)} className={'leaderboard-mobile-row grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 transition hover:bg-emerald-300/[.045] ' + (index < 3 ? 'leaderboard-top-row' : '') + (isCurrentUser ? ' leaderboard-current-row' : '')}>
                   <span className={'grid h-8 w-8 place-items-center text-xs font-black ' + (index < 3 ? 'bg-amber-300 text-[#171108]' : 'border border-white/10 text-zinc-400')}>{index < 3 ? podiumMedals[index] : '#' + (index + 1)}</span>
                   <span className="flex min-w-0 items-center gap-2"><RankBadge level={tier.level} size="xs" /><span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={'block truncate text-sm font-black ' + premiumNameStyle(player)}>{player.username}</span>{player.is_streamer && <StreamerBadge compact />}{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={'mt-1 block text-[10px] font-bold ' + tier.color}>L{tier.level} · {tier.name} · {getWinrate(player)}%</span></span></span>
-                  <span className="text-right"><span className="block text-lg font-black text-emerald-300">{player.elo}</span><span className="block text-[10px] font-black text-zinc-500">Ø {getPlayerAverage(player, avgMap)}{prize ? ' · ' + prize + ' €' : ''}</span></span>
+                  <span className="text-right"><span className="block text-lg font-black text-emerald-300">{player.elo}</span><span className="block text-[10px] font-black text-zinc-500">Ø {getPlayerAverage(player, avgMap)}{isCurrentSeason && prize ? ' · ' + prize + ' €' : ''}</span></span>
                 </Link>
               );
             })}
@@ -265,7 +300,7 @@ export default function Leaderboard() {
 
         <section className="leaderboard-table mt-6 hidden overflow-x-auto md:block">
           <div className="min-w-[760px]">
-            <div className="grid grid-cols-[3.5rem_minmax(12rem,1fr)_4.5rem_5rem_6rem_5rem_4.5rem] items-center gap-4 border-b border-white/10 px-6 py-3 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500"><span>Platz</span><span>Spieler</span><span className="text-right">Spiele</span><span className="text-right">Winrate</span><span className="text-right">Ø Average</span><span className="text-right">Elo</span><span className="text-right">Preis</span></div>
+            <div className="grid grid-cols-[3.5rem_minmax(12rem,1fr)_4.5rem_5rem_6rem_5rem_4.5rem] items-center gap-4 border-b border-white/10 px-6 py-3 text-[10px] font-black uppercase tracking-[.13em] text-zinc-500"><span>Platz</span><span>Spieler</span><span className="text-right">Spiele</span><span className="text-right">Winrate</span><span className="text-right">Ø Average</span><span className="text-right">Elo</span><span className="text-right">{isCurrentSeason ? 'Preis' : 'Stand'}</span></div>
             <div className="divide-y divide-white/[.08]">
               {filteredPlayers.map(({ player, index }) => {
                 const tier = getRankForElo(player.elo);
@@ -275,11 +310,11 @@ export default function Leaderboard() {
                   <Link key={player.username + '-table-' + index} href={'/players/' + encodeURIComponent(player.username)} className={'leaderboard-table-row grid grid-cols-[3.5rem_minmax(0,1fr)_4.5rem_5rem_6rem_5rem_4.5rem] items-center gap-4 px-6 py-4 transition ' + (index < 3 ? 'leaderboard-top-row' : '') + (isCurrentUser ? ' leaderboard-current-row' : '')}>
                     <span className={'grid h-8 w-8 place-items-center text-xs font-black ' + (index < 3 ? 'bg-amber-300 text-[#171108]' : 'border border-white/10 text-zinc-400')}>{index < 3 ? podiumMedals[index] : '#' + (index + 1)}</span>
                     <span className="flex min-w-0 items-center gap-3"><RankBadge level={tier.level} size="xs" /><span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={'block truncate text-sm font-black ' + premiumNameStyle(player)}>{player.username}</span>{player.is_streamer && <StreamerBadge compact />}{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={'mt-1 block text-xs font-bold ' + tier.color}>L{tier.level} · {tier.name}</span></span></span>
-                    <span className="text-right text-sm font-black">{player.season_games_played}</span>
+                    <span className="text-right text-sm font-black">{player.gamesPlayed}</span>
                     <span className="text-right text-sm font-black text-zinc-200">{getWinrate(player)}%</span>
                     <span className="text-right text-sm font-black text-zinc-200">{getPlayerAverage(player, avgMap)}</span>
                     <span className="text-right text-lg font-black text-emerald-300">{player.elo}</span>
-                    <span className="text-right text-xs font-black text-amber-100">{prize ? prize + ' €' : '—'}</span>
+                    <span className="text-right text-xs font-black text-amber-100">{isCurrentSeason ? (prize ? prize + ' €' : '—') : 'Final'}</span>
                   </Link>
                 );
               })}

@@ -11,9 +11,10 @@ test('Season stats begin at the newest active Elo reset and preserve all-time pr
   assert.match(migration, /p\."gamesPlayed"[\s\S]*p\.wins[\s\S]*season_games_played[\s\S]*season_wins/i);
 });
 
-test('The leaderboard qualifies players by Season 2 matches, not their all-time match count', () => {
-  assert.match(leaderboard, /gte\('season_games_played', MIN_LEADERBOARD_GAMES\)/);
-  assert.match(leaderboard, /player\.season_games_played/);
-  assert.match(leaderboard, /player\.season_wins/);
+test('The leaderboard qualifies players by the selected season, not their all-time match count', () => {
+  assert.match(leaderboard, /get_public_season_leaderboard/);
+  assert.match(leaderboard, /p_min_games: MIN_LEADERBOARD_GAMES/);
+  assert.match(leaderboard, /gamesPlayed: row\.games_played/);
+  assert.match(leaderboard, /wins: row\.wins/);
 });
 
