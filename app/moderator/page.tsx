@@ -1275,6 +1275,13 @@ export default function ModeratorPanel() {
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/result?matchId=${encodeURIComponent(m.id)}`)}
+                              className="flex items-center gap-2 rounded-2xl border border-[#b8ff8b]/25 bg-[#b8ff8b]/10 px-4 py-2.5 text-xs font-black text-[#d8ffc0] transition hover:bg-[#b8ff8b]/18"
+                            >
+                              <PanelRightOpen size={14} /> Matchroom öffnen
+                            </button>
                             {pendingCancelMatchId === m.id && <input value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} className="w-52 rounded-xl border border-rose-300/25 bg-[#061511] px-3 py-2 text-xs text-white outline-none placeholder:text-[#779286] focus:border-rose-300" placeholder="Grund (optional)" />}
                             <button
                               onClick={() => cancelMatch(m.id)}

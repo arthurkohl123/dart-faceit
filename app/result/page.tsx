@@ -165,6 +165,7 @@ type ChatMessage = {
   content: string;
   created_at: string;
   is_admin_message?: boolean;
+  staff_role?: 'moderator' | 'admin' | null;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -314,6 +315,8 @@ export default function MatchResult() {
 
   // Admin state
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
+  const isStaff = isAdmin || isModerator;
 
   useEffect(() => {
     chatHasLoadedRef.current = false;
@@ -465,16 +468,20 @@ export default function MatchResult() {
       const m = data as ActiveMatch;
       const isParticipant = m.player1_id === userId || m.player2_id === userId;
 
-      // Admin-Status prüfen: Admins dürfen alle Matchrooms betreten
+      // Staff-Status prüfen: Moderatoren dürfen die Matchrooms sehen, die
+      // auch im Live-Monitor für sie freigegeben sind.
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('is_admin')
+        .select('is_admin, is_moderator')
         .eq('supabaseId', userId)
         .single();
       const adminFlag = Boolean(profileData?.is_admin);
+      const moderatorFlag = Boolean(profileData?.is_moderator);
+      const staffFlag = adminFlag || moderatorFlag;
       setIsAdmin(adminFlag);
+      setIsModerator(moderatorFlag);
 
-      if (!isParticipant && !adminFlag) {
+      if (!isParticipant && !staffFlag) {
         setErrorMessage('Du bist kein Teilnehmer dieses Matches.');
         setPageLoading(false);
         return;
@@ -718,16 +725,14 @@ export default function MatchResult() {
 
   // ── Chat ──────────────────────────────────────────────────────────────────────
 
-  // Nachrichten beim Match-Load initial laden
-  // Admins die nicht Teilnehmer sind, lesen über eine eigene RPC-Funktion
-  // die SECURITY DEFINER hat und die RLS umgeht.
+  // Nachrichten beim Match-Load initial laden. Staff-Mitglieder, die nur
+  // zusehen, lesen ausschließlich über die abgesicherte RPC-Funktion.
   useEffect(() => {
     if (!match?.id) return;
     const fetchMessages = async () => {
       let data;
-      if (isAdmin && !(currentUserId === match.player1_id || currentUserId === match.player2_id)) {
-        // Admin-Pfad: RPC-Funktion mit SECURITY DEFINER
-        const result = await supabase.rpc('admin_get_match_messages', { p_match_id: match.id });
+      if (isStaff && !(currentUserId === match.player1_id || currentUserId === match.player2_id)) {
+        const result = await supabase.rpc('staff_get_match_messages', { p_match_id: match.id });
         data = result.data;
       } else {
         // Normaler Pfad: RLS greift, Teilnehmer lesen direkt
@@ -748,19 +753,18 @@ export default function MatchResult() {
       }
     };
     void fetchMessages();
-  }, [match?.id, match?.player1_id, match?.player2_id, currentUserId, isAdmin, supabase]);
+  }, [match?.id, match?.player1_id, match?.player2_id, currentUserId, isStaff, supabase]);
 
   // Realtime-Subscription für neue Chat-Nachrichten
-  // Admins nutzen Broadcast-Kanal statt postgres_changes (umgeht RLS-Filter)
+  // Zusehende Staff-Mitglieder pollen über die sichere RPC, weil ihr Chat-Read
+  // nicht über eine breit geöffnete Tabellenrichtlinie erfolgen soll.
   useEffect(() => {
     if (!match?.id) return;
     const isParticipant = currentUserId === match.player1_id || currentUserId === match.player2_id;
 
-    if (isAdmin && !isParticipant) {
-      // Admin-Pfad: Nachrichten per Polling alle 3 Sekunden nachladen
-      // (einfachste Lösung die keine zusätzliche DB-Konfiguration braucht)
+    if (isStaff && !isParticipant) {
       const pollInterval = setInterval(async () => {
-        const { data } = await supabase.rpc('admin_get_match_messages', { p_match_id: match.id });
+        const { data } = await supabase.rpc('staff_get_match_messages', { p_match_id: match.id });
         if (data) {
           const nextMessages = data as ChatMessage[];
           setChatMessages((previous) => (
@@ -785,17 +789,17 @@ export default function MatchResult() {
       )
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [match?.id, match?.player1_id, match?.player2_id, currentUserId, isAdmin, supabase]);
+  }, [match?.id, match?.player1_id, match?.player2_id, currentUserId, isStaff, supabase]);
 
   // Nur bei wirklich neuen Nachrichten innerhalb des Chatfensters scrollen.
-  // Die Admin-Ansicht lädt Nachrichten regelmäßig nach und darf dadurch weder
-  // den Seiten- noch den Chat-Scroll des Admins verändern.
+  // Die Staff-Ansicht lädt Nachrichten regelmäßig nach und darf dadurch weder
+  // den Seiten- noch den Chat-Scroll des Moderators verändern.
   useEffect(() => {
     const currentIds = chatMessages.map((message) => message.id);
     const previousIds = previousChatMessageIdsRef.current;
     const hasNewMessage = currentIds.some((id) => !previousIds.includes(id));
     const latestMessage = chatMessages[chatMessages.length - 1];
-    const isSpectatingAdmin = isAdmin && currentUserId !== match?.player1_id && currentUserId !== match?.player2_id;
+    const isSpectatingStaff = isStaff && currentUserId !== match?.player1_id && currentUserId !== match?.player2_id;
 
     previousChatMessageIdsRef.current = currentIds;
     if (!chatHasLoadedRef.current) {
@@ -803,10 +807,10 @@ export default function MatchResult() {
       return;
     }
 
-    if (!hasNewMessage || isSpectatingAdmin || (!chatNearBottomRef.current && latestMessage?.user_id !== currentUserId)) return;
+    if (!hasNewMessage || isSpectatingStaff || (!chatNearBottomRef.current && latestMessage?.user_id !== currentUserId)) return;
     const chatList = chatListRef.current;
     if (chatList) chatList.scrollTo({ top: chatList.scrollHeight, behavior: 'smooth' });
-  }, [chatMessages, currentUserId, isAdmin, match?.player1_id, match?.player2_id]);
+  }, [chatMessages, currentUserId, isStaff, match?.player1_id, match?.player2_id]);
 
   const handleChatScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const chatList = event.currentTarget;
@@ -816,21 +820,12 @@ export default function MatchResult() {
   const sendChatMessage = async () => {
     const content = chatInput.trim();
     if (!content || !match?.id || !currentUserId || chatSending) return;
-    // Admins die nicht Teilnehmer sind, senden unter ihrem eigenen Username
-    // mit is_admin_message = true (rot dargestellt)
-    const isParticipant = currentUserId === match.player1_id || currentUserId === match.player2_id;
-    const myUsername = isParticipant
-      ? (currentUserId === match.player1_id ? match.player1_username : match.player2_username)
-      : `[Admin]`;
     setChatSending(true);
     setChatInput('');
     try {
-      const { error } = await supabase.from('match_messages').insert({
-        match_id: match.id,
-        user_id: currentUserId,
-        username: myUsername,
-        content,
-        is_admin_message: isAdmin && !isParticipant,
+      const { error } = await supabase.rpc('send_match_message', {
+        p_match_id: match.id,
+        p_content: content,
       });
       if (error) {
         console.error('Insert-Fehler:', error);
@@ -1908,10 +1903,14 @@ export default function MatchResult() {
                   {match.player1_username} &amp; {match.player2_username}
                 </div>
               </div>
-              {isAdmin && !(currentUserId === match.player1_id || currentUserId === match.player2_id) && (
-                <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-red-300">
+              {isStaff && !(currentUserId === match.player1_id || currentUserId === match.player2_id) && (
+                <span className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${
+                  isAdmin
+                    ? 'border-red-400/30 bg-red-500/10 text-red-300'
+                    : 'border-sky-300/30 bg-sky-400/10 text-sky-200'
+                }`}>
                   <Gavel className="h-3 w-3" />
-                  Admin-Ansicht
+                  {isAdmin ? 'Admin-Ansicht' : 'Moderator-Ansicht'}
                 </span>
               )}
             </div>
@@ -1927,24 +1926,28 @@ export default function MatchResult() {
               ) : (
                 chatMessages.map((msg) => {
                   const isMe = msg.user_id === currentUserId;
-                  const isAdminMsg = Boolean(msg.is_admin_message);
+                  const staffRole = msg.staff_role ?? (msg.is_admin_message ? 'admin' : null);
+                  const isStaffMessage = staffRole !== null;
+                  const isAdminMessage = staffRole === 'admin';
                   return (
                     <div
                       key={msg.id}
                       className={`flex flex-col gap-0.5 ${
-                        isAdminMsg ? 'items-center' : isMe ? 'items-end' : 'items-start'
+                        isStaffMessage ? 'items-center' : isMe ? 'items-end' : 'items-start'
                       }`}
                     >
                       <span className={`flex items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-[0.18em] ${
-                        isAdminMsg ? 'text-red-400' : 'text-zinc-600'
+                        isStaffMessage ? (isAdminMessage ? 'text-red-400' : 'text-sky-300') : 'text-zinc-600'
                       }`}>
-                        {isAdminMsg ? '⚖ Admin' : isMe ? 'Du' : msg.username}
+                        {isStaffMessage ? (isAdminMessage ? '⚖ Admin' : '🛡 Moderator') : isMe ? 'Du' : msg.username}
                         <span className="font-normal normal-case tracking-normal text-zinc-700">{formatChatTime(msg.created_at)}</span>
                       </span>
                       <div
                         className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm font-semibold leading-relaxed ${
-                          isAdminMsg
-                            ? 'rounded-sm border border-red-400/25 bg-red-500/10 text-red-100 text-center'
+                          isStaffMessage
+                            ? isAdminMessage
+                              ? 'rounded-sm border border-red-400/25 bg-red-500/10 text-red-100 text-center'
+                              : 'rounded-sm border border-sky-300/25 bg-sky-400/10 text-sky-50 text-center'
                             : isMe
                             ? 'rounded-br-sm bg-emerald-400/15 text-emerald-100'
                             : 'rounded-bl-sm bg-white/[0.07] text-zinc-200'
