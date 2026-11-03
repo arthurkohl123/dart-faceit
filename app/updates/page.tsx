@@ -60,20 +60,6 @@ const updates: UpdateEntry[] = [
     hrefLabel: 'Turniere ansehen',
   },
   {
-    date: '03. November 2026',
-    month: 'November 2026',
-    release: 'RD // 2.4',
-    title: 'Regelwerk und Fair Play neu sortiert',
-    summary: 'Die rechtlichen Seiten, Turnierregeln und Fair-Play-Hinweise sind jetzt deutlich übersichtlicher aufgebaut und leichter zu finden.',
-    category: 'Design',
-    details: [
-      'Impressum, Datenschutz, AGB, Fair Play, Turnierregeln und Premium-Kündigung teilen sich ein neues, einheitliches Regelwerk-Layout.',
-      'Sicherheits-Hinweise zu Mehrfachkonten bleiben ein menschlich geprüftes Signal – es gibt keine automatische Sperre allein aufgrund eines Hinweises.',
-    ],
-    href: '/fairplay',
-    hrefLabel: 'Fair Play ansehen',
-  },
-  {
     date: '02. November 2026',
     month: 'November 2026',
     release: 'RD // S2',
@@ -105,19 +91,6 @@ const updates: UpdateEntry[] = [
     hrefLabel: 'Duo Queue ansehen',
   },
   {
-    date: '27. Oktober 2026',
-    month: 'Oktober 2026',
-    release: 'RD // CORE',
-    title: 'RankedDarts läuft auf eigener Infrastruktur',
-    summary: 'Der technische Betrieb wurde auf die eigene Server-Infrastruktur umgezogen. Datenbank, Anmeldung, Realtime und Storage liegen nun im eigenen Setup.',
-    category: 'Platform',
-    details: [
-      'Spielbetrieb, Matchrooms und Zahlungen wurden nach dem Umzug geprüft.',
-      'Die Plattform ist nicht mehr auf die frühere Vercel-Hosting-Struktur angewiesen.',
-      'Der technische Unterbau wurde so vorbereitet, dass er mit der Community wachsen kann.',
-    ],
-  },
-  {
     date: '26. Oktober 2026',
     month: 'Oktober 2026',
     release: 'RD // CUP',
@@ -127,7 +100,7 @@ const updates: UpdateEntry[] = [
     details: [
       'Die Turnierübersicht führt Spieler schneller zum nächsten sinnvollen Schritt: anmelden, einchecken, Match öffnen oder Turnierbaum ansehen.',
       'Bei einem aktiven Turniermatch kann ein Vorfall direkt aus dem Spiel heraus an das Team gemeldet werden.',
-      'Moderatoren haben eine eigene Arbeitsoberfläche für Meldungen, Live-Matches und Fälle bekommen.',
+      'Im Turnier-Matchroom gibt es einen klaren Weg, bei einem Problem das Team dazuzuholen.',
     ],
     href: '/tournaments',
     hrefLabel: 'Zum Turnierbereich',
