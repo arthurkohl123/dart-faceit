@@ -25,5 +25,5 @@ test('the admin overview exposes the inbox with direct matchroom access and refr
   assert.match(inbox, /window\.setInterval\(\(\) => void loadCalls\(\), 30_000\)/i);
   assert.match(inbox, /\/result\?matchId=\$\{call\.match_id\}/i);
   assert.match(adminPage, /AdminStaffCallInbox/);
-  assert.match(adminPage, /admin-hub-team-grid/);
+  assert.doesNotMatch(adminPage, /AdminShiftHandoffPanel/);
 });

@@ -4,7 +4,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { AdminOperationsWorkspace } from '@/components/admin-operations-workspace';
-import { AdminShiftHandoffPanel } from '@/components/admin-shift-handoff-panel';
 import { AdminStaffCallInbox } from '@/components/admin-staff-call-inbox';
 import { useRouter } from 'next/navigation';
 import {
@@ -2094,10 +2093,7 @@ export default function AdminPanel() {
                   </aside>
                 </section>
 
-                <section className="admin-hub-team-grid" aria-label="Team-Arbeitsbereich">
-                  <AdminStaffCallInbox />
-                  <AdminShiftHandoffPanel />
-                </section>
+                <AdminStaffCallInbox />
 
                 <section className="admin-hub-metrics" aria-label="Bereichsstatus">
                   <button type="button" onClick={() => goToSection('disputes')} className={disputedMatches.length > 0 ? 'is-alert' : ''}><Gavel /><span>Entscheidungen</span><strong>{disputedMatches.length}</strong><small>offene Disputes</small></button>
