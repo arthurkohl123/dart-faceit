@@ -27,9 +27,15 @@ export async function GET() {
     return NextResponse.json({ error: 'Abgelaufene No-Show-Meldungen konnten nicht verarbeitet werden.' }, { status: 500 });
   }
 
+  const { data: tournamentsStarted, error: tournamentStartError } = await admin.rpc('auto_start_due_tournaments');
+  if (tournamentStartError) {
+    return NextResponse.json({ error: 'Fällige Turniere konnten nicht automatisch gestartet werden.' }, { status: 500 });
+  }
+
   return NextResponse.json({
     ok: true,
     finalizedConfirmations: integer(confirmed),
     finalizedNoShows: integer(noShows),
+    autoStartedTournaments: integer(tournamentsStarted),
   });
 }
