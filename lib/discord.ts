@@ -7,6 +7,7 @@ export type DiscordConfig = {
   guildId: string;
   premiumRoleId: string;
   streamerRoleId: string | null;
+  veteranRoleId: string | null;
   redirectUri: string;
 };
 
@@ -29,6 +30,7 @@ export function getDiscordConfig(): DiscordConfig | null {
   const guildId = process.env.DISCORD_GUILD_ID?.trim();
   const premiumRoleId = process.env.DISCORD_PREMIUM_ROLE_ID?.trim();
   const streamerRoleId = process.env.DISCORD_STREAMER_ROLE_ID?.trim() || null;
+  const veteranRoleId = process.env.DISCORD_VETERAN_ROLE_ID?.trim() || null;
 
   if (!clientId || !clientSecret || !botToken || !guildId || !premiumRoleId) return null;
 
@@ -39,6 +41,7 @@ export function getDiscordConfig(): DiscordConfig | null {
     guildId,
     premiumRoleId,
     streamerRoleId,
+    veteranRoleId,
     redirectUri: (process.env.DISCORD_REDIRECT_URI?.trim() || `${appUrl()}/api/discord/callback`).replace(/\/$/, ''),
   };
 }
@@ -117,6 +120,10 @@ export function isDiscordStreamerRoleConfigured() {
   return Boolean(getDiscordConfig()?.streamerRoleId);
 }
 
+export function isDiscordVeteranRoleConfigured() {
+  return Boolean(getDiscordConfig()?.veteranRoleId);
+}
+
 export async function syncDiscordPremiumRole(discordUserId: string, shouldHavePremium: boolean): Promise<DiscordSyncResult> {
   const config = getDiscordConfig();
   if (!config) return { ok: false, code: 'NOT_CONFIGURED', message: 'Discord-Rollen-Synchronisierung ist noch nicht konfiguriert.' };
@@ -128,6 +135,13 @@ export async function syncDiscordStreamerRole(discordUserId: string, shouldHaveS
   if (!config) return { ok: false, code: 'NOT_CONFIGURED', message: 'Discord-Rollen-Synchronisierung ist noch nicht konfiguriert.' };
   if (!config.streamerRoleId) return { ok: false, code: 'ROLE_NOT_CONFIGURED', message: 'Die Discord-Streamer-Rolle ist noch nicht konfiguriert.' };
   return syncDiscordRole(discordUserId, shouldHaveStreamer, config.streamerRoleId, 'Streamer', config);
+}
+
+export async function syncDiscordVeteranRole(discordUserId: string, shouldHaveVeteran: boolean): Promise<DiscordSyncResult> {
+  const config = getDiscordConfig();
+  if (!config) return { ok: false, code: 'NOT_CONFIGURED', message: 'Discord-Rollen-Synchronisierung ist noch nicht konfiguriert.' };
+  if (!config.veteranRoleId) return { ok: false, code: 'ROLE_NOT_CONFIGURED', message: 'Die Discord-Veteranen-Rolle ist noch nicht konfiguriert.' };
+  return syncDiscordRole(discordUserId, shouldHaveVeteran, config.veteranRoleId, 'Veteranen', config);
 }
 
 export async function getDiscordUserFromCode(code: string, config: DiscordConfig) {

@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, Crown, Medal, Menu, Search, ShieldCheck, Swords, Trophy, Users, X } from 'lucide-react';
+import { ArrowUpRight, Crown, Menu, Search, ShieldCheck, Swords, Trophy, Users, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { BrandLogo } from '@/components/BrandLogo';
 import { RankBadge } from '@/components/RankBadge';
 import { StreamerBadge } from '@/components/StreamerBadge';
+import { VeteranBadge } from '@/components/VeteranBadge';
 import { getRankForElo } from '@/lib/ranks';
 import { useAuth } from '@/app/providers';
 
@@ -19,6 +20,7 @@ type Player = {
   isPremium?: boolean;
   premium_cosmetic?: PremiumCosmetic | null;
   is_streamer?: boolean;
+  is_season_one_veteran?: boolean;
   supabaseId?: string;
 };
 type RankedSeason = {
@@ -36,6 +38,7 @@ type SeasonLeaderboardRow = {
   is_premium: boolean;
   premium_cosmetic: PremiumCosmetic | null;
   is_streamer: boolean;
+  is_season_one_veteran: boolean;
 };
 type PlayerAvgMap = Record<string, number>;
 
@@ -118,6 +121,7 @@ export default function Leaderboard() {
           isPremium: row.is_premium,
           premium_cosmetic: row.premium_cosmetic,
           is_streamer: row.is_streamer,
+          is_season_one_veteran: row.is_season_one_veteran,
           supabaseId: row.supabase_id,
         });
         const rankedPlayers = ((leaderboardResult.data || []) as SeasonLeaderboardRow[]).map(toPlayer);
@@ -227,7 +231,7 @@ export default function Leaderboard() {
                     <Link key={player.username + '-podium'} href={'/players/' + encodeURIComponent(player.username)} className={'leaderboard-podium-player group min-w-0 px-3 py-5 text-center sm:px-5 sm:py-6 ' + orderClass}>
                       <span className={'mx-auto grid h-7 w-7 place-items-center text-[10px] font-black ' + (place === 0 ? 'bg-amber-300 text-[#171108]' : 'border border-white/15 text-zinc-300')}>{podiumPositions[place]}</span>
                       <RankBadge level={tier.level} size="md" priority={place === 0} className="mx-auto mt-3 h-12 w-12 sm:h-16 sm:w-16" />
-                      <span className={'mt-3 block truncate text-sm font-black ' + (player.isPremium ? 'text-amber-100' : 'text-[#f7f5ef]')}>{player.username}</span>
+                      <span className="mt-3 flex items-center justify-center gap-1.5"><span className={'truncate text-sm font-black ' + (player.isPremium ? 'text-amber-100' : 'text-[#f7f5ef]')}>{player.username}</span>{player.is_season_one_veteran && <VeteranBadge compact />}</span>
                       <span className={'mt-1 block text-[10px] font-black uppercase tracking-[.13em] ' + tier.color}>L{tier.level} · {tier.name}</span>
                       <span className="mt-3 block text-xl font-black tracking-[-.06em] text-emerald-200">{player.elo}</span>
                       <span className="mt-1 block text-[9px] font-black uppercase tracking-[.13em] text-zinc-500">{isCurrentSeason ? 'Elo · ' + prizeMoney[place] + ' €' : 'Finale Elo'}</span>
@@ -289,7 +293,7 @@ export default function Leaderboard() {
               return (
                 <Link key={player.username + '-' + index} href={'/players/' + encodeURIComponent(player.username)} className={'leaderboard-mobile-row grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 transition hover:bg-emerald-300/[.045] ' + (index < 3 ? 'leaderboard-top-row' : '') + (isCurrentUser ? ' leaderboard-current-row' : '')}>
                   <span className={'grid h-8 w-8 place-items-center text-xs font-black ' + (index < 3 ? 'bg-amber-300 text-[#171108]' : 'border border-white/10 text-zinc-400')}>{index < 3 ? podiumMedals[index] : '#' + (index + 1)}</span>
-                  <span className="flex min-w-0 items-center gap-2"><RankBadge level={tier.level} size="xs" /><span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={'block truncate text-sm font-black ' + premiumNameStyle(player)}>{player.username}</span>{player.is_streamer && <StreamerBadge compact />}{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={'mt-1 block text-[10px] font-bold ' + tier.color}>L{tier.level} · {tier.name} · {getWinrate(player)}%</span></span></span>
+                  <span className="flex min-w-0 items-center gap-2"><RankBadge level={tier.level} size="xs" /><span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={'block truncate text-sm font-black ' + premiumNameStyle(player)}>{player.username}</span>{player.is_season_one_veteran && <VeteranBadge compact />}{player.is_streamer && <StreamerBadge compact />}{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={'mt-1 block text-[10px] font-bold ' + tier.color}>L{tier.level} · {tier.name} · {getWinrate(player)}%</span></span></span>
                   <span className="text-right"><span className="block text-lg font-black text-emerald-300">{player.elo}</span><span className="block text-[10px] font-black text-zinc-500">Ø {getPlayerAverage(player, avgMap)}{isCurrentSeason && prize ? ' · ' + prize + ' €' : ''}</span></span>
                 </Link>
               );
@@ -309,7 +313,7 @@ export default function Leaderboard() {
                 return (
                   <Link key={player.username + '-table-' + index} href={'/players/' + encodeURIComponent(player.username)} className={'leaderboard-table-row grid grid-cols-[3.5rem_minmax(0,1fr)_4.5rem_5rem_6rem_5rem_4.5rem] items-center gap-4 px-6 py-4 transition ' + (index < 3 ? 'leaderboard-top-row' : '') + (isCurrentUser ? ' leaderboard-current-row' : '')}>
                     <span className={'grid h-8 w-8 place-items-center text-xs font-black ' + (index < 3 ? 'bg-amber-300 text-[#171108]' : 'border border-white/10 text-zinc-400')}>{index < 3 ? podiumMedals[index] : '#' + (index + 1)}</span>
-                    <span className="flex min-w-0 items-center gap-3"><RankBadge level={tier.level} size="xs" /><span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={'block truncate text-sm font-black ' + premiumNameStyle(player)}>{player.username}</span>{player.is_streamer && <StreamerBadge compact />}{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={'mt-1 block text-xs font-bold ' + tier.color}>L{tier.level} · {tier.name}</span></span></span>
+                    <span className="flex min-w-0 items-center gap-3"><RankBadge level={tier.level} size="xs" /><span className="min-w-0"><span className="flex min-w-0 items-center gap-2"><span className={'block truncate text-sm font-black ' + premiumNameStyle(player)}>{player.username}</span>{player.is_season_one_veteran && <VeteranBadge compact />}{player.is_streamer && <StreamerBadge compact />}{isCurrentUser && <span className="shrink-0 border border-emerald-200/35 bg-emerald-200/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-emerald-100">Du</span>}</span><span className={'mt-1 block text-xs font-bold ' + tier.color}>L{tier.level} · {tier.name}</span></span></span>
                     <span className="text-right text-sm font-black">{player.gamesPlayed}</span>
                     <span className="text-right text-sm font-black text-zinc-200">{getWinrate(player)}%</span>
                     <span className="text-right text-sm font-black text-zinc-200">{getPlayerAverage(player, avgMap)}</span>

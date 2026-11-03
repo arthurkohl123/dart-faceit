@@ -8,6 +8,7 @@ import { AdminBadge } from '@/components/AdminBadge';
 import { BrandLogo } from '@/components/BrandLogo';
 import { RankBadge } from '@/components/RankBadge';
 import { StreamerBadge } from '@/components/StreamerBadge';
+import { VeteranBadge } from '@/components/VeteranBadge';
 import { type DartsPlatform, type PlatformStatistic, PlatformBadge, UnifiedDartsProfile } from '@/components/UnifiedDartsProfile';
 import { PlayerReportButton } from '@/components/player-report-button';
 import { getRankProgress } from '@/lib/ranks';
@@ -17,7 +18,7 @@ type PremiumCosmetic = 'emerald' | 'violet' | 'gold' | 'cyan';
 type PublicProfile = {
   username: string; elo: number; gamesPlayed: number; wins: number; isPremium: boolean; premium_cosmetic: PremiumCosmetic | null;
   season_games_played: number; season_wins: number; current_season_label: string;
-  isAdmin: boolean; is_streamer: boolean; twitch_url: string | null; kick_url: string | null; supabaseId: string;
+  isAdmin: boolean; is_streamer: boolean; is_season_one_veteran: boolean; veteran_season_one_games: number; twitch_url: string | null; kick_url: string | null; supabaseId: string;
 };
 type MatchHistory = {
   id: string; created_at: string; completed_at?: string | null; opponent_name: string; is_win: boolean; legs_won: number; legs_lost: number;
@@ -65,7 +66,7 @@ export default function PlayerProfile() {
     let isMounted = true;
     async function load() {
       const [{ data: profileData }, { data: adminRows, error: adminError }, { data: sessionData }] = await Promise.all([
-        supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, current_season_label, season_games_played, season_wins, isPremium, premium_cosmetic, is_streamer, twitch_url, kick_url, supabaseId').eq('username', username).maybeSingle(),
+        supabase.from('public_visible_profiles').select('username, elo, gamesPlayed, wins, current_season_label, season_games_played, season_wins, isPremium, premium_cosmetic, is_streamer, is_season_one_veteran, veteran_season_one_games, twitch_url, kick_url, supabaseId').eq('username', username).maybeSingle(),
         supabase.rpc('get_public_admin_profile_ids'),
         supabase.auth.getSession(),
       ]);
@@ -85,6 +86,8 @@ export default function PlayerProfile() {
         premium_cosmetic: profileData.premium_cosmetic ?? null,
         isAdmin: (adminRows || []).some((row: { profile_id: string }) => row.profile_id === profileData.supabaseId),
         is_streamer: Boolean(profileData.is_streamer),
+        is_season_one_veteran: Boolean(profileData.is_season_one_veteran),
+        veteran_season_one_games: profileData.veteran_season_one_games ?? 0,
         twitch_url: profileData.twitch_url ?? null,
         kick_url: profileData.kick_url ?? null,
         supabaseId: profileData.supabaseId,
@@ -146,8 +149,8 @@ export default function PlayerProfile() {
             <div className="min-w-0">
               <div className="player-profile-kicker"><Sparkles className="h-3.5 w-3.5" /> Öffentliches Spielerprofil</div>
               <div className="mt-7 flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
-                <div className={'player-profile-rank-seal grid h-24 w-24 shrink-0 place-items-center sm:h-28 sm:w-28 ' + (premiumCosmetic?.avatar || '')}><RankBadge level={currentRank.level} size="xl" priority /><span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center bg-emerald-300 text-[#07100b]"><Zap className="h-4 w-4 fill-current" /></span></div>
-                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2.5">{profile!.isPremium && <Star className={'h-5 w-5 shrink-0 fill-current ' + (premiumCosmetic?.icon || 'text-emerald-300')} />}<h1 className={'truncate text-4xl font-black tracking-[-.08em] sm:text-5xl lg:text-6xl ' + (premiumCosmetic?.name || '')}>{profile!.username}</h1>{profile!.is_streamer && <StreamerBadge />}{profile!.isAdmin && <AdminBadge />}</div><div className="mt-3 flex flex-wrap gap-2"><span className={'player-profile-rank-tag ' + currentRank.color}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className={'player-profile-premium-tag ' + (premiumCosmetic?.badge || '')}>Premium</span>}</div><p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Alle Werte stammen aus bestätigten Ranked-Matches. Private Spiele und offene Ergebnisse zählen nicht in dieses Profil.</p></div>
+                <div className={'player-profile-rank-seal grid h-24 w-24 shrink-0 place-items-center sm:h-28 sm:w-28 ' + (premiumCosmetic?.avatar || '') + (profile!.is_season_one_veteran ? ' border-amber-200/80 !shadow-[0_0_0_3px_rgba(251,191,36,.16),0_0_42px_rgba(251,191,36,.26)]' : '')}><RankBadge level={currentRank.level} size="xl" priority /><span className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center bg-emerald-300 text-[#07100b]"><Zap className="h-4 w-4 fill-current" /></span></div>
+                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2.5">{profile!.isPremium && <Star className={'h-5 w-5 shrink-0 fill-current ' + (premiumCosmetic?.icon || 'text-emerald-300')} />}<h1 className={'truncate text-4xl font-black tracking-[-.08em] sm:text-5xl lg:text-6xl ' + (premiumCosmetic?.name || '')}>{profile!.username}</h1>{profile!.is_season_one_veteran && <VeteranBadge games={profile!.veteran_season_one_games} />}{profile!.is_streamer && <StreamerBadge />}{profile!.isAdmin && <AdminBadge />}</div><div className="mt-3 flex flex-wrap gap-2"><span className={'player-profile-rank-tag ' + currentRank.color}>Level {currentRank.level} · {currentRank.name}</span>{profile!.isPremium && <span className={'player-profile-premium-tag ' + (premiumCosmetic?.badge || '')}>Premium</span>}</div>{profile!.is_season_one_veteran && <p className="mt-3 inline-flex border-l-2 border-amber-200/70 bg-amber-300/[0.05] px-3 py-2 text-xs font-bold text-amber-100">Season 01 mit {profile!.veteran_season_one_games} bestätigten Ranked-Matches abgeschlossen.</p>}<p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400">Alle Werte stammen aus bestätigten Ranked-Matches. Private Spiele und offene Ergebnisse zählen nicht in dieses Profil.</p></div>
               </div>
               <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-zinc-500"><span className="inline-flex items-center gap-2 text-emerald-100"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Bestätigte Ranked-Stats</span><span>{gamesPlayed} Matches in {profile!.current_season_label}</span><span>{overallGamesPlayed} Matches insgesamt</span>{profile!.is_streamer && profile!.twitch_url && <a href={profile!.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-violet-200 transition hover:text-white">Twitch öffnen <ExternalLink className="h-3.5 w-3.5" /></a>}</div>
               {currentUserId && currentUserId !== profile!.supabaseId ? <div className="mt-5"><PlayerReportButton targetUserId={profile!.supabaseId} targetUsername={profile!.username} source="profile" triggerClassName="inline-flex items-center gap-2 border border-rose-300/20 bg-rose-400/[0.07] px-3.5 py-2.5 text-xs font-black text-rose-100 transition hover:border-rose-300/45 hover:bg-rose-400/[0.13]" /></div> : null}

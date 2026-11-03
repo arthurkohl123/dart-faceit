@@ -24,6 +24,7 @@ import {
   Headphones,
   Image as ImageIcon,
   Loader2,
+  Medal,
   MessageCircle,
   RefreshCw,
   Radio,
@@ -77,6 +78,8 @@ type Profile = {
   is_admin: boolean | null;
   is_moderator: boolean | null;
   is_streamer: boolean | null;
+  is_season_one_veteran: boolean | null;
+  veteran_season_one_games: number | null;
   twitch_url: string | null;
   isPremium: boolean | null;
   stripe_subscription_status: string | null;
@@ -1697,6 +1700,7 @@ export default function AdminPanel() {
   const adminCount = profiles.filter((profile) => profile.is_admin).length;
   const bannedCount = profiles.filter((profile) => profile.is_banned).length;
   const premiumCount = profiles.filter((profile) => profile.isPremium).length;
+  const veteranCount = profiles.filter((profile) => profile.is_season_one_veteran).length;
   const activeCount = profiles.length - bannedCount;
   const eloValues = profiles.map((profile) => profile.elo ?? 1000);
   const projectedEloValues = eloValues.map((elo) => Math.round(1000 + ((elo - 1000) * 0.5)));
@@ -2769,9 +2773,10 @@ export default function AdminPanel() {
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Elo korrigieren, Premium verwalten, Accounts sperren oder Rollen vergeben.</p>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-center text-xs font-bold text-zinc-400 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 text-center text-xs font-bold text-zinc-400 sm:grid-cols-5">
               <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"><span className="block text-lg font-black text-emerald-200">{activeCount}</span>Aktiv</div>
               <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3"><span className="block text-lg font-black text-amber-200">{premiumCount}</span>Premium</div>
+              <div className="rounded-2xl border border-amber-200/20 bg-amber-300/[0.06] px-4 py-3"><span className="block text-lg font-black text-amber-100">{veteranCount}</span>Veteranen</div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"><span className="block text-lg font-black text-amber-200">{adminCount}</span>Admins</div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3"><span className="block text-lg font-black text-rose-200">{bannedCount}</span>Bans</div>
             </div>
@@ -2811,6 +2816,9 @@ export default function AdminPanel() {
                       {user.is_streamer && (
                         <span className="inline-flex items-center gap-1 rounded-full border border-rose-300/25 bg-rose-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-rose-100"><Radio className="h-3 w-3" />Streamer</span>
                       )}
+                       {user.is_season_one_veteran && (
+                         <span title={`Season 01 · ${user.veteran_season_one_games ?? 150} bestätigte Ranked-Matches`} className="inline-flex items-center gap-1 rounded-full border border-amber-200/30 bg-amber-300/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100"><Medal className="h-3 w-3" />Veteran · S1</span>
+                       )}
                       {user.is_streamer && user.twitch_url && (
                         <a href={user.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-violet-300/25 bg-violet-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-violet-100 hover:bg-violet-400/20">Twitch <ExternalLink className="h-3 w-3" /></a>
                       )}

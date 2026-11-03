@@ -29,6 +29,8 @@ type ProfileData = {
   phone_number: string | null;
   is_admin: boolean;
   is_streamer: boolean;
+  is_season_one_veteran?: boolean;
+  veteran_season_one_games?: number;
   isPremium: boolean;
   premium_cosmetic?: 'emerald' | 'violet' | 'gold' | 'cyan' | null;
   scolia_username: string | null;
@@ -118,7 +120,7 @@ export default function Profile() {
 
       const discordStatus = new URLSearchParams(window.location.search).get('discord');
       const discordMessages: Record<string, { type: 'success' | 'error' | 'info'; text: string }> = {
-        connected: { type: 'success', text: 'Discord ist verbunden. Deine Premium- und Streamer-Rollen werden automatisch synchronisiert.' },
+        connected: { type: 'success', text: 'Discord ist verbunden. Deine Premium-, Streamer- und Veteranen-Rollen werden automatisch synchronisiert.' },
         'role-error': { type: 'error', text: 'Discord ist verbunden, aber eine Rolle konnte noch nicht gesetzt werden. Bitte prüfe die Bot-Rollenhierarchie.' },
         'not-member': { type: 'error', text: 'Bitte tritt zuerst dem RankedDarts-Discord bei und starte die Verknüpfung danach erneut.' },
         'already-linked': { type: 'error', text: 'Dieser Discord-Account ist bereits mit einem anderen RankedDarts-Konto verbunden.' },

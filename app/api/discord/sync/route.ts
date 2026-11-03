@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { isDiscordStreamerRoleConfigured, syncDiscordPremiumRole, syncDiscordStreamerRole } from '@/lib/discord';
+import { isDiscordStreamerRoleConfigured, isDiscordVeteranRoleConfigured, syncDiscordPremiumRole, syncDiscordStreamerRole, syncDiscordVeteranRole } from '@/lib/discord';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,7 @@ export async function GET() {
   const admin = createAdminClient();
   const { data: profiles, error } = await admin
     .from('profiles')
-    .select('supabaseId, discord_user_id, "isPremium", is_streamer')
+    .select('supabaseId, discord_user_id, "isPremium", is_streamer, is_season_one_veteran')
     .not('discord_user_id', 'is', null)
     .limit(1000);
   if (error) return NextResponse.json({ error: 'Discord-Synchronisierung konnte nicht geladen werden.' }, { status: 500 });
@@ -23,10 +23,14 @@ export async function GET() {
   // through Discord's per-route rate limits every fifteen minutes.
   const results = [];
   const shouldSyncStreamerRole = isDiscordStreamerRoleConfigured();
+  const shouldSyncVeteranRole = isDiscordVeteranRoleConfigured();
   for (const profile of profiles ?? []) {
     results.push(await syncDiscordPremiumRole(profile.discord_user_id as string, Boolean(profile.isPremium)));
     if (shouldSyncStreamerRole) {
       results.push(await syncDiscordStreamerRole(profile.discord_user_id as string, Boolean(profile.is_streamer)));
+    }
+    if (shouldSyncVeteranRole) {
+      results.push(await syncDiscordVeteranRole(profile.discord_user_id as string, Boolean(profile.is_season_one_veteran)));
     }
   }
   const failed = results.filter((result) => !result.ok);

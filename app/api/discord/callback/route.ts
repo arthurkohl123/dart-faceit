@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { getDiscordConfig, getDiscordUserFromCode, isDiscordStreamerRoleConfigured, syncDiscordPremiumRole, syncDiscordStreamerRole, verifySignedState } from '@/lib/discord';
+import { getDiscordConfig, getDiscordUserFromCode, isDiscordStreamerRoleConfigured, isDiscordVeteranRoleConfigured, syncDiscordPremiumRole, syncDiscordStreamerRole, syncDiscordVeteranRole, verifySignedState } from '@/lib/discord';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
 
     const { data: profile, error: profileError } = await admin
       .from('profiles')
-      .select('"isPremium", is_streamer, discord_user_id')
+      .select('"isPremium", is_streamer, is_season_one_veteran, discord_user_id')
       .eq('supabaseId', linkedUserId)
       .single();
     if (profileError) throw profileError;
@@ -92,6 +92,9 @@ export async function GET(request: Request) {
     if (roleSync.code === 'NOT_MEMBER') return response('not-member');
     const streamerRoleSync = isDiscordStreamerRoleConfigured()
       ? await syncDiscordStreamerRole(discordUser.id, Boolean(profile?.is_streamer))
+      : { ok: true };
+    const veteranRoleSync = isDiscordVeteranRoleConfigured()
+      ? await syncDiscordVeteranRole(discordUser.id, Boolean(profile?.is_season_one_veteran))
       : { ok: true };
 
     const { error: updateError } = await admin.from('profiles').update({
@@ -102,7 +105,7 @@ export async function GET(request: Request) {
     }).eq('supabaseId', linkedUserId);
     if (updateError) throw updateError;
 
-    return response(roleSync.ok && streamerRoleSync.ok ? 'connected' : 'role-error');
+    return response(roleSync.ok && streamerRoleSync.ok && veteranRoleSync.ok ? 'connected' : 'role-error');
   } catch (callbackError) {
     console.error('Discord OAuth callback failed:', callbackError);
     return response('failed');

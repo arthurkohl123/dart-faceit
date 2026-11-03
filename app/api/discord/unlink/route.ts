@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { isDiscordStreamerRoleConfigured, syncDiscordPremiumRole, syncDiscordStreamerRole } from '@/lib/discord';
+import { isDiscordStreamerRoleConfigured, isDiscordVeteranRoleConfigured, syncDiscordPremiumRole, syncDiscordStreamerRole, syncDiscordVeteranRole } from '@/lib/discord';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,6 +23,7 @@ export async function POST() {
   if (profile?.discord_user_id) {
     const roleResults = [await syncDiscordPremiumRole(profile.discord_user_id, false)];
     if (isDiscordStreamerRoleConfigured()) roleResults.push(await syncDiscordStreamerRole(profile.discord_user_id, false));
+    if (isDiscordVeteranRoleConfigured()) roleResults.push(await syncDiscordVeteranRole(profile.discord_user_id, false));
     warning = roleResults.find((result) => !result.ok && result.code !== 'NOT_MEMBER')?.message;
   }
 
