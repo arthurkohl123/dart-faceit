@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  BellRing,
   CheckCircle2,
   Clock,
   Gavel,
@@ -77,6 +78,17 @@ type EloPreview = {
 type MatchEloPreview = {
   player1WinChange: number;
   player2WinChange: number;
+};
+
+type StaffAvailability = {
+  is_available: boolean;
+  staff_online: number;
+};
+
+type StaffCallResponse = {
+  status: 'notified' | 'offline' | 'cooldown';
+  staff_online: number;
+  retry_after_seconds: number;
 };
 
 // Must match the cap in the authoritative database Elo calculation.
@@ -317,6 +329,10 @@ export default function MatchResult() {
   // Admin state
   const [isAdmin, setIsAdmin] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
+  const [staffAvailabilityLoading, setStaffAvailabilityLoading] = useState(true);
+  const [staffOnlineCount, setStaffOnlineCount] = useState(0);
+  const [staffCallLoading, setStaffCallLoading] = useState(false);
+  const [staffCallFeedback, setStaffCallFeedback] = useState('');
   const isStaff = isAdmin || isModerator;
 
   useEffect(() => {
@@ -586,6 +602,33 @@ export default function MatchResult() {
     return () => { mounted = false; };
   }, [loadMatch]);
 
+  const refreshStaffAvailability = useCallback(async () => {
+    if (!match?.id || !iAmParticipant || isStaff) {
+      setStaffAvailabilityLoading(false);
+      setStaffOnlineCount(0);
+      return;
+    }
+
+    setStaffAvailabilityLoading(true);
+    const { data, error } = await supabase.rpc('get_matchroom_staff_availability', { p_match_id: match.id });
+    if (!error) {
+      const availability = (Array.isArray(data) ? data[0] : data) as StaffAvailability | null;
+      setStaffOnlineCount(availability?.is_available ? Number(availability.staff_online) || 0 : 0);
+    } else {
+      // A failed presence lookup must never make the call button clickable.
+      console.warn('Team-Status im Matchroom konnte nicht geladen werden:', error.message);
+      setStaffOnlineCount(0);
+    }
+    setStaffAvailabilityLoading(false);
+  }, [iAmParticipant, isStaff, match?.id, supabase]);
+
+  useEffect(() => {
+    if (!match?.id || !iAmParticipant || isStaff) return;
+    void refreshStaffAvailability();
+    const refreshInterval = window.setInterval(() => void refreshStaffAvailability(), 30_000);
+    return () => window.clearInterval(refreshInterval);
+  }, [iAmParticipant, isStaff, match?.id, refreshStaffAvailability]);
+
   // ── Screenshot ───────────────────────────────────────────────────────────────
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -724,6 +767,43 @@ export default function MatchResult() {
       setErrorMessage(getActionErrorMessage(err, 'Fehler beim Widerspruch.'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const requestStaffAssistance = async () => {
+    if (!match || staffCallLoading || staffAvailabilityLoading || staffOnlineCount < 1) return;
+    setStaffCallLoading(true);
+    setErrorMessage('');
+    setInfoMessage('');
+    setStaffCallFeedback('');
+    try {
+      const { data, error } = await supabase.rpc('request_matchroom_staff_assistance', {
+        p_match_id: match.id,
+      });
+      if (error) throw error;
+
+      const response = (Array.isArray(data) ? data[0] : data) as StaffCallResponse | null;
+      if (response?.status === 'notified') {
+        const count = Number(response.staff_online) || 1;
+        const message = count === 1
+          ? 'Ein Teammitglied wurde für diesen Matchroom benachrichtigt.'
+          : `${count} Teammitglieder wurden für diesen Matchroom benachrichtigt.`;
+        setStaffCallFeedback('Team benachrichtigt');
+        setInfoMessage(message);
+      } else if (response?.status === 'cooldown') {
+        const seconds = Math.max(1, Number(response.retry_after_seconds) || 1);
+        setStaffCallFeedback(`Erneut in ${seconds} Sek.`);
+        setInfoMessage(`Das Team wurde bereits benachrichtigt. Du kannst den Ruf in ${seconds} Sekunden erneut auslösen.`);
+      } else {
+        setStaffOnlineCount(0);
+        setStaffCallFeedback('Team offline');
+        setInfoMessage('Gerade ist kein Admin oder Moderator online. Der Matchroom bleibt für dich erreichbar.');
+      }
+    } catch (err) {
+      setErrorMessage(getActionErrorMessage(err, 'Das Team konnte gerade nicht benachrichtigt werden.'));
+    } finally {
+      setStaffCallLoading(false);
+      await refreshStaffAvailability();
     }
   };
 
@@ -1506,15 +1586,49 @@ export default function MatchResult() {
               </div>
 
               {iAmParticipant && opponentUserId ? (
-                <div className="matchroom-fairplay-row flex flex-col gap-3 border-t border-white/[0.07] bg-rose-400/[0.035] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                  <p className="text-xs leading-5 text-zinc-500">Bei einem konkreten Fair-Play-Vorfall kannst du deinen Gegner vertraulich an das Moderationsteam melden.</p>
-                  <PlayerReportButton
-                    targetUserId={opponentUserId}
-                    targetUsername={opponentUsername}
-                    source="matchroom"
-                    matchId={match.id}
-                    triggerClassName="inline-flex shrink-0 items-center justify-center gap-2 border border-rose-300/25 bg-rose-400/[0.09] px-3.5 py-2.5 text-xs font-black text-rose-100 transition hover:border-rose-300/45 hover:bg-rose-400/[0.15]"
-                  />
+                <div className="matchroom-fairplay-row grid gap-4 border-t border-white/[0.07] bg-rose-400/[0.035] px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                  <div className="min-w-0">
+                    {!isStaff && ['pending_result', 'awaiting_confirmation', 'disputed'].includes(match.status) ? (
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.13em] text-amber-100">
+                          <BellRing className="h-3.5 w-3.5 text-amber-300" />
+                          Matchroom-Support
+                        </div>
+                        <p className="text-xs leading-5 text-zinc-400">Brauchst du Hilfe im laufenden Match? Ein verfügbarer Admin oder Moderator erhält direkt einen Hinweis mit Link zu diesem Matchroom.</p>
+                        <p className={`text-[11px] font-bold ${staffAvailabilityLoading ? 'text-zinc-500' : staffOnlineCount > 0 ? 'text-emerald-300' : 'text-zinc-600'}`} aria-live="polite">
+                          {staffAvailabilityLoading
+                            ? 'Teamstatus wird geprüft …'
+                            : staffOnlineCount > 0
+                              ? `${staffOnlineCount} ${staffOnlineCount === 1 ? 'Teammitglied ist' : 'Teammitglieder sind'} gerade online`
+                              : 'Team offline – aktuell ist niemand aus dem Team online'}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs leading-5 text-zinc-500">Bei einem konkreten Fair-Play-Vorfall kannst du deinen Gegner vertraulich an das Moderationsteam melden.</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
+                    {!isStaff && ['pending_result', 'awaiting_confirmation', 'disputed'].includes(match.status) ? (
+                      <button
+                        type="button"
+                        onClick={() => void requestStaffAssistance()}
+                        disabled={staffAvailabilityLoading || staffOnlineCount < 1 || staffCallLoading}
+                        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 border border-amber-300/30 bg-amber-300/[0.10] px-3.5 py-2.5 text-xs font-black text-amber-100 transition hover:border-amber-200/55 hover:bg-amber-300/[0.17] disabled:cursor-not-allowed disabled:border-zinc-700/55 disabled:bg-zinc-900/70 disabled:text-zinc-600"
+                      >
+                        <BellRing className="h-3.5 w-3.5" />
+                        {staffCallLoading
+                          ? 'Benachrichtige …'
+                          : staffCallFeedback || (staffAvailabilityLoading ? 'Team prüfen …' : staffOnlineCount > 0 ? 'Admin rufen' : 'Team offline')}
+                      </button>
+                    ) : null}
+                    <PlayerReportButton
+                      targetUserId={opponentUserId}
+                      targetUsername={opponentUsername}
+                      source="matchroom"
+                      matchId={match.id}
+                      triggerClassName="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 border border-rose-300/25 bg-rose-400/[0.09] px-3.5 py-2.5 text-xs font-black text-rose-100 transition hover:border-rose-300/45 hover:bg-rose-400/[0.15]"
+                    />
+                  </div>
                 </div>
               ) : null}
             </div>
