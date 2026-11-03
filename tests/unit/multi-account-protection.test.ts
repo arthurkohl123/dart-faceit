@@ -3,9 +3,12 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync('supabase/migrations/20261103162841_strengthen_fairplay_account_protection.sql', 'utf8');
+const trustGateRemoval = readFileSync('supabase/migrations/20261103165229_remove_prize_tournament_trust_gate.sql', 'utf8');
 const registration = readFileSync('app/auth/register/page.tsx', 'utf8');
 const profile = readFileSync('app/profile/page.tsx', 'utf8');
 const signalRoute = readFileSync('app/api/security/session-signal/route.ts', 'utf8');
+const tournamentPage = readFileSync('app/tournaments/[id]/page.tsx', 'utf8');
+const tournamentRules = readFileSync('app/turnierregeln/page.tsx', 'utf8');
 
 test('platform identities are reserved without overwriting historic duplicate links', () => {
   assert.match(migration, /SCOLIA_USERNAME_ALREADY_LINKED/);
@@ -33,9 +36,9 @@ test('network signals are pseudonymized, short-lived, and only available to staf
   assert.match(migration, /never a ban trigger/i);
 });
 
-test('earned-trust gate is limited to prize tournaments', () => {
-  assert.match(migration, /get_my_prize_tournament_eligibility/);
-  assert.match(migration, /required_account_age_hours := 24/);
-  assert.match(migration, /required_ranked_matches := 3/);
-  assert.match(migration, /if v_t\.prize_title is not null then/);
+test('prize tournaments do not require an account age or ranked-match trust gate', () => {
+  assert.match(trustGateRemoval, /drop function if exists public\.get_my_prize_tournament_eligibility/i);
+  assert.doesNotMatch(trustGateRemoval, /required_account_age_hours|required_ranked_matches|v_eligibility/);
+  assert.doesNotMatch(tournamentPage, /Fair-Play-Freischaltung/);
+  assert.doesNotMatch(tournamentRules, /drei bestätigte Ranked-Matches/);
 });
