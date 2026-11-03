@@ -1,7 +1,7 @@
 import { LegalPageShell, LegalSection } from '@/components/legal-page-shell';
 
 export default function TournamentRulesPage() {
-  return <LegalPageShell eyebrow="Competitive Integrity · Stand 18.10.2026" title="Turnierregeln" intro="Ein nachvollziehbarer Rahmen für faire, kompetitive RankedDarts-Turniere.">
+  return <LegalPageShell eyebrow="Competitive Integrity · Stand 18.10.2026" title="Turnierregeln" intro="Ein nachvollziehbarer Rahmen für faire, kompetitive RankedDarts-Turniere." activePath="/turnierregeln">
     <LegalSection title="1. Teilnahme"><p>Teilnehmen darf, wer mindestens 18 Jahre alt ist, ein aktives RankedDarts-Konto besitzt und die auf der Turnierkarte veröffentlichten Voraussetzungen erfüllt. Dazu können Premium-Status, maximale oder minimale AVG, Teilnehmerzahl und Anmeldeschluss gehören.</p></LegalSection>
     <LegalSection title="2. Anmeldung und Check-in"><p>Mit der Anmeldung bestätigst du, zum angesetzten Startzeitpunkt spielbereit zu sein. Ein nicht angetretener Spieler kann vom Turnier ausgeschlossen werden. Der Veranstalter kann bei technischen Problemen angemessene Check-in-Fristen setzen.</p></LegalSection>
     <LegalSection title="3. Modus und Wertung"><p>Der Turnierbaum, das Best-of-Format und die Paarungen werden auf der jeweiligen Turnierseite angezeigt. Ergebnisse werden im Matchroom eingetragen und nach den dort vorgesehenen Bestätigungen gewertet. Bei Streitfällen entscheidet das Admin-Team auf Basis der vorliegenden Informationen.</p></LegalSection>

@@ -4,7 +4,7 @@ import { LegalPageShell, LegalSection } from '@/components/legal-page-shell';
 const mailClass = 'font-bold text-emerald-200 hover:text-emerald-100';
 
 export default function PrivacyPage() {
-  return <LegalPageShell eyebrow="Datenschutz · Stand 03.11.2026" title="Datenschutzerklärung" intro="Informationen zur Verarbeitung personenbezogener Daten bei der Nutzung von RankedDarts.">
+  return <LegalPageShell eyebrow="Datenschutz · Stand 03.11.2026" title="Datenschutzerklärung" intro="Informationen zur Verarbeitung personenbezogener Daten bei der Nutzung von RankedDarts." activePath="/datenschutz">
     <LegalSection title="1. Verantwortliche Stelle">
       <p>Verantwortlich für die Datenverarbeitung ist RankedDarts – Arthur Berent, c/o Autorenglück #54742, Albert-Einstein-Str. 47, 02977 Hoyerswerda, E-Mail: <a className={mailClass} href="mailto:support@rankeddarts.de">support@rankeddarts.de</a>.</p>
     </LegalSection>

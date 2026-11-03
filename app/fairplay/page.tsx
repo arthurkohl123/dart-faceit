@@ -1,7 +1,7 @@
 import { LegalPageShell, LegalSection } from '@/components/legal-page-shell';
 
 export default function FairPlayPage() {
-  return <LegalPageShell eyebrow="Fair Play & Kontoschutz" title="Fair spielen. Fair geprüft." intro="RankedDarts schützt den Wettbewerb mit nachvollziehbaren Regeln. Auffälligkeiten sind kein automatischer Vorwurf – sie werden zuerst intern und fair geprüft.">
+  return <LegalPageShell eyebrow="Fair Play & Kontoschutz" title="Fair spielen. Fair geprüft." intro="RankedDarts schützt den Wettbewerb mit nachvollziehbaren Regeln. Auffälligkeiten sind kein automatischer Vorwurf – sie werden zuerst intern und fair geprüft." activePath="/fairplay">
     <LegalSection title="Was wir schützen">
       <p>Jeder Ranked-Account steht für eine Person und eine faire Chance auf der Ladder. Mehrfachkonten, absichtliche Niederlagen, Ergebnisabsprachen, falsche Resultate und die Umgehung technischer Schutzmaßnahmen verzerren diese Grundlage und sind nicht erlaubt.</p>
     </LegalSection>

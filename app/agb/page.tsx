@@ -1,7 +1,7 @@
 import { LegalPageShell, LegalSection } from '@/components/legal-page-shell';
 
 export default function TermsPage() {
-  return <LegalPageShell eyebrow="Nutzungsbedingungen · Stand 18.10.2026" title="Allgemeine Geschäftsbedingungen" intro="Regeln für die Nutzung der RankedDarts-Plattform und der optionalen Premium-Mitgliedschaft.">
+  return <LegalPageShell eyebrow="Nutzungsbedingungen · Stand 18.10.2026" title="Allgemeine Geschäftsbedingungen" intro="Regeln für die Nutzung der RankedDarts-Plattform und der optionalen Premium-Mitgliedschaft." activePath="/agb">
     <LegalSection title="1. Geltungsbereich"><p>Diese Bedingungen regeln die Nutzung von RankedDarts zwischen Arthur Berent als Anbieter und den Nutzern. Für einzelne Turniere gelten ergänzend die Turnierregeln sowie die jeweils auf der Turnierseite genannten Bedingungen.</p></LegalSection>
     <LegalSection title="2. Teilnahme und Nutzerkonto"><p>Die Plattform richtet sich ausschließlich an Personen ab 18 Jahren. Du bist für die Richtigkeit deiner Angaben und die sichere Aufbewahrung deiner Zugangsdaten verantwortlich. Pro Person ist nur ein Konto zulässig, sofern der Anbieter nicht ausdrücklich etwas anderes erlaubt. Konten dürfen nicht verkauft, übertragen oder zur Manipulation von Rankings verwendet werden.</p></LegalSection>
     <LegalSection title="3. Fair Play und Community"><p>Manipulationen, absichtliche Ergebnisfälschungen, Mehrfachkonten, Belästigung, diskriminierende Inhalte und die Umgehung technischer Schutzmaßnahmen sind untersagt. Bei Verstößen können Matches korrigiert, Turnierzugänge eingeschränkt oder Konten zeitweise bzw. dauerhaft gesperrt werden.</p></LegalSection>
