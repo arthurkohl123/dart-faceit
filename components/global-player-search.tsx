@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Command, LoaderCircle, Search, X } from 'lucide-react';
+import { ArrowUpRight, LoaderCircle, Search, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { RankBadge } from '@/components/RankBadge';
 import { getRankForElo } from '@/lib/ranks';
@@ -116,7 +116,7 @@ export function GlobalPlayerSearch() {
       >
         <Search className="h-4 w-4 text-emerald-200" />
         <span className="hidden sm:inline">Suche</span>
-        <span className="hidden border-l border-white/10 pl-2 text-[9px] tracking-[0.08em] text-zinc-500 lg:inline">⌘ K</span>
+        <span className="hidden border-l border-white/10 pl-2 text-[9px] tracking-[0.08em] text-zinc-500 lg:inline">Strg + K</span>
       </button>
 
       {open ? (
@@ -180,7 +180,7 @@ export function GlobalPlayerSearch() {
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-between px-1 text-[10px] font-bold uppercase tracking-[0.13em] text-zinc-600"><span>Direkt zum öffentlichen Spielerprofil</span><span className="inline-flex items-center gap-1"><Command className="h-3.5 w-3.5" /> K zum Öffnen</span></div>
+            <div className="mt-4 flex items-center justify-between px-1 text-[10px] font-bold uppercase tracking-[0.13em] text-zinc-600"><span>Direkt zum öffentlichen Spielerprofil</span><span>Strg + K zum Öffnen</span></div>
           </div>
         </div>
       ) : null}
