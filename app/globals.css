@@ -2937,3 +2937,317 @@ body {
   .admin-vault-command-list { max-height: 50vh; }
   .admin-vault-command-footer { font-size: 8px; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MATCHROOM · CONTROL DECK
+   The result room is deliberately a more focused surface than the rest of
+   the product: a broadcast-like scoreboard at the top and one calm work area
+   beneath it. All rules and actions remain in the React view; these styles
+   only provide the visual hierarchy around them.
+   ───────────────────────────────────────────────────────────────────────── */
+.matchroom-command {
+  --match-ink: #070a0b;
+  --match-panel: #0c1111;
+  --match-line: rgba(205, 232, 219, .13);
+  --match-muted: #84908b;
+  --match-signal: #b9ff67;
+  --match-cyan: #67e8f9;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% -12%, rgba(185,255,103,.16), transparent 26rem),
+    radial-gradient(circle at 105% 31%, rgba(103,232,249,.09), transparent 31rem),
+    linear-gradient(135deg, #060909 0%, #0a0f0d 47%, #070a0b 100%);
+}
+.matchroom-command::before,
+.matchroom-command::after {
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+}
+.matchroom-command::before {
+  top: 5.2rem;
+  right: clamp(-25rem, -15vw, -10rem);
+  width: 43rem;
+  height: 43rem;
+  border: 1px solid rgba(185,255,103,.07);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5rem rgba(185,255,103,.018), 0 0 0 11rem rgba(185,255,103,.012);
+}
+.matchroom-command::after {
+  bottom: -19rem;
+  left: -17rem;
+  width: 46rem;
+  height: 46rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(103,232,249,.07), transparent 68%);
+}
+.matchroom-command-nav {
+  border-color: rgba(185,255,103,.14) !important;
+  background: rgba(5,8,8,.88) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.025), 0 12px 40px rgba(0,0,0,.18);
+}
+.matchroom-command-nav::after {
+  position: absolute;
+  bottom: -1px;
+  left: max(1rem, calc((100% - 80rem) / 2));
+  width: 4rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--match-signal), transparent);
+  content: '';
+  opacity: .8;
+}
+.matchroom-command-nav a { letter-spacing: .01em; }
+.matchroom-command-shell { max-width: 90rem; }
+
+.matchroom-command-hero {
+  position: relative;
+  overflow: hidden;
+  border-color: var(--match-line) !important;
+  background:
+    linear-gradient(108deg, rgba(185,255,103,.09), transparent 33%),
+    linear-gradient(135deg, rgba(15,22,20,.98), rgba(6,9,9,.95)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 20px 70px rgba(0,0,0,.22);
+}
+.matchroom-command-hero::after {
+  position: absolute;
+  top: -9rem;
+  right: 19rem;
+  width: 23rem;
+  height: 23rem;
+  border: 1px solid rgba(185,255,103,.13);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2.25rem rgba(185,255,103,.028), 0 0 0 5rem rgba(185,255,103,.018);
+  content: '';
+}
+.matchroom-command-hero-copy { position: relative; z-index: 1; }
+.matchroom-command-hero-copy h1 {
+  font-size: clamp(2rem, 3.4vw, 3.35rem);
+  letter-spacing: -.075em;
+  text-wrap: balance;
+}
+.matchroom-command-hero-copy p { max-width: 34rem; color: #9aa59f !important; }
+.matchroom-command-track {
+  position: relative;
+  z-index: 1;
+  background: rgba(0,0,0,.19);
+}
+.matchroom-command-track span {
+  position: relative;
+  gap: .45rem;
+  min-width: 5.6rem;
+  justify-content: center;
+}
+.matchroom-command-track span:first-child { background: rgba(185,255,103,.055); }
+.matchroom-command-track i {
+  color: var(--match-signal);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .7em;
+  font-style: normal;
+  opacity: .8;
+}
+
+.matchroom-scoreboard {
+  border-color: var(--match-line) !important;
+  border-radius: 0 0 1.5rem 1.5rem;
+  background:
+    linear-gradient(90deg, rgba(67,226,149,.035), transparent 26%, transparent 74%, rgba(103,232,249,.045)),
+    linear-gradient(145deg, #101615, #080c0c 76%) !important;
+  box-shadow: 0 26px 80px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04) !important;
+}
+.matchroom-scoreboard::before {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(180deg, transparent, rgba(185,255,103,.16) 31%, rgba(103,232,249,.16) 69%, transparent);
+  content: '';
+  opacity: .7;
+}
+.matchroom-scoreboard > * { position: relative; z-index: 1; }
+.matchroom-scoreboard-meta {
+  min-height: 3.25rem;
+  border-color: rgba(205,232,219,.1) !important;
+  background: linear-gradient(90deg, rgba(255,255,255,.035), transparent) !important;
+}
+.matchroom-scoreboard-meta > div { color: #97a49e !important; }
+.matchroom-scoreboard-meta > div > span { background: var(--match-signal) !important; }
+.matchroom-score-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  border-radius: 999px;
+  color: #d8e3dd !important;
+}
+.matchroom-score-status i {
+  width: .42rem;
+  height: .42rem;
+  border-radius: 999px;
+  background: #fcd34d;
+  box-shadow: 0 0 11px rgba(252,211,77,.8);
+}
+.matchroom-score-status--pending_result i { background: var(--match-signal); box-shadow: 0 0 11px rgba(185,255,103,.8); }
+.matchroom-score-status--completed i { background: var(--match-cyan); box-shadow: 0 0 11px rgba(103,232,249,.8); }
+.matchroom-score-status--disputed i,
+.matchroom-score-status--cancelled i { background: #fb7185; box-shadow: 0 0 11px rgba(251,113,133,.8); }
+
+.matchroom-scoreboard-players { min-height: 15rem; }
+.matchroom-fighter { position: relative; }
+.matchroom-fighter::before {
+  position: absolute;
+  top: 1.2rem;
+  bottom: 1.2rem;
+  width: 3px;
+  border-radius: 999px;
+  content: '';
+  opacity: .9;
+}
+.matchroom-fighter--local { background: linear-gradient(135deg, rgba(67,226,149,.1), transparent 54%); }
+.matchroom-fighter--local::before { left: 0; background: linear-gradient(180deg, transparent, #9affb4, transparent); }
+.matchroom-fighter--away { background: linear-gradient(225deg, rgba(103,232,249,.1), transparent 54%); }
+.matchroom-fighter--away::before { right: 0; background: linear-gradient(180deg, transparent, #82e9ff, transparent); }
+.matchroom-fighter-emblem {
+  position: relative;
+  border-radius: 1.1rem 1.1rem .35rem 1.1rem;
+  transform: rotate(-3deg);
+}
+.matchroom-fighter--away .matchroom-fighter-emblem {
+  border-radius: 1.1rem 1.1rem 1.1rem .35rem;
+  transform: rotate(3deg);
+}
+.matchroom-fighter-emblem::before {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid currentColor;
+  border-radius: inherit;
+  content: '';
+  opacity: .28;
+}
+.matchroom-fighter > span:nth-of-type(2) {
+  font-size: clamp(1.15rem, 2vw, 1.75rem) !important;
+  letter-spacing: -.055em !important;
+}
+.matchroom-fighter > div { position: relative; z-index: 1; }
+.matchroom-versus { overflow: hidden; background: rgba(0,0,0,.28) !important; }
+.matchroom-versus::before,
+.matchroom-versus::after {
+  position: absolute;
+  left: 50%;
+  width: 1px;
+  height: 28%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, transparent, rgba(185,255,103,.35));
+  content: '';
+}
+.matchroom-versus::before { top: 0; }
+.matchroom-versus::after { bottom: 0; transform: translateX(-50%) rotate(180deg); }
+.matchroom-versus-mark {
+  position: relative;
+  border-color: rgba(185,255,103,.45) !important;
+  background: radial-gradient(circle at 35% 28%, #1c2b24, #090d0c 72%) !important;
+  box-shadow: 0 0 0 .5rem rgba(185,255,103,.04), 0 0 42px rgba(185,255,103,.19) !important;
+}
+.matchroom-scoreboard-facts { border-color: rgba(205,232,219,.1) !important; background: rgba(0,0,0,.31) !important; }
+.matchroom-scoreboard-facts > div { position: relative; padding-top: 1rem; padding-bottom: 1rem; }
+.matchroom-scoreboard-facts > div::before {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1.65rem;
+  height: 2px;
+  transform: translateX(-50%);
+  background: rgba(185,255,103,.5);
+  content: '';
+}
+.matchroom-scoreboard-facts p:first-child { color: #75827b !important; }
+.matchroom-scoreboard-facts p:last-child { color: #e5eee8; }
+.matchroom-fairplay-row { border-color: rgba(251,113,133,.15) !important; background: linear-gradient(90deg, rgba(251,113,133,.07), transparent) !important; }
+
+.matchroom-command-grid { filter: drop-shadow(0 26px 55px rgba(0,0,0,.18)); }
+.matchroom-result-surface {
+  position: relative;
+  border-color: var(--match-line) !important;
+  background: linear-gradient(155deg, rgba(15,22,20,.72), rgba(6,9,9,.68)) !important;
+}
+.matchroom-result-surface > div[class*="border-b"] {
+  border-color: var(--match-line) !important;
+  background: linear-gradient(145deg, rgba(13,20,18,.96), rgba(7,10,10,.94)) !important;
+}
+.matchroom-result-surface > div[class*="border-b"]:not(:last-child) { border-bottom-color: rgba(205,232,219,.1) !important; }
+.matchroom-result-surface :is(input, textarea) {
+  border-color: rgba(205,232,219,.14);
+  background-color: rgba(255,255,255,.035);
+}
+.matchroom-result-surface :is(input, textarea):focus {
+  border-color: rgba(185,255,103,.62);
+  box-shadow: 0 0 0 3px rgba(185,255,103,.08);
+}
+
+.matchroom-comms-wrap { z-index: 2; }
+.matchroom-comms {
+  position: relative;
+  border-color: var(--match-line) !important;
+  border-radius: 0 0 1.5rem 0;
+  background: linear-gradient(160deg, rgba(15,23,21,.98), rgba(7,11,10,.98)) !important;
+  box-shadow: inset 1px 0 0 rgba(255,255,255,.02), 0 24px 70px rgba(0,0,0,.25) !important;
+}
+.matchroom-comms::before {
+  position: absolute;
+  top: 0;
+  right: 1.15rem;
+  left: 1.15rem;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--match-cyan), transparent);
+  content: '';
+  opacity: .8;
+}
+.matchroom-comms-header {
+  min-height: 5.25rem;
+  background: linear-gradient(105deg, rgba(103,232,249,.11), transparent 70%) !important;
+}
+.matchroom-comms-header > div:first-child {
+  border-radius: .95rem .95rem .95rem .25rem;
+  border-color: rgba(103,232,249,.35) !important;
+  background: rgba(103,232,249,.09) !important;
+}
+.matchroom-comms-header > div:first-child svg { color: var(--match-cyan) !important; }
+.matchroom-comms-header > div:nth-child(2) > div:first-child { color: var(--match-cyan) !important; }
+.matchroom-comms-feed {
+  scrollbar-color: rgba(103,232,249,.36) transparent;
+  background-image: linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 100% 2.55rem;
+}
+.matchroom-comms-feed > div > div {
+  box-shadow: 0 7px 18px rgba(0,0,0,.13);
+}
+.matchroom-comms-compose { background: rgba(0,0,0,.18); }
+.matchroom-comms-compose input {
+  border-radius: .85rem !important;
+  border-color: rgba(103,232,249,.16) !important;
+  background: rgba(255,255,255,.035) !important;
+}
+.matchroom-comms-compose input:focus { border-color: rgba(103,232,249,.65) !important; box-shadow: 0 0 0 3px rgba(103,232,249,.08); }
+.matchroom-comms-compose button {
+  border-radius: .85rem !important;
+  background: linear-gradient(135deg, rgba(103,232,249,.27), rgba(185,255,103,.2)) !important;
+  color: #e7fff3 !important;
+}
+
+@media (max-width: 1023px) {
+  .matchroom-command-grid { gap: 1rem; }
+  .matchroom-result-surface { border: 1px solid var(--match-line); border-radius: 0 0 1.5rem 1.5rem; overflow: hidden; }
+  .matchroom-comms { border: 1px solid var(--match-line) !important; border-radius: 1.5rem; }
+}
+@media (max-width: 640px) {
+  .matchroom-command-nav::after { display: none; }
+  .matchroom-command-hero::after { right: -12rem; }
+  .matchroom-command-track span { min-width: 0; flex: 1; padding-inline: .45rem; font-size: 8px; letter-spacing: .08em; }
+  .matchroom-command-track i { display: none; }
+  .matchroom-scoreboard { border-radius: 0 0 1.2rem 1.2rem; }
+  .matchroom-scoreboard-players { min-height: 12.5rem; }
+  .matchroom-fighter::before { top: .8rem; bottom: .8rem; }
+  .matchroom-fairplay-row { align-items: stretch; }
+  .matchroom-comms { border-radius: 1.2rem; }
+}
