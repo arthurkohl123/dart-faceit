@@ -7,7 +7,7 @@ import { ArrowLeft, CalendarDays, CheckCircle2, ChevronRight, CircleAlert, Clock
 import { createClient } from '@/lib/supabase';
 import { NotificationBell } from '@/components/notification-bell';
 
-type ScoringPlatform = 'scolia' | 'dartcounter';
+type ScoringPlatform = 'scolia' | 'dartcounter' | 'autodarts';
 type TournamentFormat = 'single_elimination' | 'double_elimination' | 'group_stage';
 type Tournament = {
   id: string; title: string; description: string; starts_at: string; registration_closes_at: string;
@@ -34,7 +34,7 @@ const statusMeta = {
   cancelled: ['ABGESAGT', 'border-rose-300/20 bg-rose-300/[.08] text-rose-200'],
 } as const;
 const formatMeta: Record<TournamentFormat, string> = { single_elimination: 'Single Elimination', double_elimination: 'Double Elimination', group_stage: 'Gruppenphase' };
-const platformMeta = { scolia: 'Scolia', dartcounter: 'DartCounter' } as const;
+const platformMeta: Record<ScoringPlatform, string> = { scolia: 'Scolia', dartcounter: 'DartCounter', autodarts: 'AutoDarts' };
 const formatDate = (value: string) => new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 const formatDay = (value: string) => new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' }).format(new Date(value));
 

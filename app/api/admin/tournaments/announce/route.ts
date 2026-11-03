@@ -33,7 +33,7 @@ function formatDate(value: string) {
 }
 
 function labelForPlatform(value: string) {
-  return value === 'scolia' ? 'Scolia' : value === 'dartcounter' ? 'DartCounter' : value;
+  return value === 'scolia' ? 'Scolia' : value === 'dartcounter' ? 'DartCounter' : value === 'autodarts' ? 'AutoDarts' : value;
 }
 
 function labelForFormat(value: string) {

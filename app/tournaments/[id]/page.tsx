@@ -9,7 +9,7 @@ import { NotificationBell } from '@/components/notification-bell';
 import { RankBadge } from '@/components/RankBadge';
 
 type TournamentFormat = 'single_elimination' | 'double_elimination' | 'group_stage';
-type ScoringPlatform = 'scolia' | 'dartcounter';
+type ScoringPlatform = 'scolia' | 'dartcounter' | 'autodarts';
 type Tournament = {
   id: string; title: string; description: string; starts_at: string; registration_closes_at: string;
   max_players: number; best_of: number; premium_only: boolean; max_average: number | null; min_average: number | null;
@@ -267,7 +267,7 @@ function TournamentMatchDesk({
   const opponent = match.player1_id === userId ? match.player2_username : match.player1_username;
   const kindOptions: Array<{ value: typeof incidentKind; title: string; description: string }> = [
     { value: 'opponent_absent', title: 'Gegner nicht da', description: 'Gegner ist nicht im Matchroom oder reagiert nicht.' },
-    { value: 'technical_problem', title: 'Technisches Problem', description: 'Verbindung, Scolia oder DartCounter blockiert das Match.' },
+    { value: 'technical_problem', title: 'Technisches Problem', description: 'Verbindung, Scolia, DartCounter oder AutoDarts blockiert das Match.' },
     { value: 'result_question', title: 'Frage zum Ergebnis', description: 'Der Matchabschluss oder das Resultat muss geklärt werden.' },
   ];
   return <section className="mt-6 overflow-hidden rounded-3xl border border-amber-300/25 bg-[linear-gradient(135deg,rgba(250,204,21,.11),rgba(8,23,17,.94)_48%)] shadow-[0_18px_55px_rgba(0,0,0,.16)]"><div className="grid gap-5 px-5 py-6 sm:px-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"><div><p className="inline-flex items-center gap-2 text-[10px] font-black tracking-[.2em] text-amber-200"><span className="h-2 w-2 animate-pulse rounded-full bg-rose-300" /> DU BIST DRAN</p><h2 className="mt-2 text-2xl font-black tracking-[-.04em]">Match {match.round_number}.{match.match_number} gegen {opponent || 'deinen Gegner'}</h2><p className="mt-2 text-sm leading-6 text-zinc-300/80">Dein Matchroom ist offen. Nach dem bestätigten Ergebnis aktualisiert sich der Turnierplan automatisch.</p></div><div className="flex flex-wrap gap-2"><Link href={`/result?matchId=${match.active_match_id}&bestOf=${tournament.best_of}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-300 px-5 py-3.5 text-xs font-black tracking-[.08em] text-[#192018] transition hover:bg-amber-200">MATCHROOM ÖFFNEN <ChevronRight size={15} /></Link><button type="button" onClick={() => onOpenChange(!incidentOpen)} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-cyan-300/25 bg-cyan-300/[.08] px-4 py-3.5 text-xs font-black tracking-[.06em] text-cyan-100 transition hover:bg-cyan-300/[.14]"><Flag size={14} /> PROBLEM MELDEN</button></div></div>
