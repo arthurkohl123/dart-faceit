@@ -1271,23 +1271,18 @@ export default function MatchResult() {
 
       <section className="matchroom-command-shell relative z-10 mx-auto max-w-[88rem] px-3 pb-12 pt-20 sm:px-6 sm:pt-24 lg:px-8 lg:pb-20 lg:pt-28">
 
-        {/* Arena intro */}
-        <div className="matchroom-command-hero mb-0 grid border border-white/10 bg-[#090c0b]/90 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <div className="matchroom-command-hero-copy px-5 py-5 sm:px-7 sm:py-6">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.9)]" />
-              Control Room · Matchabschluss
-            </div>
-            <h1 className="mt-2 text-3xl font-black tracking-[-0.065em] sm:text-4xl">
-              Ergebnisraum
-            </h1>
-            <p className="mt-2 text-sm text-zinc-500">Der gemeinsame Kontrollpunkt für Ergebnis, Bestätigung und Fair Play.</p>
+        {/* Kompakte Room-Navigation – das Match selbst ist der visuelle Fokus. */}
+        <div className="matchroom-roombar">
+          <div className="matchroom-roombar-title">
+            <span><Target className="h-3.5 w-3.5" /> Matchroom</span>
+            <strong>Spielzentrale</strong>
           </div>
-          <div className="matchroom-command-track flex items-stretch divide-x divide-white/10 border-t border-white/10 text-[9px] font-black uppercase tracking-[0.14em] sm:border-l sm:border-t-0 sm:text-[10px]">
-            <span className="flex items-center px-3 py-4 text-emerald-300 sm:px-4"><i>01</i> Match</span>
-            <span className={`flex items-center px-3 py-4 ${match?.status === 'pending_result' ? 'text-white' : 'text-emerald-300'}`}><i>02</i> Ergebnis</span>
-            <span className={`flex items-center px-3 py-4 ${match?.status === 'completed' ? 'text-emerald-300' : 'text-zinc-600'}`}><i>03</i> Wertung</span>
+          <div className="matchroom-roombar-flow" aria-label="Matchfortschritt">
+            <span className="is-done"><i>01</i> Spielen</span>
+            <span className={match?.status === 'pending_result' ? 'is-current' : 'is-done'}><i>02</i> Ergebnis</span>
+            <span className={match?.status === 'completed' ? 'is-done' : ''}><i>03</i> Wertung</span>
           </div>
+          <div className="matchroom-roombar-note"><Shield className="h-3.5 w-3.5" /> Fair Play geschützt</div>
         </div>
 
         {/* ════════════════════════════════════════════════════════════
@@ -1432,9 +1427,9 @@ export default function MatchResult() {
             <div className="matchroom-scoreboard relative mb-5 overflow-hidden border-x border-b border-white/10 bg-[#0a0d0c]/95 shadow-[0_24px_80px_rgba(0,0,0,0.3)] sm:mb-8">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/70 to-transparent" />
               <div className="matchroom-scoreboard-meta flex items-center justify-between border-b border-white/[0.07] bg-white/[0.025] px-4 py-3 sm:px-6">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                <div className="matchroom-broadcast-label flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]" />
-                  {match.match_mode === 'private' ? 'Privates Duell · nicht gewertet' : 'Ranked Match'}
+                  {match.match_mode === 'private' ? 'Privates Duell · nicht gewertet' : 'Ranked Arena · Live'}
                 </div>
                 <span className={`matchroom-score-status matchroom-score-status--${match.status} border border-white/10 bg-black/30 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-300`}>
                   <i />
@@ -1442,65 +1437,77 @@ export default function MatchResult() {
                 </span>
               </div>
 
-              <div className="matchroom-scoreboard-players grid grid-cols-[minmax(0,1fr)_3.75rem_minmax(0,1fr)] items-stretch sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)]">
-                <div className="matchroom-fighter matchroom-fighter--local flex min-w-0 flex-col items-center justify-center px-2 py-5 text-center sm:px-6 sm:py-8">
-                  <div className="matchroom-fighter-emblem grid h-11 w-11 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-lg font-black text-emerald-200 shadow-[0_0_28px_rgba(52,211,153,0.12)] sm:h-14 sm:w-14 sm:text-xl">
+              <div className="matchroom-scoreboard-title">
+                <span>RankedDarts // Match Broadcast</span>
+                <strong>{match.match_mode === 'private' ? 'Freies Duell' : 'Dein gewertetes Duell'}</strong>
+                <small>Ergebnis, Bestätigung und Wertung an einem Ort.</small>
+              </div>
+
+              <div className="matchroom-scoreboard-players grid grid-cols-[minmax(0,1fr)_5.4rem_minmax(0,1fr)] items-stretch sm:grid-cols-[minmax(0,1fr)_9rem_minmax(0,1fr)]">
+                <div className="matchroom-fighter matchroom-fighter--local flex min-w-0 flex-col items-center justify-center px-3 py-7 text-center sm:px-8 sm:py-10">
+                  <span className="matchroom-fighter-index">01</span>
+                  <div className="matchroom-fighter-emblem grid h-12 w-12 place-items-center border border-emerald-300/25 bg-emerald-400/10 text-xl font-black text-emerald-200 shadow-[0_0_28px_rgba(52,211,153,0.12)] sm:h-16 sm:w-16 sm:text-2xl">
                     {myName.slice(0, 1).toUpperCase()}
                   </div>
-                  <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-emerald-300/70 sm:text-[10px]">{iAmParticipant ? 'Du' : 'Spieler 1'}</span>
-                  <span className="mt-1 w-full truncate text-lg font-black tracking-[-0.04em] sm:text-2xl" title={myName}>{myName}</span>
-                  <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 text-[11px] font-bold text-zinc-500 sm:text-xs">
-                    <span>{myElo} Elo</span>
-                    {myAvg !== null && <span>Ø <b className="text-emerald-300">{myAvg.toFixed(1)}</b></span>}
+                  <div className="matchroom-fighter-copy">
+                    <span className="matchroom-fighter-role">{iAmParticipant ? 'Heimspieler · Du' : 'Spieler 1'}</span>
+                    <span className="matchroom-fighter-name" title={myName}>{myName}</span>
+                    <div className="matchroom-fighter-rating">
+                      <strong>{myElo}</strong><span>ELO</span>
+                      {myAvg !== null && <em>Ø {myAvg.toFixed(1)}</em>}
+                    </div>
+                    {myPlatformUsername && (
+                      <span className={`matchroom-player-handle max-w-full truncate border ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${myPlatformUsername}`}>
+                        {myPlatformUsername}
+                      </span>
+                    )}
                   </div>
-                  {myPlatformUsername && (
-                    <span className={`mt-3 max-w-full truncate border px-2 py-1 text-[9px] font-bold sm:px-3 sm:text-[10px] ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${myPlatformUsername}`}>
-                      {myPlatformUsername}
-                    </span>
-                  )}
                 </div>
 
                 <div className="matchroom-versus relative flex flex-col items-center justify-center border-x border-white/[0.07] bg-black/20">
-                  <div className="matchroom-versus-mark grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-zinc-950 shadow-[0_0_35px_rgba(255,255,255,0.06)] sm:h-14 sm:w-14">
-                    <Target className="h-5 w-5 text-emerald-300 sm:h-7 sm:w-7" />
+                  <span className="matchroom-versus-kicker">First to {legsToWin}</span>
+                  <div className="matchroom-versus-mark grid h-12 w-12 place-items-center rounded-full border border-white/10 bg-zinc-950 shadow-[0_0_35px_rgba(255,255,255,0.06)] sm:h-16 sm:w-16">
+                    <Target className="h-6 w-6 text-emerald-300 sm:h-8 sm:w-8" />
                   </div>
-                  <span className="mt-2 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">vs</span>
+                  <span className="matchroom-versus-word">VS</span>
+                  <span className="matchroom-versus-format">BO {bestOfLegs}</span>
                 </div>
 
-                <div className="matchroom-fighter matchroom-fighter--away flex min-w-0 flex-col items-center justify-center px-2 py-5 text-center sm:px-6 sm:py-8">
-                  <div className="matchroom-fighter-emblem grid h-11 w-11 place-items-center border border-cyan-300/25 bg-cyan-400/10 text-lg font-black text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.1)] sm:h-14 sm:w-14 sm:text-xl">
+                <div className="matchroom-fighter matchroom-fighter--away flex min-w-0 flex-col items-center justify-center px-3 py-7 text-center sm:px-8 sm:py-10">
+                  <span className="matchroom-fighter-index">02</span>
+                  <div className="matchroom-fighter-emblem grid h-12 w-12 place-items-center border border-cyan-300/25 bg-cyan-400/10 text-xl font-black text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.1)] sm:h-16 sm:w-16 sm:text-2xl">
                     {displayedOpponentName.slice(0, 1).toUpperCase()}
                   </div>
-                  <span className="mt-3 text-[9px] font-black uppercase tracking-[0.22em] text-cyan-300/70 sm:text-[10px]">{iAmParticipant ? 'Gegner' : 'Spieler 2'}</span>
-                  <span className="mt-1 w-full truncate text-lg font-black tracking-[-0.04em] sm:text-2xl" title={displayedOpponentName}>{displayedOpponentName}</span>
-                  <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 text-[11px] font-bold text-zinc-500 sm:text-xs">
-                    <span>{displayedOpponentElo} Elo</span>
-                    {oppAvg !== null && <span>Ø <b className="text-cyan-300">{oppAvg.toFixed(1)}</b></span>}
+                  <div className="matchroom-fighter-copy">
+                    <span className="matchroom-fighter-role">{iAmParticipant ? 'Auswärtsspieler · Gegner' : 'Spieler 2'}</span>
+                    <span className="matchroom-fighter-name" title={displayedOpponentName}>{displayedOpponentName}</span>
+                    <div className="matchroom-fighter-rating">
+                      <strong>{displayedOpponentElo}</strong><span>ELO</span>
+                      {oppAvg !== null && <em>Ø {oppAvg.toFixed(1)}</em>}
+                    </div>
+                    {oppPlatformUsername ? (
+                      <span className={`matchroom-player-handle max-w-full truncate border ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${oppPlatformUsername}`}>
+                        {oppPlatformUsername}
+                      </span>
+                    ) : (
+                      <span className="matchroom-player-handle max-w-full truncate border border-zinc-700/40 bg-zinc-800/40 text-zinc-600">Nicht hinterlegt</span>
+                    )}
                   </div>
-                  {oppPlatformUsername ? (
-                    <span className={`mt-3 max-w-full truncate border px-2 py-1 text-[9px] font-bold sm:px-3 sm:text-[10px] ${platformBorder} ${platformColor}`} title={`${platformLabel}: ${oppPlatformUsername}`}>
-                      {oppPlatformUsername}
-                    </span>
-                  ) : (
-                    <span className="mt-3 max-w-full truncate border border-zinc-700/40 bg-zinc-800/40 px-2 py-1 text-[9px] font-bold text-zinc-600 sm:px-3 sm:text-[10px]">
-                      Nicht hinterlegt
-                    </span>
-                  )}
                 </div>
               </div>
 
               <div className="matchroom-scoreboard-facts grid grid-cols-3 divide-x divide-white/[0.07] border-t border-white/[0.07] bg-black/25 text-center">
-                <div className="px-2 py-3 sm:px-4">
-                  <p className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-600 sm:text-[9px]">Format</p>
-                  <p className="mt-1 text-[11px] font-black text-zinc-200 sm:text-xs">Best of {bestOfLegs}</p>
+                <div>
+                  <p>Modus</p>
+                  <p>Best of {bestOfLegs}</p>
                 </div>
-                <div className="min-w-0 px-2 py-3 sm:px-4">
-                  <p className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-600 sm:text-[9px]">Plattform</p>
-                  <p className={`mt-1 truncate text-[11px] font-black sm:text-xs ${platformColor}`}>{platformLabel}</p>
+                <div className="min-w-0">
+                  <p>Verbindung</p>
+                  <p className={platformColor}>{platformLabel}</p>
                 </div>
-                <div className="px-2 py-3 sm:px-4">
-                  <p className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-600 sm:text-[9px]">Ziel</p>
-                  <p className="mt-1 text-[11px] font-black text-zinc-200 sm:text-xs">{legsToWin} Legs</p>
+                <div>
+                  <p>Matchziel</p>
+                  <p>{legsToWin} Legs zum Sieg</p>
                 </div>
               </div>
 
@@ -1572,12 +1579,17 @@ export default function MatchResult() {
             STATE: pending_result — Ergebnis eintragen
         ══════════════════════════════════════════════════════════════ */}
         {match?.status === 'pending_result' && (
-          <div className="overflow-hidden border-b border-white/10 bg-[#0a0d0c]/85 shadow-2xl shadow-black/30 backdrop-blur-2xl">
+          <div className="matchroom-result-deck overflow-hidden border-b border-white/10 bg-[#0a0d0c]/85 shadow-2xl shadow-black/30 backdrop-blur-2xl">
+            <div className="matchroom-result-deck-rail" aria-label="Ergebnisablauf">
+              <span><i>01</i> Endstand</span>
+              <span><i>02</i> Stats</span>
+              <span><i>03</i> Bestätigung</span>
+            </div>
             {/* Header */}
-            <div className="border-b border-white/10 bg-gradient-to-r from-emerald-400/[0.06] to-transparent px-5 py-6 sm:px-8 sm:py-7">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">01 · Endstand erfassen</p>
-              <h2 className="mt-2 text-3xl font-black tracking-[-0.06em] sm:text-4xl">Ergebnis eintragen</h2>
-              <p className="mt-2 text-sm text-zinc-500">
+            <div className="matchroom-result-deck-head border-b border-white/10 bg-gradient-to-r from-emerald-400/[0.06] to-transparent px-5 py-6 sm:px-8 sm:py-8">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Deine Eingabe · wird vom Gegner geprüft</p>
+              <h2 className="mt-2 text-3xl font-black tracking-[-0.06em] sm:text-5xl">Was war der Endstand?</h2>
+              <p className="mt-3 max-w-2xl text-sm text-zinc-500">
                 Trage das Best-of-{bestOfLegs}-Ergebnis sowie Average und 180er von beiden Spielern ein. Dein Gegner muss alles danach bestätigen.
               </p>
             </div>
@@ -1955,9 +1967,9 @@ export default function MatchResult() {
                 <MessageCircle className="h-5 w-5 text-emerald-300" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Matchroom</div>
+                <div className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">Direkter Draht</div>
                 <div className="truncate text-sm font-bold text-zinc-300">
-                  {match.player1_username} &amp; {match.player2_username}
+                  Privat · {match.player1_username} &amp; {match.player2_username}
                 </div>
               </div>
               {isStaff && !(currentUserId === match.player1_id || currentUserId === match.player2_id) && (
@@ -1977,8 +1989,8 @@ export default function MatchResult() {
               {chatMessages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
                   <MessageCircle className="h-8 w-8 text-zinc-700" />
-                  <p className="text-sm font-semibold text-zinc-600">Noch keine Nachrichten.</p>
-                  <p className="text-xs text-zinc-700">Schreib deinem Gegner!</p>
+                  <p className="text-sm font-semibold text-zinc-600">Der Kanal ist noch ruhig.</p>
+                  <p className="text-xs text-zinc-700">Klär hier kurz alles rund um euer Match.</p>
                 </div>
               ) : (
                 chatMessages.map((msg) => {
@@ -2026,7 +2038,7 @@ export default function MatchResult() {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={handleChatKeyDown}
-                  placeholder="Nachricht schreiben..."
+                  placeholder="Kurze Nachricht an deinen Gegner ..."
                   maxLength={300}
                   disabled={chatSending}
                   className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/40 focus:bg-white/[0.07] disabled:opacity-50"

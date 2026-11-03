@@ -3251,3 +3251,290 @@ body {
   .matchroom-fairplay-row { align-items: stretch; }
   .matchroom-comms { border-radius: 1.2rem; }
 }
+
+/* Matchroom v2: a proper match broadcast instead of a stack of generic cards. */
+.matchroom-command {
+  --match-lime: #c8ff73;
+  --match-aqua: #5eead4;
+  --match-paper: #f4f6e8;
+  --match-graphite: #111714;
+  background:
+    radial-gradient(ellipse 72% 34rem at 50% -6%, rgba(200,255,115,.18), transparent 70%),
+    radial-gradient(ellipse 38rem 34rem at 100% 54%, rgba(45,212,191,.09), transparent 72%),
+    #080d0b !important;
+}
+.matchroom-command > .fixed.z-0 { opacity: .28; }
+.matchroom-command-shell { max-width: 96rem; }
+
+.matchroom-roombar {
+  display: grid;
+  grid-template-columns: minmax(13rem,.75fr) minmax(23rem,1.5fr) minmax(12rem,.65fr);
+  align-items: center;
+  min-height: 4.25rem;
+  margin-bottom: .9rem;
+  border: 1px solid rgba(218,242,223,.12);
+  border-radius: 1rem;
+  background: rgba(13,19,16,.88);
+  box-shadow: 0 12px 36px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.035);
+  overflow: hidden;
+}
+.matchroom-roombar-title,
+.matchroom-roombar-note { padding: .85rem 1.1rem; }
+.matchroom-roombar-title > span,
+.matchroom-roombar-note {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  color: #9fac9f;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+.matchroom-roombar-title > span svg { color: var(--match-lime); }
+.matchroom-roombar-title strong {
+  display: block;
+  margin-top: .22rem;
+  color: var(--match-paper);
+  font-size: .88rem;
+  font-weight: 900;
+  letter-spacing: -.03em;
+}
+.matchroom-roombar-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  align-self: stretch;
+  border-inline: 1px solid rgba(218,242,223,.1);
+}
+.matchroom-roombar-flow span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  border-right: 1px solid rgba(218,242,223,.08);
+  color: #66736b;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.matchroom-roombar-flow span:last-child { border-right: 0; }
+.matchroom-roombar-flow i {
+  display: grid;
+  width: 1.15rem;
+  height: 1.15rem;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+  font-style: normal;
+}
+.matchroom-roombar-flow .is-done { color: #a8f283; }
+.matchroom-roombar-flow .is-current { color: var(--match-paper); background: rgba(200,255,115,.075); }
+.matchroom-roombar-note { justify-content: end; color: #8d9b93; }
+.matchroom-roombar-note svg { color: var(--match-aqua); }
+
+.matchroom-scoreboard {
+  border: 1px solid rgba(221,245,224,.16) !important;
+  border-radius: 1.45rem !important;
+  background:
+    linear-gradient(100deg, rgba(200,255,115,.09), transparent 29%, transparent 72%, rgba(94,234,212,.085)),
+    linear-gradient(145deg, #17201b 0%, #0b110f 51%, #111915 100%) !important;
+  box-shadow: 0 34px 100px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.075) !important;
+}
+.matchroom-scoreboard::before {
+  left: 50%;
+  width: min(42rem, 60%);
+  height: 20rem;
+  border: 1px solid rgba(200,255,115,.085);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,255,115,.055), transparent 67%);
+  transform: translateX(-50%) translateY(-42%);
+  opacity: 1;
+}
+.matchroom-scoreboard-meta { min-height: 3.55rem; padding-inline: 1.5rem !important; }
+.matchroom-broadcast-label { color: #aeb9b1 !important; }
+.matchroom-broadcast-label > span { background: var(--match-lime) !important; }
+.matchroom-score-status { padding: .45rem .7rem !important; border-color: rgba(244,246,232,.16) !important; background: rgba(0,0,0,.32) !important; }
+.matchroom-scoreboard-title {
+  position: relative;
+  z-index: 1;
+  padding: 1.65rem 1.75rem .4rem;
+  text-align: center;
+}
+.matchroom-scoreboard-title > span {
+  display: block;
+  color: var(--match-lime);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+.matchroom-scoreboard-title strong {
+  display: block;
+  margin-top: .35rem;
+  color: var(--match-paper);
+  font-size: clamp(1.35rem, 2.3vw, 2.25rem);
+  font-weight: 950;
+  letter-spacing: -.065em;
+}
+.matchroom-scoreboard-title small { display: block; margin-top: .38rem; color: #93a198; font-size: 11px; font-weight: 650; }
+.matchroom-scoreboard-players { min-height: 20rem; margin-top: .5rem; }
+.matchroom-fighter { isolation: isolate; overflow: hidden; }
+.matchroom-fighter::after {
+  position: absolute;
+  z-index: -1;
+  top: 12%;
+  width: 16rem;
+  height: 16rem;
+  border-radius: 50%;
+  content: '';
+  filter: blur(4px);
+  opacity: .78;
+}
+.matchroom-fighter--local::after { left: -7rem; background: radial-gradient(circle, rgba(118,255,144,.17), transparent 70%); }
+.matchroom-fighter--away::after { right: -7rem; background: radial-gradient(circle, rgba(94,234,212,.15), transparent 70%); }
+.matchroom-fighter-index {
+  position: absolute;
+  top: 1rem;
+  left: 1.1rem;
+  color: rgba(244,246,232,.26);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+.matchroom-fighter--away .matchroom-fighter-index { right: 1.1rem; left: auto; }
+.matchroom-fighter-emblem { flex: 0 0 auto; box-shadow: 0 17px 35px rgba(0,0,0,.34) !important; }
+.matchroom-fighter-copy { display: flex; min-width: 0; flex-direction: column; align-items: center; margin-top: .8rem; }
+.matchroom-fighter-role {
+  color: #9ab89d !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px !important;
+  font-weight: 800;
+  letter-spacing: .15em !important;
+  text-transform: uppercase;
+}
+.matchroom-fighter--away .matchroom-fighter-role { color: #8bc9c4 !important; }
+.matchroom-fighter-name {
+  display: block;
+  max-width: 100%;
+  margin-top: .3rem;
+  overflow: hidden;
+  color: var(--match-paper);
+  font-size: clamp(1.55rem, 3.05vw, 2.95rem) !important;
+  font-weight: 950;
+  letter-spacing: -.075em !important;
+  line-height: .94;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.matchroom-fighter-rating {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: .33rem;
+  margin-top: .75rem;
+}
+.matchroom-fighter-rating strong { color: #d6ffba; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.1rem; font-weight: 900; letter-spacing: -.04em; }
+.matchroom-fighter--away .matchroom-fighter-rating strong { color: #b9fff4; }
+.matchroom-fighter-rating span { color: #8c9990; font-size: 8px; font-weight: 900; letter-spacing: .16em; }
+.matchroom-fighter-rating em { margin-left: .3rem; color: #aab6af; font-size: 10px; font-style: normal; font-weight: 800; }
+.matchroom-player-handle {
+  max-width: min(100%, 15rem);
+  margin-top: .95rem;
+  border-radius: 999px;
+  padding: .35rem .65rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  letter-spacing: .05em;
+}
+.matchroom-versus { z-index: 2; min-width: 0; background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(200,255,115,.035), rgba(0,0,0,.25)) !important; }
+.matchroom-versus-kicker,
+.matchroom-versus-format { color: #8f9b93; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; font-weight: 800; letter-spacing: .13em; text-align: center; text-transform: uppercase; }
+.matchroom-versus-kicker { max-width: 5rem; margin-bottom: .85rem; }
+.matchroom-versus-mark { border-width: 2px !important; border-color: rgba(200,255,115,.6) !important; }
+.matchroom-versus-word { margin-top: .8rem; color: var(--match-paper) !important; font-size: 1.15rem !important; font-weight: 950; letter-spacing: -.05em; }
+.matchroom-versus-format { margin-top: .25rem; color: var(--match-lime); }
+.matchroom-scoreboard-facts { border-color: rgba(221,245,224,.13) !important; background: rgba(3,7,5,.44) !important; }
+.matchroom-scoreboard-facts > div { display: flex; min-height: 5.55rem; flex-direction: column; align-items: center; justify-content: center; padding: .8rem !important; }
+.matchroom-scoreboard-facts > div::before { width: 2.25rem; background: linear-gradient(90deg, transparent, var(--match-lime), transparent); }
+.matchroom-scoreboard-facts p:first-child { color: #819087 !important; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px !important; letter-spacing: .13em; }
+.matchroom-scoreboard-facts p:last-child { margin-top: .34rem !important; color: var(--match-paper) !important; font-size: 12px !important; font-weight: 850 !important; }
+
+.matchroom-command-grid { grid-template-columns: minmax(0,1.42fr) minmax(21rem,.58fr) !important; gap: 1rem !important; }
+.matchroom-result-surface { border: 1px solid rgba(221,245,224,.13) !important; border-radius: 1.45rem; overflow: hidden; background: #0b100e !important; }
+.matchroom-result-deck { background: linear-gradient(145deg, #131b17, #0a0f0d 76%) !important; }
+.matchroom-result-deck-rail { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); border-bottom: 1px solid rgba(221,245,224,.1); background: rgba(0,0,0,.22); }
+.matchroom-result-deck-rail span { display: flex; align-items: center; justify-content: center; gap: .45rem; min-height: 3.4rem; border-right: 1px solid rgba(221,245,224,.08); color: #88958d; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.matchroom-result-deck-rail span:first-child { color: var(--match-lime); background: rgba(200,255,115,.055); }
+.matchroom-result-deck-rail span:last-child { border-right: 0; }
+.matchroom-result-deck-rail i { display: grid; width: 1.1rem; height: 1.1rem; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: 8px; font-style: normal; }
+.matchroom-result-deck-head { position: relative; overflow: hidden; background: linear-gradient(108deg, rgba(200,255,115,.1), transparent 48%) !important; }
+.matchroom-result-deck-head::after { position: absolute; right: -3rem; bottom: -4.5rem; width: 15rem; height: 15rem; border: 1px solid rgba(200,255,115,.12); border-radius: 50%; box-shadow: 0 0 0 1.4rem rgba(200,255,115,.02), 0 0 0 3.7rem rgba(200,255,115,.015); content: ''; }
+.matchroom-result-deck-head > * { position: relative; z-index: 1; }
+.matchroom-result-deck-head h2 { color: var(--match-paper); }
+.matchroom-result-deck > .space-y-8 { padding-top: 2.3rem !important; }
+
+.matchroom-comms { border: 1px solid rgba(94,234,212,.2) !important; border-radius: 1.45rem !important; background: linear-gradient(160deg, #13201d, #09100e 74%) !important; }
+.matchroom-comms::before { right: 1.5rem; left: 1.5rem; background: linear-gradient(90deg, transparent, var(--match-aqua), transparent); }
+.matchroom-comms-header { min-height: 6.2rem; padding: 1.25rem !important; background: linear-gradient(112deg, rgba(94,234,212,.13), transparent 72%) !important; }
+.matchroom-comms-header > div:nth-child(2) > div:first-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px !important; letter-spacing: .17em !important; }
+.matchroom-comms-header > div:nth-child(2) > div:last-child { margin-top: .25rem; color: var(--match-paper); }
+.matchroom-comms-feed { min-height: 28rem; background-image: linear-gradient(rgba(255,255,255,.024) 1px, transparent 1px); }
+.matchroom-comms-compose { padding: 1rem !important; background: rgba(0,0,0,.27) !important; }
+.matchroom-comms-compose input { min-height: 3.1rem; font-size: 13px !important; }
+.matchroom-comms-compose button { width: 3.1rem !important; height: 3.1rem !important; }
+
+@media (max-width: 1023px) {
+  .matchroom-roombar { grid-template-columns: minmax(0,1fr) auto; }
+  .matchroom-roombar-flow { order: 3; grid-column: 1 / -1; border-top: 1px solid rgba(218,242,223,.1); border-inline: 0; }
+  .matchroom-command-grid { grid-template-columns: 1fr !important; }
+  .matchroom-result-surface { border-radius: 1.35rem; }
+  .matchroom-comms { border-radius: 1.35rem !important; }
+  .matchroom-comms-feed { min-height: 20rem; }
+}
+@media (max-width: 640px) {
+  .matchroom-command-shell { padding-inline: .75rem; }
+  .matchroom-roombar { display: block; border-radius: .9rem; }
+  .matchroom-roombar-title { display: flex; align-items: center; justify-content: space-between; }
+  .matchroom-roombar-title strong { margin-top: 0; }
+  .matchroom-roombar-note { display: none; }
+  .matchroom-roombar-flow { border-top: 1px solid rgba(218,242,223,.1); }
+  .matchroom-roombar-flow span { min-height: 2.75rem; font-size: 8px; letter-spacing: .035em; }
+  .matchroom-roombar-flow i { display: none; }
+  .matchroom-scoreboard { border-radius: 1.1rem !important; }
+  .matchroom-scoreboard-meta { padding-inline: 1rem !important; }
+  .matchroom-broadcast-label { max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px !important; }
+  .matchroom-scoreboard-title { padding: 1.25rem .85rem .2rem; }
+  .matchroom-scoreboard-title small { font-size: 10px; }
+  .matchroom-scoreboard-players { grid-template-columns: minmax(0,1fr) 4.25rem minmax(0,1fr); min-height: 16.25rem; }
+  .matchroom-fighter { padding: 1.5rem .35rem 1.75rem !important; }
+  .matchroom-fighter-index { top: .7rem; left: .65rem; font-size: 8px; }
+  .matchroom-fighter--away .matchroom-fighter-index { right: .65rem; }
+  .matchroom-fighter-emblem { width: 2.85rem !important; height: 2.85rem !important; font-size: 1.15rem !important; }
+  .matchroom-fighter-name { font-size: 1.32rem !important; }
+  .matchroom-fighter-role { max-width: 8rem; overflow: hidden; font-size: 7px !important; letter-spacing: .08em !important; text-overflow: ellipsis; white-space: nowrap; }
+  .matchroom-fighter-rating { margin-top: .45rem; gap: .22rem; }
+  .matchroom-fighter-rating strong { font-size: .95rem; }
+  .matchroom-fighter-rating em { display: none; }
+  .matchroom-player-handle { max-width: 7.5rem; margin-top: .65rem; padding: .25rem .4rem; font-size: 7px !important; }
+  .matchroom-versus-kicker { max-width: 3.4rem; margin-bottom: .55rem; font-size: 7px; line-height: 1.3; }
+  .matchroom-versus-mark { width: 2.65rem !important; height: 2.65rem !important; }
+  .matchroom-versus-mark svg { width: 1.15rem; height: 1.15rem; }
+  .matchroom-versus-word { margin-top: .5rem; font-size: .95rem !important; }
+  .matchroom-versus-format { font-size: 7px; }
+  .matchroom-scoreboard-facts > div { min-height: 4.65rem; padding-inline: .25rem !important; }
+  .matchroom-scoreboard-facts p:first-child { font-size: 7px !important; letter-spacing: .07em; }
+  .matchroom-scoreboard-facts p:last-child { font-size: 10px !important; }
+  .matchroom-result-deck-rail span { min-height: 2.85rem; gap: .25rem; font-size: 8px; letter-spacing: .03em; }
+  .matchroom-result-deck-rail i { display: none; }
+  .matchroom-result-deck-head { padding: 1.55rem 1.25rem !important; }
+  .matchroom-result-deck-head h2 { font-size: 2.1rem !important; }
+  .matchroom-comms { border-radius: 1.1rem !important; }
+  .matchroom-comms-header { min-height: 5.4rem; padding: 1rem !important; }
+  .matchroom-comms-feed { min-height: 17rem; }
+}
