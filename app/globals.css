@@ -3478,6 +3478,62 @@ body {
 .matchroom-result-deck-head > * { position: relative; z-index: 1; }
 .matchroom-result-deck-head h2 { color: var(--match-paper); }
 .matchroom-result-deck > .space-y-8 { padding-top: 2.3rem !important; }
+.matchroom-score-input {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(200,255,115,.18) !important;
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(200,255,115,.1), rgba(6,11,8,.6)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 12px 24px rgba(0,0,0,.14);
+}
+.matchroom-score-input + .matchroom-score-input { border-color: rgba(94,234,212,.2) !important; background: linear-gradient(145deg, rgba(94,234,212,.08), rgba(6,11,8,.6)) !important; }
+.matchroom-score-input::before { position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: var(--match-lime); content: ''; }
+.matchroom-score-input + .matchroom-score-input::before { background: var(--match-aqua); }
+.matchroom-score-input > span { color: #a1ada5 !important; }
+.matchroom-score-input button { border-radius: .75rem !important; border-color: rgba(244,246,232,.12) !important; background: rgba(0,0,0,.28) !important; }
+.matchroom-score-input button:hover { border-color: rgba(200,255,115,.42) !important; background: rgba(200,255,115,.1) !important; }
+.matchroom-score-input > div > span { color: var(--match-paper) !important; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: clamp(2.5rem,5vw,4.35rem) !important; letter-spacing: -.12em !important; }
+.matchroom-stat-team-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(15,31,22,.88), rgba(6,12,9,.72)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 12px 25px rgba(0,0,0,.12);
+}
+.matchroom-stat-team-card--opponent { background: linear-gradient(145deg, rgba(10,27,28,.9), rgba(5,11,11,.72)) !important; }
+.matchroom-stat-team-card::after { position: absolute; right: -2.5rem; bottom: -5rem; width: 11rem; height: 11rem; border: 1px solid currentColor; border-radius: 50%; content: ''; opacity: .08; }
+.matchroom-stat-team-card > * { position: relative; z-index: 1; }
+.matchroom-stat-input {
+  border-color: rgba(244,246,232,.12) !important;
+  border-radius: .8rem;
+  background: rgba(0,0,0,.19) !important;
+}
+.matchroom-stat-input:focus-within { border-color: rgba(200,255,115,.52) !important; box-shadow: 0 0 0 3px rgba(200,255,115,.08); }
+.matchroom-stat-input input { border-radius: .58rem !important; border-color: rgba(244,246,232,.1) !important; background: rgba(0,0,0,.25) !important; }
+
+.matchroom-elo-board {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(190,255,204,.18) !important;
+  border-radius: 1.2rem;
+  background: linear-gradient(112deg, rgba(200,255,115,.1), rgba(11,17,14,.96) 37%, rgba(94,234,212,.08)) !important;
+  box-shadow: 0 18px 45px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+.matchroom-elo-board::after { position: absolute; top: -6rem; right: -4rem; width: 15rem; height: 15rem; border: 1px solid rgba(200,255,115,.13); border-radius: 50%; box-shadow: 0 0 0 1.8rem rgba(200,255,115,.025); content: ''; }
+.matchroom-elo-board > * { position: relative; z-index: 1; }
+.matchroom-elo-board-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 7.65rem;
+  border-radius: .95rem;
+  background: rgba(4,8,6,.38) !important;
+}
+.matchroom-elo-board-card::before { position: absolute; top: 0; left: 0; width: 3px; height: 100%; content: ''; }
+.matchroom-elo-board-card--gain::before { background: var(--match-lime); }
+.matchroom-elo-board-card--loss::before { background: #fb7185; }
+.matchroom-elo-board-card--aqua::before { background: var(--match-aqua); }
+.matchroom-elo-board-card p:first-child { color: #99aaa0 !important; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px !important; letter-spacing: .13em; }
+.matchroom-elo-board-card p.text-xl { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.55rem !important; }
 
 .matchroom-comms { border: 1px solid rgba(94,234,212,.2) !important; border-radius: 1.45rem !important; background: linear-gradient(160deg, #13201d, #09100e 74%) !important; }
 .matchroom-comms::before { right: 1.5rem; left: 1.5rem; background: linear-gradient(90deg, transparent, var(--match-aqua), transparent); }
@@ -3533,7 +3589,10 @@ body {
   .matchroom-result-deck-rail span { min-height: 2.85rem; gap: .25rem; font-size: 8px; letter-spacing: .03em; }
   .matchroom-result-deck-rail i { display: none; }
   .matchroom-result-deck-head { padding: 1.55rem 1.25rem !important; }
-  .matchroom-result-deck-head h2 { font-size: 2.1rem !important; }
+  .matchroom-result-deck-head h2 { font-size: 1.8rem !important; }
+  .matchroom-score-input { border-radius: .8rem; }
+  .matchroom-score-input > div > span { font-size: 2.75rem !important; }
+  .matchroom-elo-board { border-radius: 1rem; }
   .matchroom-comms { border-radius: 1.1rem !important; }
   .matchroom-comms-header { min-height: 5.4rem; padding: 1rem !important; }
   .matchroom-comms-feed { min-height: 17rem; }

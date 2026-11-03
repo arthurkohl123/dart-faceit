@@ -84,7 +84,7 @@ const MAX_RANKED_ELO_CHANGE = 50;
 
 function EloPreviewCard({ preview }: { preview: EloPreview }) {
   return (
-    <div className="border border-violet-300/20 bg-gradient-to-br from-violet-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-violet-950/20 sm:p-5">
+    <div className="matchroom-elo-board border border-violet-300/20 bg-gradient-to-br from-violet-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-violet-950/20 sm:p-5">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-200">Elo-Vorschau</p>
@@ -94,7 +94,7 @@ function EloPreviewCard({ preview }: { preview: EloPreview }) {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="border border-emerald-300/20 bg-emerald-400/[0.06] p-3.5">
+        <div className="matchroom-elo-board-card matchroom-elo-board-card--gain border border-emerald-300/20 bg-emerald-400/[0.06] p-3.5">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300/70">Gewinner</p>
           <div className="mt-1 flex items-center justify-between gap-3">
             <p className="truncate font-black text-white" title={preview.winnerName}>{preview.winnerName}</p>
@@ -102,7 +102,7 @@ function EloPreviewCard({ preview }: { preview: EloPreview }) {
           </div>
           <p className="mt-1 text-xs font-bold tabular-nums text-zinc-500">{preview.winnerElo} → {preview.winnerElo + preview.change} Elo</p>
         </div>
-        <div className="border border-rose-300/20 bg-rose-400/[0.06] p-3.5">
+        <div className="matchroom-elo-board-card matchroom-elo-board-card--loss border border-rose-300/20 bg-rose-400/[0.06] p-3.5">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-300/70">Verlierer</p>
           <div className="mt-1 flex items-center justify-between gap-3">
             <p className="truncate font-black text-white" title={preview.loserName}>{preview.loserName}</p>
@@ -119,7 +119,7 @@ function MatchEloPreviewCard({ match, preview }: { match: ActiveMatch; preview: 
   const { player1WinChange, player2WinChange } = preview;
 
   return (
-    <section className="mb-5 border border-emerald-300/20 bg-gradient-to-br from-emerald-400/[0.08] via-white/[0.025] to-transparent p-4 shadow-inner shadow-emerald-950/20 sm:mb-8 sm:p-5" aria-label="Elo-Vorschau vor dem Match">
+    <section className="matchroom-elo-board mb-5 border border-emerald-300/20 bg-gradient-to-br from-emerald-400/[0.08] via-white/[0.025] to-transparent p-4 shadow-inner shadow-emerald-950/20 sm:mb-8 sm:p-5" aria-label="Elo-Vorschau vor dem Match">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-200">Elo vor dem Match</p>
@@ -129,14 +129,14 @@ function MatchEloPreviewCard({ match, preview }: { match: ActiveMatch; preview: 
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="border border-emerald-300/20 bg-emerald-400/[0.06] p-3.5">
+        <div className="matchroom-elo-board-card matchroom-elo-board-card--gain border border-emerald-300/20 bg-emerald-400/[0.06] p-3.5">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300/70">Wenn {match.player1_username} gewinnt</p>
           <div className="mt-2 space-y-1.5 text-sm font-bold">
             <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-white" title={match.player1_username}>{match.player1_username}</span><span className="shrink-0 tabular-nums text-emerald-200">+{player1WinChange}</span></div>
             <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-zinc-400" title={match.player2_username}>{match.player2_username}</span><span className="shrink-0 tabular-nums text-rose-200">−{player1WinChange}</span></div>
           </div>
         </div>
-        <div className="border border-cyan-300/20 bg-cyan-400/[0.05] p-3.5">
+        <div className="matchroom-elo-board-card matchroom-elo-board-card--aqua border border-cyan-300/20 bg-cyan-400/[0.05] p-3.5">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300/70">Wenn {match.player2_username} gewinnt</p>
           <div className="mt-2 space-y-1.5 text-sm font-bold">
             <div className="flex items-center justify-between gap-3"><span className="min-w-0 truncate text-white" title={match.player2_username}>{match.player2_username}</span><span className="shrink-0 tabular-nums text-emerald-200">+{player2WinChange}</span></div>
@@ -206,7 +206,7 @@ function StatInput({
   required?: boolean;
 }) {
   return (
-    <label className="group block border border-white/10 bg-black/30 p-3 transition duration-300 focus-within:border-emerald-300/50 focus-within:bg-emerald-400/[0.035]">
+    <label className="matchroom-stat-input group block border border-white/10 bg-black/30 p-3 transition duration-300 focus-within:border-emerald-300/50 focus-within:bg-emerald-400/[0.035]">
       <span className="mb-2 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500 transition group-focus-within:text-emerald-300">
         <span>{label}</span>
         {required && <span className="text-emerald-300"></span>}
@@ -237,7 +237,7 @@ function LegCounter({
   accent: string;
 }) {
   return (
-    <div className="min-w-0 flex-1 border border-white/10 bg-[#090b0b] p-3 sm:p-4">
+    <div className="matchroom-score-input min-w-0 flex-1 border border-white/10 bg-[#090b0b] p-3 sm:p-4">
       <span className="block truncate text-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 sm:text-[11px]">{label}</span>
       <div className="mt-3 grid grid-cols-[3.25rem_minmax(0,1fr)_3.25rem] items-center gap-2 sm:grid-cols-[3.5rem_minmax(0,1fr)_3.5rem]">
         <button
@@ -1437,12 +1437,6 @@ export default function MatchResult() {
                 </span>
               </div>
 
-              <div className="matchroom-scoreboard-title">
-                <span>RankedDarts // Match Broadcast</span>
-                <strong>{match.match_mode === 'private' ? 'Freies Duell' : 'Dein gewertetes Duell'}</strong>
-                <small>Ergebnis, Bestätigung und Wertung an einem Ort.</small>
-              </div>
-
               <div className="matchroom-scoreboard-players grid grid-cols-[minmax(0,1fr)_5.4rem_minmax(0,1fr)] items-stretch sm:grid-cols-[minmax(0,1fr)_9rem_minmax(0,1fr)]">
                 <div className="matchroom-fighter matchroom-fighter--local flex min-w-0 flex-col items-center justify-center px-3 py-7 text-center sm:px-8 sm:py-10">
                   <span className="matchroom-fighter-index">01</span>
@@ -1588,7 +1582,7 @@ export default function MatchResult() {
             {/* Header */}
             <div className="matchroom-result-deck-head border-b border-white/10 bg-gradient-to-r from-emerald-400/[0.06] to-transparent px-5 py-6 sm:px-8 sm:py-8">
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Deine Eingabe · wird vom Gegner geprüft</p>
-              <h2 className="mt-2 text-3xl font-black tracking-[-0.06em] sm:text-5xl">Was war der Endstand?</h2>
+              <h2 className="mt-2 text-2xl font-black tracking-[-0.06em] sm:text-3xl">Was war der Endstand?</h2>
               <p className="mt-3 max-w-2xl text-sm text-zinc-500">
                 Trage das Best-of-{bestOfLegs}-Ergebnis sowie Average und 180er von beiden Spielern ein. Dein Gegner muss alles danach bestätigen.
               </p>
@@ -1627,7 +1621,7 @@ export default function MatchResult() {
                   </span>
                 </div>
                 <div className="grid gap-4 xl:grid-cols-2">
-                  <section className="border border-emerald-300/20 border-t-2 bg-gradient-to-br from-emerald-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-emerald-950/20 sm:p-5">
+                  <section className="matchroom-stat-team-card matchroom-stat-team-card--you border border-emerald-300/20 border-t-2 bg-gradient-to-br from-emerald-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-emerald-950/20 sm:p-5">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Du</p>
                       <p className="text-xs font-bold text-zinc-500">deine Werte</p>
@@ -1638,7 +1632,7 @@ export default function MatchResult() {
                     </div>
                   </section>
 
-                  <section className="border border-cyan-300/20 border-t-2 bg-gradient-to-br from-cyan-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
+                  <section className="matchroom-stat-team-card matchroom-stat-team-card--opponent border border-cyan-300/20 border-t-2 bg-gradient-to-br from-cyan-400/[0.10] to-white/[0.025] p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <p className="text-sm font-black uppercase tracking-[0.22em] text-cyan-200">Gegner</p>
                       <p className="text-xs font-bold text-zinc-500">gegnerische Werte</p>

@@ -12,12 +12,16 @@ test('the result room exposes the distinct control-deck design surfaces', () => 
   assert.match(matchroom, /matchroom-fighter--local/);
   assert.match(matchroom, /matchroom-fighter--away/);
   assert.match(matchroom, /matchroom-result-deck/);
+  assert.match(matchroom, /matchroom-score-input/);
+  assert.match(matchroom, /matchroom-elo-board/);
   assert.match(matchroom, /matchroom-comms/);
 
   assert.match(styles, /MATCHROOM · CONTROL DECK/);
   assert.match(styles, /\.matchroom-scoreboard/);
   assert.match(styles, /\.matchroom-roombar/);
   assert.match(styles, /\.matchroom-result-deck/);
+  assert.match(styles, /\.matchroom-score-input/);
+  assert.match(styles, /\.matchroom-elo-board/);
   assert.match(styles, /\.matchroom-comms/);
   assert.match(styles, /@media \(max-width: 640px\)/);
 });
