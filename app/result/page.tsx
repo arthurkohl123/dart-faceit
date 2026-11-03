@@ -310,6 +310,7 @@ export default function MatchResult() {
   const [noShowResolved, setNoShowResolved] = useState(false);
   const [noShowLoading, setNoShowLoading] = useState(false);
   const [noShowMessage, setNoShowMessage] = useState('');
+  const [noShowConfirmPending, setNoShowConfirmPending] = useState(false);
   const noShowCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const noShowResolveCalledRef = useRef(false);
 
@@ -1137,12 +1138,15 @@ export default function MatchResult() {
         setNoShowReportedAt(reportedAt);
         setNoShowReportedBy(currentUserId);
         setNoShowMessage('Gegner wurde gemeldet. Er hat 5 Minuten Zeit zu reagieren.');
+        setNoShowConfirmPending(false);
         startNoShowCountdown(reportedAt, match.id);
       } else {
         setNoShowMessage(result?.message || 'Fehler beim Melden.');
+        setNoShowConfirmPending(false);
       }
     } catch (err) {
       setNoShowMessage(err instanceof Error ? err.message : 'Fehler beim Melden.');
+      setNoShowConfirmPending(false);
     } finally {
       setNoShowLoading(false);
     }
@@ -1170,6 +1174,14 @@ export default function MatchResult() {
     };
     void checkNoShowStatus();
   }, [match?.id, supabase, startNoShowCountdown]);
+
+  // The presence marker is deliberately stored server-side. A player may be
+  // concentrating on the actual darts game in another tab and must not be
+  // considered absent merely because they do not watch this page.
+  useEffect(() => {
+    if (!match?.id || !iAmParticipant) return;
+    void supabase.rpc('mark_matchroom_entered', { p_match_id: match.id });
+  }, [iAmParticipant, match?.id, supabase]);
 
   // ── Loading screen ────────────────────────────────────────────────────────────
 
@@ -1360,16 +1372,25 @@ export default function MatchResult() {
                   </div>
                 )}
               </div>
+            ) : noShowConfirmPending ? (
+              <div className="rounded-3xl border border-orange-300/30 bg-orange-400/[0.08] p-5">
+                <p className="text-sm font-black text-orange-100">Ist dein Gegner wirklich nicht erschienen?</p>
+                <p className="mt-2 text-xs leading-5 text-zinc-400">Nutze die No-Show-Meldung nur, wenn dein Gegner den Matchroom nicht betreten hat und das Spiel nicht läuft. Bei einem bereits laufenden Match wird keine automatische No-Show-Wertung ausgelöst.</p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <button type="button" onClick={() => void reportNoShow()} disabled={noShowLoading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-orange-300/30 bg-orange-400/15 px-4 py-3 text-xs font-black text-orange-100 transition hover:bg-orange-400/25 disabled:opacity-50"><UserX className="h-4 w-4" />{noShowLoading ? 'Wird gemeldet…' : 'Ja, No-Show melden'}</button>
+                  <button type="button" onClick={() => { setNoShowConfirmPending(false); setNoShowMessage(''); }} disabled={noShowLoading} className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-300 transition hover:bg-white/[0.07] disabled:opacity-50">Abbrechen</button>
+                </div>
+              </div>
             ) : (
               /* Button: Gegner ist nicht da */
               <button
                 type="button"
-                onClick={() => void reportNoShow()}
+                onClick={() => { setNoShowConfirmPending(true); setNoShowMessage(''); }}
                 disabled={noShowLoading}
                 className="group flex w-full items-center justify-center gap-3 rounded-3xl border border-orange-400/25 bg-orange-400/[0.06] px-6 py-4 text-sm font-black text-orange-200 transition hover:border-orange-400/40 hover:bg-orange-400/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <UserX className="h-5 w-5 shrink-0 transition group-hover:scale-110" />
-                {noShowLoading ? 'Wird gemeldet…' : 'Gegner ist nicht da'}
+                Gegner ist nicht da
               </button>
             )}
             {!noShowResolved && noShowMessage && (

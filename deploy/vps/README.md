@@ -19,6 +19,15 @@ This setup moves the Next.js application from Vercel to one Docker container beh
    systemctl list-timers rankeddarts-discord-sync.timer
    ```
 
+7. Install the user-level Matchroom lifecycle timer. It finalizes expired
+   result confirmations and valid No-Show reports even when neither player
+   keeps a browser tab open:
+
+   ```sh
+   (crontab -l 2>/dev/null | grep -vF 'rankeddarts-match-lifecycle' || true; echo "* * * * * /bin/sh /opt/rankeddarts/deploy/vps/run-match-lifecycle.sh >> /opt/rankeddarts/.match-lifecycle-cron.log 2>&1 # rankeddarts-match-lifecycle") | crontab -
+   crontab -l
+   ```
+
 ## Cutover window
 
 1. Lower the DNS TTL to 300 seconds several hours beforehand.
