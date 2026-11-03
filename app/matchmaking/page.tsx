@@ -139,8 +139,6 @@ const appConfig = {
 } as const;
 
 export default function Matchmaking() {
-  const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
-  const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [scoliaUsername, setScoliaUsername] = useState<string | null>(null);
   const [dartcounterUsername, setDartcounterUsername] = useState<string | null>(null);
   const [autodartsUsername, setAutodartsUsername] = useState<string | null>(null);
@@ -228,8 +226,6 @@ export default function Matchmaking() {
   const queueFreshnessLabel = queueCountsUpdatedAt
     ? queueCountsUpdatedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : 'wird geladen';
-  // null = Profil noch nicht geladen → Box NICHT anzeigen (kein false-positive beim Status-Wechsel)
-  const effectivePhoneVerified = phoneVerified === null ? null : (!smsVerificationEnabled || phoneVerified === true);
 
   const unlockMatchFoundSound = useCallback(() => {
     if (typeof window === 'undefined' || audioUnlockedRef.current) return;
@@ -766,12 +762,6 @@ export default function Matchmaking() {
       return;
     }
 
-    if (!effectivePhoneVerified) {
-      setErrorMessage('Bitte bestätige zuerst deine Handynummer.');
-      router.push('/auth/verify-phone');
-      return;
-    }
-
     if (!apps.length) {
       setErrorMessage('Wähle mindestens eine Plattform aus.');
       return;
@@ -881,25 +871,16 @@ export default function Matchmaking() {
         }
       }
 
-      const { data: smsSetting } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'sms_verification')
-        .maybeSingle();
-
-      const smsEnabled = (smsSetting?.value as { enabled?: boolean } | null)?.enabled !== false;
-      setSmsVerificationEnabled(smsEnabled);
       await fetchMatchmakingStatus();
 
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('phone_verified, scolia_username, dartcounter_username, autodarts_username, queue_banned_until, queue_ban_reason')
+        .select('scolia_username, dartcounter_username, autodarts_username, queue_banned_until, queue_ban_reason')
         .eq('supabaseId', uid)
         .single();
       const { data: quotaData } = await supabase.rpc('get_ranked_match_daily_quota');
 
       if (!isMounted) return;
-      setPhoneVerified(!smsEnabled || Boolean(profileData?.phone_verified));
       setScoliaUsername(profileData?.scolia_username ?? null);
       setDartcounterUsername(profileData?.dartcounter_username ?? null);
       setAutodartsUsername(profileData?.autodarts_username ?? null);
@@ -1376,15 +1357,6 @@ export default function Matchmaking() {
             <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-4 text-sm leading-6 text-red-100">
               <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-300" />
               <div><div className="font-black">Matchmaking ist pausiert</div><p className="mt-1 text-red-100/85">{matchmakingMessage}</p></div>
-            </div>
-          )}
-
-          {effectivePhoneVerified === false && status === 'idle' && (
-            <div className="mt-8 rounded-[1.7rem] border border-amber-300/20 bg-amber-400/[0.08] p-5 text-sm leading-6 text-amber-100 backdrop-blur-xl">
-              Dein Account ist noch nicht telefonisch verifiziert.
-              <Link href="/auth/verify-phone" className="mt-4 inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-5 py-2.5 font-black text-amber-50 transition hover:bg-amber-300/15 ml-3">
-                Jetzt verifizieren
-              </Link>
             </div>
           )}
 

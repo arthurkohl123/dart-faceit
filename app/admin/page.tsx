@@ -78,7 +78,6 @@ type Profile = {
   is_moderator: boolean | null;
   is_streamer: boolean | null;
   twitch_url: string | null;
-  phone_verified: boolean | null;
   isPremium: boolean | null;
   stripe_subscription_status: string | null;
   premium_manual_granted_at: string | null;
@@ -295,6 +294,7 @@ type FairplayReview = {
   recent_matches: { completed_at: string | null; opponent_username: string; result: string | null; legs_won: number | null; legs_lost: number | null; my_average: number | null; elo_change: number | null; match_mode: string | null; app: string | null }[];
   shared_opponents: { opponent_username: string; opponent_user_id: string | null; matches_together: number; wins_against: number; last_match_at: string | null }[];
   signals: { id: string; reason: string; severity: string; occurrence_count: number; last_seen_at: string; related_username: string }[];
+  network_overlaps: { related_username: string; shared_signal_count: number; last_seen_at: string }[];
   actions: FairplayReviewAction[];
 };
 type FairplayDisposition = FairplayReviewAction['disposition'];
@@ -693,10 +693,17 @@ export default function AdminPanel() {
     setFairplayReview(null);
     setFairplayReviewNote('');
     setFairplayReviewDisposition('watchlist');
-    const { data, error } = await supabase.rpc('admin_get_fairplay_review', { p_player_id: playerId });
+    const [reviewResult, networkResult] = await Promise.all([
+      supabase.rpc('admin_get_fairplay_review', { p_player_id: playerId }),
+      supabase.rpc('admin_get_network_overlaps', { p_player_id: playerId }),
+    ]);
     setFairplayReviewLoading(false);
-    if (error) { setActionMessage(`Fair-Play-Akte konnte nicht geladen werden: ${error.message}`); return; }
-    setFairplayReview(data as FairplayReview);
+    if (reviewResult.error) { setActionMessage(`Fair-Play-Akte konnte nicht geladen werden: ${reviewResult.error.message}`); return; }
+    if (networkResult.error) { setActionMessage(`Netzwerkhinweise konnten nicht geladen werden: ${networkResult.error.message}`); }
+    setFairplayReview({
+      ...(reviewResult.data as FairplayReview),
+      network_overlaps: (networkResult.data || []) as FairplayReview['network_overlaps'],
+    });
   };
 
   const saveFairplayReview = async () => {
@@ -1346,25 +1353,6 @@ export default function AdminPanel() {
       return;
     }
 
-    await loadProfiles();
-  };
-
-  const toggleVerification = async (user: Profile) => {
-    const newStatus = !user.phone_verified;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ 
-        phone_verified: newStatus, 
-        phone_verified_at: newStatus ? new Date().toISOString() : null 
-      })
-      .eq('id', user.id);
-
-    if (error) {
-      setActionMessage(`Verifizierungs-Status konnte nicht geändert werden: ${error.message}`);
-      return;
-    }
-
-    setActionMessage(`Nutzer ${user.username} wurde ${newStatus ? 'manuell verifiziert' : 'Verifizierung entfernt'}.`);
     await loadProfiles();
   };
 
@@ -2826,17 +2814,6 @@ export default function AdminPanel() {
                       {user.is_streamer && user.twitch_url && (
                         <a href={user.twitch_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-violet-300/25 bg-violet-400/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-violet-100 hover:bg-violet-400/20">Twitch <ExternalLink className="h-3 w-3" /></a>
                       )}
-                      <button
-                        onClick={() => toggleVerification(user)}
-                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] transition ${
-                          user.phone_verified
-                            ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
-                            : 'border-white/10 bg-white/[0.04] text-zinc-500 hover:border-emerald-300/30'
-                        }`}
-                      >
-                        {user.phone_verified ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
-                        {user.phone_verified ? 'Verifiziert' : 'Unverif.'}
-                      </button>
                     </div>
                     {user.ban_reason && <div className="mt-1 text-xs text-rose-200/80">Ban-Grund: {user.ban_reason}</div>}
                     {user.premium_manual_granted_at && (
@@ -3232,8 +3209,8 @@ export default function AdminPanel() {
                 <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-200">Vertrauliche Prüfakte · nur Admins</p><h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-white">{fairplayReview.profile.username}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">Signale sind Hinweise, keine Schuldzuweisung. Diese Ansicht wird nicht im Spielerprofil veröffentlicht und erzeugt keine automatische Nachricht.</p></div>
                 <button onClick={() => setFairplayReview(null)} className="self-start rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition hover:bg-white/10">Akte schließen</button>
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                {[[`${fairplayReview.profile.elo}`, 'Elo'], [`${fairplayReview.profile.games_played}`, 'Ranked Games'], [`${fairplayReview.profile.wins}`, 'Siege'], [fairplayReview.profile.phone_verified ? 'Verifiziert' : 'Nicht verifiziert', 'Telefon'], [`${fairplayReview.profile.no_show_strikes}`, 'No-Show-Strikes']].map(([value, label]) => <div key={label} className="rounded-2xl border border-white/10 bg-black/25 p-3"><p className="text-lg font-black text-white">{value}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">{label}</p></div>)}
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {[[`${fairplayReview.profile.elo}`, 'Elo'], [`${fairplayReview.profile.games_played}`, 'Ranked Games'], [`${fairplayReview.profile.wins}`, 'Siege'], [`${fairplayReview.profile.no_show_strikes}`, 'No-Show-Strikes']].map(([value, label]) => <div key={label} className="rounded-2xl border border-white/10 bg-black/25 p-3"><p className="text-lg font-black text-white">{value}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">{label}</p></div>)}
               </div>
               <div className="mt-5 grid gap-5 xl:grid-cols-[.85fr_1.15fr]">
                 <div className="space-y-5">
@@ -3242,7 +3219,11 @@ export default function AdminPanel() {
                 </div>
                 <div className="space-y-5">
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-400">Letzte bestätigte Matches</p><span className="text-xs font-bold text-zinc-500">{fairplayReview.recent_matches.length} Einträge</span></div><div className="mt-3 max-h-80 space-y-2 overflow-y-auto">{fairplayReview.recent_matches.length === 0 ? <p className="text-sm text-zinc-500">Keine bestätigten Matches vorhanden.</p> : fairplayReview.recent_matches.map((match, index) => <div key={`${match.completed_at}-${index}`} className="grid grid-cols-[1fr_auto] gap-3 rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2.5"><div><p className="text-sm font-bold text-white">vs. {match.opponent_username}</p><p className="mt-1 text-xs text-zinc-500">{formatDate(match.completed_at)} · {match.match_mode || 'ranked'} · {match.app || '—'}</p></div><div className="text-right"><p className="font-mono text-sm font-black text-zinc-100">{match.legs_won ?? '—'}:{match.legs_lost ?? '—'}</p><p className={`mt-1 text-xs font-black ${(match.elo_change || 0) >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>{(match.elo_change || 0) >= 0 ? '+' : ''}{match.elo_change ?? 0} Elo</p></div></div>)}</div></div>
-                  <div className="grid gap-4 lg:grid-cols-2"><div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-200">Wiederkehrende Gegner · 30 Tage</p><div className="mt-3 space-y-2">{fairplayReview.shared_opponents.length === 0 ? <p className="text-sm text-zinc-500">Kein wiederkehrendes Muster.</p> : fairplayReview.shared_opponents.map((opponent) => <div key={`${opponent.opponent_user_id}-${opponent.opponent_username}`} className="rounded-xl border border-white/8 bg-black/20 p-2.5"><p className="text-sm font-bold text-white">{opponent.opponent_username}</p><p className="mt-1 text-xs text-zinc-400">{opponent.matches_together} Matches · {opponent.wins_against} Siege · zuletzt {formatDate(opponent.last_match_at)}</p></div>)}</div></div><div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.04] p-4"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-cyan-200">Verknüpfte Signale</p><div className="mt-3 space-y-2">{fairplayReview.signals.length === 0 ? <p className="text-sm text-zinc-500">Keine Match-Signale vorhanden.</p> : fairplayReview.signals.map((signal) => <div key={signal.id} className="rounded-xl border border-white/8 bg-black/20 p-2.5"><p className="text-sm font-bold text-white">{signal.reason.replaceAll('_', ' ')}</p><p className="mt-1 text-xs text-zinc-400">{signal.occurrence_count}× mit {signal.related_username} · zuletzt {formatDate(signal.last_seen_at)}</p></div>)}</div></div></div>
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-200">Wiederkehrende Gegner · 30 Tage</p><div className="mt-3 space-y-2">{fairplayReview.shared_opponents.length === 0 ? <p className="text-sm text-zinc-500">Kein wiederkehrendes Muster.</p> : fairplayReview.shared_opponents.map((opponent) => <div key={`${opponent.opponent_user_id}-${opponent.opponent_username}`} className="rounded-xl border border-white/8 bg-black/20 p-2.5"><p className="text-sm font-bold text-white">{opponent.opponent_username}</p><p className="mt-1 text-xs text-zinc-400">{opponent.matches_together} Matches · {opponent.wins_against} Siege · zuletzt {formatDate(opponent.last_match_at)}</p></div>)}</div></div>
+                    <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.04] p-4"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-cyan-200">Verknüpfte Signale</p><div className="mt-3 space-y-2">{fairplayReview.signals.length === 0 ? <p className="text-sm text-zinc-500">Keine Match-Signale vorhanden.</p> : fairplayReview.signals.map((signal) => <div key={signal.id} className="rounded-xl border border-white/8 bg-black/20 p-2.5"><p className="text-sm font-bold text-white">{signal.reason === 'duplicate_platform_identity' ? 'Plattformkonto mehrfach verknüpft' : signal.reason.replaceAll('_', ' ')}</p><p className="mt-1 text-xs text-zinc-400">{signal.occurrence_count}× mit {signal.related_username} · zuletzt {formatDate(signal.last_seen_at)}</p></div>)}</div></div>
+                    <div className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-400/[0.04] p-4"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-fuchsia-200">Gemeinsame Verbindung · 7 Tage</p><p className="mt-2 text-[11px] leading-4 text-zinc-500">Nur ein Hinweis: Haushalt, Verein oder Mobilfunk können dieselbe Verbindung nutzen.</p><div className="mt-3 space-y-2">{fairplayReview.network_overlaps.length === 0 ? <p className="text-sm text-zinc-500">Keine aktuelle Überschneidung.</p> : fairplayReview.network_overlaps.map((overlap) => <div key={overlap.related_username} className="rounded-xl border border-white/8 bg-black/20 p-2.5"><p className="text-sm font-bold text-white">{overlap.related_username}</p><p className="mt-1 text-xs text-zinc-400">{overlap.shared_signal_count} gemeinsamer Hinweis · zuletzt {formatDate(overlap.last_seen_at)}</p></div>)}</div></div>
+                  </div>
                 </div>
               </div>
             </>}
@@ -3250,8 +3231,12 @@ export default function AdminPanel() {
         )}
         {fairnessRiskFlags.length > 0 && (
           <section className="mb-6 rounded-[2.4rem] border border-cyan-300/20 bg-cyan-400/[0.04] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
-            <div className="mb-5 flex items-center justify-between gap-3"><div><h2 className="text-2xl font-black text-white">Match-Verhaltenssignale</h2><p className="mt-1 text-sm text-zinc-400">Wiederholte Paarungen innerhalb von sieben Tagen – Hinweis zur manuellen Prüfung, kein automatischer Ban.</p></div><span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-black text-cyan-100">{fairnessRiskFlags.length} offen</span></div>
-            <div className="grid gap-3 md:grid-cols-2">{fairnessRiskFlags.map((flag) => <div key={flag.id} className="rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-white">{flag.player1_username} <span className="text-zinc-500">vs.</span> {flag.player2_username}</p><p className="mt-1 text-xs text-zinc-400">{flag.occurrence_count} Matches in 7 Tagen · zuletzt {formatDate(flag.last_seen_at)}</p></div><button onClick={() => void resolveFairnessRiskFlag(flag.id)} className="shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-100 hover:bg-emerald-400/20">Geprüft</button></div><div className="mt-3 flex flex-wrap gap-2"><button onClick={() => void openFairplayReview(flag.player1_id)} className="rounded-lg border border-violet-300/20 bg-violet-400/10 px-2.5 py-1.5 text-[10px] font-black text-violet-100">Akte {flag.player1_username}</button><button onClick={() => void openFairplayReview(flag.player2_id)} className="rounded-lg border border-violet-300/20 bg-violet-400/10 px-2.5 py-1.5 text-[10px] font-black text-violet-100">Akte {flag.player2_username}</button></div></div>)}</div>
+            <div className="mb-5 flex items-center justify-between gap-3"><div><h2 className="text-2xl font-black text-white">Fair-Play-Signale</h2><p className="mt-1 text-sm text-zinc-400">Wiederholte Paarungen und mehrfach verknüpfte Plattformkonten – Hinweise zur manuellen Prüfung, kein automatischer Ban.</p></div><span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-black text-cyan-100">{fairnessRiskFlags.length} offen</span></div>
+            <div className="grid gap-3 md:grid-cols-2">{fairnessRiskFlags.map((flag) => {
+              const isPlatformConflict = flag.reason === 'duplicate_platform_identity';
+              const platform = typeof flag.context?.platform === 'string' ? flag.context.platform : 'Spielplattform';
+              return <div key={flag.id} className="rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-white">{flag.player1_username} <span className="text-zinc-500">vs.</span> {flag.player2_username}</p><p className="mt-1 text-xs text-zinc-400">{isPlatformConflict ? `Gleicher ${platform}-Account hinterlegt · zuletzt ${formatDate(flag.last_seen_at)}` : `${flag.occurrence_count} Matches in 7 Tagen · zuletzt ${formatDate(flag.last_seen_at)}`}</p></div><button onClick={() => void resolveFairnessRiskFlag(flag.id)} className="shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-100 hover:bg-emerald-400/20">Geprüft</button></div><div className="mt-3 flex flex-wrap gap-2"><button onClick={() => void openFairplayReview(flag.player1_id)} className="rounded-lg border border-violet-300/20 bg-violet-400/10 px-2.5 py-1.5 text-[10px] font-black text-violet-100">Akte {flag.player1_username}</button><button onClick={() => void openFairplayReview(flag.player2_id)} className="rounded-lg border border-violet-300/20 bg-violet-400/10 px-2.5 py-1.5 text-[10px] font-black text-violet-100">Akte {flag.player2_username}</button></div></div>;
+            })}</div>
           </section>
         )}
         {flaggedPlayers.length === 0 ? (

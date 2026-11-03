@@ -16,7 +16,7 @@ test('fairplay review records are private and admin-gated', () => {
   assert.match(migration, /security definer\s+set search_path = public/i);
 });
 
-test('review workspace uses behaviour data and never claims IP or device checks', () => {
+test('review workspace uses behaviour data and keeps every signal in a human review flow', () => {
   assert.match(migration, /recent_matches/i);
   assert.match(migration, /shared_opponents/i);
   assert.match(migration, /fairness_risk_flags/i);
@@ -24,6 +24,7 @@ test('review workspace uses behaviour data and never claims IP or device checks'
   assert.match(adminPage, /admin_get_fairplay_review/);
   assert.match(adminPage, /admin_record_fairplay_review/);
   assert.match(adminPage, /Prüfakte öffnen/);
+  assert.match(adminPage, /admin_get_network_overlaps/);
 });
 
 test('players receive clear public information about fairplay and sanctions', () => {

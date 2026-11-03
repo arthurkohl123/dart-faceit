@@ -74,6 +74,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const accountSecuritySignalUserRef = useRef<string | null>(null);
 
   const fetchProfile = useCallback(async (userId: string, authUser?: User | null) => {
     try {
@@ -224,6 +225,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [session?.user?.id, supabase]);
+
+  // Store a seven-day, HMAC-pseudonymized network signal once per browser
+  // session. It is never a ban trigger and is visible only in the admin
+  // Fair-Play review when another account has the same recent signal.
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId || accountSecuritySignalUserRef.current === userId) return;
+    accountSecuritySignalUserRef.current = userId;
+    void fetch('/api/security/session-signal', { method: 'POST', cache: 'no-store' })
+      .catch(() => { accountSecuritySignalUserRef.current = null; });
+  }, [session?.user?.id]);
 
   // The support opt-in is stored in Supabase. Once an admin has deliberately
   // enabled it in the Admin Panel, keep its short-lived availability signal

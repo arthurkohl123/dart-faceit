@@ -33,10 +33,6 @@ type DeveloperNoticeSetting = {
   message?: string;
 };
 
-type SmsVerificationSetting = {
-  enabled?: boolean;
-};
-
 type MatchmakingQueueSetting = {
   enabled?: boolean;
   message?: string;
@@ -135,7 +131,6 @@ export default function DeveloperDashboard() {
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('RankedDarts wird gerade aktualisiert. Bitte versuche es gleich erneut.');
   const [noShowBanMinutes, setNoShowBanMinutes] = useState(15);
-  const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [matchmakingEnabled, setMatchmakingEnabled] = useState(true);
   const [matchmakingMessage, setMatchmakingMessage] = useState('Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
   const [duoMatchmakingEnabled, setDuoMatchmakingEnabled] = useState(true);
@@ -201,7 +196,6 @@ export default function DeveloperDashboard() {
     const settings = payload?.settings;
     const maintenance = getObjectSetting<MaintenanceSetting>(settings, 'maintenance_mode');
     const banMinutes = getObjectSetting<BanMinutesSetting>(settings, 'no_show_queue_ban_minutes');
-    const smsVerification = getObjectSetting<SmsVerificationSetting>(settings, 'sms_verification');
     const matchmakingQueue = getObjectSetting<MatchmakingQueueSetting>(settings, 'matchmaking_queue');
     const duoMatchmakingQueue = getObjectSetting<DuoMatchmakingQueueSetting>(settings, 'duo_matchmaking_queue');
     const showdown = getObjectSetting<WednesdayShowdownSetting>(settings, 'wednesday_showdown');
@@ -215,7 +209,6 @@ export default function DeveloperDashboard() {
       setMaintenanceMessage(maintenance.message ?? 'RankedDarts wird gerade aktualisiert. Bitte versuche es gleich erneut.');
     }
     setNoShowBanMinutes(Number(banMinutes.minutes ?? 15));
-    setSmsVerificationEnabled(smsVerification.enabled !== false);
     setMatchmakingEnabled(matchmakingQueue.enabled !== false);
     setMatchmakingMessage(matchmakingQueue.message ?? 'Die Ranked-Queue ist vorübergehend pausiert. Bitte versuche es später erneut.');
     setDuoMatchmakingEnabled(duoMatchmakingQueue.enabled !== false);
@@ -903,33 +896,6 @@ export default function DeveloperDashboard() {
             </button>
           </section>
 
-          <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/30">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">
-                  <Shield className="h-3.5 w-3.5" /> SMS-Verifizierung
-                </div>
-                <h2 className="mt-4 text-3xl font-black tracking-[-0.05em]">Telefon-Verifizierung steuern</h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">Wenn deaktiviert, dürfen Nutzer Matchmaking auch ohne bestätigte Telefonnummer verwenden. Neue Registrierungen werden dann automatisch als telefonisch verifiziert markiert.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSmsVerificationEnabled((value) => !value)}
-                className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${smsVerificationEnabled ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-100' : 'border border-zinc-500/30 bg-zinc-500/10 text-zinc-200'}`}
-              >
-                {smsVerificationEnabled ? 'Aktiv' : 'Aus'}
-              </button>
-            </div>
-
-            <button
-              type="button"
-              disabled={saving === 'sms_verification'}
-              onClick={() => void updateSetting('sms_verification', { enabled: smsVerificationEnabled }, smsVerificationEnabled ? 'SMS-Verifizierung aktiviert.' : 'SMS-Verifizierung deaktiviert.')}
-              className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/15 disabled:opacity-50"
-            >
-              <Save className="h-4 w-4" /> {saving === 'sms_verification' ? 'Speichert…' : 'SMS-Einstellung speichern'}
-            </button>
-          </section>
           </div>
         </div>
 

@@ -34,7 +34,7 @@ const steps = [
 export default function GettingStartedPage() {
   const { profile, loading } = useAuth();
   const hasPlatform = Boolean(profile?.scolia_username || profile?.dartcounter_username || profile?.autodarts_username);
-  const isReady = Boolean(profile?.phone_verified && hasPlatform);
+  const isReady = hasPlatform;
 
   return (
     <main className="min-h-screen bg-[#070909] px-5 py-12 text-white sm:px-8">

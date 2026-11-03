@@ -155,7 +155,20 @@ export default function Profile() {
       setPlatformSaveMsg({ type: 'success', text: 'Gespeichert!' });
       setEditingPlatforms(false);
     } catch (err) {
-      setPlatformSaveMsg({ type: 'error', text: err instanceof Error ? err.message : 'Fehler beim Speichern.' });
+      const rawMessage = err instanceof Error ? err.message : '';
+      const platform = rawMessage.includes('SCOLIA_USERNAME_ALREADY_LINKED')
+        ? 'Scolia'
+        : rawMessage.includes('DARTCOUNTER_USERNAME_ALREADY_LINKED')
+          ? 'DartCounter'
+          : rawMessage.includes('AUTODARTS_USERNAME_ALREADY_LINKED')
+            ? 'AutoDarts'
+            : null;
+      setPlatformSaveMsg({
+        type: 'error',
+        text: platform
+          ? `Dieser ${platform}-Name ist bereits mit einem anderen RankedDarts-Konto verknüpft. Falls das dein alter Account ist, melde dich bitte beim Support.`
+          : rawMessage || 'Fehler beim Speichern.',
+      });
     } finally {
       setSavingPlatforms(false);
     }
@@ -212,7 +225,6 @@ export default function Profile() {
     }, 0);
   };
 
-  const phoneVerified = Boolean(profile?.phone_verified);
   const hasPlatform = Boolean(profile?.scolia_username || profile?.dartcounter_username || profile?.autodarts_username);
   const connectedApps = (['scolia', 'dartcounter', 'autodarts'] as DartsPlatform[]).filter((app) => {
     if (app === 'scolia') return Boolean(profile?.scolia_username);
@@ -249,9 +261,7 @@ export default function Profile() {
       setMobileMenuOpen={setMobileMenuOpen}
       openPlatformSetup={openPlatformSetup}
       primaryAction={() => {
-        if (!phoneVerified) {
-          router.push('/auth/verify-phone');
-        } else if (!hasPlatform) {
+        if (!hasPlatform) {
           openPlatformSetup();
         } else {
           router.push('/matchmaking');

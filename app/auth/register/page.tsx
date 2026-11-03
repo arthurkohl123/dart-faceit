@@ -1,15 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { TurnstileWidget } from '@/components/turnstile-widget';
 import { verifyCaptcha } from '@/lib/captcha-client';
 import { BrandLogo } from '@/components/BrandLogo';
-import { ArrowLeft, ArrowRight, LockKeyhole, Mail, ShieldCheck, Smartphone, UserRound } from 'lucide-react';
-
-const normalizePhoneNumber = (value: string) => value.replace(/[\s()-]/g, '');
+import { ArrowLeft, ArrowRight, LockKeyhole, Mail, ShieldCheck, UserRound } from 'lucide-react';
 
 const EMPTY_SUPABASE_ERROR_MESSAGE = 'Supabase hat nur ein leeres Fehlerobjekt zurückgegeben. Das passiert häufig, wenn die E-Mail-Bestätigung aktiv ist, aber SMTP-Absender, SMTP-Zugangsdaten oder Redirect-URL in Supabase nicht korrekt konfiguriert sind. Bitte prüfe Auth → Logs in Supabase und die SMTP-Einstellungen.';
 
@@ -70,8 +68,6 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [smsVerificationEnabled, setSmsVerificationEnabled] = useState(true);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [ageConfirmed, setAgeConfirmed] = useState(false);
@@ -84,23 +80,7 @@ export default function Register() {
 
   const trimmedEmail = email.trim();
   const trimmedUsername = username.trim();
-  const normalizedPhoneNumber = useMemo(() => normalizePhoneNumber(phoneNumber), [phoneNumber]);
-  const phoneNumberIsValid = /^\+[1-9]\d{7,14}$/.test(normalizedPhoneNumber);
-  const canSubmit = (!smsVerificationEnabled || phoneNumberIsValid) && termsAccepted && ageConfirmed;
-
-  useEffect(() => {
-    const loadSmsSetting = async () => {
-      const { data } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'sms_verification')
-        .maybeSingle();
-
-      setSmsVerificationEnabled((data?.value as { enabled?: boolean } | null)?.enabled !== false);
-    };
-
-    void loadSmsSetting();
-  }, [supabase]);
+  const canSubmit = termsAccepted && ageConfirmed;
 
   const createProfileForActiveSession = async (userId: string) => {
     const profilePayload = {
@@ -109,9 +89,6 @@ export default function Register() {
       elo: 1000,
       gamesPlayed: 0,
       wins: 0,
-      phone_number: normalizedPhoneNumber || null,
-      phone_verified: !smsVerificationEnabled,
-      phone_verified_at: smsVerificationEnabled ? null : new Date().toISOString(),
       age_confirmed_at: new Date().toISOString(),
     };
 
@@ -194,11 +171,6 @@ export default function Register() {
       return;
     }
 
-    if (smsVerificationEnabled && !phoneNumberIsValid) {
-      setFormMessage({ type: 'error', text: 'Bitte gib deine Handynummer im internationalen Format ein, zum Beispiel +491701234567.' });
-      return;
-    }
-
     if (!termsAccepted) {
       setFormMessage({ type: 'error', text: 'Bitte akzeptiere die AGB und Turnierregeln, um einen Account zu erstellen.' });
       return;
@@ -241,8 +213,6 @@ export default function Register() {
           emailRedirectTo,
             data: {
             username: trimmedUsername,
-            phone_number: normalizedPhoneNumber || null,
-              phone_verified: !smsVerificationEnabled,
               terms_accepted: true,
               terms_version: '2026-10-18',
               age_confirmed: true,
@@ -279,13 +249,8 @@ export default function Register() {
       setConfirmationPending(false);
       await createProfileForActiveSession(data.user.id);
 
-      if (smsVerificationEnabled) {
-        setFormMessage({ type: 'success', text: 'Registrierung erfolgreich. Bestätige jetzt deine Handynummer, damit dein Ranked-Profil verifiziert wird.' });
-        setTimeout(() => router.push(`/auth/verify-phone?phone=${encodeURIComponent(normalizedPhoneNumber)}`), 1200);
-      } else {
-        setFormMessage({ type: 'success', text: 'Registrierung erfolgreich. Die SMS-Verifizierung ist aktuell deaktiviert, dein Ranked-Profil ist direkt bereit.' });
-        setTimeout(() => router.push('/profile'), 1200);
-      }
+      setFormMessage({ type: 'success', text: 'Registrierung erfolgreich. Dein Profil ist nach der E-Mail-Bestätigung bereit.' });
+      setTimeout(() => router.push('/profile'), 1200);
     } catch (error) {
       console.error('Registration flow failed', error);
       setFormMessage({ type: 'error', text: `Registrierung fehlgeschlagen: ${getReadableAuthError(error)}` });
@@ -316,7 +281,7 @@ export default function Register() {
             <h1 className="mt-6 text-7xl font-black leading-[.84] tracking-[-0.09em]">Erstelle dein<br /><span className="text-emerald-300">Spielerprofil.</span></h1>
             <p className="mt-8 max-w-lg text-lg leading-8 text-zinc-400">Richte dein Profil ein. Danach kannst du Matches suchen und an Turnieren teilnehmen.</p>
             <div className="mt-12 grid grid-cols-[auto_1fr] gap-x-5 gap-y-5 border-l border-emerald-300/25 pl-5">
-              {['Dein Account startet bei 1.000 Elo.', 'Bestätige deine E-Mail, um dein Konto zu aktivieren.', 'Die Telefon-Verifizierung schützt die Suche vor mehreren Accounts pro Person.'].map((item, index) => (
+              {['Dein Account startet bei 1.000 Elo.', 'Bestätige deine E-Mail, um dein Konto zu aktivieren.', 'Verknüpfe später deine Spielplattform für die Ranked-Queue.'].map((item, index) => (
                 <div key={item} className="contents"><span className="grid h-7 w-7 place-items-center rounded-full border border-emerald-300/20 bg-emerald-400/10 text-xs font-black text-emerald-200">0{index + 1}</span><span className="pt-1 text-sm font-semibold leading-5 text-zinc-300">{item}</span></div>
               ))}
             </div>
@@ -334,7 +299,7 @@ export default function Register() {
             <div className="mb-8 border-b border-white/8 pb-6">
               <div className="flex items-center justify-between gap-4"><span className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300">Konto erstellen</span><span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Fair Play</span></div>
               <h2 className="mt-5 text-4xl font-black tracking-[-0.07em] text-white">Dein neues<br />Spielerprofil.</h2>
-              <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Namen{smsVerificationEnabled ? ' und hinterlege deine Nummer für den sicheren Ranked-Zugang.' : '. Die SMS-Verifizierung ist aktuell deaktiviert.'}</p>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Namen und bestätige danach deine E-Mail-Adresse.</p>
             </div>
 
             {formMessage && (
@@ -378,20 +343,6 @@ export default function Register() {
                   className="w-full border border-white/10 bg-black/25 py-4 pl-11 pr-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-emerald-400/[0.04]"
                   required
                 /></span>
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-zinc-300">Handynummer</span>
-                <span className="relative block"><Smartphone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" /><input
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="+491701234567"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full border border-white/10 bg-black/25 py-4 pl-11 pr-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-300/60 focus:bg-emerald-400/[0.04]"
-                  required={smsVerificationEnabled}
-                /></span>
-                <span className={`mt-2 block text-xs ${phoneNumber && !phoneNumberIsValid ? 'text-amber-300' : 'text-zinc-500'}`}>{smsVerificationEnabled ? 'Bitte im internationalen Format eintragen, zum Beispiel +49...' : 'Optional, solange die SMS-Verifizierung deaktiviert ist.'}</span>
               </label>
 
               <label className="block">
