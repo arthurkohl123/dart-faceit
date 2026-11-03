@@ -3860,3 +3860,65 @@ body {
 @media (max-width: 760px) {
   .faceit-admin-topbar { min-height: 58px; padding: 0 14px; }.faceit-admin-presence,.faceit-admin-quiet-button,.faceit-admin-command-button kbd { display: none; }.faceit-admin-command-button { padding: 8px 10px; }.admin-vault-workspace { padding: 23px 14px 36px; }.admin-vault-pagehead { display: block; min-height: 0; }.admin-vault-page-actions { margin-top: 17px; }.admin-vault-heading h2 { font-size: 2.4rem; }.admin-hub-briefing { grid-template-columns: 1fr; }.admin-hub-briefing-copy { padding: 24px 20px; }.admin-hub-briefing h3 { font-size: 2.5rem; }.admin-hub-health { grid-template-columns: 116px minmax(0,1fr); border-top: 1px solid var(--vault-line); border-left: 0; padding: 20px; }.admin-hub-score { height: 116px; }.admin-hub-score strong { font-size: 40px; }.admin-hub-service-list { margin-top: 14px; }.admin-hub-panel > header,.admin-hub-journal > header { padding: 18px 16px 14px; }.admin-hub-priority { grid-template-columns: 20px 32px minmax(0,1fr); padding: 13px 14px; }.admin-hub-priority-arrow { display: none; }.admin-hub-shortcut-grid button { min-height: 102px; padding: 14px; }.admin-hub-shortcut-grid span { margin-top: 13px; }.admin-hub-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }.admin-hub-metrics button { min-height: 127px; border-bottom: 1px solid var(--vault-line); }.admin-hub-metrics button:nth-child(2n) { border-right: 0; }.admin-hub-metrics button:last-child { grid-column: 1 / -1; border-bottom: 0; }.admin-hub-journal-list { grid-template-columns: 1fr; }.admin-hub-journal-list article,.admin-hub-journal-list article:nth-child(2) { min-height: 0; border-right: 0; border-bottom: 1px solid rgba(238,229,211,.08); }.admin-hub-journal-list article:last-child { border-bottom: 0; }
 }
+
+/* Shared operations views are separate desks now, not generic card piles. */
+.admin-ops-desk-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--vault-line);
+  padding: 2px 0 19px;
+}
+.admin-ops-desk-title { display: flex; align-items: flex-start; gap: 12px; }
+.admin-ops-desk-title > span { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border: 1px solid rgba(255,115,71,.42); background: rgba(255,115,71,.10); color: #ffad90; }
+.admin-ops-desk-title p { margin: 0; color: #ff9d7b; font-size: 9px; font-weight: 900; letter-spacing: .17em; text-transform: uppercase; }
+.admin-ops-desk-title h3 { margin: 5px 0 0; color: #f6f1e9; font-size: 28px; font-weight: 800; letter-spacing: -.065em; line-height: .9; }
+.admin-ops-desk-title small { display: block; max-width: 36rem; margin-top: 8px; color: #92958e; font-size: 11px; line-height: 1.5; }
+.admin-ops-desk-actions { display: flex; align-items: center; gap: 9px; }
+.admin-ops-desk-actions > span { color: #92958e; font-size: 9px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
+.admin-ops-desk-actions button { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--vault-line); border-radius: 4px; background: #1c1e1d; padding: 9px 11px; color: #e5dfd4; font-size: 10px; font-weight: 850; letter-spacing: .06em; transition: .16s ease; }
+.admin-ops-desk-actions button:hover { border-color: rgba(255,115,71,.46); background: rgba(255,115,71,.09); color: #ffc4af; }
+.admin-ops-desk-actions button:disabled { opacity: .55; }
+
+.admin-vault .admin-ops-studio > :is(section,div) > section,
+.admin-vault .admin-ops-studio > section,
+.admin-vault .admin-ops-studio > div > :is(section,div) > section {
+  position: relative;
+  border-radius: 3px !important;
+  background: #171918 !important;
+}
+.admin-vault .admin-ops-studio > :is(section,div) > section::before,
+.admin-vault .admin-ops-studio > section::before {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(var(--vault-acid), transparent 64%);
+  content: '';
+  opacity: .8;
+}
+.admin-vault .admin-ops-studio [class*="rounded-2xl"],
+.admin-vault .admin-ops-studio [class*="rounded-xl"] { border-radius: 3px !important; }
+.admin-vault .admin-ops-studio [class*="bg-black"],
+.admin-vault .admin-ops-studio [class*="bg-zinc-950"] { background-color: #111312 !important; }
+.admin-vault .admin-ops-studio [class*="bg-white"] { background-color: rgba(255,255,255,.028) !important; }
+.admin-vault .admin-ops-studio [class*="text-cyan"] { color: #9ee6d3 !important; }
+.admin-vault .admin-ops-studio [class*="text-violet"] { color: #b9d7ff !important; }
+.admin-vault .admin-ops-studio [class*="text-emerald"] { color: #a9e5d5 !important; }
+.admin-vault .admin-ops-studio [class*="text-amber"] { color: #ffcc83 !important; }
+
+/* Persistent internal handover tool. */
+.admin-shift-handoff { overflow: hidden; border: 1px solid var(--vault-line); border-top: 3px solid #7ddcc0; background: #171918; box-shadow: 0 13px 30px rgba(0,0,0,.10); }
+.admin-shift-handoff > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--vault-line); padding: 19px 22px 15px; }
+.admin-shift-handoff > header p { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: #9ee6d3; font-size: 9px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.admin-shift-handoff > header h4 { margin: 6px 0 0; color: #f5f0e7; font-size: 22px; font-weight: 800; letter-spacing: -.055em; line-height: 1; }
+.admin-shift-handoff > header > button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--vault-line); border-radius: 3px; color: #a8aba3; transition: .16s ease; }.admin-shift-handoff > header > button:hover { border-color: rgba(125,220,192,.42); background: rgba(125,220,192,.08); color: #9ee6d3; }
+.admin-shift-handoff-compose { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 9px; border-bottom: 1px solid var(--vault-line); padding: 15px 18px; background: rgba(5,6,6,.18); }
+.admin-shift-handoff-compose textarea { min-height: 64px; resize: vertical; border: 1px solid rgba(238,229,211,.16); border-radius: 3px; background: #101211; padding: 11px; color: #f5f0e7; font-size: 11px; line-height: 1.45; outline: 0; }.admin-shift-handoff-compose textarea:focus { border-color: #7ddcc0; box-shadow: 0 0 0 3px rgba(125,220,192,.08); }.admin-shift-handoff-compose textarea::placeholder { color: #72766e; }
+.admin-shift-handoff-compose > div { display: flex; flex-direction: column; gap: 7px; }.admin-shift-handoff-compose button { display: inline-flex; min-width: 125px; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--vault-line); border-radius: 3px; padding: 10px; color: #d7d4cd; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; transition: .16s ease; }.admin-shift-handoff-pin { background: #1b1d1c; }.admin-shift-handoff-pin.is-active { border-color: rgba(255,195,109,.45) !important; background: rgba(255,195,109,.10) !important; color: #ffcf87 !important; }.admin-shift-handoff-save { border-color: #7ddcc0 !important; background: #7ddcc0 !important; color: #10221d !important; }.admin-shift-handoff-save:hover { background: #a7ecd9 !important; }.admin-shift-handoff-compose button:disabled { cursor: not-allowed; opacity: .45; }
+.admin-shift-handoff-message { margin: 0; border-bottom: 1px solid var(--vault-line); padding: 9px 18px; color: #9ee6d3; font-size: 10px; font-weight: 700; }
+.admin-shift-handoff-list { display: grid; }.admin-shift-handoff-list article { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 10px; align-items: start; border-bottom: 1px solid rgba(238,229,211,.07); padding: 14px 18px; transition: .16s ease; }.admin-shift-handoff-list article:last-child { border-bottom: 0; }.admin-shift-handoff-list article.is-pinned { background: linear-gradient(90deg, rgba(255,195,109,.08), transparent 56%); }.admin-shift-handoff-marker { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid var(--vault-line); color: #a0a39b; }.is-pinned .admin-shift-handoff-marker { border-color: rgba(255,195,109,.4); color: #ffcc83; }.admin-shift-handoff-list article p { margin: 0; color: #e6e1d8; font-size: 11px; line-height: 1.5; white-space: pre-wrap; }.admin-shift-handoff-list article small { display: block; margin-top: 5px; color: #7e8179; font-size: 9px; }.admin-shift-handoff-actions { display: flex; gap: 5px; }.admin-shift-handoff-actions button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--vault-line); border-radius: 3px; color: #a7aaa2; transition: .16s ease; }.admin-shift-handoff-actions button:hover { border-color: rgba(125,220,192,.4); background: rgba(125,220,192,.08); color: #9ee6d3; }.admin-shift-handoff-actions button:disabled { opacity: .45; }.admin-shift-handoff-empty { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 78px; color: #81847d; font-size: 11px; }.admin-shift-handoff-empty svg { color: #9ee6d3; }
+@media (max-width: 760px) { .admin-ops-desk-header { display: block; }.admin-ops-desk-actions { margin-top: 15px; }.admin-ops-desk-title h3 { font-size: 24px; }.admin-shift-handoff > header { padding: 17px 15px 14px; }.admin-shift-handoff-compose { grid-template-columns: 1fr; padding: 13px; }.admin-shift-handoff-compose > div { flex-direction: row; }.admin-shift-handoff-compose button { flex: 1; min-width: 0; }.admin-shift-handoff-list article { padding: 13px; }.admin-shift-handoff-actions { flex-direction: column; } }

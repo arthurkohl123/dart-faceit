@@ -303,7 +303,21 @@ export function AdminOperationsWorkspace({ view, onNavigate, onOpenTournament, o
     { label: 'Erstes Match', value: growthFunnel.totals.first_match_completed, rate: growthFunnel.totals.match_rate, drop: growthFunnel.drop_off.before_first_match, tone: 'text-emerald-100' },
   ] : [];
 
-  return <div className="admin-ops-studio space-y-6">
+  const viewMeta: Record<OperationsView, { label: string; title: string; detail: string; icon: LucideIcon }> = {
+    inbox: { label: 'Zentrale', title: 'Arbeitskorb', detail: 'Alles, was den Betrieb jetzt betrifft, in einer klaren Reihenfolge.', icon: ClipboardCheck },
+    players: { label: 'Spielerakten', title: 'Community Desk', detail: 'Profile, interne Fälle und Entscheidungsgrundlagen an einem Ort.', icon: UserRoundSearch },
+    competition: { label: 'Wettbewerb', title: 'Turnier-Leitstand', detail: 'Live-Cups, Check-ins und Matchrooms ohne Umwege begleiten.', icon: Trophy },
+    communications: { label: 'Kommunikation', title: 'Nachrichten-Desk', detail: 'Hinweise, Banner und Plattform-Nachrichten gezielt steuern.', icon: Megaphone },
+    team: { label: 'Team', title: 'Rollen & Insights', detail: 'Verantwortlichkeiten und die wichtigsten Wachstums-Signale.', icon: UsersRound },
+  };
+  const activeViewMeta = viewMeta[view];
+  const ActiveViewIcon = activeViewMeta.icon;
+
+  return <div className={`admin-ops-studio admin-ops-studio--${view} space-y-6`}>
+    <header className="admin-ops-desk-header">
+      <div className="admin-ops-desk-title"><span><ActiveViewIcon className="h-4 w-4" /></span><div><p>{activeViewMeta.label}</p><h3>{activeViewMeta.title}</h3><small>{activeViewMeta.detail}</small></div></div>
+      <div className="admin-ops-desk-actions"><span>{loading ? 'Aktualisiert …' : 'Daten bereit'}</span><button type="button" onClick={() => void load()} disabled={loading}><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />Synchronisieren</button></div>
+    </header>
     {message && <div className="flex items-start justify-between gap-4 rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.07] px-5 py-4 text-sm font-semibold text-cyan-50"><span>{message}</span><button onClick={() => setMessage(null)} className="text-cyan-200/60 hover:text-white">×</button></div>}
 
     <section className={view === 'inbox' ? 'overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.14),transparent_48%),rgba(9,13,19,0.9)] shadow-2xl shadow-black/25' : 'hidden'}>
