@@ -2961,7 +2961,7 @@ body {
 .matchroom-command::before,
 .matchroom-command::after {
   position: fixed;
-  z-index: -1;
+  z-index: 1;
   pointer-events: none;
   content: '';
 }
@@ -3066,7 +3066,7 @@ body {
   content: '';
   opacity: .7;
 }
-.matchroom-scoreboard > * { position: relative; z-index: 1; }
+.matchroom-scoreboard > :is(.matchroom-scoreboard-meta, .matchroom-scoreboard-players, .matchroom-scoreboard-facts, .matchroom-fairplay-row) { position: relative; z-index: 1; }
 .matchroom-scoreboard-meta {
   min-height: 3.25rem;
   border-color: rgba(205,232,219,.1) !important;
