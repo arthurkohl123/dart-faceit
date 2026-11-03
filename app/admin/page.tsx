@@ -60,7 +60,7 @@ type AdminCommandAction = {
   icon: LucideIcon;
   tone: string;
   target?: AdminTab;
-  action?: 'refresh' | 'export';
+  action?: 'refresh' | 'export' | 'support_desk';
   keywords?: string;
 };
 
@@ -1872,13 +1872,19 @@ export default function AdminPanel() {
   };
 
   const commandActions: AdminCommandAction[] = [
+    { id: 'operations', label: 'Arbeitskorb öffnen', detail: `${attentionCount} priorisierte Vorgänge`, icon: Command, tone: 'text-emerald-200', target: 'operations', keywords: 'inbox arbeitskorb priorität aufgaben' },
     { id: 'disputes', label: 'Disputes priorisieren', detail: `${disputedMatches.length} offen`, icon: Gavel, tone: 'text-amber-200', target: 'disputes', keywords: 'match ergebnis entscheidung konflikt' },
     { id: 'tickets', label: 'Support Queue öffnen', detail: `${ticketsInQueue} in Bearbeitung`, icon: Headphones, tone: 'text-violet-200', target: 'tickets', keywords: 'ticket support nachricht sla' },
+    { id: 'support-desk', label: 'Live Support Desk öffnen', detail: 'Direkt zu den laufenden Gesprächen', icon: Headphones, tone: 'text-violet-200', action: 'support_desk', keywords: 'live support chat gespräch hilfe' },
     { id: 'live', label: 'Live Arena beobachten', detail: `${liveMatches.length} Matches`, icon: Radar, tone: 'text-emerald-200', target: 'live', keywords: 'match room laufend queue' },
     { id: 'flagged', label: 'Fairness Monitor', detail: `${flaggedPlayers.length} Accounts`, icon: TriangleAlert, tone: 'text-orange-200', target: 'flagged', keywords: 'fairplay verdacht cheater meldung' },
+    { id: 'player-cases', label: 'Spielerakten öffnen', detail: 'Verlauf, Fälle und Vorgänge', icon: ShieldCheck, tone: 'text-cyan-200', target: 'player_cases', keywords: 'akte spieler historie fall prüfung' },
     { id: 'tournaments', label: 'Cup Control', detail: `${activeTournamentCount} aktiv`, icon: Trophy, tone: 'text-cyan-200', target: 'tournaments', keywords: 'turnier bracket checkin cup' },
+    { id: 'competition', label: 'Turnier-Leitstand öffnen', detail: 'Live-Cups und Matchrooms begleiten', icon: Radar, tone: 'text-cyan-200', target: 'competition_ops', keywords: 'turnier leitstand cup matchroom live' },
     { id: 'payouts', label: 'Auszahlungen verwalten', detail: `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen`, icon: ClipboardList, tone: 'text-lime-200', target: 'payouts', keywords: 'preisgeld payout geld auszahlung' },
     { id: 'players', label: 'Spieler verwalten', detail: `${profiles.length} Profile`, icon: Users, tone: 'text-zinc-100', target: 'players', keywords: 'spieler profil premium streamer rolle bann' },
+    { id: 'communications', label: 'Community-Mitteilung planen', detail: 'Banner und In-App-Nachrichten', icon: Send, tone: 'text-emerald-200', target: 'communications', keywords: 'ankündigung mitteilung banner news community' },
+    { id: 'team', label: 'Team & Insights ansehen', detail: 'Rollen und Betriebskennzahlen', icon: BarChart3, tone: 'text-zinc-100', target: 'team_analytics', keywords: 'team moderator admin statistik insights rollen' },
     { id: 'logs', label: 'Audit Trail prüfen', detail: `${adminLogs.length} Einträge`, icon: ClipboardList, tone: 'text-cyan-200', target: 'logs', keywords: 'log historie aktionen nachvollziehen' },
     { id: 'refresh', label: 'Live-Daten synchronisieren', detail: 'Alle Bereiche sofort neu laden', icon: RefreshCw, tone: 'text-emerald-200', action: 'refresh', keywords: 'aktualisieren reload refresh sync' },
     { id: 'export', label: 'Schichtbericht exportieren', detail: 'Operations-Snapshot als CSV', icon: Download, tone: 'text-zinc-100', action: 'export', keywords: 'csv export report bericht download' },
@@ -1898,6 +1904,10 @@ export default function AdminPanel() {
     setCommandQuery('');
     if (command.action === 'refresh') {
       void refreshAdminData();
+      return;
+    }
+    if (command.action === 'support_desk') {
+      router.push('/admin/support');
       return;
     }
     if (command.action === 'export') exportOperationsSnapshot();
@@ -2035,7 +2045,70 @@ export default function AdminPanel() {
                   {actionMessage}
                 </div>
               )}
-              <div className="admin-command-overview">
+              <div className="admin-hub">
+                <section className="admin-hub-briefing" aria-label="Tageslage">
+                  <div className="admin-hub-briefing-copy">
+                    <p className="admin-hub-eyebrow"><span /> Dienstübersicht · {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: 'long' }).format(new Date())}</p>
+                    <h3>{attentionCount > 0 ? `${attentionCount} Punkte brauchen deine Aufmerksamkeit.` : 'Die Arena läuft ruhig.'}</h3>
+                    <p>{attentionCount > 0 ? 'Der Arbeitskorb ist nach Dringlichkeit sortiert. Starte mit dem ersten Punkt oder springe direkt in einen Bereich.' : 'Aktuell warten keine Disputes, Fristen oder Systemwarnungen auf eine Entscheidung.'}</p>
+                    <div className="admin-hub-briefing-actions">
+                      <button type="button" onClick={() => goToSection(primaryAttentionSection)} className="admin-hub-main-action">{attentionCount > 0 ? 'Nächsten Punkt öffnen' : 'Arbeitskorb öffnen'} <span>→</span></button>
+                      <button type="button" onClick={() => setCommandCenterOpen(true)} className="admin-hub-quiet-action"><Command className="h-3.5 w-3.5" /> Schnellzugriff <kbd>⌘K</kbd></button>
+                    </div>
+                  </div>
+                  <div className="admin-hub-health" aria-label="Systemgesundheit">
+                    <div className="admin-hub-score"><span>System-Index</span><strong>{healthScore}</strong><small>/ 100</small></div>
+                    <div className="admin-hub-health-copy"><span className={`admin-hub-health-state is-${systemHealth?.status || 'loading'}`}><i /> {systemStatusText}</span><p>{systemHealth?.checkedAt ? `Zuletzt geprüft um ${new Date(systemHealth.checkedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr` : 'Der Systemcheck wird geladen.'}</p></div>
+                    <div className="admin-hub-service-list">
+                      {(['database', 'stripe', 'deployment'] as const).map((service) => {
+                        const check = systemHealth?.checks[service];
+                        const label = service === 'database' ? 'Datenbank' : service === 'stripe' ? 'Stripe' : 'Deployment';
+                        return <div key={service}><i className={`is-${check?.status || 'loading'}`} /><span>{label}</span><strong>{check?.status === 'ok' ? `${check.latencyMs} ms` : check?.message || 'Prüfe …'}</strong></div>;
+                      })}
+                    </div>
+                  </div>
+                </section>
+
+                <section className="admin-hub-workbench" aria-label="Prioritäten und Schnellzugriffe">
+                  <div className="admin-hub-panel admin-hub-priorities">
+                    <header><div><p>Arbeitskorb</p><h4>Als Nächstes</h4></div><span>{String(commandTasks.length).padStart(2, '0')}</span></header>
+                    <div className="admin-hub-priority-list">
+                      {commandTasks.map((task, index) => {
+                        const TaskIcon = task.icon;
+                        return <button type="button" key={task.id} onClick={() => goToSection(task.target)} className={`admin-hub-priority is-${task.tone}`}><span className="admin-hub-priority-number">{String(index + 1).padStart(2, '0')}</span><span className="admin-hub-priority-icon"><TaskIcon className="h-4 w-4" /></span><span><strong>{task.title}</strong><small>{task.detail}</small></span><span className="admin-hub-priority-arrow">→</span></button>;
+                      })}
+                    </div>
+                  </div>
+                  <aside className="admin-hub-panel admin-hub-shortcuts">
+                    <header><div><p>Direktzugriff</p><h4>Häufige Werkzeuge</h4></div></header>
+                    <div className="admin-hub-shortcut-grid">
+                      <button type="button" onClick={() => goToSection('live')}><Radar className="h-4 w-4" /><span>Live Matches</span><small>{liveMatches.length} offen</small></button>
+                      <button type="button" onClick={() => goToSection('players')}><Users className="h-4 w-4" /><span>Rollen & Premium</span><small>Spieler verwalten</small></button>
+                      <button type="button" onClick={() => goToSection('tournaments')}><Trophy className="h-4 w-4" /><span>Turniere</span><small>{activeTournamentCount} aktiv</small></button>
+                      <button type="button" onClick={() => router.push('/admin/support')}><Headphones className="h-4 w-4" /><span>Live Support</span><small>Desk öffnen</small></button>
+                      <button type="button" onClick={() => goToSection('communications')}><Send className="h-4 w-4" /><span>Mitteilung</span><small>Community informieren</small></button>
+                      <button type="button" onClick={exportOperationsSnapshot}><Download className="h-4 w-4" /><span>Schichtbericht</span><small>CSV exportieren</small></button>
+                    </div>
+                  </aside>
+                </section>
+
+                <section className="admin-hub-metrics" aria-label="Bereichsstatus">
+                  <button type="button" onClick={() => goToSection('disputes')} className={disputedMatches.length > 0 ? 'is-alert' : ''}><Gavel /><span>Entscheidungen</span><strong>{disputedMatches.length}</strong><small>offene Disputes</small></button>
+                  <button type="button" onClick={() => goToSection('tickets')} className={escalatedTickets.length > 0 ? 'is-alert' : ''}><Headphones /><span>Support</span><strong>{escalatedTickets.length}</strong><small>{slaBreachedTickets.length ? `${slaBreachedTickets.length} über SLA` : 'SLA stabil'}</small></button>
+                  <button type="button" onClick={() => goToSection('flagged')} className={flaggedPlayers.length + fairnessRiskFlags.length > 0 ? 'is-alert' : ''}><ShieldAlert /><span>Fair Play</span><strong>{flaggedPlayers.length + fairnessRiskFlags.length}</strong><small>Signale einordnen</small></button>
+                  <button type="button" onClick={() => goToSection('payouts')} className={overduePayouts.length > 0 ? 'is-alert' : ''}><Crown /><span>Preisgeld</span><strong>{pendingPayouts.length}</strong><small>{pendingPayouts.length ? `${(pendingPayoutAmount / 100).toFixed(2).replace('.', ',')} € offen` : 'nichts offen'}</small></button>
+                  <button type="button" onClick={() => goToSection('tournaments')} className={upcomingCheckIns.length > 0 ? 'is-alert' : ''}><Trophy /><span>Turniere</span><strong>{activeTournamentCount}</strong><small>{upcomingCheckIns.length ? 'Check-in bald' : 'im Betrieb'}</small></button>
+                </section>
+
+                <section className="admin-hub-journal" aria-label="Letzte Admin-Aktivitäten">
+                  <header><div><p>Nachvollziehbarkeit</p><h4>Zuletzt im Team passiert</h4></div><button type="button" onClick={() => goToSection('logs')}>Audit Trail <span>→</span></button></header>
+                  {adminLogs.length > 0 ? <div className="admin-hub-journal-list">
+                    {adminLogs.slice(0, 4).map((log) => <article key={log.id}><span><ClipboardList className="h-3.5 w-3.5" /></span><div><strong>{log.action}</strong><p>{log.target_label || log.details || log.target_type || 'Systemaktion'}</p></div><time dateTime={log.created_at}>{new Date(log.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</time></article>)}
+                  </div> : <div className="admin-hub-journal-empty"><ClipboardList className="h-5 w-5" /><span>Neue Team-Aktionen erscheinen hier automatisch.</span></div>}
+                </section>
+              </div>
+
+              <div className="admin-command-overview" aria-hidden="true">
                 <section className="admin-command-hero">
                   <div className="admin-command-hero-copy">
                     <p className="admin-command-eyebrow">Shift overview · {lastRefreshedAt ? lastRefreshedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : 'jetzt'}</p>
