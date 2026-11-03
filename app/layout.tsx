@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { GlobalPlayerSearch } from "@/components/global-player-search";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.rankeddarts.de"),
@@ -58,6 +59,7 @@ export default function RootLayout({
       <body>
         <Providers>
           {children}
+          <GlobalPlayerSearch />
         </Providers>
       </body>
     </html>

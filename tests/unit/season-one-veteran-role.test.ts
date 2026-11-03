@@ -21,11 +21,12 @@ test('Season 01 Veteran is a permanent cosmetic award based on the frozen Season
   assert.match(migration, /revoke all on table public\.public_visible_profiles from public, anon, authenticated/i);
 });
 
-test('Veterans are visibly marked in the leaderboard and both profile variants', () => {
-  for (const source of [leaderboard, publicProfile, ownProfile]) {
+test('Veterans are visibly marked in both profile variants, not in the leaderboard', () => {
+  for (const source of [publicProfile, ownProfile]) {
     assert.match(source, /is_season_one_veteran/);
     assert.match(source, /VeteranBadge/);
   }
+  assert.doesNotMatch(leaderboard, /VeteranBadge/);
   assert.match(leaderboard, /is_season_one_veteran:\s+boolean/i);
 });
 
