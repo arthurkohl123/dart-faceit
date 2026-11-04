@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CalendarClock, CheckCircle2, ChevronRight, CircleAlert, Clock3, Megaphone, Radio, ShieldCheck, Trophy, Users, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarClock, CheckCircle2, ChevronRight, CircleAlert, Clock3, Copy, Headphones, Link2, Megaphone, Radio, ShieldCheck, Trophy, Users, XCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { NotificationBell } from '@/components/notification-bell';
 
@@ -41,6 +41,21 @@ type Participant = {
   waitlist_position: number | null;
 };
 type Notice = { tone: 'success' | 'error' | 'info'; text: string };
+type ReferralStats = {
+  referral_code: string;
+  registrations: number;
+  first_ranked_matches: number;
+  latest_registration_at: string | null;
+};
+type CreatorSupportTicket = {
+  id: string;
+  subject: string;
+  status: string;
+  priority: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+};
 type CreatorForm = {
   title: string;
   description: string;
@@ -105,16 +120,26 @@ export default function CreatorHubPage() {
   const [scheduleRegistration, setScheduleRegistration] = useState('');
   const [cancelFor, setCancelFor] = useState<CreatorTournament | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [referral, setReferral] = useState<ReferralStats | null>(null);
+  const [creatorTickets, setCreatorTickets] = useState<CreatorSupportTicket[]>([]);
+  const [supportSubject, setSupportSubject] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.rpc('streamer_list_my_tournaments');
-    if (error) {
+    const [tournamentResponse, referralResponse, supportResponse] = await Promise.all([
+      supabase.rpc('streamer_list_my_tournaments'),
+      supabase.rpc('streamer_get_referral_stats'),
+      supabase.rpc('streamer_list_creator_support_tickets'),
+    ]);
+    if (tournamentResponse.error) {
       setAccessDenied(true);
-      setNotice({ tone: 'error', text: errorText(error.message) });
+      setNotice({ tone: 'error', text: errorText(tournamentResponse.error.message) });
       return;
     }
     setAccessDenied(false);
-    setTournaments((data ?? []) as CreatorTournament[]);
+    setTournaments((tournamentResponse.data ?? []) as CreatorTournament[]);
+    setReferral(((referralResponse.data ?? [])[0] ?? null) as ReferralStats | null);
+    setCreatorTickets((supportResponse.data ?? []) as CreatorSupportTicket[]);
   }, [supabase]);
 
   useEffect(() => {
@@ -223,6 +248,37 @@ export default function CreatorHubPage() {
     await load();
   }
 
+  const referralLink = referral && typeof window !== 'undefined'
+    ? `${window.location.origin}/r/${referral.referral_code}`
+    : '';
+
+  async function copyReferralLink() {
+    if (!referralLink) return;
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setNotice({ tone: 'success', text: 'Dein persönlicher Creator-Link wurde kopiert.' });
+    } catch {
+      setNotice({ tone: 'info', text: `Kopiere diesen Link: ${referralLink}` });
+    }
+  }
+
+  async function createCreatorSupportTicket() {
+    setPending('creator-support');
+    const { error } = await supabase.rpc('streamer_create_creator_support_ticket', {
+      p_subject: supportSubject,
+      p_message: supportMessage,
+    });
+    setPending(null);
+    if (error) {
+      setNotice({ tone: 'error', text: errorText(error.message) });
+      return;
+    }
+    setSupportSubject('');
+    setSupportMessage('');
+    setNotice({ tone: 'success', text: 'Deine Creator-Anfrage ist beim Team angekommen.' });
+    await load();
+  }
+
   if (loading) return <main className="grid min-h-screen place-items-center bg-[#09070d] text-zinc-400">Creator Hub wird geladen …</main>;
   if (accessDenied) return <main className="grid min-h-screen place-items-center bg-[#09070d] px-5 text-center text-zinc-300"><div className="max-w-md"><Radio className="mx-auto h-10 w-10 text-fuchsia-300" /><h1 className="mt-5 text-3xl font-black text-white">Creator Hub</h1><p className="mt-3 leading-6 text-zinc-400">Diese Seite steht bestätigten RankedDarts-Streamern zur Verfügung.</p><Link href="/streamers" className="mt-6 inline-flex items-center gap-2 border border-fuchsia-300/30 bg-fuchsia-300/10 px-4 py-3 text-sm font-bold text-fuchsia-100"><ArrowLeft size={15} /> Zur Streamer-Übersicht</Link></div></main>;
 
@@ -244,7 +300,38 @@ export default function CreatorHubPage() {
 
         <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#110d14]"><header className="flex items-center justify-between border-b border-white/10 px-6 py-5"><div><p className="text-[10px] font-black tracking-[.2em] text-teal-200">MEINE TURNIERE</p><h2 className="mt-1 text-2xl font-black tracking-[-.04em]">Deine Events im Blick.</h2></div><span className="text-xs font-bold text-zinc-500">{tournaments.length} gesamt</span></header>{tournaments.length === 0 ? <div className="p-10 text-center"><Trophy className="mx-auto text-zinc-600" /><p className="mt-4 font-bold text-zinc-300">Dein erster Community Cup wartet.</p><p className="mt-2 text-sm text-zinc-500">Erstelle oben ein kostenloses Turnier für deine Community.</p></div> : <div className="divide-y divide-white/10">{tournaments.map((tournament) => <CreatorTournamentRow key={tournament.id} tournament={tournament} pending={pending} onParticipants={() => void openParticipants(tournament.id)} onAnnounce={() => void announce(tournament.id)} onSchedule={() => { setScheduleFor(tournament); setScheduleStart(dateInputValue(new Date(tournament.starts_at))); setScheduleRegistration(dateInputValue(new Date(tournament.registration_closes_at))); }} onCancel={() => { setCancelFor(tournament); setCancelReason(''); }} />)}</div>}</section>
       </div>
-      <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start"><section className="border border-fuchsia-300/25 bg-gradient-to-br from-fuchsia-300/[.1] to-violet-300/[.04] p-5"><Radio className="h-5 w-5 text-fuchsia-200" /><p className="mt-5 text-[10px] font-black tracking-[.17em] text-fuchsia-100">DEINE ROLLE</p><h2 className="mt-2 text-xl font-black">Du bringst die Community zusammen.</h2><p className="mt-3 text-sm leading-6 text-zinc-300/80">Du planst das Event, begleitest es im Stream und behältst Teilnehmer sowie Bracket im Blick.</p></section><PolicyCard icon={<CheckCircle2 />} title="Das kannst du" points={['Kostenlose Cups erstellen', 'Zeitplan anpassen & absagen', 'Teilnehmer und Check-in sehen', 'Discord-Beitrag für dein Event']} /><PolicyCard icon={<ShieldCheck />} title="Das bleibt geschützt" points={['Keine Preisgelder oder Startgebühren', 'Keine Ergebniseingriffe', 'Keine Turniere anderer Creator', 'Keine Admin- oder Moderationsrechte']} /><section className="border border-white/10 bg-black/20 p-5"><p className="text-[10px] font-black tracking-[.17em] text-zinc-500">BEI STREITFÄLLEN</p><p className="mt-3 text-sm leading-6 text-zinc-400">Spieler melden Probleme direkt am Turniermatch. Das RankedDarts-Team entscheidet – du musst keine Ergebnisse selbst verändern.</p></section></aside>
+      <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start">
+        <section className="border border-fuchsia-300/25 bg-gradient-to-br from-fuchsia-300/[.1] to-violet-300/[.04] p-5">
+          <Radio className="h-5 w-5 text-fuchsia-200" />
+          <p className="mt-5 text-[10px] font-black tracking-[.17em] text-fuchsia-100">DEINE ROLLE</p>
+          <h2 className="mt-2 text-xl font-black">Du bringst die Community zusammen.</h2>
+          <p className="mt-3 text-sm leading-6 text-zinc-300/80">Du planst das Event, begleitest es im Stream und behältst Teilnehmer sowie Bracket im Blick.</p>
+        </section>
+
+        <section className="overflow-hidden border border-teal-300/25 bg-gradient-to-br from-teal-300/[.1] to-cyan-300/[.035] p-5">
+          <div className="flex items-start justify-between gap-3"><div><Link2 className="h-5 w-5 text-teal-100" /><p className="mt-4 text-[10px] font-black tracking-[.17em] text-teal-100">DEIN CREATOR-LINK</p></div><span className="border border-teal-300/20 bg-black/20 px-2 py-1 text-[9px] font-black tracking-[.1em] text-teal-100">PERSÖNLICH</span></div>
+          <p className="mt-3 text-sm leading-6 text-zinc-200">Teile ihn im Stream, in deiner Bio oder im Discord. Gezählt werden Anmeldungen und das erste bestätigte Ranked-Match.</p>
+          <div className="mt-4 break-all border border-white/10 bg-black/30 px-3 py-3 font-mono text-[11px] leading-5 text-teal-50">{referralLink || 'Creator-Link wird vorbereitet …'}</div>
+          <button type="button" onClick={() => void copyReferralLink()} disabled={!referralLink} className="mt-3 inline-flex w-full items-center justify-center gap-2 bg-teal-200 px-4 py-3 text-[10px] font-black tracking-[.12em] text-[#06221f] transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"><Copy size={14} />LINK KOPIEREN</button>
+          <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden border border-white/10 bg-white/10"><div className="bg-[#10201f] px-3 py-3"><b className="block text-2xl tracking-[-.05em] text-white">{referral?.registrations ?? 0}</b><span className="mt-1 block text-[9px] font-black tracking-[.1em] text-zinc-400">ANMELDUNGEN</span></div><div className="bg-[#10201f] px-3 py-3"><b className="block text-2xl tracking-[-.05em] text-white">{referral?.first_ranked_matches ?? 0}</b><span className="mt-1 block text-[9px] font-black tracking-[.1em] text-zinc-400">ERSTE MATCHES</span></div></div>
+          <p className="mt-3 text-[11px] leading-5 text-zinc-500">Keine Klick-, IP- oder Browser-Auswertung. Nur erfolgreiche Registrierungen und gespielte Matches.</p>
+        </section>
+
+        <section className="border border-amber-300/25 bg-amber-300/[.055] p-5">
+          <Headphones className="h-5 w-5 text-amber-200" />
+          <p className="mt-4 text-[10px] font-black tracking-[.17em] text-amber-100">CREATOR-SUPPORT</p>
+          <h2 className="mt-2 text-lg font-black text-white">Direkter Draht zum Team.</h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-300/80">Fragen zu deinem Stream, Community-Cup oder einer Zusammenarbeit landen als priorisierte Anfrage beim Team.</p>
+          <label className="mt-4 block"><span className="text-[10px] font-black tracking-[.13em] text-zinc-400">BETREFF</span><input value={supportSubject} onChange={(event) => setSupportSubject(event.target.value)} maxLength={120} placeholder="Worum geht es?" className={`${inputClass} border-amber-300/15 focus:border-amber-200/60`} /></label>
+          <label className="mt-3 block"><span className="text-[10px] font-black tracking-[.13em] text-zinc-400">NACHRICHT</span><textarea value={supportMessage} onChange={(event) => setSupportMessage(event.target.value)} maxLength={4000} placeholder="Beschreibe kurz, wobei wir helfen können." className={`${inputClass} min-h-28 resize-y border-amber-300/15 focus:border-amber-200/60`} /></label>
+          <button type="button" onClick={() => void createCreatorSupportTicket()} disabled={pending === 'creator-support' || supportSubject.trim().length < 3 || supportMessage.trim().length < 10} className="mt-3 inline-flex w-full items-center justify-center gap-2 border border-amber-200/30 bg-amber-200/10 px-4 py-3 text-[10px] font-black tracking-[.12em] text-amber-50 transition hover:bg-amber-200/20 disabled:cursor-not-allowed disabled:opacity-50"><Headphones size={14} />{pending === 'creator-support' ? 'WIRD GESENDET …' : 'ANFRAGE SENDEN'}</button>
+          {creatorTickets.length > 0 && <div className="mt-4 border-t border-amber-300/15 pt-4"><div className="flex items-center justify-between gap-3"><span className="text-[10px] font-black tracking-[.13em] text-amber-100">LETZTE ANFRAGE</span><Link href="/support" className="text-[10px] font-black tracking-[.1em] text-amber-100 hover:text-white">ALLE ÖFFNEN</Link></div><p className="mt-2 truncate text-sm font-bold text-zinc-100">{creatorTickets[0].subject}</p><p className="mt-1 text-xs text-zinc-500">{creatorTickets[0].status === 'open' ? 'Offen beim Team' : creatorTickets[0].status} · {formatDate(creatorTickets[0].updated_at)}</p></div>}
+        </section>
+
+        <PolicyCard icon={<CheckCircle2 />} title="Das kannst du" points={['Kostenlose Cups erstellen', 'Zeitplan anpassen & absagen', 'Teilnehmer und Check-in sehen', 'Discord-Beitrag für dein Event']} />
+        <PolicyCard icon={<ShieldCheck />} title="Das bleibt geschützt" points={['Keine Preisgelder oder Startgebühren', 'Keine Ergebniseingriffe', 'Keine Turniere anderer Creator', 'Keine Admin- oder Moderationsrechte']} />
+        <section className="border border-white/10 bg-black/20 p-5"><p className="text-[10px] font-black tracking-[.17em] text-zinc-500">BEI STREITFÄLLEN</p><p className="mt-3 text-sm leading-6 text-zinc-400">Spieler melden Probleme direkt am Turniermatch. Das RankedDarts-Team entscheidet – du musst keine Ergebnisse selbst verändern.</p></section>
+      </aside>
     </section>
 
     {participantsFor && <Modal title="Teilnehmerliste" onClose={() => setParticipantsFor(null)}><div className="max-h-[65vh] overflow-y-auto"><p className="mb-4 text-sm text-zinc-400">{participants.length} aktive Anmeldung{participants.length === 1 ? '' : 'en'} in diesem Turnier.</p>{participants.length === 0 ? <p className="border border-dashed border-white/15 p-5 text-sm text-zinc-500">Noch keine Teilnehmer angemeldet.</p> : <div className="divide-y divide-white/10 border border-white/10">{participants.map((participant) => <div key={`${participant.username}:${participant.joined_at}`} className="flex items-center justify-between gap-3 px-4 py-3"><div className="min-w-0"><p className="truncate text-sm font-black text-white">{participant.username}</p><p className="mt-1 text-[10px] text-zinc-500">{participant.average_snapshot === null ? 'Kein AVG gespeichert' : `Ø ${Number(participant.average_snapshot).toFixed(1)}`}</p></div><ParticipantStatus participant={participant} /></div>)}</div>}</div></Modal>}

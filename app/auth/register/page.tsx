@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { TurnstileWidget } from '@/components/turnstile-widget';
 import { verifyCaptcha } from '@/lib/captcha-client';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -76,11 +76,16 @@ export default function Register() {
   const [confirmationPending, setConfirmationPending] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
 
   const trimmedEmail = email.trim();
   const trimmedUsername = username.trim();
   const canSubmit = termsAccepted && ageConfirmed;
+  const referralFromUrl = (searchParams.get('ref') || '').trim().toLowerCase();
+  const referralCode = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(referralFromUrl) && referralFromUrl.length <= 64
+    ? referralFromUrl
+    : null;
 
   const createProfileForActiveSession = async (userId: string) => {
     const profilePayload = {
@@ -217,6 +222,7 @@ export default function Register() {
               terms_version: '2026-10-18',
               age_confirmed: true,
               age_confirmed_at: new Date().toISOString(),
+              ...(referralCode ? { creator_referral_code: referralCode } : {}),
             },
         },
       });
@@ -301,6 +307,8 @@ export default function Register() {
               <h2 className="mt-5 text-4xl font-black tracking-[-0.07em] text-white">Dein neues<br />Spielerprofil.</h2>
               <p className="mt-3 text-sm leading-6 text-zinc-400">Wähle deinen Namen und bestätige danach deine E-Mail-Adresse.</p>
             </div>
+
+            {referralCode && <div className="mb-5 border border-fuchsia-300/25 bg-fuchsia-300/[0.08] px-4 py-3 text-sm leading-6 text-fuchsia-50">Du kommst über einen Creator-Link zu RankedDarts. Schön, dass du da bist.</div>}
 
             {formMessage && (
               <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm font-semibold leading-6 ${
