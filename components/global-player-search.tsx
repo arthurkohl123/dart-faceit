@@ -111,7 +111,7 @@ export function GlobalPlayerSearch() {
       <button
         type="button"
         onClick={openSearch}
-        className="fixed right-4 top-[5.25rem] z-[80] inline-flex h-10 items-center gap-2 border border-white/15 bg-[#0b0f0d]/95 px-3 text-xs font-black uppercase tracking-[0.13em] text-zinc-100 shadow-xl shadow-black/30 backdrop-blur-xl transition hover:border-emerald-300/45 hover:bg-emerald-300/[0.09] hover:text-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 lg:right-72 lg:top-3 lg:h-12 lg:px-4"
+        className="fixed right-4 top-[5.25rem] z-[80] inline-flex h-10 items-center gap-2 border border-white/15 bg-[#0b0f0d]/95 px-3 text-xs font-black uppercase tracking-[0.13em] text-zinc-100 shadow-xl shadow-black/30 backdrop-blur-xl transition hover:border-emerald-300/45 hover:bg-emerald-300/[0.09] hover:text-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 lg:right-8 lg:h-11 lg:px-4"
         aria-label="Spieler suchen"
       >
         <Search className="h-4 w-4 text-emerald-200" />
