@@ -7,12 +7,13 @@ export const dynamic = 'force-dynamic';
 const REFERRAL_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ code: string }> },
 ) {
   const { code: rawCode } = await params;
   const code = rawCode.trim().toLowerCase();
-  const destination = new URL('/auth/register', request.url);
+  const publicAppUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rankeddarts.de';
+  const destination = new URL('/auth/register', publicAppUrl);
 
   if (!REFERRAL_CODE_PATTERN.test(code) || code.length > 64) {
     return NextResponse.redirect(destination);
