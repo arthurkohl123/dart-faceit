@@ -9,7 +9,7 @@ type Attention = { kind: string; rank: number; title: string; detail: string; en
 type TournamentPulse = { id: string; title: string; status: string; starts_at: string; participants: number; open_matches: number; platform: string };
 type StaffMember = { profile_id: string; username: string; role: string; is_admin: boolean; is_moderator: boolean };
 type WorkspaceData = {
-  metrics: { players_total: number; new_players_7d: number; matches_24h: number; platform_matches_24h: { scolia: number; dartcounter: number; autodarts: number }; matches_7d: number; premium_active: number; completion_rate_7d: number; avg_completion_minutes_7d: number };
+  metrics: { players_total: number; new_players_7d: number; matches_24h: number; platform_matches_24h: { scolia: number; dartcounter: number; autodarts: number }; matches_7d: number; paid_premium_subscriptions: number; completion_rate_7d: number; avg_completion_minutes_7d: number };
   attention: Attention[];
   tournaments: TournamentPulse[];
   staff: StaffMember[];
@@ -286,7 +286,7 @@ export function AdminOperationsWorkspace({ view, onNavigate, onOpenTournament, o
   const metricCards: { label: string; value: string | number; icon: LucideIcon; tone: string }[] = [
     { label: 'Neue Spieler · 7 Tage', value: metrics?.new_players_7d ?? 0, icon: UsersRound, tone: 'text-cyan-200' },
     { label: 'Matches · 24 Stunden', value: metrics?.matches_24h ?? 0, icon: Radio, tone: 'text-emerald-200' },
-    { label: 'Premium aktiv', value: metrics?.premium_active ?? 0, icon: ShieldCheck, tone: 'text-violet-200' },
+    { label: 'Bezahlte Premium-Abos', value: metrics?.paid_premium_subscriptions ?? 0, icon: ShieldCheck, tone: 'text-violet-200' },
     { label: 'Abschlussrate · 7 Tage', value: `${metrics?.completion_rate_7d ?? 0}%`, icon: CheckCircle2, tone: 'text-emerald-200' },
     { label: 'Ø Abschlusszeit', value: `${metrics?.avg_completion_minutes_7d ?? 0} min`, icon: BarChart3, tone: 'text-amber-200' },
     { label: 'Spieler gesamt', value: metrics?.players_total ?? 0, icon: UsersRound, tone: 'text-zinc-100' },

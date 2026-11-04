@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const migration = readFileSync(new URL('../../supabase/migrations/20260918003000_add_admin_operations_workspace.sql', import.meta.url), 'utf8');
 const platformStatsMigration = readFileSync(new URL('../../supabase/migrations/20261017171538_admin_platform_match_stats.sql', import.meta.url), 'utf8');
+const paidPremiumMetricMigration = readFileSync(new URL('../../supabase/migrations/20261104183826_count_paid_stripe_premium_subscriptions.sql', import.meta.url), 'utf8');
 const tournamentCommandCenterMigration = readFileSync(new URL('../../supabase/migrations/20261026130000_add_tournament_command_center.sql', import.meta.url), 'utf8');
 const hardening = readFileSync(new URL('../../supabase/migrations/20260918003100_harden_operations_list_access.sql', import.meta.url), 'utf8');
 const workspace = readFileSync(new URL('../../components/admin-operations-workspace.tsx', import.meta.url), 'utf8');
@@ -49,6 +50,15 @@ test('operations inbox renders the 24-hour platform breakdown', () => {
   for (const label of ['Scolia', 'DartCounter', 'AutoDarts']) {
     assert.match(workspace, new RegExp(label));
   }
+});
+
+test('operations inbox counts only active paid Stripe subscriptions, not complimentary Premium access', () => {
+  assert.match(paidPremiumMetricMigration, /'paid_premium_subscriptions'/);
+  assert.match(paidPremiumMetricMigration, /stripe_subscription_id is not null/i);
+  assert.match(paidPremiumMetricMigration, /stripe_subscription_status = 'active'/i);
+  assert.doesNotMatch(paidPremiumMetricMigration, /'premium_active'/);
+  assert.match(workspace, /Bezahlte Premium-Abos/);
+  assert.match(workspace, /paid_premium_subscriptions/);
 });
 
 test('tournament command center is admin-only and keeps operational actions routed through existing desks', () => {
