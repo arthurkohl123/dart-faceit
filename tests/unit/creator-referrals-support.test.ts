@@ -37,7 +37,7 @@ test('the public link only forwards a verified active Creator code to registrati
 });
 
 test('registration preserves a valid Creator referral and the Hub offers referral and priority support tools', () => {
-  assert.match(register, /useSearchParams/);
+  assert.match(register, /new URLSearchParams\(window\.location\.search\)/);
   assert.match(register, /creator_referral_code: referralCode/);
   assert.match(creatorHub, /streamer_get_referral_stats/);
   assert.match(creatorHub, /streamer_create_creator_support_ticket/);

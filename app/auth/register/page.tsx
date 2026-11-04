@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { TurnstileWidget } from '@/components/turnstile-widget';
 import { verifyCaptcha } from '@/lib/captcha-client';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -75,17 +75,18 @@ export default function Register() {
   const [resendLoading, setResendLoading] = useState(false);
   const [confirmationPending, setConfirmationPending] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
 
   const trimmedEmail = email.trim();
   const trimmedUsername = username.trim();
   const canSubmit = termsAccepted && ageConfirmed;
-  const referralFromUrl = (searchParams.get('ref') || '').trim().toLowerCase();
-  const referralCode = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(referralFromUrl) && referralFromUrl.length <= 64
-    ? referralFromUrl
-    : null;
+
+  useEffect(() => {
+    const candidate = new URLSearchParams(window.location.search).get('ref')?.trim().toLowerCase() || '';
+    setReferralCode(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(candidate) && candidate.length <= 64 ? candidate : null);
+  }, []);
 
   const createProfileForActiveSession = async (userId: string) => {
     const profilePayload = {
