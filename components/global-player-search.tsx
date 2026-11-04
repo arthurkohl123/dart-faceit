@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ArrowUpRight, LoaderCircle, Search, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { RankBadge } from '@/components/RankBadge';
@@ -36,6 +37,7 @@ function sortPlayersForQuery(players: SearchPlayer[], query: string) {
 export function GlobalPlayerSearch() {
   const supabase = useMemo(() => createClient(), []);
   const { user, loading: authLoading } = useAuth();
+  const pathname = usePathname();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -116,7 +118,7 @@ export function GlobalPlayerSearch() {
 
   return (
     <>
-      {!authLoading && !user ? <button
+      {!authLoading && !user && pathname !== '/' ? <button
         type="button"
         onClick={openSearch}
         className="fixed right-4 top-[5.25rem] z-[80] inline-flex h-10 items-center gap-2 border border-white/15 bg-[#0b0f0d]/95 px-3 text-xs font-black uppercase tracking-[0.13em] text-zinc-100 shadow-xl shadow-black/30 backdrop-blur-xl transition hover:border-emerald-300/45 hover:bg-emerald-300/[0.09] hover:text-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 lg:right-8 lg:h-11 lg:px-4"
