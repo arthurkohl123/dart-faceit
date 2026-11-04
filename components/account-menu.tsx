@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, CircleHelp, Code2, LogOut, Settings2, UserRound } from 'lucide-react';
+import { ChevronDown, CircleHelp, Code2, LogOut, Search, Settings2, UserRound } from 'lucide-react';
+import { OPEN_PLAYER_SEARCH_EVENT } from '@/lib/player-search';
 
 type AccountMenuProps = {
   username: string;
@@ -40,6 +41,15 @@ export function AccountMenu({ username, email, isDeveloper, isNewPlayer, onLogou
 
   return (
     <div ref={menuRef} className="fixed right-16 top-0 z-[90] flex h-[72px] items-center text-white sm:right-6">
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event(OPEN_PLAYER_SEARCH_EVENT))}
+        className="group flex h-full items-center gap-2 border-l border-white/10 px-3 text-xs font-black uppercase tracking-[0.12em] text-zinc-200 transition hover:bg-white/[0.035] hover:text-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-300/70 sm:px-4"
+        aria-label="Spieler suchen"
+      >
+        <Search className="h-4 w-4 text-emerald-200 transition group-hover:scale-110" />
+        <span className="hidden sm:inline">Suche</span>
+      </button>
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}

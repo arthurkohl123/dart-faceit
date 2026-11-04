@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const component = readFileSync(new URL('../../components/global-player-search.tsx', import.meta.url), 'utf8');
 const layout = readFileSync(new URL('../../app/layout.tsx', import.meta.url), 'utf8');
+const accountMenu = readFileSync(new URL('../../components/account-menu.tsx', import.meta.url), 'utf8');
 
 test('the global player search is available from the shared application layout', () => {
   assert.match(layout, /GlobalPlayerSearch/);
@@ -17,4 +18,11 @@ test('the global player search preserves public-profile privacy and protects que
   assert.match(component, /Es werden nur öffentliche Spielerprofile angezeigt/);
   assert.match(component, /replace\(\/\[\\\\%_\]\/g/);
   assert.match(component, /escapeIlikePattern/);
+});
+
+test('signed-in players open the global search from the account area without covering navigation', () => {
+  assert.match(component, /OPEN_PLAYER_SEARCH_EVENT/);
+  assert.match(component, /!authLoading && !user/);
+  assert.match(accountMenu, /OPEN_PLAYER_SEARCH_EVENT/);
+  assert.match(accountMenu, /Spieler suchen/);
 });

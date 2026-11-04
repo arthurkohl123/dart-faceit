@@ -6,6 +6,8 @@ import { ArrowUpRight, LoaderCircle, Search, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { RankBadge } from '@/components/RankBadge';
 import { getRankForElo } from '@/lib/ranks';
+import { useAuth } from '@/app/providers';
+import { OPEN_PLAYER_SEARCH_EVENT } from '@/lib/player-search';
 
 type SearchPlayer = {
   username: string;
@@ -33,6 +35,7 @@ function sortPlayersForQuery(players: SearchPlayer[], query: string) {
 
 export function GlobalPlayerSearch() {
   const supabase = useMemo(() => createClient(), []);
+  const { user, loading: authLoading } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -72,6 +75,11 @@ export function GlobalPlayerSearch() {
   }, [closeSearch, open, openSearch]);
 
   useEffect(() => {
+    window.addEventListener(OPEN_PLAYER_SEARCH_EVENT, openSearch);
+    return () => window.removeEventListener(OPEN_PLAYER_SEARCH_EVENT, openSearch);
+  }, [openSearch]);
+
+  useEffect(() => {
     if (!open || !canSearch) return;
 
     let active = true;
@@ -108,7 +116,7 @@ export function GlobalPlayerSearch() {
 
   return (
     <>
-      <button
+      {!authLoading && !user ? <button
         type="button"
         onClick={openSearch}
         className="fixed right-4 top-[5.25rem] z-[80] inline-flex h-10 items-center gap-2 border border-white/15 bg-[#0b0f0d]/95 px-3 text-xs font-black uppercase tracking-[0.13em] text-zinc-100 shadow-xl shadow-black/30 backdrop-blur-xl transition hover:border-emerald-300/45 hover:bg-emerald-300/[0.09] hover:text-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 lg:right-8 lg:h-11 lg:px-4"
@@ -116,7 +124,7 @@ export function GlobalPlayerSearch() {
       >
         <Search className="h-4 w-4 text-emerald-200" />
         <span className="hidden sm:inline">Suche</span>
-      </button>
+      </button> : null}
 
       {open ? (
         <div className="fixed inset-0 z-[130] overflow-y-auto bg-[#050807]/[0.97] px-4 py-5 backdrop-blur-xl sm:px-6 sm:py-8" role="dialog" aria-modal="true" aria-labelledby="player-search-title">
