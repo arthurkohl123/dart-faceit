@@ -116,7 +116,6 @@ export function GlobalPlayerSearch() {
       >
         <Search className="h-4 w-4 text-emerald-200" />
         <span className="hidden sm:inline">Suche</span>
-        <span className="hidden border-l border-white/10 pl-2 text-[9px] tracking-[0.08em] text-zinc-500 lg:inline">Strg + K</span>
       </button>
 
       {open ? (
@@ -180,7 +179,7 @@ export function GlobalPlayerSearch() {
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-between px-1 text-[10px] font-bold uppercase tracking-[0.13em] text-zinc-600"><span>Direkt zum öffentlichen Spielerprofil</span><span>Strg + K zum Öffnen</span></div>
+            <div className="mt-4 px-1 text-[10px] font-bold uppercase tracking-[0.13em] text-zinc-600">Direkt zum öffentlichen Spielerprofil</div>
           </div>
         </div>
       ) : null}
