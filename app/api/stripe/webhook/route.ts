@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { verifyStripeSignature } from '@/lib/stripe-webhook';
+import { getStripeSubscriptionEventIgnoreReason, getStripeSubscriptionPeriodEnd } from '@/lib/stripe-subscription-sync';
 import { monitoringErrorMessage, recordMonitoringEvent } from '@/lib/monitoring';
 import { syncDiscordPremiumRole } from '@/lib/discord';
 import {
@@ -28,6 +29,9 @@ type StripeEvent = {
       subscription?: string | null;
       payment_status?: string | null;
       current_period_end?: number | null;
+      items?: {
+        data?: Array<{ current_period_end?: number | null }> | null;
+      } | null;
       cancel_at_period_end?: boolean;
       canceled_at?: number | null;
     };
@@ -156,18 +160,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const { data: profile, error: profileError } = await admin
-      .from('profiles')
-      .select('stripe_last_event_at, premium_manual_granted_at, premium_manual_until, premium_first_activated_at, discord_user_id')
-      .eq('supabaseId', supabaseUserId)
-      .maybeSingle();
-    if (profileError) throw profileError;
-
-    if (profile?.stripe_last_event_at && new Date(profile.stripe_last_event_at).getTime() > new Date(eventAt).getTime()) {
-      await admin.rpc('finish_stripe_webhook_event', { p_event_id: event.id, p_success: true });
-      return NextResponse.json({ received: true, ignored: 'stale_event' });
-    }
-
     const isSubscriptionCheckout = isCheckout && (purchaseType === 'subscription' || Boolean(object.subscription));
     if (isCheckout && !isSubscriptionCheckout) {
       await admin.rpc('finish_stripe_webhook_event', { p_event_id: event.id, p_success: true });
@@ -176,6 +168,27 @@ export async function POST(request: Request) {
 
     const subscriptionId = isSubscriptionCheckout ? object.subscription : object.id;
     const stripeStatus = isCheckout ? 'active' : (object.status || (event.type === 'customer.subscription.deleted' ? 'canceled' : 'unknown'));
+
+    const { data: profile, error: profileError } = await admin
+      .from('profiles')
+      .select('stripe_subscription_id, stripe_subscription_status, stripe_last_event_at, premium_manual_granted_at, premium_manual_until, premium_first_activated_at, discord_user_id')
+      .eq('supabaseId', supabaseUserId)
+      .maybeSingle();
+    if (profileError) throw profileError;
+
+    const ignoredSubscriptionEvent = getStripeSubscriptionEventIgnoreReason({
+      storedSubscriptionId: profile?.stripe_subscription_id,
+      storedSubscriptionStatus: profile?.stripe_subscription_status,
+      storedLastEventAt: profile?.stripe_last_event_at,
+      incomingSubscriptionId: subscriptionId,
+      incomingSubscriptionStatus: stripeStatus,
+      incomingEventAt: eventAt,
+    });
+    if (ignoredSubscriptionEvent) {
+      await admin.rpc('finish_stripe_webhook_event', { p_event_id: event.id, p_success: true });
+      return NextResponse.json({ received: true, ignored: ignoredSubscriptionEvent });
+    }
+
     const manualPremiumActive = Boolean(
       profile?.premium_manual_granted_at
       && (!profile.premium_manual_until || new Date(profile.premium_manual_until).getTime() > Date.now()),
@@ -190,7 +203,7 @@ export async function POST(request: Request) {
         stripe_customer_id: object.customer ?? undefined,
         stripe_subscription_id: subscriptionId ?? undefined,
         stripe_subscription_status: stripeStatus,
-        stripe_current_period_end: timestamp(object.current_period_end) ?? undefined,
+        stripe_current_period_end: timestamp(getStripeSubscriptionPeriodEnd(object)) ?? undefined,
         stripe_cancel_at_period_end: Boolean(object.cancel_at_period_end),
         stripe_cancelled_at: timestamp(object.canceled_at) ?? (event.type === 'customer.subscription.deleted' ? eventAt : undefined),
         stripe_last_event_at: eventAt,
