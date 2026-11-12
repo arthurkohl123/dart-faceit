@@ -585,6 +585,7 @@ export default function AdminPanel() {
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'action' | 'watch'>('all');
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
@@ -1769,6 +1770,9 @@ export default function AdminPanel() {
   if (commandTasks.length === 0) {
     commandTasks.push({ id: 'clear', title: 'Keine Eskalation offen', detail: 'Arbeitskorb, Support und Turnierlage sind aktuell sauber.', target: 'operations', icon: CheckCircle2, tone: 'calm' });
   }
+  const actionTaskCount = commandTasks.filter((task) => task.tone === 'alert').length;
+  const watchTaskCount = commandTasks.filter((task) => task.tone === 'watch').length;
+  const visibleCommandTasks = commandTasks.filter((task) => priorityFilter === 'all' || (priorityFilter === 'action' ? task.tone === 'alert' : task.tone === 'watch'));
   const primaryAttentionSection: AdminTab = disputedMatches.length > 0
     ? 'disputes'
     : flaggedPlayers.length > 0
@@ -1965,9 +1969,10 @@ export default function AdminPanel() {
             <span><strong>RANKEDDARTS</strong><small>ADMIN CONSOLE</small></span>
           </button>
           <div className="faceit-admin-topbar-status">
-            <span className="faceit-admin-presence"><i className={systemHealth?.status === 'down' ? 'is-down' : systemHealth?.status === 'degraded' ? 'is-watch' : ''} /> {systemStatusText} · Sync {autoRefresh ? 'an' : 'aus'}</span>
-            <button onClick={() => setAutoRefresh((enabled) => !enabled)} className="faceit-admin-quiet-button">{autoRefresh ? 'Pausieren' : 'Aktivieren'}</button>
-            <button onClick={() => setCommandCenterOpen(true)} className="faceit-admin-command-button"><Command className="h-3.5 w-3.5" /> Aktionen <kbd>⌘K</kbd></button>
+            <span className="faceit-admin-presence"><i className={systemHealth?.status === 'down' ? 'is-down' : systemHealth?.status === 'degraded' ? 'is-watch' : ''} /> {systemStatusText}</span>
+            <button onClick={() => setAutoRefresh((enabled) => !enabled)} className={`admin-vault-autosync ${autoRefresh ? 'is-active' : ''}`} title={autoRefresh ? 'Automatische Aktualisierung alle 30 Sekunden pausieren' : 'Automatische Aktualisierung alle 30 Sekunden aktivieren'}><i />Live Sync {autoRefresh ? 'an' : 'aus'}</button>
+            <button onClick={() => void refreshAdminData()} className="admin-vault-refresh" title="Alle Admin-Daten jetzt aktualisieren"><RefreshCw className="h-3.5 w-3.5" /><span>Synchronisieren</span></button>
+            <button onClick={() => { setCommandQuery(''); setCommandCenterOpen(true); }} className="faceit-admin-command-button"><Command className="h-3.5 w-3.5" /> Aktionen <kbd>Ctrl K</kbd></button>
           </div>
         </header>
 
@@ -1991,8 +1996,8 @@ export default function AdminPanel() {
           <aside className="admin-vault-rail lg:sticky lg:top-0">
             <div className="overflow-hidden border border-white/10 bg-[#090d13]/90 shadow-[0_25px_70px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
               <div className="border-b border-white/10 bg-gradient-to-br from-cyan-400/[0.12] via-[#0b1017] to-transparent px-5 py-5">
-                <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-400/10 text-cyan-100"><Command className="h-4 w-4" /></div><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200">Admin shift</p><p className="mt-0.5 text-sm font-black text-white">Control surfaces</p></div></div>
-                <p className="mt-4 text-xs leading-5 text-zinc-500">Prioritäten zuerst bearbeiten. Jede Aktion bleibt im Audit Trail nachvollziehbar.</p>
+                <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-300/25 bg-cyan-400/10 text-cyan-100"><Command className="h-4 w-4" /></div><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200">Admin-Bereich</p><p className="mt-0.5 text-sm font-black text-white">Betriebszentrale</p></div></div>
+                <p className="mt-4 text-xs leading-5 text-zinc-500">Offene Vorgänge zuerst klären. Alle Admin-Aktionen bleiben im Audit Trail dokumentiert.</p>
               </div>
 
               <nav className="space-y-5 p-3" aria-label="Admin-Bereiche">
@@ -2018,15 +2023,13 @@ export default function AdminPanel() {
 
               <div className="border-t border-white/10 bg-black/20 p-3">
                 <button onClick={() => router.push('/admin/support')} className="mb-2 flex w-full items-center justify-between rounded-xl border border-violet-300/20 bg-violet-400/[0.08] px-3 py-3 text-left text-xs font-black text-violet-100 transition hover:border-violet-300/40 hover:bg-violet-400/[0.14]"><span className="inline-flex items-center gap-2"><Headphones className="h-3.5 w-3.5" /> Live Support Desk</span><ExternalLink className="h-3.5 w-3.5" /></button>
-                <button onClick={() => setCommandCenterOpen(true)} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] px-3 py-3 text-left text-xs font-black text-zinc-200 transition hover:border-cyan-300/25 hover:bg-cyan-400/[0.08]"><span className="inline-flex items-center gap-2"><Command className="h-3.5 w-3.5 text-cyan-200" /> Command Center</span><span className="text-[10px] text-zinc-500">⌘K</span></button>
               </div>
             </div>
           </aside>
 
           <section className="admin-vault-workspace min-w-0">
-            <header className="admin-vault-pagehead mb-7 flex flex-wrap items-end justify-between gap-5">
-              <div className="admin-vault-heading"><p className="admin-vault-overline"><span /> Node 01 · Private operator channel</p><h2>{activeWorkspace?.label ?? 'Operations Deck'}</h2><p>{activeWorkspace?.detail ?? 'Systemlage und tägliche Prioritäten.'}</p></div>
-              <div className="admin-vault-page-actions"><span className={`admin-vault-system-pill is-${systemHealth?.status || 'loading'}`}><i />{systemStatusText}</span><button onClick={() => setAutoRefresh((enabled) => !enabled)} className={`admin-vault-autosync ${autoRefresh ? 'is-active' : ''}`} title={autoRefresh ? 'Automatische Aktualisierung alle 30 Sekunden pausieren' : 'Automatische Aktualisierung alle 30 Sekunden aktivieren'}><i />Live Sync {autoRefresh ? 'an' : 'aus'}</button><button onClick={() => { setCommandQuery(''); setCommandCenterOpen(true); }} className="admin-vault-command-trigger"><Command className="h-3.5 w-3.5" /><span>Aktionen</span><kbd>⌘K</kbd></button><button onClick={() => void refreshAdminData()} className="admin-vault-refresh"><RefreshCw className="h-3.5 w-3.5" /> Synchronisieren</button></div>
+            <header className="admin-vault-pagehead mb-7">
+              <div className="admin-vault-heading"><p className="admin-vault-overline"><span /> ADMIN · BEREICH</p><h2>{activeWorkspace?.label ?? 'Operations Deck'}</h2><p>{activeWorkspace?.detail ?? 'Systemlage und tägliche Prioritäten.'}</p></div>
             </header>
 
             {/* ── Tab-Inhalte ── */}
@@ -2046,7 +2049,6 @@ export default function AdminPanel() {
                     <p>{attentionCount > 0 ? 'Der Arbeitskorb ist nach Dringlichkeit sortiert. Starte mit dem ersten Punkt oder springe direkt in einen Bereich.' : 'Aktuell warten keine Disputes, Fristen oder Systemwarnungen auf eine Entscheidung.'}</p>
                     <div className="admin-hub-briefing-actions">
                       <button type="button" onClick={() => goToSection(primaryAttentionSection)} className="admin-hub-main-action">{attentionCount > 0 ? 'Nächsten Punkt öffnen' : 'Arbeitskorb öffnen'} <span>→</span></button>
-                      <button type="button" onClick={() => setCommandCenterOpen(true)} className="admin-hub-quiet-action"><Command className="h-3.5 w-3.5" /> Schnellzugriff <kbd>⌘K</kbd></button>
                     </div>
                   </div>
                   <div className="admin-hub-health" aria-label="Systemgesundheit">
@@ -2065,11 +2067,17 @@ export default function AdminPanel() {
                 <section className="admin-hub-workbench" aria-label="Prioritäten und Schnellzugriffe">
                   <div className="admin-hub-panel admin-hub-priorities">
                     <header><div><p>Arbeitskorb</p><h4>Als Nächstes</h4></div><span>{String(commandTasks.length).padStart(2, '0')}</span></header>
+                    <div className="admin-hub-filterbar" role="group" aria-label="Arbeitskorb filtern">
+                      <button type="button" onClick={() => setPriorityFilter('all')} aria-pressed={priorityFilter === 'all'} className="admin-hub-filter-button">Alle <span>{commandTasks.length}</span></button>
+                      <button type="button" onClick={() => setPriorityFilter('action')} aria-pressed={priorityFilter === 'action'} className="admin-hub-filter-button">Jetzt handeln <span>{actionTaskCount}</span></button>
+                      <button type="button" onClick={() => setPriorityFilter('watch')} aria-pressed={priorityFilter === 'watch'} className="admin-hub-filter-button">Beobachten <span>{watchTaskCount}</span></button>
+                    </div>
                     <div className="admin-hub-priority-list">
-                      {commandTasks.map((task, index) => {
+                      {visibleCommandTasks.map((task, index) => {
                         const TaskIcon = task.icon;
                         return <button type="button" key={task.id} onClick={() => goToSection(task.target)} className={`admin-hub-priority is-${task.tone}`}><span className="admin-hub-priority-number">{String(index + 1).padStart(2, '0')}</span><span className="admin-hub-priority-icon"><TaskIcon className="h-4 w-4" /></span><span><strong>{task.title}</strong><small>{task.detail}</small></span><span className="admin-hub-priority-arrow">→</span></button>;
                       })}
+                      {visibleCommandTasks.length === 0 && <div className="admin-hub-filter-empty"><span>In diesem Filter ist gerade nichts offen.</span><button type="button" onClick={() => setPriorityFilter('all')}>Alle Vorgänge ansehen</button></div>}
                     </div>
                   </div>
                   <aside className="admin-hub-panel admin-hub-shortcuts">
